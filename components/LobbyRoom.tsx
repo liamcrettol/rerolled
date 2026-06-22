@@ -138,17 +138,39 @@ export default function LobbyRoom({
         body: JSON.stringify({ lobbyId: lobby.id }),
       });
       const data = await res.json();
-      if (data.intersection) {
-        setIntersection(data.intersection);
-        setWeaponDetails(data.weaponDetails ?? {});
-      } else {
+      if (!data.intersection) {
         setIntersectionError(data.error ?? "Unknown error loading shared weapons");
+        setLoadingAction(null);
+        return;
+      }
+
+      setIntersection(data.intersection);
+      setWeaponDetails(data.weaponDetails ?? {});
+
+      // Auto-seed a roll with current equipped weapons if no roll exists yet
+      if (isCaptain && slots.length === 0 && roundId) {
+        const equipped: Record<string, number> = {};
+        const eq = data.equippedHashes as Record<string, number | null>;
+        for (const slot of ["kinetic", "energy", "power"]) {
+          if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
+        }
+        await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lobbyId: lobby.id,
+            roundId,
+            intersection: data.intersection,
+            weaponDetails: data.weaponDetails ?? {},
+            keepSlots: Object.keys(equipped).length > 0 ? equipped : undefined,
+          }),
+        });
       }
     } catch (e) {
       setIntersectionError(e instanceof Error ? e.message : "Network error");
     }
     setLoadingAction(null);
-  }, [lobby.id]);
+  }, [lobby.id, isCaptain, slots.length, roundId]);
 
   const toggleLock = useCallback((slot: WeaponSlot) => {
     setLockedSlots((prev) => {

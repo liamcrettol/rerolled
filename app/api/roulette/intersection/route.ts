@@ -84,11 +84,26 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    void session;
+    // Return the requesting user's currently equipped weapon per slot
+    // so the client can seed the initial roll with their current loadout.
+    const myWeapons = memberWeaponMap.get(session.userId) ?? [];
+    const equippedHashes: Record<WeaponSlot, number | null> = {
+      kinetic: null,
+      energy: null,
+      power: null,
+    };
+    for (const slot of slots) {
+      const equipped = myWeapons.find((w) => w.slot === slot && w.isEquipped);
+      if (equipped && intersection[slot].includes(equipped.itemHash)) {
+        equippedHashes[slot] = equipped.itemHash;
+      }
+    }
+
     return NextResponse.json({
       intersection,
       weaponDetails,
       memberCount: memberWeaponMap.size,
+      equippedHashes,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
