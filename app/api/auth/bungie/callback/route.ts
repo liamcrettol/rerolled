@@ -4,95 +4,118 @@ import { encryptToken } from "@/lib/auth/encrypt";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 
+function errRedirect(step: string, detail?: string) {
+  const msg = detail ? `${step}: ${detail}` : step;
+  console.error("[bungie/callback] failed at:", msg);
+  return NextResponse.redirect(
+    `${BASE_URL}/auth/error?error=${encodeURIComponent(msg)}`
+  );
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
 
-  if (error) {
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=${encodeURIComponent(error)}`);
-  }
+  if (error) return errRedirect("bungie_error", error);
+  if (!state) return errRedirect("no_state");
+  if (!code) return errRedirect("no_code");
 
   // Validate CSRF state against DB
-  if (!state) {
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=state_mismatch`);
-  }
   const { data: storedState } = await adminSupabase
     .from("oauth_states")
     .select("state")
     .eq("state", state)
     .gt("expires_at", new Date().toISOString())
     .single();
-  if (!storedState) {
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=state_mismatch`);
-  }
-  // Delete immediately — one-time use
+
+  if (!storedState) return errRedirect("state_mismatch");
   await adminSupabase.from("oauth_states").delete().eq("state", state);
-  if (!code) {
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=no_code`);
-  }
 
   // Exchange auth code for tokens
-  const tokenRes = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "X-API-Key": process.env.BUNGIE_API_KEY!,
-    },
-    body: new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-      client_id: process.env.BUNGIE_CLIENT_ID!,
-      client_secret: process.env.BUNGIE_CLIENT_SECRET!,
-    }),
-  });
-
-  if (!tokenRes.ok) {
-    const errBody = await tokenRes.text();
-    console.error("Token exchange failed:", errBody);
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=token_exchange_failed`);
+  let tokens: {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    membership_id?: string;
+  };
+  try {
+    const tokenRes = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-API-Key": process.env.BUNGIE_API_KEY!,
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        client_id: process.env.BUNGIE_CLIENT_ID!,
+        client_secret: process.env.BUNGIE_CLIENT_SECRET!,
+      }),
+    });
+    if (!tokenRes.ok) {
+      const body = await tokenRes.text();
+      return errRedirect("token_exchange_failed", body.slice(0, 200));
+    }
+    tokens = await tokenRes.json();
+  } catch (e) {
+    return errRedirect("token_fetch_threw", String(e));
   }
-
-  const tokens = await tokenRes.json();
-  // { access_token, token_type, expires_in, refresh_token, refresh_expires_in, membership_id }
 
   // Fetch Bungie user profile
-  const userRes = await fetch("https://www.bungie.net/Platform/User/GetCurrentBungieNetUser/", {
-    headers: {
-      Authorization: `Bearer ${tokens.access_token}`,
-      "X-API-Key": process.env.BUNGIE_API_KEY!,
-    },
-  });
-
-  if (!userRes.ok) {
-    return NextResponse.redirect(`${BASE_URL}/auth/error?error=user_fetch_failed`);
+  let profile: {
+    membershipId: string;
+    uniqueName?: string;
+    displayName?: string;
+    destinyMemberships?: Array<{ membershipId: string; membershipType: number }>;
+  };
+  try {
+    const userRes = await fetch(
+      "https://www.bungie.net/Platform/User/GetCurrentBungieNetUser/",
+      {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+          "X-API-Key": process.env.BUNGIE_API_KEY!,
+        },
+      }
+    );
+    if (!userRes.ok) return errRedirect("user_fetch_failed", String(userRes.status));
+    const userData = await userRes.json();
+    profile = userData.Response;
+  } catch (e) {
+    return errRedirect("user_fetch_threw", String(e));
   }
 
-  const userData = await userRes.json();
-  const profile = userData.Response;
   const primaryMembership = profile.destinyMemberships?.[0];
-
   const userId: string = profile.membershipId;
   const displayName: string = profile.uniqueName ?? profile.displayName ?? "Guardian";
   const membershipId: string = primaryMembership?.membershipId ?? userId;
   const membershipType: number = primaryMembership?.membershipType ?? 0;
 
-  // Encrypt tokens before storing
-  const encryptedAccess = await encryptToken(tokens.access_token);
-  const encryptedRefresh = tokens.refresh_token
-    ? await encryptToken(tokens.refresh_token)
-    : null;
+  // Encrypt tokens
+  let encryptedAccess: string;
+  let encryptedRefresh: string | null = null;
+  try {
+    encryptedAccess = await encryptToken(tokens.access_token);
+    if (tokens.refresh_token) encryptedRefresh = await encryptToken(tokens.refresh_token);
+  } catch (e) {
+    return errRedirect("encrypt_failed", String(e));
+  }
+
   const expiresAt = tokens.expires_in
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
-  // Persist user + account
-  await adminSupabase
-    .from("users")
-    .upsert({ id: userId, display_name: displayName, updated_at: new Date().toISOString() }, { onConflict: "id" });
+  // Persist user
+  const { error: userErr } = await adminSupabase.from("users").upsert(
+    { id: userId, display_name: displayName, updated_at: new Date().toISOString() },
+    { onConflict: "id" }
+  );
+  if (userErr) return errRedirect("user_upsert_failed", userErr.message);
 
-  await adminSupabase.from("bungie_accounts").upsert(
+  // Persist bungie account
+  const { error: accountErr } = await adminSupabase.from("bungie_accounts").upsert(
     {
       user_id: userId,
       membership_id: membershipId,
@@ -104,14 +127,16 @@ export async function GET(req: NextRequest) {
     },
     { onConflict: "user_id" }
   );
+  if (accountErr) return errRedirect("account_upsert_failed", accountErr.message);
 
-  // Create a one-time auth code so the complete page can sign in via credentials
+  // Create one-time auth code
   const authCode = crypto.randomUUID();
-  await adminSupabase.from("auth_codes").insert({
+  const { error: codeErr } = await adminSupabase.from("auth_codes").insert({
     code: authCode,
     user_id: userId,
-    expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(), // 2 min
+    expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
   });
+  if (codeErr) return errRedirect("auth_code_insert_failed", codeErr.message);
 
   return NextResponse.redirect(`${BASE_URL}/auth/complete?code=${authCode}`);
 }
