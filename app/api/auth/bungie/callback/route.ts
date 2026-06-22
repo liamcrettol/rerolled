@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/auth/encrypt";
+import { encode } from "@auth/core/jwt";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 
@@ -129,14 +130,38 @@ export async function GET(req: NextRequest) {
   );
   if (accountErr) return errRedirect("account_upsert_failed", accountErr.message);
 
-  // Create one-time auth code
-  const authCode = crypto.randomUUID();
-  const { error: codeErr } = await adminSupabase.from("auth_codes").insert({
-    code: authCode,
-    user_id: userId,
-    expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(),
-  });
-  if (codeErr) return errRedirect("auth_code_insert_failed", codeErr.message);
+  const isProd = process.env.NODE_ENV === "production";
+  const cookieName = isProd
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
 
-  return NextResponse.redirect(`${BASE_URL}/auth/complete?code=${authCode}`);
+  // Build NextAuth JWT directly — bypasses credentials flow which has
+  // issues in NextAuth v5 beta when called from server actions.
+  let sessionToken: string;
+  try {
+    sessionToken = await encode({
+      token: {
+        sub: userId,
+        userId,
+        bungieMembershipId: membershipId,
+        bungieMembershipType: membershipType,
+        displayName,
+      },
+      secret: process.env.NEXTAUTH_SECRET!,
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      salt: isProd ? "__Secure-authjs.session-token" : "authjs.session-token",
+    });
+  } catch (e) {
+    return errRedirect("jwt_encode_failed", String(e));
+  }
+
+  const response = NextResponse.redirect(`${BASE_URL}/dashboard`);
+  response.cookies.set(cookieName, sessionToken, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60,
+    path: "/",
+  });
+  return response;
 }
