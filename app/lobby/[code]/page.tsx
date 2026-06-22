@@ -20,7 +20,7 @@ export default async function LobbyPage({
   if (!isMember) redirect("/dashboard");
 
   return (
-    <main className="min-h-screen p-6 max-w-5xl mx-auto">
+    <main className="min-h-screen p-6 w-full">
       <LobbyRoom
         lobby={lobby}
         initialMembers={members}

@@ -8,7 +8,7 @@ export default async function Dashboard() {
   if (!session?.userId) redirect("/");
 
   return (
-    <main className="min-h-screen p-6 max-w-4xl mx-auto">
+    <main className="min-h-screen p-6 w-full">
       <header className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
