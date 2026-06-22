@@ -60,14 +60,25 @@ export default function LobbyRoom({
       .then((d) => { if (d.characters) setCharacters(d.characters); });
   }, []);
 
-  // Auto-load intersection + seed roll for the captain when the lobby first opens
+  // Auto-load on lobby open — always seeds from current equipped, ignoring stale DB rolls
   useEffect(() => {
     if (hasAutoLoaded.current) return;
-    if (!isCaptain || !roundId || slots.length > 0) return;
+    if (!isCaptain || !roundId) return;
     hasAutoLoaded.current = true;
     handleLoadIntersection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCaptain, roundId, slots.length]);
+  }, [isCaptain, roundId]);
+
+  // Re-seed when captain switches characters — show that character's equipped gear
+  const prevCharId = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedCharId || !isCaptain || !roundId) return;
+    if (selectedCharId === prevCharId.current) return;
+    prevCharId.current = selectedCharId;
+    if (!hasAutoLoaded.current) return; // let the mount effect handle first load
+    handleLoadIntersection();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCharId]);
 
   useEffect(() => {
     async function loadCurrentRound() {
@@ -151,7 +162,7 @@ export default function LobbyRoom({
       const res = await fetch("/api/roulette/intersection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId: lobby.id }),
+        body: JSON.stringify({ lobbyId: lobby.id, characterId: selectedCharId ?? undefined }),
       });
       const data = await res.json();
       if (!data.intersection) {
@@ -163,8 +174,8 @@ export default function LobbyRoom({
       setIntersection(data.intersection);
       setWeaponDetails(data.weaponDetails ?? {});
 
-      // Auto-seed a roll with current equipped weapons if no roll exists yet
-      if (isCaptain && slots.length === 0 && roundId) {
+      // Always seed from current equipped weapons (overwrites stale DB rolls)
+      if (isCaptain && roundId) {
         const equipped: Record<string, number> = {};
         const eq = data.equippedHashes as Record<string, number | null>;
         for (const slot of ["kinetic", "energy", "power"]) {

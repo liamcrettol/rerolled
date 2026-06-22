@@ -6,12 +6,15 @@ import { getWeaponDefinitions } from "@/lib/bungie/definitions";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
-const schema = z.object({ lobbyId: z.string().uuid() });
+const schema = z.object({
+  lobbyId: z.string().uuid(),
+  characterId: z.string().optional(), // filter equippedHashes to this character
+});
 
 export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
-    const { lobbyId } = schema.parse(await req.json());
+    const { lobbyId, characterId } = schema.parse(await req.json());
 
     // Get all members
     const { data: members } = await adminSupabase
@@ -93,8 +96,12 @@ export async function POST(req: NextRequest) {
       power: null,
     };
     for (const slot of slots) {
-      const equipped = myWeapons.find((w) => w.slot === slot && w.isEquipped);
-      if (equipped && intersection[slot].includes(equipped.itemHash)) {
+      // Prefer the selected character's equipped weapon; fall back to any equipped
+      const equipped =
+        myWeapons.find((w) => w.slot === slot && w.isEquipped && (!characterId || w.characterId === characterId)) ??
+        myWeapons.find((w) => w.slot === slot && w.isEquipped);
+      if (equipped) {
+        // Include even if not in intersection — will be used as seed; roll filters to pool
         equippedHashes[slot] = equipped.itemHash;
       }
     }
