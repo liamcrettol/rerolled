@@ -6,12 +6,13 @@ import LobbyRoom from "@/components/LobbyRoom";
 export default async function LobbyPage({
   params,
 }: {
-  params: { code: string };
+  params: Promise<{ code: string }>;
 }) {
   const session = await auth();
   if (!session?.userId) redirect("/");
 
-  const lobby = await getLobbyByCode(params.code);
+  const { code } = await params;
+  const lobby = await getLobbyByCode(code);
   if (!lobby) redirect("/dashboard");
 
   const members = await getLobbyMembers(lobby.id);
