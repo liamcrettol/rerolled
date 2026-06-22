@@ -37,7 +37,17 @@ export default function LoadoutQueue({ slots, onApply, onCancelApply, selectedCh
               <span className="text-xs text-gray-400 uppercase tracking-wider">
                 {SLOT_LABELS[slotName]}
               </span>
-              {slot ? (
+              {slot && slot.item_hash === 0 ? (
+                <>
+                  <div className="w-14 h-14 rounded bg-purple-900/40 border border-purple-700/50 flex items-center justify-center text-2xl">
+                    ❓
+                  </div>
+                  <div className="text-center">
+                    <p className="text-purple-300 text-xs font-semibold">Your Choice</p>
+                    <p className="text-gray-500 text-xs">Keep current weapon</p>
+                  </div>
+                </>
+              ) : slot ? (
                 <>
                   <div className="relative w-14 h-14">
                     <Image

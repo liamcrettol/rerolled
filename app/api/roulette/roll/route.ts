@@ -25,6 +25,7 @@ const schema = z.object({
     energy: z.number().optional(),
     power: z.number().optional(),
   }).optional(),
+  wildcardSlots: z.array(z.enum(["kinetic", "energy", "power"])).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -43,17 +44,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only the captain can roll" }, { status: 403 });
     }
 
+    const wildcards = new Set(body.wildcardSlots ?? []);
+
+    // Upsert wildcard slots first (item_hash 0 = "everyone keeps their own")
+    for (const slot of wildcards) {
+      await adminSupabase.from("lobby_loadout_slots").upsert(
+        {
+          round_id: body.roundId,
+          slot,
+          item_hash: 0,
+          weapon_name: "?",
+          weapon_icon: "",
+          weapon_type: "Any",
+          damage_type: "Any",
+          locked_by_user_id: session.userId,
+        },
+        { onConflict: "round_id,slot" }
+      );
+    }
+
+    // Exclude wildcard slots from the random roll entirely
+    const filteredIntersection = {
+      kinetic: wildcards.has("kinetic") ? [] : body.intersection.kinetic,
+      energy: wildcards.has("energy") ? [] : body.intersection.energy,
+      power: wildcards.has("power") ? [] : body.intersection.power,
+    };
+
     const exclude = body.rerollSlot
       ? { [body.rerollSlot]: undefined, ...Object.fromEntries(
           Object.entries(body.keepSlots ?? {}).filter(([, v]) => v !== undefined)
         ) }
       : body.keepSlots;
 
-    const roll = rollLoadout(body.intersection, body.weaponDetails, exclude as Partial<Record<WeaponSlot, number>>);
+    const roll = rollLoadout(filteredIntersection, body.weaponDetails, exclude as Partial<Record<WeaponSlot, number>>);
 
-    // Upsert slots into DB
+    // Upsert rolled slots
     const slots: WeaponSlot[] = ["kinetic", "energy", "power"];
     for (const slot of slots) {
+      if (wildcards.has(slot)) continue; // already written above
       const hash = roll[slot];
       if (!hash) continue;
       const detail = body.weaponDetails[hash.toString()];

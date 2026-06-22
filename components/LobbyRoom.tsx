@@ -45,6 +45,7 @@ export default function LobbyRoom({
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
   // Slots locked to their current rolled weapon — excluded from Roll All
   const [lockedSlots, setLockedSlots] = useState<Set<WeaponSlot>>(new Set());
+  const [wildcardSlots, setWildcardSlots] = useState<Set<WeaponSlot>>(new Set());
   const applyAbortRef = useRef<AbortController | null>(null);
   // Keep a ref to roundId so realtime callbacks always see the current value
   const roundIdRef = useRef<string | null>(null);
@@ -184,6 +185,17 @@ export default function LobbyRoom({
       else next.add(slot);
       return next;
     });
+    setWildcardSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
+  }, []);
+
+  const toggleWildcard = useCallback((slot: WeaponSlot) => {
+    setWildcardSlots((prev) => {
+      const next = new Set(prev);
+      if (next.has(slot)) next.delete(slot);
+      else next.add(slot);
+      return next;
+    });
+    setLockedSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
   }, []);
 
   const handleRoll = useCallback(async (rerollSlot?: WeaponSlot) => {
@@ -192,18 +204,22 @@ export default function LobbyRoom({
 
     let keepSlots: Record<string, number> | undefined;
 
+    // Wildcards for this roll — explicit reroll always removes wildcard from that slot
+    const effectiveWildcards = new Set(wildcardSlots);
+    if (rerollSlot) effectiveWildcards.delete(rerollSlot);
+
     if (rerollSlot) {
-      // Explicit reroll of one slot: keep everything else at current value
+      // Explicit reroll: keep everything else except wildcards (they get re-wildcarded by server)
       keepSlots = Object.fromEntries(
         slots
-          .filter((s) => s.slot !== rerollSlot)
+          .filter((s) => s.slot !== rerollSlot && !effectiveWildcards.has(s.slot as WeaponSlot))
           .map((s) => [s.slot, s.item_hash])
       );
     } else {
-      // Roll All: always keep power (only changes via explicit Reroll Power),
-      // plus any slots the captain has manually locked
+      // Roll All: always keep power + manually locked slots (excluding wildcards)
       const kept = slots.filter((s) => {
-        if (s.slot === "power") return true; // always keep heavy
+        if (effectiveWildcards.has(s.slot as WeaponSlot)) return false;
+        if (s.slot === "power") return true;
         return lockedSlots.has(s.slot as WeaponSlot);
       });
       if (kept.length > 0) {
@@ -214,7 +230,15 @@ export default function LobbyRoom({
     await fetch("/api/roulette/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection, weaponDetails, rerollSlot, keepSlots }),
+      body: JSON.stringify({
+        lobbyId: lobby.id,
+        roundId,
+        intersection,
+        weaponDetails,
+        rerollSlot,
+        keepSlots,
+        wildcardSlots: Array.from(effectiveWildcards),
+      }),
     });
     setLoadingAction(null);
   }, [intersection, roundId, lobby.id, slots, weaponDetails, lockedSlots]);
@@ -362,27 +386,41 @@ export default function LobbyRoom({
             )}
           </div>
 
-          {/* Lock slots — only shown once a roll exists */}
-          {intersection && slots.length > 0 && (
+          {/* Slot modifiers — only shown once a roll exists */}
+          {intersection && (
             <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-gray-500">Lock slot (skip on Roll All):</span>
+              <span className="text-xs text-gray-500">Slot options:</span>
               {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => {
                 const locked = lockedSlots.has(slot);
-                const currentSlot = slots.find((s) => s.slot === slot);
+                const wildcard = wildcardSlots.has(slot);
+                const hasRoll = slots.some((s) => s.slot === slot);
                 return (
-                  <button
-                    key={slot}
-                    onClick={() => toggleLock(slot)}
-                    disabled={!currentSlot}
-                    title={currentSlot ? `Lock ${SLOT_LABELS[slot]} to current weapon` : "Roll first"}
-                    className={`px-2.5 py-1 rounded text-xs border transition ${
-                      locked
-                        ? "border-yellow-500 bg-yellow-500/20 text-yellow-300"
-                        : "border-bungie-border text-gray-400 hover:border-gray-400"
-                    } disabled:opacity-30`}
-                  >
-                    {locked ? "🔒" : "🔓"} {SLOT_LABELS[slot]}
-                  </button>
+                  <span key={slot} className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleLock(slot)}
+                      disabled={!hasRoll}
+                      title={`Lock ${SLOT_LABELS[slot]} to current rolled weapon`}
+                      className={`px-2 py-1 rounded text-xs border transition ${
+                        locked
+                          ? "border-yellow-500 bg-yellow-500/20 text-yellow-300"
+                          : "border-bungie-border text-gray-400 hover:border-gray-400"
+                      } disabled:opacity-30`}
+                    >
+                      {locked ? "🔒" : "🔓"}
+                    </button>
+                    <button
+                      onClick={() => toggleWildcard(slot)}
+                      title={`? — everyone keeps their own ${SLOT_LABELS[slot].toLowerCase()} weapon`}
+                      className={`px-2 py-1 rounded text-xs border transition ${
+                        wildcard
+                          ? "border-purple-500 bg-purple-500/20 text-purple-300"
+                          : "border-bungie-border text-gray-400 hover:border-gray-400"
+                      }`}
+                    >
+                      ❓
+                    </button>
+                    <span className="text-xs text-gray-500">{SLOT_LABELS[slot]}</span>
+                  </span>
                 );
               })}
             </div>

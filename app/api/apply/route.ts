@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     const weaponsToApply: WeaponToApply[] = [];
     for (const slot of slots) {
+      if (slot.item_hash === 0) continue; // wildcard — player keeps their own weapon
       const best = findBestInstance(slot.item_hash, myWeapons, body.characterId);
       if (!best) continue;
       weaponsToApply.push({
