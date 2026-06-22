@@ -46,36 +46,57 @@ export async function applyWeapons(
 ): Promise<ApplyResult[]> {
   const results: ApplyResult[] = [];
 
-  // Step 1: transfer anything in vault to character first
+  // Step 1: move weapons to the target character (from vault or another character)
   for (const weapon of weapons) {
-    if (weapon.location === "vault") {
-      try {
+    const needsTransfer =
+      weapon.location === "vault" ||
+      (weapon.location === "character" && weapon.characterId !== targetCharacterId);
+
+    if (!needsTransfer) continue;
+
+    try {
+      // Items on another character must first go to the vault
+      if (weapon.location === "character" && weapon.characterId && weapon.characterId !== targetCharacterId) {
         await bungiePost<unknown>(
           "/Destiny2/Actions/Items/TransferItem/",
           accessToken,
           {
             itemReferenceHash: weapon.itemHash,
             stackSize: 1,
-            transferToVault: false,
+            transferToVault: true,
             itemId: weapon.itemInstanceId,
-            characterId: targetCharacterId,
+            characterId: weapon.characterId,
             membershipType,
           } satisfies TransferItemRequest
         );
-      } catch (err) {
-        const raw = err instanceof Error ? err.message : "Transfer failed";
-        const friendly = raw.includes("1642") || raw.toLowerCase().includes("no room")
-          ? "Inventory full — clear a weapon slot on your character first"
-          : raw;
-        results.push({
-          user_id: userId,
-          display_name: displayName,
-          slot: weapon.slot,
-          item_hash: weapon.itemHash,
-          success: false,
-          error: friendly,
-        });
       }
+
+      // Now move from vault to target character
+      await bungiePost<unknown>(
+        "/Destiny2/Actions/Items/TransferItem/",
+        accessToken,
+        {
+          itemReferenceHash: weapon.itemHash,
+          stackSize: 1,
+          transferToVault: false,
+          itemId: weapon.itemInstanceId,
+          characterId: targetCharacterId,
+          membershipType,
+        } satisfies TransferItemRequest
+      );
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "Transfer failed";
+      const friendly = raw.includes("1642") || raw.toLowerCase().includes("no room")
+        ? "Inventory full — clear a weapon slot on your character first"
+        : raw;
+      results.push({
+        user_id: userId,
+        display_name: displayName,
+        slot: weapon.slot,
+        item_hash: weapon.itemHash,
+        success: false,
+        error: friendly,
+      });
     }
   }
 

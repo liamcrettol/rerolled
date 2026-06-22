@@ -12,16 +12,22 @@ const schema = z.object({
   characterId: z.string(),
 });
 
-function findBestInstance(itemHash: number, weapons: RawWeapon[]): RawWeapon | null {
-  const candidates = weapons
-    .filter((w) => w.itemHash === itemHash)
-    .sort((a, b) => b.lightLevel - a.lightLevel); // highest light level first
+function findBestInstance(itemHash: number, weapons: RawWeapon[], targetCharacterId: string): RawWeapon | null {
+  const candidates = weapons.filter((w) => w.itemHash === itemHash);
   if (candidates.length === 0) return null;
-  return (
-    candidates.find((w) => w.isEquipped) ??
-    candidates.find((w) => w.location === "character") ??
-    candidates[0]
-  );
+
+  // Priority: on target char (0 transfers) > vault (1 transfer) > other char (2 transfers)
+  // Within the same priority tier, prefer highest light level
+  const transferCost = (w: RawWeapon) => {
+    if (w.characterId === targetCharacterId) return 0;
+    if (w.location === "vault") return 1;
+    return 2;
+  };
+
+  return candidates.sort((a, b) => {
+    const costDiff = transferCost(a) - transferCost(b);
+    return costDiff !== 0 ? costDiff : b.lightLevel - a.lightLevel;
+  })[0];
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const weaponsToApply: WeaponToApply[] = [];
     for (const slot of slots) {
-      const best = findBestInstance(slot.item_hash, myWeapons);
+      const best = findBestInstance(slot.item_hash, myWeapons, body.characterId);
       if (!best) continue;
       weaponsToApply.push({
         itemHash: best.itemHash,
