@@ -7,6 +7,7 @@ import type { DestinyCharacter } from "@/types/bungie";
 import type { WeaponSlot } from "@/types/bungie";
 import LoadoutQueue from "./LoadoutQueue";
 import ApplyStatus from "./ApplyStatus";
+import SignOutButton from "./SignOutButton";
 import type { ApplyResult } from "@/types/lobby";
 
 interface Props {
@@ -181,7 +182,10 @@ export default function LobbyRoom({
             — share this with your fireteam
           </p>
         </div>
-        <div className="text-sm text-gray-400">Round {lobby.current_round}</div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">Round {lobby.current_round}</span>
+          <SignOutButton />
+        </div>
       </div>
 
       {/* Members */}
