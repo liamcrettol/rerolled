@@ -14,6 +14,8 @@ export interface WeaponDefinition {
   tierName: string;
   tierType: number;
   flavorText: string;
+  /** inventory.bucketTypeHash — the slot this weapon belongs to (kinetic/energy/power) */
+  defaultBucketHash: number;
 }
 
 const AMMO_TYPE_NAMES: Record<number, string> = { 1: "Primary", 2: "Special", 3: "Heavy" };
@@ -58,6 +60,7 @@ export async function getWeaponDefinition(
       tierName: TIER_NAMES[def.inventory?.tierType ?? 5] ?? "Legendary",
       tierType: def.inventory?.tierType ?? 5,
       flavorText: def.flavorText ?? "",
+      defaultBucketHash: def.inventory?.bucketTypeHash ?? 0,
     };
     defCache.set(itemHash, result);
     return result;

@@ -5,14 +5,8 @@ import { bucketToSlot } from "@/types/bungie";
 import type { WeaponSlot } from "@/types/bungie";
 
 // Items stored in the vault share this single bucket hash instead of their slot bucket.
-// We use the item definition's ammo type to recover the slot.
+// Use inventory.bucketTypeHash from the item definition to recover the correct slot.
 const VAULT_BUCKET = 138197802;
-
-const AMMO_TO_SLOT: Record<string, WeaponSlot> = {
-  Primary: "kinetic",
-  Special: "energy",
-  Heavy: "power",
-};
 
 export interface RawWeapon {
   itemHash: number;
@@ -75,7 +69,8 @@ export async function getRawWeapons(
     for (const item of vaultWeaponItems) {
       const def = defs.get(item.itemHash);
       if (!def) continue; // not a weapon — armor, material, etc.
-      const slot = AMMO_TO_SLOT[def.ammoType];
+      // Use the definition's bucketTypeHash — the canonical slot for this weapon
+      const slot = bucketToSlot(def.defaultBucketHash);
       if (!slot) continue;
       addWeapon(item, slot, "vault");
     }
