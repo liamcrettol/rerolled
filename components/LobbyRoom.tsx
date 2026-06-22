@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
@@ -45,6 +45,7 @@ export default function LobbyRoom({
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
   // Slots locked to their current rolled weapon — excluded from Roll All
   const [lockedSlots, setLockedSlots] = useState<Set<WeaponSlot>>(new Set());
+  const applyAbortRef = useRef<AbortController | null>(null);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
 
@@ -189,16 +190,30 @@ export default function LobbyRoom({
 
   const handleApply = useCallback(async () => {
     if (!selectedCharId || !roundId) return;
+    const controller = new AbortController();
+    applyAbortRef.current = controller;
     setLoadingAction("apply");
-    const res = await fetch("/api/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, roundId, characterId: selectedCharId }),
-    });
-    const data = await res.json();
-    if (data.results) setApplyResults(data.results);
+    try {
+      const res = await fetch("/api/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, characterId: selectedCharId }),
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      if (data.results) setApplyResults(data.results);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") console.error("Apply failed:", e);
+    }
+    applyAbortRef.current = null;
     setLoadingAction(null);
   }, [selectedCharId, roundId, lobby.id]);
+
+  const handleCancelApply = useCallback(() => {
+    applyAbortRef.current?.abort();
+    applyAbortRef.current = null;
+    setLoadingAction(null);
+  }, []);
 
   void bungieMembershipType;
   void bungieMembershipId;
@@ -360,6 +375,7 @@ export default function LobbyRoom({
           slots={slots}
           weaponDetails={weaponDetails}
           onApply={handleApply}
+          onCancelApply={handleCancelApply}
           selectedCharId={selectedCharId}
           loading={loadingAction === "apply"}
         />

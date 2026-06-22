@@ -13,13 +13,14 @@ interface Props {
   slots: LobbyLoadoutSlot[];
   weaponDetails: Record<string, { name: string; icon: string; weaponType: string; damageType: string }>;
   onApply: () => void;
+  onCancelApply: () => void;
   selectedCharId: string | null;
   loading: boolean;
 }
 
 const SLOT_ORDER = ["kinetic", "energy", "power"];
 
-export default function LoadoutQueue({ slots, onApply, selectedCharId, loading }: Props) {
+export default function LoadoutQueue({ slots, onApply, onCancelApply, selectedCharId, loading }: Props) {
   const sorted = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s)).filter(Boolean) as LobbyLoadoutSlot[];
 
   return (
@@ -65,7 +66,7 @@ export default function LoadoutQueue({ slots, onApply, selectedCharId, loading }
         })}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button
           onClick={onApply}
           disabled={!selectedCharId || loading || sorted.length < 3}
@@ -73,10 +74,18 @@ export default function LoadoutQueue({ slots, onApply, selectedCharId, loading }
         >
           {loading ? "Applying…" : "⚡ Apply Loadout"}
         </button>
-        {!selectedCharId && (
+        {loading && (
+          <button
+            onClick={onCancelApply}
+            className="px-3 py-2.5 border border-red-800 text-red-400 hover:text-red-300 hover:border-red-600 rounded-lg text-sm transition"
+          >
+            Cancel
+          </button>
+        )}
+        {!selectedCharId && !loading && (
           <span className="text-xs text-yellow-400">Select a character first</span>
         )}
-        <span className="text-xs text-gray-500">Must be in orbit or social space</span>
+        {!loading && <span className="text-xs text-gray-500">Must be in orbit or social space</span>}
       </div>
     </div>
   );
