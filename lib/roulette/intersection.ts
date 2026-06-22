@@ -23,9 +23,9 @@ export function computeWeaponIntersection(
     // Build a set of hashes each member has for this slot
     const memberHashSets: Set<number>[] = [];
 
-    for (const weapons of memberWeapons.values()) {
-      const hashes = new Set(
-        weapons.filter((w) => w.slot === slot).map((w) => w.itemHash)
+    for (const weapons of Array.from(memberWeapons.values())) {
+      const hashes = new Set<number>(
+        (weapons as ResolvedWeapon[]).filter((w) => w.slot === slot).map((w) => w.itemHash)
       );
       memberHashSets.push(hashes);
     }
@@ -34,7 +34,7 @@ export function computeWeaponIntersection(
 
     // Intersection: only hashes that appear in every member's set
     const [first, ...rest] = memberHashSets;
-    const shared = [...first].filter((hash) =>
+    const shared = Array.from(first).filter((hash) =>
       rest.every((set) => set.has(hash))
     );
 

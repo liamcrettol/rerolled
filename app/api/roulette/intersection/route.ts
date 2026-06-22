@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     // Also return weapon details for display (keyed by hash)
     const weaponDetails: Record<number, { name: string; icon: string; weaponType: string; damageType: string }> = {};
-    for (const weapons of memberWeapons.values()) {
+    for (const weapons of Array.from(memberWeapons.values())) {
       for (const w of weapons) {
         if (!weaponDetails[w.itemHash]) {
           weaponDetails[w.itemHash] = {

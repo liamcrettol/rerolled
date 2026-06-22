@@ -59,7 +59,7 @@ export async function getWeapons(
     equippedSet?: Set<string>
   ) {
     for (const item of items) {
-      if (!ALL_WEAPON_BUCKETS.has(item.bucketHash)) continue;
+      if (!ALL_WEAPON_BUCKETS.has(item.bucketHash as 1498876634 | 2465295065 | 953998645)) continue;
 
       const slot = bucketToSlot(item.bucketHash);
       if (!slot) continue;
