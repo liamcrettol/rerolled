@@ -45,8 +45,6 @@ const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlo
 const CLASS_ORDER = [2, 1, 0];
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 const POLL_INTERVAL_MS = 30_000;
-// How many recent weapons per slot to avoid repeating on a roll.
-const ROLL_HISTORY_SIZE = 4;
 
 const LOBBY_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   waiting: { label: "Waiting", cls: "border-bungie-border text-gray-400" },
@@ -156,8 +154,9 @@ export default function LobbyRoom({
   const [rerollsUsed, setRerollsUsed] = useState(0);
   const [showRollSettings, setShowRollSettings] = useState(false);
 
-  // Recent weapons per slot (most-recent first), so rolls can avoid repeating
-  // any of the last few picks - not just the immediately previous one.
+  // Every weapon rolled per slot this lobby session (most-recent first). Rolls
+  // avoid everything already used in that slot until the shared pool is
+  // exhausted, then start repeating from the least-recently-used.
   const recentRollsRef = useRef<Record<WeaponSlot, number[]>>({ kinetic: [], energy: [], power: [] });
   // Why each slot last changed, so the loadout animates a spin (roll) vs a
   // quick pop (manual browser pick).
@@ -166,7 +165,7 @@ export default function LobbyRoom({
     if (!hash) return;
     const hist = recentRollsRef.current[slot];
     if (hist[0] === hash) return; // unchanged, don't duplicate
-    recentRollsRef.current[slot] = [hash, ...hist.filter((h) => h !== hash)].slice(0, ROLL_HISTORY_SIZE);
+    recentRollsRef.current[slot] = [hash, ...hist.filter((h) => h !== hash)];
   }, []);
 
   // Load saved roll prefs (mode, banned types, reroll limit) once on mount.
