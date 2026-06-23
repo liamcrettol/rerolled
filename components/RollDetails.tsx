@@ -86,7 +86,9 @@ export default function RollDetails({
   const statRows = BAR_STATS.filter((s) => base[s] !== undefined || members.some((m) => shownFor(m)?.stats[s] !== undefined));
   const numRows = NUM_STATS.filter((s) => base[s] !== undefined || (myChosen && myChosen.stats[s] !== undefined));
 
-  const gridCols = { gridTemplateColumns: `5.5rem repeat(${members.length}, minmax(130px, 1fr))` };
+  // Fixed-width member columns (centered) so bars stay a readable size instead
+  // of stretching across the whole panel when only one player is loaded.
+  const gridCols = { gridTemplateColumns: `5.5rem repeat(${members.length}, 15rem)`, width: "max-content", margin: "0 auto" };
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
@@ -114,7 +116,7 @@ export default function RollDetails({
       </div>
 
       <div className="px-3 py-3 overflow-x-auto">
-        <div className="grid gap-x-2 gap-y-1 items-center min-w-max" style={gridCols}>
+        <div className="grid gap-x-3 gap-y-1 items-center" style={gridCols}>
           {/* Header row: member names (+ your swap/favorite) */}
           <div />
           {members.map((m) => {
@@ -199,7 +201,8 @@ export default function RollDetails({
                   return (
                     <div key={`${s}-${m.userId}`} className="flex items-center gap-1.5">
                       <div className="flex-1 h-1.5 bg-gray-700/80 rounded-full overflow-hidden flex">
-                        <div className={`h-full ${theme.fill}`} style={{ width: `${lo}%` }} />
+                        {/* neutral base + bright green/red perk diff for contrast */}
+                        <div className="h-full bg-gray-400" style={{ width: `${lo}%` }} />
                         {hi > lo && (
                           <div className={`h-full ${delta >= 0 ? "bg-green-400" : "bg-red-500/80"}`} style={{ width: `${hi - lo}%` }} />
                         )}
