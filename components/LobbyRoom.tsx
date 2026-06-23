@@ -10,6 +10,7 @@ import LoadoutQueue from "./LoadoutQueue";
 import ApplyStatus from "./ApplyStatus";
 import SignOutButton from "./SignOutButton";
 import WeaponPool from "./WeaponPool";
+import PostMatchSummary from "./PostMatchSummary";
 import type { ApplyResult } from "@/types/lobby";
 
 interface Props {
@@ -33,6 +34,7 @@ export default function LobbyRoom({
 }: Props) {
   const router = useRouter();
   const supabase = createClient();
+  const [lobbyData, setLobbyData] = useState<Lobby>(lobby);
   const [members, setMembers] = useState<LobbyMember[]>(initialMembers);
   const [characters, setCharacters] = useState<DestinyCharacter[]>([]);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -46,18 +48,16 @@ export default function LobbyRoom({
   }>>({});
   const [instancePerks, setInstancePerks] = useState<Record<string, Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>>>({});
   const [collectionHashes, setCollectionHashes] = useState<Set<number>>(new Set());
-  // Captain's preferred instanceId per slot — overrides findBestInstance heuristic on apply
   const [preferredInstances, setPreferredInstances] = useState<Partial<Record<WeaponSlot, string>>>({});
   const [applyResults, setApplyResults] = useState<ApplyResult[]>([]);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
-  // Slots locked to their current rolled weapon — excluded from Roll All
   const [lockedSlots, setLockedSlots] = useState<Set<WeaponSlot>>(new Set());
   const [wildcardSlots, setWildcardSlots] = useState<Set<WeaponSlot>>(new Set());
+  const [showPostMatch, setShowPostMatch] = useState(false);
   const applyAbortRef = useRef<AbortController | null>(null);
   const roundIdRef = useRef<string | null>(null);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
-  // Prevent auto-load from firing more than once per session
   const hasAutoLoaded = useRef(false);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
@@ -68,7 +68,6 @@ export default function LobbyRoom({
       .then((d) => { if (d.characters) setCharacters(d.characters); });
   }, []);
 
-  // Auto-load on lobby open — always seeds from current equipped, ignoring stale DB rolls
   useEffect(() => {
     if (hasAutoLoaded.current) return;
     if (!isCaptain || !roundId) return;
@@ -77,13 +76,12 @@ export default function LobbyRoom({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCaptain, roundId]);
 
-  // Re-seed when captain switches characters — show that character's equipped gear
   const prevCharId = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedCharId || !isCaptain || !roundId) return;
     if (selectedCharId === prevCharId.current) return;
     prevCharId.current = selectedCharId;
-    if (!hasAutoLoaded.current) return; // let the mount effect handle first load
+    if (!hasAutoLoaded.current) return;
     handleLoadIntersection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCharId]);
@@ -94,7 +92,7 @@ export default function LobbyRoom({
         .from("lobby_rounds")
         .select("id")
         .eq("lobby_id", lobby.id)
-        .eq("round_number", lobby.current_round)
+        .eq("round_number", lobbyData.current_round)
         .single();
       if (round) {
         setRoundId(round.id);
@@ -106,11 +104,20 @@ export default function LobbyRoom({
       }
     }
     loadCurrentRound();
-  }, [lobby.id, lobby.current_round, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobby.id, lobbyData.current_round]);
 
   useEffect(() => {
     const channel = supabase
       .channel(`lobby:${lobby.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "lobbies", filter: `id=eq.${lobby.id}` },
+        (payload) => {
+          setLobbyData(payload.new as Lobby);
+          if ((payload.new as Lobby).status === "done") setShowPostMatch(true);
+        }
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobby.id}` },
@@ -130,7 +137,6 @@ export default function LobbyRoom({
         (payload) => {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             const s = payload.new as LobbyLoadoutSlot;
-            // Filter out slot changes from other lobbies' rounds
             if (roundIdRef.current && s.round_id !== roundIdRef.current) return;
             setSlots((prev) => [...prev.filter((x) => x.slot !== s.slot), s]);
           }
@@ -184,7 +190,6 @@ export default function LobbyRoom({
       setInstancePerks(data.instancePerks ?? {});
       setCollectionHashes(new Set<number>(data.collectionHashes ?? []));
 
-      // Always seed from current equipped weapons (overwrites stale DB rolls)
       if (isCaptain && roundId) {
         const equipped: Record<string, number> = {};
         const eq = data.equippedHashes as Record<string, number | null>;
@@ -234,20 +239,16 @@ export default function LobbyRoom({
     setLoadingAction("roll");
 
     let keepSlots: Record<string, number> | undefined;
-
-    // Wildcards for this roll — explicit reroll always removes wildcard from that slot
     const effectiveWildcards = new Set(wildcardSlots);
     if (rerollSlot) effectiveWildcards.delete(rerollSlot);
 
     if (rerollSlot) {
-      // Explicit reroll: keep everything else except wildcards (they get re-wildcarded by server)
       keepSlots = Object.fromEntries(
         slots
           .filter((s) => s.slot !== rerollSlot && !effectiveWildcards.has(s.slot as WeaponSlot))
           .map((s) => [s.slot, s.item_hash])
       );
     } else {
-      // Roll All: always keep power + manually locked slots (excluding wildcards)
       const kept = slots.filter((s) => {
         if (effectiveWildcards.has(s.slot as WeaponSlot)) return false;
         if (s.slot === "power") return true;
@@ -301,12 +302,10 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, []);
 
-  // Pin a specific weapon hash (and optionally a specific instance/roll) to a slot
   const handleSelectWeapon = useCallback(async (slot: WeaponSlot, hash: number, instanceId?: string) => {
     if (!intersection || !roundId) return;
     setLoadingAction("roll");
 
-    // Store the preferred instance if captain picked a specific roll
     if (instanceId) {
       setPreferredInstances((prev) => ({ ...prev, [slot]: instanceId }));
     } else {
@@ -327,6 +326,35 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, [intersection, roundId, lobby.id, slots, weaponDetails]);
 
+  const handleNextRound = useCallback(async () => {
+    setLoadingAction("next-round");
+    const res = await fetch("/api/lobby/next-round", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lobbyId: lobby.id }),
+    });
+    if (res.ok) {
+      setSlots([]);
+      setApplyResults([]);
+      setLockedSlots(new Set());
+      setWildcardSlots(new Set());
+      setPreferredInstances({});
+      hasAutoLoaded.current = false;
+    }
+    setLoadingAction(null);
+  }, [lobby.id]);
+
+  const handleEndGame = useCallback(async () => {
+    setLoadingAction("end-game");
+    await fetch("/api/lobby/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lobbyId: lobby.id }),
+    });
+    setShowPostMatch(true);
+    setLoadingAction(null);
+  }, [lobby.id]);
+
   void bungieMembershipType;
   void bungieMembershipId;
 
@@ -343,6 +371,24 @@ export default function LobbyRoom({
       disabled={loadingAction !== null}
     />
   ) : null;
+
+  // Game ended — show post-match screen
+  if (showPostMatch || lobbyData.status === "done") {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white">Game Over</h1>
+          <button
+            onClick={() => { router.push("/dashboard"); router.refresh(); }}
+            className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-white hover:border-gray-500 transition"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+        <PostMatchSummary lobbyId={lobby.id} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-6 items-start">
@@ -361,7 +407,7 @@ export default function LobbyRoom({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-400">Round {lobby.current_round}</span>
+            <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
             <button
               onClick={handleLeave}
               className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition"
@@ -501,6 +547,24 @@ export default function LobbyRoom({
                 {intersection.energy.length} · Power: {intersection.power.length}
               </div>
             )}
+
+            {/* Round management */}
+            <div className="mt-4 pt-4 border-t border-yellow-500/20 flex flex-wrap gap-3">
+              <button
+                onClick={handleNextRound}
+                disabled={loadingAction !== null}
+                className="px-4 py-2 bg-bungie-surface border border-bungie-border rounded-lg text-sm text-white hover:border-gray-400 disabled:opacity-50 transition"
+              >
+                {loadingAction === "next-round" ? "Advancing…" : "▶ Next Round"}
+              </button>
+              <button
+                onClick={handleEndGame}
+                disabled={loadingAction !== null}
+                className="px-4 py-2 bg-red-900/40 border border-red-800/60 rounded-lg text-sm text-red-300 hover:bg-red-900/60 disabled:opacity-50 transition"
+              >
+                {loadingAction === "end-game" ? "Ending…" : "⏹ End Game"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -519,7 +583,7 @@ export default function LobbyRoom({
         {/* Apply results */}
         {applyResults.length > 0 && <ApplyStatus results={applyResults} />}
 
-        {/* Weapon browser — mobile fallback (shown inline when no sidebar) */}
+        {/* Weapon browser — mobile fallback */}
         {weaponBrowser && <div className="xl:hidden">{weaponBrowser}</div>}
       </div>
 
