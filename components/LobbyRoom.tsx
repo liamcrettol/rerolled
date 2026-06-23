@@ -94,8 +94,10 @@ export default function LobbyRoom({
   const [lobbyData, setLobbyData] = useState<Lobby>(lobby);
   const [members, setMembers] = useState<LobbyMember[]>(initialMembers);
   const [characters, setCharacters] = useState<DestinyCharacter[]>([]);
-  const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  // Pre-select the guardian this player already chose (persists across rounds/rejoins).
+  const [selectedCharId, setSelectedCharId] = useState<string | null>(
+    initialMembers.find((m) => m.user_id === currentUserId)?.selected_character_id ?? null
+  );
   const [slots, setSlots] = useState<LobbyLoadoutSlot[]>([]);
   const [roundId, setRoundId] = useState<string | null>(null);
   const [intersection, setIntersection] = useState<Record<WeaponSlot, number[]> | null>(null);
@@ -287,17 +289,16 @@ export default function LobbyRoom({
     router.refresh();
   }, [lobby.id, router, stopPolling]);
 
-  const handleReady = useCallback(async () => {
-    if (!selectedCharId) return;
-    setLoadingAction("ready");
+  // Picking a character is all a player needs to do — it persists their
+  // selection so post-match stats can be collected. No separate "ready" step.
+  const handleSelectCharacter = useCallback(async (characterId: string) => {
+    setSelectedCharId(characterId);
     await fetch("/api/lobby/ready", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, characterId: selectedCharId, isReady: !isReady }),
+      body: JSON.stringify({ lobbyId: lobby.id, characterId, isReady: true }),
     });
-    setIsReady(!isReady);
-    setLoadingAction(null);
-  }, [selectedCharId, isReady, lobby.id]);
+  }, [lobby.id]);
 
   const handleLoadIntersection = useCallback(async () => {
     setLoadingAction("intersection");
@@ -491,29 +492,29 @@ export default function LobbyRoom({
             {members.map((m) => (
               <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${m.is_captain ? "border-yellow-500 bg-yellow-500/10" : "border-bungie-border bg-bungie-dark"}`}>
                 {m.is_captain && <span>👑</span>}
-                <span className={m.is_ready ? "text-green-400" : "text-gray-300"}>{m.display_name}</span>
-                {m.is_ready && <span className="text-green-500 text-xs">✓</span>}
+                <span className={m.selected_character_id ? "text-green-400" : "text-gray-300"}>{m.display_name}</span>
+                {m.selected_character_id && <span className="text-green-500 text-xs" title="Guardian selected">✓</span>}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Character picker */}
+        {/* Character picker — selecting your guardian is all a player needs to do */}
         {characters.length > 0 && (
           <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-            <h2 className="text-white font-semibold mb-3">Your Character</h2>
+            <h2 className="text-white font-semibold mb-1">Your Character</h2>
+            <p className="text-xs text-gray-500 mb-3">
+              Pick your guardian — that&apos;s it. Your selection saves automatically so your stats get tracked.
+            </p>
             <div className="flex gap-3 flex-wrap">
               {characters.map((c) => (
-                <button key={c.characterId} onClick={() => setSelectedCharId(c.characterId)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${selectedCharId === c.characterId ? "border-bungie-blue bg-bungie-blue/20 text-white" : "border-bungie-border text-gray-400 hover:border-gray-500"}`}>
+                <button key={c.characterId} onClick={() => handleSelectCharacter(c.characterId)}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition flex items-center gap-2 ${selectedCharId === c.characterId ? "border-bungie-blue bg-bungie-blue/20 text-white" : "border-bungie-border text-gray-400 hover:border-gray-500"}`}>
+                  {selectedCharId === c.characterId && <span className="text-green-400">✓</span>}
                   {CLASS_NAMES[c.classType] ?? "Guardian"} · {c.light}
                 </button>
               ))}
             </div>
-            <button onClick={handleReady} disabled={!selectedCharId || loadingAction === "ready"}
-              className={`mt-3 px-4 py-2 rounded-lg text-sm font-semibold transition ${isReady ? "bg-green-700 text-white" : "bg-bungie-blue text-white hover:opacity-90"} disabled:opacity-50`}>
-              {loadingAction === "ready" ? "..." : isReady ? "✓ Ready" : "Mark Ready"}
-            </button>
           </div>
         )}
 
