@@ -44,7 +44,11 @@ const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlo
 // Display order for the character picker: Warlock, Hunter, Titan (left to right).
 const CLASS_ORDER = [2, 1, 0];
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
-const POLL_INTERVAL_MS = 30_000;
+// How often each client checks Bungie for the finished game. The PGCR takes a
+// couple minutes to appear on Bungie's side; once it does, a tight interval
+// grabs it fast. Every fireteam member that has the page open polls, so the
+// first one to see it records and pushes to everyone via realtime.
+const POLL_INTERVAL_MS = 10_000;
 
 const LOBBY_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   waiting: { label: "Waiting", cls: "border-bungie-border text-gray-400" },
@@ -399,6 +403,13 @@ export default function LobbyRoom({
   }, [detectGameEnd]);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // When a loadout is applied (status flips to in_game, seen via realtime by
+  // every member), everyone starts polling - so whoever's PGCR appears first
+  // records it and pushes to the rest. startPolling is a no-op if already running.
+  useEffect(() => {
+    if (lobbyData.status === "in_game") startPolling();
+  }, [lobbyData.status, startPolling]);
 
   // On mount: check if a game was in progress when everyone left the lobby.
   // If detect says pending=true, start polling so we catch up automatically.
