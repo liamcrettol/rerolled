@@ -34,6 +34,7 @@ const schema = z.object({
     power: z.array(z.number()).optional(),
   }).optional(),
   wildcardSlots: z.array(z.enum(["kinetic", "energy", "power"])).optional(),
+  mode: z.enum(["normal", "chaos", "meta", "element"]).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
       filteredIntersection,
       body.weaponDetails,
       exclude as Partial<Record<WeaponSlot, number>>,
-      body.avoid as Partial<Record<WeaponSlot, number[]>> | undefined
+      body.avoid as Partial<Record<WeaponSlot, number[]>> | undefined,
+      body.mode
     );
 
     // Upsert rolled slots

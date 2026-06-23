@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
@@ -129,6 +129,13 @@ export default function LobbyRoom({
   const prevLastGameStatsRef = useRef<PlayerStat[] | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Roll preferences (persisted in localStorage, captain-controlled)
+  const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta" | "element">("normal");
+  const [bannedTypes, setBannedTypes] = useState<Set<string>>(new Set());
+  const [rerollLimit, setRerollLimit] = useState<number | null>(null); // null = unlimited
+  const [rerollsUsed, setRerollsUsed] = useState(0);
+  const [showRollSettings, setShowRollSettings] = useState(false);
+
   // Recent weapons per slot (most-recent first), so rolls can avoid repeating
   // any of the last few picks — not just the immediately previous one.
   const recentRollsRef = useRef<Record<WeaponSlot, number[]>>({ kinetic: [], energy: [], power: [] });
@@ -138,6 +145,49 @@ export default function LobbyRoom({
     if (hist[0] === hash) return; // unchanged, don't duplicate
     recentRollsRef.current[slot] = [hash, ...hist.filter((h) => h !== hash)].slice(0, ROLL_HISTORY_SIZE);
   }, []);
+
+  // Load saved roll prefs (mode, banned types, reroll limit) once on mount.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("gr_roll_prefs");
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (["normal", "chaos", "meta", "element"].includes(p.mode)) setRollMode(p.mode);
+      if (Array.isArray(p.banned)) setBannedTypes(new Set(p.banned));
+      if (p.rerollLimit === null || typeof p.rerollLimit === "number") setRerollLimit(p.rerollLimit);
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("gr_roll_prefs", JSON.stringify({ mode: rollMode, banned: [...bannedTypes], rerollLimit }));
+    } catch { /* ignore */ }
+  }, [rollMode, bannedTypes, rerollLimit]);
+
+  // Reset the reroll budget at the start of each round.
+  useEffect(() => { setRerollsUsed(0); }, [lobbyData.current_round]);
+
+  const rerollExhausted = rerollLimit !== null && rerollsUsed >= rerollLimit;
+
+  // Pool with banned weapon types removed — drives both the browser and rolls.
+  const effectiveIntersection = useMemo(() => {
+    if (!intersection) return null;
+    if (bannedTypes.size === 0) return intersection;
+    const filt = (arr: number[]) =>
+      arr.filter((h) => !bannedTypes.has(weaponDetails[h.toString()]?.weaponType ?? ""));
+    return { kinetic: filt(intersection.kinetic), energy: filt(intersection.energy), power: filt(intersection.power) };
+  }, [intersection, bannedTypes, weaponDetails]);
+
+  // Distinct weapon types in the current pool (for the ban checkboxes).
+  const poolWeaponTypes = useMemo(() => {
+    if (!intersection) return [] as string[];
+    const s = new Set<string>();
+    for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[])
+      for (const h of intersection[slot]) {
+        const t = weaponDetails[h.toString()]?.weaponType;
+        if (t) s.add(t);
+      }
+    return [...s].sort();
+  }, [intersection, weaponDetails]);
 
   const copyCode = useCallback(async () => {
     try {
@@ -432,14 +482,15 @@ export default function LobbyRoom({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        lobbyId: lobby.id, roundId, intersection, weaponDetails,
+        lobbyId: lobby.id, roundId, intersection: effectiveIntersection ?? intersection, weaponDetails,
         keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
         avoid,
         wildcardSlots: Array.from(nextWildcards),
+        mode: rollMode,
       }),
     });
     setLoadingAction(null);
-  }, [intersection, roundId, lobby.id, slots, weaponDetails]);
+  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, rollMode]);
 
   // Cycle a slot through Random → 🔒 Locked → 👤 Your own → Random.
   // Locked = keep this shared weapon on Roll All. Your own = skip slot on apply
@@ -467,6 +518,7 @@ export default function LobbyRoom({
 
   const handleRoll = useCallback(async (rerollSlot?: WeaponSlot) => {
     if (!intersection || !roundId) return;
+    if (rerollExhausted) return; // reroll budget spent for this round
     setLoadingAction("roll");
     // Dismiss the prominent last-game card when captain rolls for a new round
     setLastGameStats(null);
@@ -480,10 +532,10 @@ export default function LobbyRoom({
           .map((s) => [s.slot, s.item_hash])
       );
     } else {
+      // Roll All re-rolls every non-locked, non-wildcard slot (power included).
       const kept = slots.filter((s) => {
         if (s.item_hash === 0) return false; // never keep the wildcard sentinel
         if (effectiveWildcards.has(s.slot as WeaponSlot)) return false;
-        if (s.slot === "power") return true;
         return lockedSlots.has(s.slot as WeaponSlot);
       });
       if (kept.length > 0) keepSlots = Object.fromEntries(kept.map((s) => [s.slot, s.item_hash]));
@@ -493,10 +545,11 @@ export default function LobbyRoom({
     await fetch("/api/roulette/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection, weaponDetails, rerollSlot, keepSlots, avoid, wildcardSlots: Array.from(effectiveWildcards) }),
+      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection: effectiveIntersection ?? intersection, weaponDetails, rerollSlot, keepSlots, avoid, wildcardSlots: Array.from(effectiveWildcards), mode: rollMode }),
     });
+    setRerollsUsed((n) => n + 1);
     setLoadingAction(null);
-  }, [intersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots]);
+  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, rerollExhausted]);
 
   const handleApply = useCallback(async () => {
     if (!selectedCharId || !roundId) return;
@@ -564,7 +617,7 @@ export default function LobbyRoom({
 
   const weaponBrowser = isCaptain && intersection ? (
     <WeaponPool
-      intersection={intersection}
+      intersection={effectiveIntersection ?? intersection}
       weaponDetails={weaponDetails}
       instancePerks={instancePerks}
       collectionHashes={collectionHashes}
@@ -690,12 +743,12 @@ export default function LobbyRoom({
               </button>
               {intersection && (
                 <>
-                  <button onClick={() => handleRoll()} disabled={loadingAction !== null}
+                  <button onClick={() => handleRoll()} disabled={loadingAction !== null || rerollExhausted}
                     className="px-4 py-2 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition">
                     {loadingAction === "roll" ? "Rolling..." : "🎲 Roll All"}
                   </button>
                   {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => (
-                    <button key={slot} onClick={() => handleRoll(slot)} disabled={loadingAction !== null}
+                    <button key={slot} onClick={() => handleRoll(slot)} disabled={loadingAction !== null || rerollExhausted}
                       className="px-3 py-2 bg-bungie-surface border border-bungie-border rounded-lg text-xs text-gray-300 hover:border-gray-400 disabled:opacity-50 transition capitalize">
                       Reroll {SLOT_LABELS[slot]}
                     </button>
@@ -703,6 +756,89 @@ export default function LobbyRoom({
                 </>
               )}
             </div>
+
+            {/* Roll settings: mode, reroll budget, type bans */}
+            {intersection && (
+              <div className="mt-3 rounded-lg border border-bungie-border bg-bungie-dark/40 p-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-400">
+                    Mode
+                    <select
+                      value={rollMode}
+                      onChange={(e) => setRollMode(e.target.value as typeof rollMode)}
+                      className="bg-bungie-surface border border-bungie-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-bungie-blue"
+                    >
+                      <option value="normal">Normal (paired)</option>
+                      <option value="chaos">Chaos (anything)</option>
+                      <option value="meta">Meta (strong archetypes)</option>
+                      <option value="element">Same Element</option>
+                    </select>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs text-gray-400">
+                    Rerolls / round
+                    <select
+                      value={rerollLimit === null ? "inf" : String(rerollLimit)}
+                      onChange={(e) => setRerollLimit(e.target.value === "inf" ? null : Number(e.target.value))}
+                      className="bg-bungie-surface border border-bungie-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-bungie-blue"
+                    >
+                      <option value="inf">Unlimited</option>
+                      <option value="3">3</option>
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                    </select>
+                    {rerollLimit !== null && (
+                      <span className={rerollExhausted ? "text-red-400" : "text-gray-300"}>
+                        {Math.max(0, rerollLimit - rerollsUsed)} left
+                      </span>
+                    )}
+                  </label>
+
+                  <button
+                    onClick={() => setShowRollSettings((v) => !v)}
+                    className="text-xs text-gray-400 hover:text-white transition"
+                  >
+                    {bannedTypes.size > 0 ? `Banned types (${bannedTypes.size})` : "Ban weapon types"} {showRollSettings ? "▲" : "▼"}
+                  </button>
+                </div>
+
+                {showRollSettings && (
+                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-bungie-border/60">
+                    {poolWeaponTypes.length === 0 && (
+                      <span className="text-xs text-gray-600">No weapons loaded yet.</span>
+                    )}
+                    {poolWeaponTypes.map((t) => {
+                      const banned = bannedTypes.has(t);
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => setBannedTypes((prev) => {
+                            const n = new Set(prev);
+                            if (n.has(t)) n.delete(t); else n.add(t);
+                            return n;
+                          })}
+                          className={`text-xs px-2 py-1 rounded border transition ${
+                            banned
+                              ? "border-red-700 bg-red-900/30 text-red-300 line-through"
+                              : "border-bungie-border text-gray-300 hover:border-gray-400"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                    {bannedTypes.size > 0 && (
+                      <button
+                        onClick={() => setBannedTypes(new Set())}
+                        className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-300"
+                      >
+                        Clear bans
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {intersection && (
               <div className="mt-3">
@@ -736,9 +872,9 @@ export default function LobbyRoom({
             )}
 
             {intersectionError && <div className="mt-2 text-xs text-red-400 break-all">{intersectionError}</div>}
-            {intersection && (
+            {effectiveIntersection && (
               <div className="mt-2 text-xs text-gray-400">
-                Kinetic: {intersection.kinetic.length} · Energy: {intersection.energy.length} · Power: {intersection.power.length}
+                Kinetic: {effectiveIntersection.kinetic.length} · Energy: {effectiveIntersection.energy.length} · Power: {effectiveIntersection.power.length}
               </div>
             )}
           </div>
