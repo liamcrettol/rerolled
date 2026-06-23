@@ -42,7 +42,7 @@ export default function LoadoutQueue({
           return (
             <div
               key={slotName}
-              onMouseMove={hasWeapon ? (e) => onHover(slot!.item_hash, e.clientX, e.clientY) : undefined}
+              onMouseEnter={hasWeapon ? (e) => onHover(slot!.item_hash, e.currentTarget) : undefined}
               onMouseLeave={hasWeapon ? onLeave : undefined}
               className={`flex flex-col items-center gap-2 rounded-lg p-3 border transition ${
                 isWildcard

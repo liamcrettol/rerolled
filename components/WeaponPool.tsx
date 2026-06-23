@@ -27,6 +27,48 @@ interface Props {
 
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 
+// ── A single selectable roll row ──────────────────────────────────────────────
+
+function RollRow({
+  title, location, perks, selected, onClick, disabled,
+}: {
+  title: string; location?: string; perks?: string[];
+  selected: boolean; onClick: () => void; disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative w-full text-left rounded-lg pl-3 pr-2.5 py-2 transition disabled:opacity-40 ${
+        selected ? "bg-bungie-blue/15" : "hover:bg-white/5"
+      }`}
+    >
+      {/* left accent bar */}
+      <span
+        className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full ${
+          selected ? "bg-bungie-blue" : "bg-transparent"
+        }`}
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-xs font-semibold ${selected ? "text-white" : "text-gray-300"}`}>
+          {title}
+          {location && (
+            <span className="ml-1.5 text-[10px] font-normal text-gray-500">
+              {location === "vault" ? "in vault" : "on character"}
+            </span>
+          )}
+        </span>
+        {selected && <span className="text-bungie-blue text-xs shrink-0">✓</span>}
+      </div>
+      {perks && perks.length > 0 && (
+        <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
+          {perks.join("  ·  ")}
+        </p>
+      )}
+    </button>
+  );
+}
+
 // ── Weapon card ─────────────────────────────────────────────────────────────
 
 function WeaponCard({
@@ -36,14 +78,12 @@ function WeaponCard({
   rolls: InstancePerk[]; currentInstance?: string;
   onSelect: (hash: number, instanceId?: string) => void;
   disabled?: boolean;
-  onHover: (hash: number, x: number, y: number) => void; onLeave: () => void;
+  onHover: (hash: number, el: HTMLElement) => void; onLeave: () => void;
 }) {
   const tier = TIER_COLORS[detail.tierType] ?? DEFAULT_TIER;
   const inlineStat = CARD_INLINE_STATS.find((s) => detail.stats[s] !== undefined);
   const hasMultiple = rolls.length > 1;
 
-  // Which roll is being previewed on the card face: the chosen one, else the
-  // best (prefer a roll already on a character over one in the vault).
   const selectedRoll = isActive && currentInstance
     ? rolls.find((r) => r.instanceId === currentInstance)
     : undefined;
@@ -55,13 +95,13 @@ function WeaponCard({
       className={`rounded-lg border overflow-hidden transition ${
         isActive ? "border-bungie-blue ring-1 ring-bungie-blue/40" : tier.border
       }`}
+      onMouseEnter={(e) => onHover(hash, e.currentTarget)}
       onMouseLeave={onLeave}
     >
       {/* Main card row — selects the weapon (clears any specific roll) */}
       <button
         onClick={() => onSelect(hash)}
         disabled={disabled}
-        onMouseMove={(e) => onHover(hash, e.clientX, e.clientY)}
         className={`w-full flex items-start gap-3 p-3 text-left transition ${
           isActive ? "bg-bungie-blue/20" : `${tier.bg} hover:brightness-125`
         } disabled:opacity-40 disabled:cursor-default`}
@@ -96,26 +136,11 @@ function WeaponCard({
                 {inlineStat} {detail.stats[inlineStat]}
               </span>
             )}
-            {isActive && hasMultiple && (
-              <span className="text-[10px] text-bungie-blue font-medium">
-                {selectedRoll ? `Roll ${selectedRollIndex + 1} chosen` : "Any roll"}
-              </span>
-            )}
           </div>
           {previewRoll && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {previewRoll.perks.slice(0, 3).map((perk) => (
-                <span
-                  key={perk}
-                  className="text-[10px] bg-gray-700/60 border border-gray-600/40 text-gray-300 rounded px-1.5 py-0.5 leading-none"
-                >
-                  {perk}
-                </span>
-              ))}
-              {previewRoll.perks.length > 3 && (
-                <span className="text-[10px] text-gray-500 self-center">+{previewRoll.perks.length - 3}</span>
-              )}
-            </div>
+            <p className="text-[11px] text-gray-500 leading-snug mt-1 truncate">
+              {previewRoll.perks.join("  ·  ")}
+            </p>
           )}
         </div>
       </button>
@@ -123,23 +148,25 @@ function WeaponCard({
       {/* Roll picker — only for weapons with >1 roll */}
       {hasMultiple && (
         isActive ? (
-          // Active weapon: show the full radio list inline, no toggle needed.
-          <div className="border-t border-bungie-border/50 bg-gray-900/40 p-2 space-y-1.5">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wide px-1">Choose your roll</p>
-
-            <RollOption
-              label="Any roll"
-              sublabel="Best available — picks the easiest to equip"
+          <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wide px-3 pb-0.5">
+              Choose roll
+              {selectedRoll
+                ? ` · Roll ${selectedRollIndex + 1} selected`
+                : " · using best available"}
+            </p>
+            <RollRow
+              title="🎲 Any roll"
+              perks={["best available — easiest to equip"]}
               selected={!currentInstance}
               onClick={() => onSelect(hash)}
               disabled={disabled}
             />
-
             {rolls.map((inst, i) => (
-              <RollOption
+              <RollRow
                 key={inst.instanceId}
-                label={`Roll ${i + 1}`}
-                sublabel={inst.location === "vault" ? "In vault" : "On character"}
+                title={`Roll ${i + 1}`}
+                location={inst.location}
                 perks={inst.perks}
                 selected={currentInstance === inst.instanceId}
                 onClick={() => onSelect(hash, inst.instanceId)}
@@ -148,61 +175,17 @@ function WeaponCard({
             ))}
           </div>
         ) : (
-          // Inactive: passive hint. Selecting the weapon reveals the picker.
           <button
             onClick={() => onSelect(hash)}
             disabled={disabled}
-            className="w-full border-t border-bungie-border/50 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/5 transition text-left disabled:opacity-40"
+            className="w-full border-t border-bungie-border/50 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/5 transition flex items-center gap-1.5 disabled:opacity-40"
           >
-            {rolls.length} rolls — select to choose one
+            <span className="text-bungie-blue">◆</span>
+            {rolls.length} rolls available — select to pick one
           </button>
         )
       )}
     </div>
-  );
-}
-
-// A single selectable roll row (radio-style).
-function RollOption({
-  label, sublabel, perks, selected, onClick, disabled,
-}: {
-  label: string; sublabel: string; perks?: string[];
-  selected: boolean; onClick: () => void; disabled?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-full text-left rounded-lg px-2 py-1.5 border transition disabled:opacity-40 ${
-        selected
-          ? "border-bungie-blue bg-bungie-blue/15"
-          : "border-transparent bg-gray-800/50 hover:bg-gray-800"
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span
-          className={`w-3 h-3 rounded-full border shrink-0 flex items-center justify-center ${
-            selected ? "border-bungie-blue" : "border-gray-600"
-          }`}
-        >
-          {selected && <span className="w-1.5 h-1.5 rounded-full bg-bungie-blue" />}
-        </span>
-        <span className={`text-xs font-medium ${selected ? "text-white" : "text-gray-300"}`}>{label}</span>
-        <span className="text-[10px] text-gray-500">· {sublabel}</span>
-      </div>
-      {perks && perks.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1 pl-5">
-          {perks.map((perk) => (
-            <span
-              key={perk}
-              className="text-[10px] bg-bungie-blue/20 border border-bungie-blue/40 text-blue-300 rounded px-1.5 py-0.5 leading-none"
-            >
-              {perk}
-            </span>
-          ))}
-        </div>
-      )}
-    </button>
   );
 }
 

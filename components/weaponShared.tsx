@@ -56,9 +56,12 @@ export function sortWeapons(hashes: number[], details: Record<string, WeaponDeta
   });
 }
 
-// ── Floating cursor tooltip ─────────────────────────────────────────────────
+// ── Anchored hover tooltip ───────────────────────────────────────────────────
+// Anchored to the hovered card (captured once on mouseenter) rather than
+// tracking the cursor, so it sits still instead of jittering around.
 
-export interface TooltipState { hash: number; x: number; y: number }
+export interface AnchorRect { top: number; left: number; right: number; width: number; height: number }
+export interface TooltipState { hash: number; rect: AnchorRect }
 
 function FloatingTooltip({
   state,
@@ -76,25 +79,29 @@ function FloatingTooltip({
 
   const detail = weaponDetails[state.hash.toString()];
 
-  // Measure the rendered tooltip and place it next to the cursor, flipping
-  // and clamping so it never spills off any edge of the viewport.
+  // Prefer placing the tooltip to the LEFT of the card (the browser lives in a
+  // right-hand sidebar); flip to the right and clamp vertically if needed.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
+    const { rect } = state;
     const pad = 12;
-    const gap = 16;
+    const gap = 12;
 
-    let left = state.x + gap;
-    if (left + width + pad > window.innerWidth) left = state.x - width - gap;
-    left = Math.max(pad, Math.min(left, window.innerWidth - width - pad));
+    let left = rect.left - width - gap;
+    if (left < pad) left = rect.right + gap;
+    if (left + width + pad > window.innerWidth) {
+      left = Math.max(pad, window.innerWidth - width - pad);
+    }
+    left = Math.max(pad, left);
 
-    let top = state.y + gap;
-    if (top + height + pad > window.innerHeight) top = state.y - height - gap;
+    // Vertically center on the card, then clamp into the viewport.
+    let top = rect.top + rect.height / 2 - height / 2;
     top = Math.max(pad, Math.min(top, window.innerHeight - height - pad));
 
     setPos({ left, top });
-  }, [state.x, state.y, state.hash]);
+  }, [state]);
 
   if (!detail) return null;
 
@@ -108,12 +115,12 @@ function FloatingTooltip({
     <div
       ref={ref}
       className="fixed z-[60] w-72 bg-gray-950/95 backdrop-blur border border-bungie-border rounded-xl shadow-2xl pointer-events-none overflow-hidden"
-      style={{ left: pos?.left ?? state.x + 16, top: pos?.top ?? state.y + 16, opacity: pos ? 1 : 0 }}
+      style={{ left: pos?.left ?? state.rect.left, top: pos?.top ?? state.rect.top, opacity: pos ? 1 : 0 }}
     >
       {/* Rarity accent bar */}
       <div className={`h-1 w-full ${tier.accent}`} />
 
-      <div className="p-3">
+      <div className="p-3.5">
         <div className="flex items-start justify-between gap-2">
           <p className="text-white text-sm font-semibold leading-tight">{detail.name}</p>
           {isCollection && (
@@ -123,7 +130,7 @@ function FloatingTooltip({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 mt-1 mb-3 text-xs flex-wrap">
+        <div className="flex items-center gap-1.5 mt-1 text-xs flex-wrap">
           <span className={`font-medium ${tier.label}`}>{detail.tierName}</span>
           <span className="text-gray-600">·</span>
           <span className={DAMAGE_COLOR[detail.damageType] ?? "text-gray-300"}>{detail.damageType}</span>
@@ -137,38 +144,26 @@ function FloatingTooltip({
           )}
         </div>
 
-        {/* Per-instance perk rolls */}
+        {/* Per-instance perk rolls — clean comma-separated text, not pill walls */}
         {rolls.length > 0 && (
-          <div className="mb-3">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wide mb-1.5">
-              Your {rolls.length > 1 ? `${rolls.length} rolls` : "roll"}
-            </p>
-            <div className="space-y-1.5">
-              {rolls.map((inst, i) => (
-                <div key={inst.instanceId} className="bg-gray-800/60 rounded-lg px-2 py-1.5">
-                  <p className="text-gray-500 text-[10px] mb-1">
-                    {rolls.length > 1 ? `Roll ${i + 1} · ` : ""}
-                    {inst.location === "vault" ? "In vault" : "On character"}
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {inst.perks.map((perk) => (
-                      <span
-                        key={perk}
-                        className="text-[10px] bg-bungie-blue/20 border border-bungie-blue/40 text-blue-300 rounded px-1.5 py-0.5"
-                      >
-                        {perk}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="mt-3 pt-3 border-t border-bungie-border/60 space-y-2">
+            {rolls.map((inst, i) => (
+              <div key={inst.instanceId}>
+                <p className="text-gray-500 text-[10px] uppercase tracking-wide mb-0.5">
+                  {rolls.length > 1 ? `Roll ${i + 1}` : "Your roll"}
+                  <span className="text-gray-600 normal-case tracking-normal">
+                    {" · "}{inst.location === "vault" ? "in vault" : "on character"}
+                  </span>
+                </p>
+                <p className="text-blue-300 text-xs leading-snug">{inst.perks.join("  ·  ")}</p>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Base stats — bars on the left, flat numbers on the right */}
-        {barStats.length > 0 || numStats.length > 0 ? (
-          <div className="space-y-1.5">
+        {/* Base stats */}
+        {(barStats.length > 0 || numStats.length > 0) && (
+          <div className="mt-3 pt-3 border-t border-bungie-border/60 space-y-1.5">
             {barStats.map((s) => (
               <div key={s} className="flex items-center gap-2">
                 <span className="text-gray-400 text-[11px] w-20 shrink-0">{s}</span>
@@ -189,15 +184,13 @@ function FloatingTooltip({
               </div>
             )}
           </div>
-        ) : (
-          <p className="text-gray-600 text-xs">No stats available</p>
         )}
       </div>
     </div>
   );
 }
 
-// ── Hook: wires cursor tracking + renders the tooltip layer ──────────────────
+// ── Hook: tracks the anchored card + renders the tooltip layer ───────────────
 
 export function useWeaponTooltip(
   weaponDetails: Record<string, WeaponDetail>,
@@ -206,8 +199,10 @@ export function useWeaponTooltip(
 ) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
-  const onHover = useCallback((hash: number, x: number, y: number) => {
-    setTooltip({ hash, x, y });
+  // Capture the anchor element's rect once, on enter — no per-move updates.
+  const onHover = useCallback((hash: number, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setTooltip({ hash, rect: { top: r.top, left: r.left, right: r.right, width: r.width, height: r.height } });
   }, []);
   const onLeave = useCallback(() => setTooltip(null), []);
 
