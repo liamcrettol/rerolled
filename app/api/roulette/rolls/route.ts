@@ -50,6 +50,7 @@ interface MemberRolls {
   displayName: string;
   isMe: boolean;
   instances: RollInstance[];
+  failed?: boolean; // their profile/inventory couldn't be read (e.g. privacy)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,7 +87,8 @@ export async function POST(req: NextRequest) {
 
     // Fetch each member's instances of the loadout weapons in parallel.
     const perMember = await Promise.all(
-      members.map(async (member): Promise<{ userId: string; displayName: string; isMe: boolean; byHash: Map<number, RollInstance[]> } | null> => {
+      members.map(async (member): Promise<{ userId: string; displayName: string; isMe: boolean; byHash: Map<number, RollInstance[]>; failed: boolean }> => {
+        const baseInfo = { userId: member.user_id, displayName: member.display_name, isMe: member.user_id === session.userId };
         try {
           const token = await getBungieToken(member.user_id);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,9 +146,11 @@ export async function POST(req: NextRequest) {
           }
           for (const item of asArray(profile?.profileInventory?.data?.items)) consider(item, "vault");
 
-          return { userId: member.user_id, displayName: member.display_name, isMe: member.user_id === session.userId, byHash };
+          return { ...baseInfo, byHash, failed: false };
         } catch {
-          return null;
+          // Couldn't read this member's profile (token expired, privacy, etc.).
+          // Still return a column so they don't silently vanish.
+          return { ...baseInfo, byHash: new Map<number, RollInstance[]>(), failed: true };
         }
       })
     );
@@ -164,7 +168,6 @@ export async function POST(req: NextRequest) {
     for (const [slot, hash] of Object.entries(slotHash) as [WeaponSlot, number][]) {
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
-        if (!m) continue;
         const instances = (m.byHash.get(hash) ?? []).map((inst) => ({
           ...inst,
           // Resolve to {name, description}, dropping any cosmetic plugs.
@@ -172,7 +175,7 @@ export async function POST(req: NextRequest) {
             .map((h) => perkInfoMap.get(h))
             .filter((p): p is Perk => !!p),
         }));
-        memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances });
+        memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));

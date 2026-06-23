@@ -17,6 +17,7 @@ export interface MemberRolls {
   displayName: string;
   isMe: boolean;
   instances: RollInstance[];
+  failed?: boolean;
 }
 export interface SlotRolls {
   itemHash: number;
@@ -176,7 +177,9 @@ export default function RollDetails({
                       : "—"}
                   </p>
                 ) : (
-                  <p className="text-[10px] text-gray-600">doesn&apos;t own</p>
+                  <p className="text-[10px] text-gray-600" title={m.failed ? "Couldn't read their inventory - they may need to allow inventory access in their Bungie.net privacy settings" : undefined}>
+                    {m.failed ? "couldn't load" : "doesn't own"}
+                  </p>
                 )}
               </div>
             );
