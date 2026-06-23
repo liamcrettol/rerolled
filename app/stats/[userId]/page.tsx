@@ -104,9 +104,9 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
             {topWeapons.map((e) => (
               <div key={e.hash} className="flex items-center gap-3 px-4 py-3">
                 <div className="relative w-9 h-9 shrink-0 rounded overflow-hidden bg-bungie-dark">
-                  <Image src={`https://www.bungie.net${e.def.icon}`} alt={e.def.name} fill className="object-cover" />
+                  <Image src={e.def.icon} alt={e.def.name} fill className="object-cover" unoptimized />
                   {e.def.watermark && (
-                    <Image src={`https://www.bungie.net${e.def.watermark}`} alt="" fill className="object-cover absolute inset-0" />
+                    <Image src={e.def.watermark} alt="" fill className="object-cover absolute inset-0" unoptimized />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">

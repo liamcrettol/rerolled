@@ -67,17 +67,19 @@ export default async function WeaponHallOfFame() {
             <span className="text-gray-600 font-mono text-sm w-5 text-right shrink-0">{i + 1}</span>
             <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden bg-bungie-dark">
               <Image
-                src={`https://www.bungie.net${e.def.icon}`}
+                src={e.def.icon}
                 alt={e.def.name}
                 fill
                 className="object-cover"
+                unoptimized
               />
               {e.def.watermark && (
                 <Image
-                  src={`https://www.bungie.net${e.def.watermark}`}
+                  src={e.def.watermark}
                   alt=""
                   fill
                   className="object-cover absolute inset-0"
+                  unoptimized
                 />
               )}
             </div>
