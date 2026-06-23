@@ -36,13 +36,27 @@ export function findBestInstance(
   );
 }
 
-// Archetype pairing rules.
-// Key = weapon type of one primary slot.
-// Value = allowed weapon types for the OTHER primary slot.
+// Archetype pairing rules — pair a primary with a complementary special so the
+// loadout covers both ranges.
+//   Short-range primary (SMG, Sidearm)        → Sniper Rifle (long-range special)
+//   Long-range primary (Pulse, Scout, Bow)    → Shotgun      (close-range special)
+//   Mid-range primary (Auto Rifle, Hand Cannon) → either Sniper or Shotgun
+// Rules are bidirectional: keyed by whichever slot is decided first, the value
+// constrains the other slot. So a rolled special pulls a fitting primary and a
+// rolled primary pulls its matching special — never two specials with no primary.
 // Falls back to unrestricted if none of the allowed types exist in the pool.
 const ARCHETYPE_RULES: Record<string, string[]> = {
+  // Primaries → complementary special(s)
+  "Submachine Gun": ["Sniper Rifle"],
+  "Sidearm": ["Sniper Rifle"],
   "Pulse Rifle": ["Shotgun"],
-  "Hand Cannon": ["Shotgun", "Sniper Rifle"],
+  "Scout Rifle": ["Shotgun"],
+  "Combat Bow": ["Shotgun"],
+  "Auto Rifle": ["Sniper Rifle", "Shotgun"],
+  "Hand Cannon": ["Sniper Rifle", "Shotgun"],
+  // Specials → fitting primaries (reverse direction)
+  "Sniper Rifle": ["Submachine Gun", "Sidearm", "Auto Rifle", "Hand Cannon"],
+  "Shotgun": ["Pulse Rifle", "Scout Rifle", "Combat Bow", "Auto Rifle", "Hand Cannon"],
 };
 
 type WeaponDetail = { weaponType: string; tierType?: number };
@@ -65,11 +79,9 @@ function pick(pool: number[]): number | null {
 
 /**
  * Roll a loadout from the shared pool, applying archetype pairing rules
- * between kinetic and energy slots.
- *
- * Rules (symmetric - applies whichever slot has the constrained type):
- *   Pulse Rifle  → paired slot must be a Shotgun
- *   Hand Cannon  → paired slot must be a Shotgun or Sniper Rifle (random)
+ * (see ARCHETYPE_RULES) between the kinetic and energy slots so a primary is
+ * paired with a complementary special by range. Power is independent and never
+ * rolls exotic, and the whole loadout is capped at one exotic.
  */
 export function rollLoadout(
   intersection: Record<WeaponSlot, number[]>,
