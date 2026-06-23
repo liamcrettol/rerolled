@@ -30,18 +30,18 @@ export default function PostMatchSummary({ lobbyId }: Props) {
       .then((r) => r.json())
       .then((data) => {
         if (data.stats) setStats(data.stats);
-        else setError(data.reason ?? "No match found — PGCR may still be processing. Try again in a minute.");
+        else setError(data.reason ?? "Stats not ready yet. Try again in a minute.");
       })
-      .catch(() => setError("Failed to fetch match data"))
+      .catch(() => setError("Failed to load stats."))
       .finally(() => setLoading(false));
   }, [lobbyId]);
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl p-6">
-      <h2 className="text-white font-semibold mb-4">Post-Match Summary</h2>
+      <h2 className="text-white font-semibold mb-4">Results</h2>
 
       {loading && (
-        <p className="text-gray-400 text-sm text-center">Fetching match stats…</p>
+        <p className="text-gray-400 text-sm text-center">Loading stats...</p>
       )}
 
       {!loading && error && (
