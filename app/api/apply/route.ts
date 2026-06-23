@@ -4,6 +4,8 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { getRawWeapons, type RawWeapon } from "@/lib/bungie/rawInventory";
 import { applyWeapons } from "@/lib/bungie/equip";
 import type { WeaponToApply } from "@/lib/bungie/equip";
+import type { ApplyResult } from "@/types/lobby";
+import type { WeaponSlot } from "@/types/bungie";
 import { z } from "zod";
 
 const schema = z.object({
@@ -64,10 +66,26 @@ export async function POST(req: NextRequest) {
     );
 
     const weaponsToApply: WeaponToApply[] = [];
+    // Slots whose weapon isn't in this player's inventory/vault. The only way
+    // that happens here is a Collections-only exotic (the intersection lets the
+    // captain pick those). Bungie has no "pull from Collections" API, so we
+    // can't auto-equip it — surface a clear message instead of silently
+    // skipping the slot.
+    const missing: ApplyResult[] = [];
     for (const slot of slots) {
       if (slot.item_hash === 0) continue; // wildcard - player keeps their own weapon
       const best = findBestInstance(slot.item_hash, myWeapons, body.characterId, preferredInstances[slot.slot]);
-      if (!best) continue;
+      if (!best) {
+        missing.push({
+          user_id: session.userId,
+          display_name: session.displayName,
+          slot: slot.slot as WeaponSlot,
+          item_hash: slot.item_hash,
+          success: false,
+          error: `Not in inventory — pull ${slot.weapon_name} from Collections in-game, then Apply again`,
+        });
+        continue;
+      }
       weaponsToApply.push({
         itemHash: best.itemHash,
         itemInstanceId: best.itemInstanceId,
@@ -77,7 +95,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const results = await applyWeapons(
+    const equipResults = await applyWeapons(
       weaponsToApply,
       body.characterId,
       session.bungieMembershipType,
@@ -85,6 +103,8 @@ export async function POST(req: NextRequest) {
       session.userId,
       session.displayName
     );
+
+    const results = [...equipResults, ...missing];
 
     // One roll_history row per round, updated on re-apply.
     // NOTE: roll_history has no unique constraint on round_id, so we can't use

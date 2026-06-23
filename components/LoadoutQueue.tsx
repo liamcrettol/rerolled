@@ -91,6 +91,11 @@ export default function LoadoutQueue({
                     </p>
                     <p className="text-gray-400 text-xs">{slot.weapon_type}</p>
                     <p className="text-gray-500 text-xs">{slot.damage_type}</p>
+                    {collectionHashes.has(slot.item_hash) && (
+                      <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
+                        Pull from Collections
+                      </span>
+                    )}
                   </div>
                 </>
               ) : (

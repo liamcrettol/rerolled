@@ -144,6 +144,12 @@ function FloatingTooltip({
           )}
         </div>
 
+        {isCollection && (
+          <p className="mt-2 text-[11px] text-amber-300/90 leading-snug">
+            Not everyone owns this — each player pulls it from Collections in-game before applying.
+          </p>
+        )}
+
         {/* Per-instance perk rolls — clean comma-separated text, not pill walls */}
         {rolls.length > 0 && (
           <div className="mt-3 pt-3 border-t border-bungie-border/60 space-y-2">
