@@ -111,11 +111,11 @@ export async function POST(req: NextRequest) {
     // NOTE: roll_history has no unique constraint on round_id, so we can't use
     // upsert/onConflict here - do an explicit select-then-update/insert instead.
     const appliedAt = new Date().toISOString();
-    const { data: existingHistory } = await adminSupabase
-      .from("roll_history")
-      .select("id")
-      .eq("round_id", body.roundId)
-      .maybeSingle();
+    const [{ data: existingHistory }, { data: roundRow }] = await Promise.all([
+      adminSupabase.from("roll_history").select("id").eq("round_id", body.roundId).maybeSingle(),
+      adminSupabase.from("lobby_rounds").select("round_number").eq("id", body.roundId).maybeSingle(),
+    ]);
+    const roundNumber = roundRow?.round_number ?? 0;
 
     if (existingHistory) {
       await adminSupabase
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       await adminSupabase.from("roll_history").insert({
         lobby_id: body.lobbyId,
         round_id: body.roundId,
-        round_number: 0,
+        round_number: roundNumber,
         applied_at: appliedAt,
         apply_results: results,
       });
