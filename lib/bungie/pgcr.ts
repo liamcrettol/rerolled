@@ -20,6 +20,7 @@ interface PGCREntry {
     deaths: { basic: { value: number } };
     assists: { basic: { value: number } };
     killsDeathsRatio: { basic: { value: number } };
+    standing?: { basic: { value: number } }; // PvP only: 0 = win, 1 = loss
   };
   extended?: { weapons?: PGCRWeapon[] };
 }
@@ -77,6 +78,7 @@ export interface CollectedPlayerStat {
   assists: number;
   kd: number;
   rouletteWeaponKills: number;
+  won: boolean | null; // null when the activity has no win/loss (PvE)
 }
 
 export interface WeaponKillStat {
@@ -135,7 +137,7 @@ export async function collectPostMatchStats(
         (e) => e.player.destinyUserInfo.membershipId === member.membershipId
       );
       if (!entry) {
-        return { userId: member.userId, displayName: member.displayName, kills: 0, deaths: 0, assists: 0, kd: 0, rouletteWeaponKills: 0 };
+        return { userId: member.userId, displayName: member.displayName, kills: 0, deaths: 0, assists: 0, kd: 0, rouletteWeaponKills: 0, won: null };
       }
 
       const kills = entry.values.kills?.basic?.value ?? 0;
@@ -146,8 +148,10 @@ export async function collectPostMatchStats(
         entry.extended?.weapons
           ?.filter((w) => hashSet.has(w.referenceId))
           .reduce((sum, w) => sum + (w.values.uniqueWeaponKills?.basic?.value ?? 0), 0) ?? 0;
+      const standing = entry.values.standing?.basic?.value;
+      const won = standing == null ? null : standing === 0;
 
-      return { userId: member.userId, displayName: member.displayName, kills, deaths, assists, kd, rouletteWeaponKills };
+      return { userId: member.userId, displayName: member.displayName, kills, deaths, assists, kd, rouletteWeaponKills, won };
     });
 
     // Aggregate kills per roulette weapon across all players

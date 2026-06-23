@@ -7,12 +7,14 @@ interface LeaderboardEntry {
   games_played: number;
   total_roulette_kills: number;
   avg_kd: number;
+  wins: number;
+  losses: number;
 }
 
 export default async function Leaderboard() {
   const { data } = await adminSupabase
     .from("player_game_stats")
-    .select("user_id, display_name, roulette_weapon_kills, kd");
+    .select("user_id, display_name, roulette_weapon_kills, kd, won");
 
   if (!data?.length) {
     return (
@@ -30,6 +32,8 @@ export default async function Leaderboard() {
       existing.avg_kd =
         (existing.avg_kd * existing.games_played + row.kd) / (existing.games_played + 1);
       existing.games_played += 1;
+      if (row.won === true) existing.wins += 1;
+      else if (row.won === false) existing.losses += 1;
     } else {
       byUser.set(row.user_id, {
         user_id: row.user_id,
@@ -37,6 +41,8 @@ export default async function Leaderboard() {
         games_played: 1,
         total_roulette_kills: row.roulette_weapon_kills,
         avg_kd: row.kd,
+        wins: row.won === true ? 1 : 0,
+        losses: row.won === false ? 1 : 0,
       });
     }
   }
@@ -56,6 +62,7 @@ export default async function Leaderboard() {
               <th className="text-left pb-2 pr-4">Player</th>
               <th className="text-right pb-2 pr-3">Roulette Kills</th>
               <th className="text-right pb-2 pr-3">Games</th>
+              <th className="text-right pb-2 pr-3">W-L</th>
               <th className="text-right pb-2">Avg K/D</th>
             </tr>
           </thead>
@@ -72,6 +79,15 @@ export default async function Leaderboard() {
                   {e.total_roulette_kills}
                 </td>
                 <td className="py-2 pr-3 text-right">{e.games_played}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">
+                  {e.wins + e.losses > 0 ? (
+                    <><span className="text-green-400">{e.wins}</span>
+                    <span className="text-gray-600">-</span>
+                    <span className="text-red-400">{e.losses}</span></>
+                  ) : (
+                    <span className="text-gray-600">—</span>
+                  )}
+                </td>
                 <td className="py-2 text-right">{e.avg_kd.toFixed(2)}</td>
               </tr>
             ))}

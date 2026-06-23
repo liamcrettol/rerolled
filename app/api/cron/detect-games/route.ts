@@ -153,6 +153,7 @@ export async function GET(req: NextRequest) {
           assists: s.assists,
           kd: s.kd,
           roulette_weapon_kills: s.rouletteWeaponKills,
+          won: s.won,
         }))
       );
 
