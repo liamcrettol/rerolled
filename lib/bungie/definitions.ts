@@ -1,7 +1,3 @@
-// Item and perk definition lookups with Supabase-backed cache.
-// First request per serverless instance loads all cached defs from Supabase in one query.
-// Bungie API is only hit for hashes not yet in the cache.
-
 import { adminSupabase } from "@/lib/supabase/admin";
 
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
@@ -47,18 +43,24 @@ const DAMAGE_TYPE_NAMES: Record<number, string> = {
   3949783978: "Strand",
 };
 
-// ── Per-instance memory caches ────────────────────────────────────────────────
-// These survive across multiple requests in the same serverless instance.
+// Per-invocation memory cache — survives across requests in the same warm instance.
 const defMemCache = new Map<number, WeaponDefinition>();
 const perkMemCache = new Map<number, string | null>();
 
-// Supabase cache is loaded once per serverless instance (Promise reuse).
+// Supabase cache Promise is reused within the same serverless instance.
 let supabaseDefCachePromise: Promise<Record<string, WeaponDefinition>> | null = null;
 let supabasePerkCachePromise: Promise<Record<string, string>> | null = null;
 
-// Defs/perks fetched from Bungie this invocation (need to be flushed to Supabase).
+// New defs/perks fetched from Bungie this request — flushed to Supabase at end.
 const pendingDefs = new Map<number, WeaponDefinition>();
 const pendingPerks = new Map<number, string>();
+
+function emptyDefRecord(): Record<string, WeaponDefinition> {
+  return {};
+}
+function emptyStringRecord(): Record<string, string> {
+  return {};
+}
 
 function loadSupabaseDefCache(): Promise<Record<string, WeaponDefinition>> {
   if (!supabaseDefCachePromise) {
@@ -67,8 +69,10 @@ function loadSupabaseDefCache(): Promise<Record<string, WeaponDefinition>> {
       .select("items_json")
       .eq("version", "weapon_defs")
       .single()
-      .then(({ data }) => (data?.items_json ?? {}) as Record<string, WeaponDefinition>)
-      .catch(() => ({}));
+      .then(
+        ({ data }) => (data?.items_json ?? {}) as Record<string, WeaponDefinition>
+      )
+      .catch(emptyDefRecord);
   }
   return supabaseDefCachePromise;
 }
@@ -80,50 +84,50 @@ function loadSupabasePerkCache(): Promise<Record<string, string>> {
       .select("sandbox_perks_json")
       .eq("version", "perk_names")
       .single()
-      .then(({ data }) => (data?.sandbox_perks_json ?? {}) as Record<string, string>)
-      .catch(() => ({}));
+      .then(
+        ({ data }) => (data?.sandbox_perks_json ?? {}) as Record<string, string>
+      )
+      .catch(emptyStringRecord);
   }
   return supabasePerkCachePromise;
 }
 
-// Call at end of a request to persist any new defs/perks fetched from Bungie.
 export async function flushDefinitionCache(): Promise<void> {
-  const flushDefs = async () => {
-    if (pendingDefs.size === 0) return;
-    const existing = await loadSupabaseDefCache();
-    const merged = { ...existing };
-    for (const [hash, def] of pendingDefs) merged[hash.toString()] = def;
-    await adminSupabase.from("cached_manifest_metadata").upsert({
-      version: "weapon_defs",
-      items_json: merged,
-      stats_json: {},
-      damage_types_json: {},
-      sandbox_perks_json: {},
-    });
-    pendingDefs.clear();
-  };
-
-  const flushPerks = async () => {
-    if (pendingPerks.size === 0) return;
-    const existing = await loadSupabasePerkCache();
-    const merged = { ...existing };
-    for (const [hash, name] of pendingPerks) merged[hash.toString()] = name;
-    await adminSupabase.from("cached_manifest_metadata").upsert({
-      version: "perk_names",
-      items_json: {},
-      stats_json: {},
-      damage_types_json: {},
-      sandbox_perks_json: merged,
-    });
-    pendingPerks.clear();
-  };
-
-  await Promise.all([flushDefs(), flushPerks()]);
+  await Promise.all([
+    (async () => {
+      if (pendingDefs.size === 0) return;
+      const existing = await loadSupabaseDefCache();
+      const merged: Record<string, WeaponDefinition> = { ...existing };
+      for (const [hash, def] of pendingDefs) merged[hash.toString()] = def;
+      await adminSupabase.from("cached_manifest_metadata").upsert({
+        version: "weapon_defs",
+        items_json: merged,
+        stats_json: {},
+        damage_types_json: {},
+        sandbox_perks_json: {},
+      });
+      pendingDefs.clear();
+    })(),
+    (async () => {
+      if (pendingPerks.size === 0) return;
+      const existing = await loadSupabasePerkCache();
+      const merged: Record<string, string> = { ...existing };
+      for (const [hash, name] of pendingPerks) merged[hash.toString()] = name;
+      await adminSupabase.from("cached_manifest_metadata").upsert({
+        version: "perk_names",
+        items_json: {},
+        stats_json: {},
+        damage_types_json: {},
+        sandbox_perks_json: merged,
+      });
+      pendingPerks.clear();
+    })(),
+  ]);
 }
 
-// ── Raw Bungie fetch (no cache) ───────────────────────────────────────────────
-
-async function fetchWeaponDefFromBungie(itemHash: number): Promise<WeaponDefinition | null> {
+async function fetchWeaponDefFromBungie(
+  itemHash: number
+): Promise<WeaponDefinition | null> {
   try {
     const res = await fetch(
       `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}/`,
@@ -143,7 +147,9 @@ async function fetchWeaponDefFromBungie(itemHash: number): Promise<WeaponDefinit
     return {
       itemHash,
       name: def.displayProperties?.name ?? "Unknown",
-      icon: def.displayProperties?.icon ? `${BUNGIE_CDN}${def.displayProperties.icon}` : "",
+      icon: def.displayProperties?.icon
+        ? `${BUNGIE_CDN}${def.displayProperties.icon}`
+        : "",
       weaponType: def.itemTypeDisplayName ?? "Weapon",
       ammoType: AMMO_TYPE_NAMES[def.equippingBlock?.ammoType ?? 1] ?? "Primary",
       damageType: DAMAGE_TYPE_NAMES[def.defaultDamageTypeHash ?? 0] ?? "Kinetic",
@@ -160,8 +166,6 @@ async function fetchWeaponDefFromBungie(itemHash: number): Promise<WeaponDefinit
   }
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
 export async function getWeaponDefinitions(
   hashes: number[]
 ): Promise<Map<number, WeaponDefinition>> {
@@ -170,17 +174,16 @@ export async function getWeaponDefinitions(
   const results = new Map<number, WeaponDefinition>();
   const memMissing: number[] = [];
 
-  // 1. Memory cache
   for (const hash of hashes) {
-    if (defMemCache.has(hash)) {
-      results.set(hash, defMemCache.get(hash)!);
+    const cached = defMemCache.get(hash);
+    if (cached) {
+      results.set(hash, cached);
     } else {
       memMissing.push(hash);
     }
   }
   if (memMissing.length === 0) return results;
 
-  // 2. Supabase cache (loaded once per instance, Promise reused on subsequent calls)
   const supabaseCache = await loadSupabaseDefCache();
   const bungieNeeded: number[] = [];
 
@@ -195,7 +198,6 @@ export async function getWeaponDefinitions(
   }
   if (bungieNeeded.length === 0) return results;
 
-  // 3. Bungie API for remaining misses (parallel)
   await Promise.all(
     bungieNeeded.map(async (hash) => {
       const def = await fetchWeaponDefFromBungie(hash);
@@ -217,8 +219,6 @@ export async function getWeaponDefinition(
   return map.get(itemHash) ?? null;
 }
 
-// ── Perk names ────────────────────────────────────────────────────────────────
-
 async function fetchPerkNameFromBungie(hash: number): Promise<string | null> {
   try {
     const res = await fetch(
@@ -227,7 +227,7 @@ async function fetchPerkNameFromBungie(hash: number): Promise<string | null> {
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data.Response?.displayProperties?.name ?? null;
+    return (data.Response?.displayProperties?.name as string | undefined) ?? null;
   } catch {
     return null;
   }
@@ -277,7 +277,6 @@ export async function getPerkNames(hashes: number[]): Promise<Map<number, string
   return results;
 }
 
-// Kept for backwards-compat
 export async function getPerkName(hash: number): Promise<string | null> {
   const map = await getPerkNames([hash]);
   return map.get(hash) ?? null;
