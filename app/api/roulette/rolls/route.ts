@@ -157,8 +157,8 @@ export async function POST(req: NextRequest) {
     ]);
     const nameOf = (h: number) => perkNameMap.get(h) ?? "Unknown";
 
-    // Build the response: per slot -> { itemHash, baseStats, members: [{...instances}] }
-    const slots: Record<string, { itemHash: number; baseStats: Record<string, number>; members: MemberRolls[] }> = {};
+    // Build the response: per slot -> { itemHash, damageType, baseStats, members: [...] }
+    const slots: Record<string, { itemHash: number; damageType: string; baseStats: Record<string, number>; members: MemberRolls[] }> = {};
     for (const [slot, hash] of Object.entries(slotHash) as [WeaponSlot, number][]) {
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
-      slots[slot] = { itemHash: hash, baseStats: defs.get(hash)?.stats ?? {}, members: memberRolls };
+      slots[slot] = { itemHash: hash, damageType: defs.get(hash)?.damageType ?? "", baseStats: defs.get(hash)?.stats ?? {}, members: memberRolls };
     }
 
     return NextResponse.json({ slots });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
-import { type WeaponDetail, type InstancePerk, useWeaponTooltip } from "./weaponShared";
+import { type WeaponDetail, type InstancePerk, useWeaponTooltip, damageTheme, DAMAGE_COLOR } from "./weaponShared";
 type AnimKind = "roll" | "pick";
 
 const SLOT_LABELS: Record<string, string> = {
@@ -100,7 +100,7 @@ function WeaponSlotContent({
           <>
             <p className="text-white text-xs font-semibold leading-tight">{name}</p>
             <p className="text-gray-400 text-xs">{weaponType}</p>
-            <p className="text-gray-500 text-xs">{damageType}</p>
+            <p className={`text-xs ${DAMAGE_COLOR[damageType] ?? "text-gray-500"}`}>{damageType}</p>
             {isCollection && (
               <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
                 Pull from Collections
@@ -144,6 +144,7 @@ export default function LoadoutQueue({
           const slot = sorted.find((s) => s.slot === slotName);
           const isWildcard = slot?.item_hash === 0;
           const hasWeapon = !!slot && slot.item_hash !== 0;
+          const theme = hasWeapon ? damageTheme(slot!.damage_type) : null;
           return (
             <div
               key={slotName}
@@ -152,8 +153,8 @@ export default function LoadoutQueue({
               className={`flex flex-col items-center gap-2 rounded-lg p-3 border transition ${
                 isWildcard
                   ? "bg-bungie-dark/40 border-gray-700/40"
-                  : hasWeapon
-                  ? "bg-bungie-dark border-bungie-border hover:border-bungie-blue/60 cursor-help"
+                  : hasWeapon && theme
+                  ? `${theme.bg} ${theme.border} cursor-help`
                   : "bg-bungie-dark border-bungie-border"
               }`}
             >

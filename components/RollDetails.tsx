@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { WeaponSlot } from "@/types/bungie";
-import { BAR_STATS, NUM_STATS } from "./weaponShared";
+import { BAR_STATS, NUM_STATS, damageTheme } from "./weaponShared";
 
 export interface RollInstance {
   instanceId: string;
@@ -19,6 +19,7 @@ export interface MemberRolls {
 }
 export interface SlotRolls {
   itemHash: number;
+  damageType: string;
   baseStats: Record<string, number>;
   members: MemberRolls[];
 }
@@ -27,7 +28,7 @@ export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 const SLOT_ORDER: WeaponSlot[] = ["kinetic", "energy", "power"];
 
-function StatBars({ stats, base }: { stats: Record<string, number>; base: Record<string, number> }) {
+function StatBars({ stats, base, fillClass }: { stats: Record<string, number>; base: Record<string, number>; fillClass: string }) {
   const bars = BAR_STATS.filter((s) => stats[s] !== undefined || base[s] !== undefined);
   const nums = NUM_STATS.filter((s) => stats[s] !== undefined || base[s] !== undefined);
   return (
@@ -44,7 +45,7 @@ function StatBars({ stats, base }: { stats: Record<string, number>; base: Record
           <div key={s} className="flex items-center gap-2">
             <span className="text-gray-400 text-[11px] w-20 shrink-0">{s}</span>
             <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden flex">
-              <div className="h-full bg-bungie-blue" style={{ width: `${lo}%` }} />
+              <div className={`h-full ${fillClass}`} style={{ width: `${lo}%` }} />
               {hi > lo && (
                 <div className={`h-full ${delta >= 0 ? "bg-green-400" : "bg-red-500/80"}`} style={{ width: `${hi - lo}%` }} />
               )}
@@ -121,6 +122,7 @@ export default function RollDetails({
   const myInstances = me?.instances ?? [];
   const chosenId = chosenInstances[activeTab];
   const chosen = myInstances.find((i) => i.instanceId === chosenId) ?? myInstances[0];
+  const theme = damageTheme(slot.damageType);
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
@@ -138,19 +140,22 @@ export default function RollDetails({
         </button>
       </div>
 
-      {/* Slot tabs */}
+      {/* Slot tabs - active tab tinted by that weapon's element */}
       <div className="flex gap-1 px-3 pt-2">
-        {present.map((s) => (
-          <button
-            key={s}
-            onClick={() => setTab(s)}
-            className={`flex-1 py-1.5 rounded-t-lg text-xs font-semibold border-b-2 transition ${
-              activeTab === s ? "border-bungie-blue text-white bg-bungie-blue/10" : "border-transparent text-gray-400 hover:text-white"
-            }`}
-          >
-            {SLOT_LABELS[s]}
-          </button>
-        ))}
+        {present.map((s) => {
+          const t = damageTheme(rolls[s]!.damageType);
+          return (
+            <button
+              key={s}
+              onClick={() => setTab(s)}
+              className={`flex-1 py-1.5 rounded-t-lg text-xs font-semibold border-b-2 transition ${
+                activeTab === s ? `${t.border} ${t.bg} text-white` : "border-transparent text-gray-400 hover:text-white"
+              }`}
+            >
+              {SLOT_LABELS[s]}
+            </button>
+          );
+        })}
       </div>
 
       <div className="p-4 space-y-3">
@@ -175,7 +180,7 @@ export default function RollDetails({
                       <div
                         key={inst.instanceId}
                         className={`flex items-center rounded border transition ${
-                          active ? "border-bungie-blue bg-bungie-blue/20" : "border-bungie-border"
+                          active ? `${theme.border} ${theme.bg}` : "border-bungie-border"
                         }`}
                       >
                         <button
@@ -206,12 +211,12 @@ export default function RollDetails({
               <div>
                 <div className="flex flex-wrap gap-1 mb-2">
                   {chosen.perks.map((p) => (
-                    <span key={p} className="text-[10px] bg-bungie-blue/20 border border-bungie-blue/40 text-blue-300 rounded px-1.5 py-0.5">
+                    <span key={p} className={`text-[10px] border rounded px-1.5 py-0.5 ${theme.chip}`}>
                       {p}
                     </span>
                   ))}
                 </div>
-                <StatBars stats={chosen.stats} base={slot.baseStats} />
+                <StatBars stats={chosen.stats} base={slot.baseStats} fillClass={theme.fill} />
                 <p className="text-gray-600 text-[10px] mt-1.5">
                   {Object.keys(chosen.stats).length === 0
                     ? "Live perk stats unavailable - showing base values."

@@ -12,6 +12,7 @@ import {
   CARD_INLINE_STATS,
   sortWeapons,
   useWeaponTooltip,
+  damageTheme,
 } from "./weaponShared";
 
 interface Props {
@@ -98,6 +99,7 @@ function WeaponCard({
   onToggleFavorite?: (instanceId: string) => void;
 }) {
   const tier = TIER_COLORS[detail.tierType] ?? DEFAULT_TIER;
+  const theme = damageTheme(detail.damageType);
   const inlineStat = CARD_INLINE_STATS.find((s) => detail.stats[s] !== undefined);
   const hasMultiple = rolls.length > 1;
 
@@ -110,7 +112,7 @@ function WeaponCard({
   return (
     <div
       className={`rounded-lg border overflow-hidden transition ${
-        isActive ? "border-bungie-blue ring-1 ring-bungie-blue/40" : tier.border
+        isActive ? `${theme.border} ring-1 ${theme.ring}` : tier.border
       }`}
       onMouseEnter={(e) => onHover(hash, e.currentTarget)}
       onMouseLeave={onLeave}
@@ -120,7 +122,7 @@ function WeaponCard({
         onClick={() => onSelect(hash)}
         disabled={disabled}
         className={`w-full flex items-start gap-3 p-3 text-left transition ${
-          isActive ? "bg-bungie-blue/20" : `${tier.bg} hover:brightness-125`
+          isActive ? theme.bg : `${tier.bg} hover:brightness-125`
         } disabled:opacity-40 disabled:cursor-default`}
       >
         <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800">
