@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
-import { getWeaponDefinitions, getPerkNames, flushDefinitionCache } from "@/lib/bungie/definitions";
+import {
+  getWeaponDefinitions,
+  getPerkNames,
+  flushDefinitionCache,
+} from "@/lib/bungie/definitions";
 import { bungieGet } from "@/lib/bungie/client";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
@@ -12,7 +16,7 @@ const schema = z.object({
   characterId: z.string().optional(),
 });
 
-// Single combined component fetch — replaces 3 separate Bungie calls per member.
+// Single combined fetch — replaces 3 separate Bungie calls per member.
 const COMBINED_COMPONENTS = "102,200,201,205,300,305,800";
 const VAULT_BUCKET = 138197802;
 const NOT_ACQUIRED = 1;
@@ -35,6 +39,12 @@ interface MemberData {
   sockets: Map<string, number[]>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function asAnyArray(v: unknown): any[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Array.isArray(v) ? (v as any[]) : [];
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
@@ -52,7 +62,6 @@ export async function POST(req: NextRequest) {
     const slots: WeaponSlot[] = ["kinetic", "energy", "power"];
 
     // ── Phase 1: ONE Bungie API call per member (was 3) ──────────────────────
-    // Fetches inventory + collectibles + sockets in a single round-trip.
 
     const memberDataMap = new Map<string, MemberData>();
 
@@ -61,31 +70,30 @@ export async function POST(req: NextRequest) {
         try {
           const token = await getBungieToken(member.user_id);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const profile = await bungieGet<any>(
+          const profile: any = await bungieGet<unknown>(
             `/Destiny2/${member.bungie_membership_type}/Profile/${member.bungie_membership_id}/?components=${COMBINED_COMPONENTS}`,
             token
           );
 
           const instances: Record<string, { primaryStat?: { value: number } }> =
-            profile.itemComponents?.instances?.data ?? {};
+            profile?.itemComponents?.instances?.data ?? {};
 
           const weapons: RawWeapon[] = [];
           const vaultItems: MemberData["vaultItems"] = [];
 
-          // Character equipment + character bag
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          for (const [charId, charEquip] of Object.entries<any>(
-            profile.characterEquipment?.data ?? {}
-          )) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const equippedIds = new Set((charEquip.items as any[]).map((i) => i.itemInstanceId));
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            for (const item of charEquip.items as any[]) {
-              const slot = bucketToSlot(item.bucketHash);
+          const charEquipData: Record<string, { items: unknown[] }> =
+            profile?.characterEquipment?.data ?? {};
+
+          for (const [charId, charEquip] of Object.entries(charEquipData)) {
+            const charItems = asAnyArray(charEquip.items);
+            const equippedIds = new Set(charItems.map((i) => i.itemInstanceId as string));
+
+            for (const item of charItems) {
+              const slot = bucketToSlot(item.bucketHash as number);
               if (!slot) continue;
               weapons.push({
-                itemHash: item.itemHash,
-                itemInstanceId: item.itemInstanceId,
+                itemHash: item.itemHash as number,
+                itemInstanceId: item.itemInstanceId as string,
                 slot,
                 location: "character",
                 characterId: charId,
@@ -93,47 +101,44 @@ export async function POST(req: NextRequest) {
                 lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
               });
             }
-            for (const item of (profile.characterInventories?.data[charId]?.items ??
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              []) as any[]) {
-              const slot = bucketToSlot(item.bucketHash);
+
+            const bagItems = asAnyArray(profile?.characterInventories?.data?.[charId]?.items);
+            for (const item of bagItems) {
+              const slot = bucketToSlot(item.bucketHash as number);
               if (!slot) continue;
               weapons.push({
-                itemHash: item.itemHash,
-                itemInstanceId: item.itemInstanceId,
+                itemHash: item.itemHash as number,
+                itemInstanceId: item.itemInstanceId as string,
                 slot,
                 location: "character",
                 characterId: charId,
-                isEquipped: equippedIds.has(item.itemInstanceId),
+                isEquipped: equippedIds.has(item.itemInstanceId as string),
                 lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
               });
             }
           }
 
-          // Vault items (slot resolved later via definition lookup)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          for (const item of (profile.profileInventory?.data?.items ?? []) as any[]) {
-            if (item.bucketHash !== VAULT_BUCKET) continue;
+          const profileInventoryItems = asAnyArray(profile?.profileInventory?.data?.items);
+          for (const item of profileInventoryItems) {
+            if ((item.bucketHash as number) !== VAULT_BUCKET) continue;
             vaultItems.push({
-              itemHash: item.itemHash,
-              itemInstanceId: item.itemInstanceId,
+              itemHash: item.itemHash as number,
+              itemInstanceId: item.itemInstanceId as string,
               lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
             });
           }
 
-          // Collectibles
           const collectibles = new Set<number>();
-          for (const [hashStr, entry] of Object.entries<{ state: number }>(
-            profile.profileCollectibles?.data?.collectibles ?? {}
-          )) {
+          const collectiblesData: Record<string, { state: number }> =
+            profile?.profileCollectibles?.data?.collectibles ?? {};
+          for (const [hashStr, entry] of Object.entries(collectiblesData)) {
             if ((entry.state & NOT_ACQUIRED) === 0) collectibles.add(Number(hashStr));
           }
 
-          // Sockets (for captain perk data — all members parsed, filtered later)
           const sockets = new Map<string, number[]>();
-          for (const [instanceId, sockData] of Object.entries<{
-            sockets: Array<{ plugHash?: number; isVisible?: boolean }>;
-          }>(profile.itemComponents?.sockets?.data ?? {})) {
+          const socketsData: Record<string, { sockets: Array<{ plugHash?: number; isVisible?: boolean }> }> =
+            profile?.itemComponents?.sockets?.data ?? {};
+          for (const [instanceId, sockData] of Object.entries(socketsData)) {
             const perks: number[] = [];
             for (const idx of PERK_SOCKET_INDICES) {
               const socket = sockData.sockets[idx];
@@ -161,8 +166,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Phase 2: Batch vault definition lookup (all members combined, deduplicated) ──
-    // This uses the Supabase cache — typically one DB query instead of N Bungie calls.
+    // ── Phase 2: Batch vault def lookup across all members (Supabase cache) ──
 
     const allVaultHashes = new Set<number>();
     for (const data of memberDataMap.values()) {
@@ -174,7 +178,6 @@ export async function POST(req: NextRequest) {
         ? await getWeaponDefinitions([...allVaultHashes])
         : new Map();
 
-    // Resolve vault items into typed RawWeapons for each member
     for (const data of memberDataMap.values()) {
       for (const item of data.vaultItems) {
         const def = vaultDefMap.get(item.itemHash);
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Phase 3: Per-member inventory hash sets (per slot) ───────────────────
+    // ── Phase 3: Per-member slot sets ────────────────────────────────────────
 
     const memberSlotSets = new Map<string, Record<WeaponSlot, Set<number>>>();
     const memberCollectibleMap = new Map<string, Set<number>>();
@@ -260,10 +263,16 @@ export async function POST(req: NextRequest) {
     // ── Phase 6: Definitions for final intersection ───────────────────────────
 
     const allIntersectionHashes = [
-      ...new Set([...intersection.kinetic, ...intersection.energy, ...intersection.power]),
+      ...new Set([
+        ...intersection.kinetic,
+        ...intersection.energy,
+        ...intersection.power,
+      ]),
     ];
 
-    const inventoryOnlyHashes = allIntersectionHashes.filter((h) => !candidateDefMap.has(h));
+    const inventoryOnlyHashes = allIntersectionHashes.filter(
+      (h) => !candidateDefMap.has(h)
+    );
     const inventoryDefMap =
       inventoryOnlyHashes.length > 0
         ? await getWeaponDefinitions(inventoryOnlyHashes)
@@ -304,7 +313,7 @@ export async function POST(req: NextRequest) {
       power: [...intersection.power],
     };
 
-    // ── Phase 7: Equipped hashes for seeding the initial roll ────────────────
+    // ── Phase 7: Equipped hashes for seeding initial roll ────────────────────
 
     const myWeapons = memberDataMap.get(session.userId)?.weapons ?? [];
     const equippedHashes: Record<WeaponSlot, number | null> = {
@@ -323,7 +332,7 @@ export async function POST(req: NextRequest) {
       if (equipped) equippedHashes[slot] = equipped.itemHash;
     }
 
-    // ── Phase 8: Per-instance perk rolls (from pre-fetched sockets — no extra API call) ──
+    // ── Phase 8: Perk rolls from pre-fetched sockets (no extra API call) ─────
 
     const allIntersectionHashSet = new Set(allIntersectionHashes);
     const myIntersectionWeapons = myWeapons.filter((w) =>
@@ -332,7 +341,12 @@ export async function POST(req: NextRequest) {
 
     const instancePerks: Record<
       string,
-      Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>
+      Array<{
+        instanceId: string;
+        perks: string[];
+        location: string;
+        characterId?: string;
+      }>
     > = {};
 
     const myData = memberDataMap.get(session.userId);
@@ -348,7 +362,9 @@ export async function POST(req: NextRequest) {
       for (const weapon of myIntersectionWeapons) {
         const hashes = myData.sockets.get(weapon.itemInstanceId);
         if (!hashes) continue;
-        const perks = hashes.map((h) => perkNameMap.get(h)).filter(Boolean) as string[];
+        const perks = hashes
+          .map((h) => perkNameMap.get(h))
+          .filter((n): n is string => n !== undefined);
         if (perks.length === 0) continue;
         const key = weapon.itemHash.toString();
         if (!instancePerks[key]) instancePerks[key] = [];
@@ -361,7 +377,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Persist any new defs/perks fetched from Bungie this request.
     void flushDefinitionCache();
 
     return NextResponse.json({
