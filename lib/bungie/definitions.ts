@@ -1,6 +1,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 
-const BUNGIE_ROOT = "https://www.bungie.net/Platform";
+const BUNGIE_ROOT = "https://www.bungie.net";
+const BUNGIE_PLATFORM = "https://www.bungie.net/Platform";
 const BUNGIE_CDN = "https://www.bungie.net";
 
 export interface WeaponDefinition {
@@ -43,35 +44,144 @@ const DAMAGE_TYPE_NAMES: Record<number, string> = {
   3949783978: "Strand",
 };
 
-// Per-invocation memory cache — survives across requests in the same warm instance.
-const defMemCache = new Map<number, WeaponDefinition>();
-const perkMemCache = new Map<number, string | null>();
+// ── Weapons-only definition table ─────────────────────────────────────────────
+// Built once from Bungie's manifest, filtered to weapons (itemType === 3), and
+// cached in Supabase keyed by the manifest version. Memoized per serverless
+// instance via a reused Promise. Non-weapon items are simply ABSENT from the
+// table, so "is this a weapon?" is an O(1) map lookup with zero per-item Bungie
+// calls — this is what makes a full vault load fast instead of fetching a
+// definition for every armor piece / mod / material in everyone's vault.
 
-// Supabase cache Promise is reused within the same serverless instance.
-let supabaseDefCachePromise: Promise<Record<string, WeaponDefinition>> | null = null;
-let supabasePerkCachePromise: Promise<Record<string, string>> | null = null;
+const WEAPONS_TABLE_KEY = "weapons_table";
+let weaponsTablePromise: Promise<Map<number, WeaponDefinition>> | null = null;
 
-// New defs/perks fetched from Bungie this request — flushed to Supabase at end.
-const pendingDefs = new Map<number, WeaponDefinition>();
-const pendingPerks = new Map<number, string>();
+async function getManifestInfo(): Promise<{ version: string; itemPath: string }> {
+  const res = await fetch(`${BUNGIE_PLATFORM}/Destiny2/Manifest/`, {
+    headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
+    next: { revalidate: 3600 },
+  });
+  const json = await res.json();
+  const version: string = json.Response.version;
+  const itemPath: string =
+    json.Response.jsonWorldComponentContentPaths.en.DestinyInventoryItemDefinition;
+  return { version, itemPath };
+}
 
-function loadSupabaseDefCache(): Promise<Record<string, WeaponDefinition>> {
-  if (!supabaseDefCachePromise) {
-    supabaseDefCachePromise = (async () => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractWeaponDef(itemHash: number, def: any): WeaponDefinition | null {
+  if (!def || def.itemType !== 3) return null;
+
+  const stats: Record<string, number> = {};
+  for (const [hashStr, statData] of Object.entries(def.stats?.stats ?? {})) {
+    const label = WEAPON_STAT_HASHES[Number(hashStr)];
+    if (label) stats[label] = (statData as { value: number }).value;
+  }
+
+  return {
+    itemHash,
+    name: def.displayProperties?.name ?? "Unknown",
+    icon: def.displayProperties?.icon ? `${BUNGIE_CDN}${def.displayProperties.icon}` : "",
+    weaponType: def.itemTypeDisplayName ?? "Weapon",
+    ammoType: AMMO_TYPE_NAMES[def.equippingBlock?.ammoType ?? 1] ?? "Primary",
+    damageType: DAMAGE_TYPE_NAMES[def.defaultDamageTypeHash ?? 0] ?? "Kinetic",
+    tierName: TIER_NAMES[def.inventory?.tierType ?? 5] ?? "Legendary",
+    tierType: def.inventory?.tierType ?? 5,
+    flavorText: def.flavorText ?? "",
+    defaultBucketHash: def.inventory?.bucketTypeHash ?? 0,
+    collectibleHash: def.collectibleHash ?? undefined,
+    stats,
+    intrinsicPerk: def.itemTypeDisplayName ?? null,
+  };
+}
+
+async function buildWeaponsTable(itemPath: string): Promise<Record<string, WeaponDefinition>> {
+  const res = await fetch(`${BUNGIE_ROOT}${itemPath}`);
+  if (!res.ok) throw new Error(`Manifest item table download failed: ${res.status}`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allItems: Record<string, any> = await res.json();
+
+  const table: Record<string, WeaponDefinition> = {};
+  for (const [hashStr, def] of Object.entries(allItems)) {
+    const wd = extractWeaponDef(Number(hashStr), def);
+    if (wd) table[hashStr] = wd;
+  }
+  return table;
+}
+
+function toMap(rec: Record<string, WeaponDefinition>): Map<number, WeaponDefinition> {
+  const m = new Map<number, WeaponDefinition>();
+  for (const [k, v] of Object.entries(rec)) m.set(Number(k), v);
+  return m;
+}
+
+function loadWeaponsTable(): Promise<Map<number, WeaponDefinition>> {
+  if (!weaponsTablePromise) {
+    weaponsTablePromise = (async () => {
       try {
+        const { version, itemPath } = await getManifestInfo();
+
+        // Reuse the cached compact table if it matches the current manifest version.
         const { data } = await adminSupabase
           .from("cached_manifest_metadata")
-          .select("items_json")
-          .eq("version", "weapon_defs")
-          .single();
-        return (data?.items_json ?? {}) as Record<string, WeaponDefinition>;
+          .select("items_json, stats_json")
+          .eq("version", WEAPONS_TABLE_KEY)
+          .maybeSingle();
+
+        const cachedVersion = (data?.stats_json as { manifestVersion?: string } | null)
+          ?.manifestVersion;
+        if (data?.items_json && cachedVersion === version) {
+          return toMap(data.items_json as Record<string, WeaponDefinition>);
+        }
+
+        // Rebuild from the full manifest (rare — only when Bungie ships an update).
+        const table = await buildWeaponsTable(itemPath);
+        await adminSupabase.from("cached_manifest_metadata").upsert({
+          version: WEAPONS_TABLE_KEY,
+          items_json: table,
+          stats_json: { manifestVersion: version },
+          damage_types_json: {},
+          sandbox_perks_json: {},
+        });
+        return toMap(table);
       } catch {
-        return {};
+        // Degrade gracefully — callers treat a missing def as "not a weapon".
+        // Don't cache the failure so the next request can retry.
+        weaponsTablePromise = null;
+        return new Map<number, WeaponDefinition>();
       }
     })();
   }
-  return supabaseDefCachePromise;
+  return weaponsTablePromise;
 }
+
+export async function getWeaponDefinitions(
+  hashes: number[]
+): Promise<Map<number, WeaponDefinition>> {
+  if (hashes.length === 0) return new Map();
+  const table = await loadWeaponsTable();
+  const result = new Map<number, WeaponDefinition>();
+  for (const hash of hashes) {
+    const def = table.get(hash);
+    if (def) result.set(hash, def);
+  }
+  return result;
+}
+
+export async function getWeaponDefinition(
+  itemHash: number
+): Promise<WeaponDefinition | null> {
+  const table = await loadWeaponsTable();
+  return table.get(itemHash) ?? null;
+}
+
+// ── Perk name lookups ─────────────────────────────────────────────────────────
+// Perk plug names are resolved per-hash with a 3-level cache. Unlike vault
+// definitions, this only runs for the caller's own intersection weapons (a small
+// set), and perk names always resolve to a value, so the cache is effective.
+
+const perkMemCache = new Map<number, string | null>();
+let supabasePerkCachePromise: Promise<Record<string, string>> | null = null;
+const pendingPerks = new Map<number, string>();
 
 function loadSupabasePerkCache(): Promise<Record<string, string>> {
   if (!supabasePerkCachePromise) {
@@ -91,137 +201,26 @@ function loadSupabasePerkCache(): Promise<Record<string, string>> {
   return supabasePerkCachePromise;
 }
 
+// Call at the end of a request to persist newly-resolved perk names.
 export async function flushDefinitionCache(): Promise<void> {
-  await Promise.all([
-    (async () => {
-      if (pendingDefs.size === 0) return;
-      const existing = await loadSupabaseDefCache();
-      const merged: Record<string, WeaponDefinition> = { ...existing };
-      for (const [hash, def] of pendingDefs) merged[hash.toString()] = def;
-      await adminSupabase.from("cached_manifest_metadata").upsert({
-        version: "weapon_defs",
-        items_json: merged,
-        stats_json: {},
-        damage_types_json: {},
-        sandbox_perks_json: {},
-      });
-      pendingDefs.clear();
-    })(),
-    (async () => {
-      if (pendingPerks.size === 0) return;
-      const existing = await loadSupabasePerkCache();
-      const merged: Record<string, string> = { ...existing };
-      for (const [hash, name] of pendingPerks) merged[hash.toString()] = name;
-      await adminSupabase.from("cached_manifest_metadata").upsert({
-        version: "perk_names",
-        items_json: {},
-        stats_json: {},
-        damage_types_json: {},
-        sandbox_perks_json: merged,
-      });
-      pendingPerks.clear();
-    })(),
-  ]);
-}
-
-async function fetchWeaponDefFromBungie(
-  itemHash: number
-): Promise<WeaponDefinition | null> {
-  try {
-    const res = await fetch(
-      `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}/`,
-      { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const def = data.Response;
-    if (!def || def.itemType !== 3) return null;
-
-    const stats: Record<string, number> = {};
-    for (const [hashStr, statData] of Object.entries(def.stats?.stats ?? {})) {
-      const label = WEAPON_STAT_HASHES[Number(hashStr)];
-      if (label) stats[label] = (statData as { value: number }).value;
-    }
-
-    return {
-      itemHash,
-      name: def.displayProperties?.name ?? "Unknown",
-      icon: def.displayProperties?.icon
-        ? `${BUNGIE_CDN}${def.displayProperties.icon}`
-        : "",
-      weaponType: def.itemTypeDisplayName ?? "Weapon",
-      ammoType: AMMO_TYPE_NAMES[def.equippingBlock?.ammoType ?? 1] ?? "Primary",
-      damageType: DAMAGE_TYPE_NAMES[def.defaultDamageTypeHash ?? 0] ?? "Kinetic",
-      tierName: TIER_NAMES[def.inventory?.tierType ?? 5] ?? "Legendary",
-      tierType: def.inventory?.tierType ?? 5,
-      flavorText: def.flavorText ?? "",
-      defaultBucketHash: def.inventory?.bucketTypeHash ?? 0,
-      collectibleHash: def.collectibleHash ?? undefined,
-      stats,
-      intrinsicPerk: def.itemTypeDisplayName ?? null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function getWeaponDefinitions(
-  hashes: number[]
-): Promise<Map<number, WeaponDefinition>> {
-  if (hashes.length === 0) return new Map();
-
-  const results = new Map<number, WeaponDefinition>();
-  const memMissing: number[] = [];
-
-  for (const hash of hashes) {
-    const cached = defMemCache.get(hash);
-    if (cached) {
-      results.set(hash, cached);
-    } else {
-      memMissing.push(hash);
-    }
-  }
-  if (memMissing.length === 0) return results;
-
-  const supabaseCache = await loadSupabaseDefCache();
-  const bungieNeeded: number[] = [];
-
-  for (const hash of memMissing) {
-    const cached = supabaseCache[hash.toString()];
-    if (cached) {
-      results.set(hash, cached);
-      defMemCache.set(hash, cached);
-    } else {
-      bungieNeeded.push(hash);
-    }
-  }
-  if (bungieNeeded.length === 0) return results;
-
-  await Promise.all(
-    bungieNeeded.map(async (hash) => {
-      const def = await fetchWeaponDefFromBungie(hash);
-      if (def) {
-        results.set(hash, def);
-        defMemCache.set(hash, def);
-        pendingDefs.set(hash, def);
-      }
-    })
-  );
-
-  return results;
-}
-
-export async function getWeaponDefinition(
-  itemHash: number
-): Promise<WeaponDefinition | null> {
-  const map = await getWeaponDefinitions([itemHash]);
-  return map.get(itemHash) ?? null;
+  if (pendingPerks.size === 0) return;
+  const existing = await loadSupabasePerkCache();
+  const merged: Record<string, string> = { ...existing };
+  for (const [hash, name] of pendingPerks) merged[hash.toString()] = name;
+  await adminSupabase.from("cached_manifest_metadata").upsert({
+    version: "perk_names",
+    items_json: {},
+    stats_json: {},
+    damage_types_json: {},
+    sandbox_perks_json: merged,
+  });
+  pendingPerks.clear();
 }
 
 async function fetchPerkNameFromBungie(hash: number): Promise<string | null> {
   try {
     const res = await fetch(
-      `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyInventoryItemDefinition/${hash}/`,
+      `${BUNGIE_PLATFORM}/Destiny2/Manifest/DestinyInventoryItemDefinition/${hash}/`,
       { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
     );
     if (!res.ok) return null;
