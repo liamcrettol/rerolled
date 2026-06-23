@@ -409,12 +409,16 @@ export default function LobbyRoom({
       if (s.item_hash === 0) continue;
       keep[sl] = s.item_hash;
     }
+    const avoid = Object.fromEntries(
+      slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash])
+    );
     await fetch("/api/roulette/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lobbyId: lobby.id, roundId, intersection, weaponDetails,
         keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+        avoid,
         wildcardSlots: Array.from(nextWildcards),
       }),
     });
@@ -468,10 +472,14 @@ export default function LobbyRoom({
       });
       if (kept.length > 0) keepSlots = Object.fromEntries(kept.map((s) => [s.slot, s.item_hash]));
     }
+    // Avoid repeating the current weapon in any slot we're about to re-roll
+    const avoid = Object.fromEntries(
+      slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash])
+    );
     await fetch("/api/roulette/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection, weaponDetails, rerollSlot, keepSlots, wildcardSlots: Array.from(effectiveWildcards) }),
+      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection, weaponDetails, rerollSlot, keepSlots, avoid, wildcardSlots: Array.from(effectiveWildcards) }),
     });
     setLoadingAction(null);
   }, [intersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots]);

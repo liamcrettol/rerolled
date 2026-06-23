@@ -86,8 +86,19 @@ function pick(pool: number[]): number | null {
 export function rollLoadout(
   intersection: Record<WeaponSlot, number[]>,
   weaponDetails: Record<string, WeaponDetail>,
-  exclude?: Partial<Record<WeaponSlot, number>>
+  exclude?: Partial<Record<WeaponSlot, number>>,
+  // Per-slot weapon to avoid repeating (the previous roll). Soft: only applied
+  // when the slot's pool has at least one other option.
+  avoid?: Partial<Record<WeaponSlot, number>>
 ): Record<WeaponSlot, number | null> {
+  // Drop the just-rolled weapon from a pool so the same gun doesn't come up
+  // twice in a row — unless it's the only option for that slot.
+  const dropAvoided = (pool: number[], slot: WeaponSlot): number[] => {
+    const a = avoid?.[slot];
+    if (a == null) return pool;
+    const without = pool.filter((h) => h !== a);
+    return without.length > 0 ? without : pool;
+  };
   // Treat 0 (the "your own / wildcard" sentinel) as not-kept so it can never pin
   // a slot to an empty value — a kept slot must be a real item hash.
   const keep: Partial<Record<WeaponSlot, number>> = {};
@@ -125,6 +136,7 @@ export function rollLoadout(
       ? applyPairingRule(intersection.kinetic, energyType, weaponDetails)
       : intersection.kinetic;
     kPool = dropExoticsIf(kPool, keptExotic || isExotic(energyHash));
+    kPool = dropAvoided(kPool, "kinetic");
     kineticHash = pick(kPool);
   }
 
@@ -135,6 +147,7 @@ export function rollLoadout(
       ? applyPairingRule(intersection.energy, kineticType, weaponDetails)
       : intersection.energy;
     ePool = dropExoticsIf(ePool, keptExotic || isExotic(kineticHash));
+    ePool = dropAvoided(ePool, "energy");
     energyHash = pick(ePool);
   }
 
@@ -143,7 +156,7 @@ export function rollLoadout(
     (h) => (weaponDetails[h.toString()]?.tierType ?? 5) !== 6
   );
   if (powerPool.length === 0) powerPool = intersection.power; // fallback if all exotics
-  const powerHash = keep.power ?? pick(powerPool);
+  const powerHash = keep.power ?? pick(dropAvoided(powerPool, "power"));
 
   return { kinetic: kineticHash, energy: energyHash, power: powerHash };
 }
