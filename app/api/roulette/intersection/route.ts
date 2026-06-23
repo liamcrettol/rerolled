@@ -16,8 +16,14 @@ const schema = z.object({
   characterId: z.string().optional(),
 });
 
-// Single combined fetch — replaces 3 separate Bungie calls per member.
-const COMBINED_COMPONENTS = "102,200,201,205,300,305,800";
+// Single combined fetch per member. Component 305 (ItemSockets) is the heaviest
+// part of the payload and is only needed for the caller (to show their perks), so
+// other members skip it. Component 300 (ItemInstances) is dropped entirely — the
+// intersection only needs item hashes, not per-instance light levels.
+// 102 ProfileInventories · 200 Characters · 201 CharacterInventories ·
+// 205 CharacterEquipment · 305 ItemSockets (caller only) · 800 Collectibles
+const BASE_COMPONENTS = "102,200,201,205,800";
+const CALLER_COMPONENTS = "102,200,201,205,305,800";
 const VAULT_BUCKET = 138197802;
 const NOT_ACQUIRED = 1;
 const PERK_SOCKET_INDICES = [3, 4, 5];
@@ -70,8 +76,10 @@ export async function POST(req: NextRequest) {
         try {
           const token = await getBungieToken(member.user_id);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const components =
+            member.user_id === session.userId ? CALLER_COMPONENTS : BASE_COMPONENTS;
           const profile: any = await bungieGet<unknown>(
-            `/Destiny2/${member.bungie_membership_type}/Profile/${member.bungie_membership_id}/?components=${COMBINED_COMPONENTS}`,
+            `/Destiny2/${member.bungie_membership_type}/Profile/${member.bungie_membership_id}/?components=${components}`,
             token
           );
 
