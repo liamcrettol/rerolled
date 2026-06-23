@@ -5,6 +5,10 @@ import SignOutButton from "@/components/SignOutButton";
 import LobbyControls from "@/components/LobbyControls";
 import Leaderboard from "@/components/Leaderboard";
 import WeaponHallOfFame from "@/components/WeaponHallOfFame";
+import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
+
+// Always render fresh so the global leaderboard reflects the latest games.
+export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
   const session = await auth();
@@ -26,6 +30,8 @@ export default async function Dashboard() {
       </header>
 
       <LobbyControls />
+
+      <DashboardLiveRefresh />
 
       <div className="mt-10 space-y-6">
         <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading leaderboard...</div>}>
