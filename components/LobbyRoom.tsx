@@ -42,6 +42,14 @@ const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlo
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 const POLL_INTERVAL_MS = 30_000;
 
+// Per-slot mode cycle: Random → Locked → Your own.
+type SlotMode = "normal" | "lock" | "wildcard";
+const SLOT_MODE_CONFIG: Record<SlotMode, { icon: string; label: string; cls: string }> = {
+  normal: { icon: "🎲", label: "Random", cls: "border-bungie-border text-gray-400 hover:border-gray-400" },
+  lock: { icon: "🔒", label: "Locked", cls: "border-yellow-500 bg-yellow-500/20 text-yellow-300" },
+  wildcard: { icon: "👤", label: "Your own", cls: "border-purple-500 bg-purple-500/20 text-purple-300" },
+};
+
 function StatsTable({ stats }: { stats: PlayerStat[] }) {
   const sorted = [...stats].sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills);
   return (
@@ -332,15 +340,21 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, [lobby.id, isCaptain, slots.length, roundId, selectedCharId]);
 
-  const toggleLock = useCallback((slot: WeaponSlot) => {
-    setLockedSlots((prev) => { const n = new Set(prev); n.has(slot) ? n.delete(slot) : n.add(slot); return n; });
-    setWildcardSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
-  }, []);
-
-  const toggleWildcard = useCallback((slot: WeaponSlot) => {
-    setWildcardSlots((prev) => { const n = new Set(prev); n.has(slot) ? n.delete(slot) : n.add(slot); return n; });
-    setLockedSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
-  }, []);
+  // Cycle a slot through Random → 🔒 Locked → 👤 Your own → Random.
+  // Locked = keep this shared weapon on Roll All. Your own = skip slot on apply
+  // (each player keeps their own equipped weapon).
+  const cycleSlotMode = useCallback((slot: WeaponSlot) => {
+    const locked = lockedSlots.has(slot);
+    const wildcard = wildcardSlots.has(slot);
+    if (!locked && !wildcard) {
+      setLockedSlots((prev) => new Set(prev).add(slot));
+    } else if (locked) {
+      setLockedSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
+      setWildcardSlots((prev) => new Set(prev).add(slot));
+    } else {
+      setWildcardSlots((prev) => { const n = new Set(prev); n.delete(slot); return n; });
+    }
+  }, [lockedSlots, wildcardSlots]);
 
   const handleRoll = useCallback(async (rerollSlot?: WeaponSlot) => {
     if (!intersection || !roundId) return;
@@ -529,28 +543,33 @@ export default function LobbyRoom({
             </div>
 
             {intersection && (
-              <div className="mt-3 flex flex-wrap gap-2 items-center">
-                <span className="text-xs text-gray-500">Slot options:</span>
-                {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => {
-                  const locked = lockedSlots.has(slot);
-                  const wildcard = wildcardSlots.has(slot);
-                  const hasRoll = slots.some((s) => s.slot === slot);
-                  return (
-                    <span key={slot} className="flex items-center gap-1">
-                      <button onClick={() => toggleLock(slot)} disabled={!hasRoll}
-                        title={`Lock ${SLOT_LABELS[slot]} to this weapon`}
-                        className={`px-2 py-1 rounded text-xs border transition ${locked ? "border-yellow-500 bg-yellow-500/20 text-yellow-300" : "border-bungie-border text-gray-400 hover:border-gray-400"} disabled:opacity-30`}>
-                        {locked ? "🔒" : "🔓"}
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-gray-500">Slot mode:</span>
+                  {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => {
+                    const mode: SlotMode = lockedSlots.has(slot)
+                      ? "lock"
+                      : wildcardSlots.has(slot)
+                      ? "wildcard"
+                      : "normal";
+                    const cfg = SLOT_MODE_CONFIG[mode];
+                    return (
+                      <button
+                        key={slot}
+                        onClick={() => cycleSlotMode(slot)}
+                        title={`${SLOT_LABELS[slot]}: ${cfg.label} — click to cycle`}
+                        className={`px-2.5 py-1 rounded text-xs border transition flex items-center gap-1.5 ${cfg.cls}`}
+                      >
+                        <span>{cfg.icon}</span>
+                        <span className="font-medium">{SLOT_LABELS[slot]}</span>
+                        <span className="opacity-70">· {cfg.label}</span>
                       </button>
-                      <button onClick={() => toggleWildcard(slot)}
-                        title={`Wildcard: everyone keeps their own ${SLOT_LABELS[slot].toLowerCase()} weapon (skipped on apply)`}
-                        className={`px-2 py-1 rounded text-xs border transition ${wildcard ? "border-purple-500 bg-purple-500/20 text-purple-300" : "border-bungie-border text-gray-400 hover:border-gray-400"}`}>
-                        👤
-                      </button>
-                      <span className="text-xs text-gray-500">{SLOT_LABELS[slot]}</span>
-                    </span>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-xs text-gray-600">
+                  Click a slot to cycle: 🎲 Random → 🔒 Locked (keep on reroll) → 👤 Your own (skipped on apply)
+                </p>
               </div>
             )}
 
