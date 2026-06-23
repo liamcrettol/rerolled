@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
-import { rotateCaptain } from "@/lib/lobby";
 import { z } from "zod";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
@@ -23,8 +22,6 @@ export async function POST(req: NextRequest) {
     }
 
     const nextRound = lobby.current_round + 1;
-
-    await rotateCaptain(lobbyId);
 
     await adminSupabase.from("lobby_rounds").insert({
       lobby_id: lobbyId,
