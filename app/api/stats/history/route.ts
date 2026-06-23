@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { adminSupabase } from "@/lib/supabase/admin";
 
 export async function GET(req: NextRequest) {
   const lobbyId = req.nextUrl.searchParams.get("lobbyId");
   if (!lobbyId) return NextResponse.json({ error: "lobbyId required" }, { status: 400 });
-
-  const adminSupabase = createAdminClient();
 
   const { data: sessions } = await adminSupabase
     .from("game_sessions")
