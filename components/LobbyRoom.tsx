@@ -88,6 +88,58 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
   );
 }
 
+const CLASS_ICON_PATHS: Record<number, string> = {
+  0: "/icons/class-titan.svg",
+  1: "/icons/class-hunter.svg",
+  2: "/icons/class-warlock.svg",
+};
+
+function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classType: number }) {
+  const [emblemFailed, setEmblemFailed] = useState(false);
+  const [classIconFailed, setClassIconFailed] = useState(false);
+
+  if (!emblemPath || emblemFailed) {
+    if (classIconFailed) {
+      return (
+        <img
+          src="/icons/destiny-default.svg"
+          alt=""
+          className="w-8 h-8 rounded border border-white/10"
+        />
+      );
+    }
+    return (
+      <img
+        src={CLASS_ICON_PATHS[classType] ?? CLASS_ICON_PATHS[0]}
+        alt=""
+        className="w-8 h-8 rounded border border-white/10"
+        onError={() => setClassIconFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={`https://www.bungie.net${emblemPath}`}
+      alt=""
+      className="w-8 h-8 rounded border border-white/10 object-cover"
+      onError={() => setEmblemFailed(true)}
+    />
+  );
+}
+
+function LightLevelIcon({ light }: { light: number }) {
+  return (
+    <span className="flex items-center gap-1">
+      <svg viewBox="0 0 24 24" className="w-4 h-4 text-yellow-400" fill="currentColor">
+        <circle cx="12" cy="12" r="2" />
+        <path d="M12 1v6m0 4v6M1 12h6m4 0h6M3.22 3.22l4.24 4.24m5.08 0l4.24-4.24M3.22 20.78l4.24-4.24m5.08 0l4.24 4.24" stroke="currentColor" strokeWidth="1.5" fill="none" />
+      </svg>
+      <span>{light}</span>
+    </span>
+  );
+}
+
 export default function LobbyRoom({
   lobby,
   initialMembers,
@@ -799,8 +851,10 @@ export default function LobbyRoom({
                 .map((c) => (
                 <button key={c.characterId} onClick={() => handleSelectCharacter(c.characterId)}
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition flex items-center gap-2 ${selectedCharId === c.characterId ? "border-bungie-blue bg-bungie-blue/20 text-white" : "border-bungie-border text-gray-400 hover:border-gray-500"}`}>
+                  <EmblemThumbnail emblemPath={c.emblemPath} classType={c.classType} />
                   {selectedCharId === c.characterId && <span className="text-green-400">✓</span>}
-                  {CLASS_NAMES[c.classType] ?? "Guardian"} · {c.light}
+                  {CLASS_NAMES[c.classType] ?? "Guardian"} ·
+                  <LightLevelIcon light={c.light} />
                 </button>
               ))}
             </div>
