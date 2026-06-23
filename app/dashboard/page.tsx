@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import SignOutButton from "@/components/SignOutButton";
 import LobbyControls from "@/components/LobbyControls";
 import Leaderboard from "@/components/Leaderboard";
+import WeaponHallOfFame from "@/components/WeaponHallOfFame";
 
 export default async function Dashboard() {
   const session = await auth();
@@ -25,8 +27,13 @@ export default async function Dashboard() {
 
       <LobbyControls />
 
-      <div className="mt-10">
-        <Leaderboard />
+      <div className="mt-10 space-y-6">
+        <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading leaderboard...</div>}>
+          <Leaderboard />
+        </Suspense>
+        <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading hall of fame...</div>}>
+          <WeaponHallOfFame />
+        </Suspense>
       </div>
     </main>
   );

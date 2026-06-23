@@ -75,8 +75,10 @@ export async function POST(req: NextRequest) {
     if (!callerMember?.selected_character_id) return NextResponse.json({ done: false });
 
     const token = await getBungieToken(session.userId);
-    const stats = await collectPostMatchStats(memberInputs, rouletteHashes, token);
-    if (!stats) return NextResponse.json({ done: false });
+    const result = await collectPostMatchStats(memberInputs, rouletteHashes, token);
+    if (!result) return NextResponse.json({ done: false });
+
+    const { playerStats, weaponKills } = result;
 
     const { data: raceCheck } = await adminSupabase
       .from("game_sessions")
@@ -86,17 +88,17 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    if (raceCheck) return NextResponse.json({ done: true, stats });
+    if (raceCheck) return NextResponse.json({ done: true, stats: playerStats });
 
     const { data: gameSession } = await adminSupabase
       .from("game_sessions")
-      .insert({ lobby_id: lobbyId, player_count: stats.length, roulette_hashes: rouletteHashes })
+      .insert({ lobby_id: lobbyId, player_count: playerStats.length, roulette_hashes: rouletteHashes })
       .select()
       .single();
 
     if (gameSession) {
       await adminSupabase.from("player_game_stats").insert(
-        stats.map((s) => ({
+        playerStats.map((s) => ({
           game_session_id: gameSession.id,
           user_id: s.userId,
           display_name: s.displayName,
@@ -107,6 +109,16 @@ export async function POST(req: NextRequest) {
           roulette_weapon_kills: s.rouletteWeaponKills,
         }))
       );
+
+      if (weaponKills.length) {
+        await adminSupabase.from("weapon_round_kills").insert(
+          weaponKills.map((w) => ({
+            game_session_id: gameSession.id,
+            item_hash: w.itemHash,
+            total_kills: w.totalKills,
+          }))
+        );
+      }
 
       await rotateCaptain(lobbyId);
 
@@ -134,7 +146,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ done: true, stats });
+    return NextResponse.json({ done: true, stats: playerStats });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;

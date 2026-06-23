@@ -2,9 +2,13 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const session = await auth();
-  if (session?.userId) redirect("/dashboard");
+  const { code } = await searchParams;
+
+  if (session?.userId) {
+    redirect(code ? `/join/${code}` : "/dashboard");
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
@@ -18,6 +22,11 @@ export default async function Home() {
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+        {code && (
+          <p className="text-sm text-bungie-blue text-center font-medium">
+            You&apos;ve been invited to join lobby <span className="font-mono font-bold">{code}</span> — sign in to join.
+          </p>
+        )}
         <SignInButton />
         <p className="text-xs text-gray-500 text-center">
           Signing in lets us read your inventory and equip weapons. Everyone in the group needs to sign in.

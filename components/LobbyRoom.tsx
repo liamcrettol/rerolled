@@ -122,6 +122,9 @@ export default function LobbyRoom({
   const [expandedRound, setExpandedRound] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [mvpPlayer, setMvpPlayer] = useState<PlayerStat | null>(null);
+  const prevLastGameStatsRef = useRef<PlayerStat[] | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const copyCode = useCallback(async () => {
@@ -129,6 +132,16 @@ export default function LobbyRoom({
       await navigator.clipboard.writeText(lobby.code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable; ignore
+    }
+  }, [lobby.code]);
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/join/${lobby.code}`);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1500);
     } catch {
       // clipboard unavailable; ignore
     }
@@ -167,6 +180,19 @@ export default function LobbyRoom({
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  // Trigger MVP flash when new stats arrive for the first time this round
+  useEffect(() => {
+    if (lastGameStats && !prevLastGameStatsRef.current) {
+      const top = [...lastGameStats].sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills)[0];
+      if (top) {
+        setMvpPlayer(top);
+        const t = setTimeout(() => setMvpPlayer(null), 5000);
+        return () => clearTimeout(t);
+      }
+    }
+    prevLastGameStatsRef.current = lastGameStats;
+  }, [lastGameStats]);
 
   const detectGameEnd = useCallback(async () => {
     try {
@@ -504,6 +530,22 @@ export default function LobbyRoom({
   ) : null;
 
   return (
+    <>
+    {/* MVP flash overlay */}
+    {mvpPlayer && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <div className="animate-bounce-in bg-bungie-dark border-2 border-yellow-500 rounded-2xl px-10 py-8 text-center shadow-2xl shadow-yellow-500/20">
+          <p className="text-yellow-400 text-5xl mb-3">👑</p>
+          <p className="text-white font-bold text-2xl">{mvpPlayer.displayName}</p>
+          <p className="text-yellow-400 font-semibold text-lg mt-1">
+            {mvpPlayer.rouletteWeaponKills} roulette kills
+          </p>
+          <p className="text-gray-400 text-sm mt-2">
+            {mvpPlayer.kills}K / {mvpPlayer.deaths}D / {mvpPlayer.assists}A · {mvpPlayer.kd.toFixed(2)} K/D
+          </p>
+        </div>
+      </div>
+    )}
     <div className="flex gap-6 items-start">
       <div className="flex-1 min-w-0 space-y-6">
         {/* Header */}
@@ -520,7 +562,12 @@ export default function LobbyRoom({
               >
                 {copied ? "✓ Copied" : "Copy code"}
               </button>
-              <span className="text-gray-500">share with your fireteam</span>
+              <button
+                onClick={copyLink}
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+              >
+                {copiedLink ? "✓ Link copied" : "Copy invite link"}
+              </button>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -705,5 +752,6 @@ export default function LobbyRoom({
         </div>
       )}
     </div>
+    </>
   );
 }

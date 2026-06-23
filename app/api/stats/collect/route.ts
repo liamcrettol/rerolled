@@ -53,21 +53,23 @@ export async function POST(req: NextRequest) {
         characterId: m.selected_character_id!,
       }));
 
-    const stats = await collectPostMatchStats(memberInputs, rouletteHashes, hostToken);
-    if (!stats) {
+    const result = await collectPostMatchStats(memberInputs, rouletteHashes, hostToken);
+    if (!result) {
       return NextResponse.json({ ok: true, skipped: true, reason: "pgcr not found" });
     }
 
+    const { playerStats, weaponKills } = result;
+
     const { data: gameSession } = await adminSupabase
       .from("game_sessions")
-      .insert({ lobby_id: lobbyId, player_count: stats.length, roulette_hashes: rouletteHashes })
+      .insert({ lobby_id: lobbyId, player_count: playerStats.length, roulette_hashes: rouletteHashes })
       .select()
       .single();
 
     if (!gameSession) return NextResponse.json({ error: "Failed to save session" }, { status: 500 });
 
     await adminSupabase.from("player_game_stats").insert(
-      stats.map((s) => ({
+      playerStats.map((s) => ({
         game_session_id: gameSession.id,
         user_id: s.userId,
         display_name: s.displayName,
@@ -79,7 +81,17 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    return NextResponse.json({ ok: true, stats });
+    if (weaponKills.length) {
+      await adminSupabase.from("weapon_round_kills").insert(
+        weaponKills.map((w) => ({
+          game_session_id: gameSession.id,
+          item_hash: w.itemHash,
+          total_kills: w.totalKills,
+        }))
+      );
+    }
+
+    return NextResponse.json({ ok: true, stats: playerStats });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;

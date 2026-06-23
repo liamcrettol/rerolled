@@ -16,6 +16,16 @@ const config: Config = {
           border: "#30363d",
         },
       },
+      keyframes: {
+        "bounce-in": {
+          "0%": { transform: "scale(0.5)", opacity: "0" },
+          "60%": { transform: "scale(1.1)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+      },
+      animation: {
+        "bounce-in": "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+      },
     },
   },
   plugins: [],

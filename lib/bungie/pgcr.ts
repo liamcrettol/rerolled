@@ -79,11 +79,21 @@ export interface CollectedPlayerStat {
   rouletteWeaponKills: number;
 }
 
+export interface WeaponKillStat {
+  itemHash: number;
+  totalKills: number;
+}
+
+export interface PostMatchResult {
+  playerStats: CollectedPlayerStat[];
+  weaponKills: WeaponKillStat[];
+}
+
 export async function collectPostMatchStats(
   members: MemberStatInput[],
   rouletteHashes: number[],
   hostAccessToken: string
-): Promise<CollectedPlayerStat[] | null> {
+): Promise<PostMatchResult | null> {
   if (!members.length || !rouletteHashes.length) return null;
 
   const host = members[0];
@@ -114,8 +124,8 @@ export async function collectPostMatchStats(
     );
     if (!anyRouletteKill) continue;
 
-    // Match found - extract stats
-    return members.map((member) => {
+    // Match found - extract per-player stats
+    const playerStats = members.map((member) => {
       const entry = pgcr.entries.find(
         (e) => e.player.destinyUserInfo.membershipId === member.membershipId
       );
@@ -134,6 +144,22 @@ export async function collectPostMatchStats(
 
       return { userId: member.userId, displayName: member.displayName, kills, deaths, assists, kd, rouletteWeaponKills };
     });
+
+    // Aggregate kills per roulette weapon across all players
+    const killsByHash = new Map<number, number>();
+    for (const entry of pgcr.entries) {
+      for (const w of entry.extended?.weapons ?? []) {
+        if (hashSet.has(w.referenceId)) {
+          killsByHash.set(
+            w.referenceId,
+            (killsByHash.get(w.referenceId) ?? 0) + (w.values.uniqueWeaponKills?.basic?.value ?? 0)
+          );
+        }
+      }
+    }
+    const weaponKills: WeaponKillStat[] = [...killsByHash.entries()].map(([itemHash, totalKills]) => ({ itemHash, totalKills }));
+
+    return { playerStats, weaponKills };
   }
 
   return null;
