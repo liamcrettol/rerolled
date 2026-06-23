@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     const { data: members } = await adminSupabase
       .from("lobby_members")
-      .select("user_id, bungie_membership_type, bungie_membership_id")
+      .select("user_id, display_name, bungie_membership_type, bungie_membership_id")
       .eq("lobby_id", lobbyId);
 
     if (!members?.length) {
@@ -167,10 +167,18 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    if (memberDataMap.size === 0) {
+    // Guard: every member's inventory MUST load. If even one fails, rolling
+    // could pick a weapon the missing player doesn't own, and apply would
+    // silently skip that slot for them. Block the roll and name who failed so
+    // they can re-auth / retry, rather than producing a broken intersection.
+    const failedMembers = members.filter((m) => !memberDataMap.has(m.user_id));
+    if (failedMembers.length > 0) {
+      const names = failedMembers.map((m) => m.display_name).join(", ");
       return NextResponse.json(
-        { error: "Could not load any member inventories" },
-        { status: 500 }
+        {
+          error: `Couldn't load inventory for: ${names}. They may need to sign out and back in. Try again once everyone is loaded.`,
+        },
+        { status: 409 }
       );
     }
 
