@@ -11,7 +11,7 @@ const SLOT_LABELS: Record<string, string> = {
 
 interface Props {
   slots: LobbyLoadoutSlot[];
-  weaponDetails: Record<string, { name: string; icon: string; weaponType: string; damageType: string }>;
+  weaponDetails: Record<string, { name: string; icon: string; watermark?: string; weaponType: string; damageType: string }>;
   onApply: () => void;
   onCancelApply: () => void;
   selectedCharId: string | null;
@@ -20,7 +20,7 @@ interface Props {
 
 const SLOT_ORDER = ["kinetic", "energy", "power"];
 
-export default function LoadoutQueue({ slots, onApply, onCancelApply, selectedCharId, loading }: Props) {
+export default function LoadoutQueue({ slots, weaponDetails, onApply, onCancelApply, selectedCharId, loading }: Props) {
   const sorted = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s)).filter(Boolean) as LobbyLoadoutSlot[];
 
   return (
@@ -60,6 +60,15 @@ export default function LoadoutQueue({ slots, onApply, onCancelApply, selectedCh
                       className="object-cover rounded"
                       unoptimized
                     />
+                    {weaponDetails[slot.item_hash]?.watermark && (
+                      <Image
+                        src={weaponDetails[slot.item_hash].watermark!}
+                        alt=""
+                        fill
+                        className="object-cover rounded pointer-events-none"
+                        unoptimized
+                      />
+                    )}
                   </div>
                   <div className="text-center">
                     <p className="text-white text-xs font-semibold leading-tight">

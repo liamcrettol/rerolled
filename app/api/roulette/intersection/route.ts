@@ -293,6 +293,7 @@ export async function POST(req: NextRequest) {
       {
         name: string;
         icon: string;
+        watermark?: string;
         weaponType: string;
         damageType: string;
         tierType: number;
@@ -306,6 +307,7 @@ export async function POST(req: NextRequest) {
       weaponDetails[hash.toString()] = {
         name: def.name,
         icon: def.icon,
+        watermark: def.watermark,
         weaponType: def.weaponType,
         damageType: def.damageType,
         tierType: def.tierType,
@@ -355,6 +357,7 @@ export async function POST(req: NextRequest) {
         weaponDetails[hash.toString()] = {
           name: def.name,
           icon: def.icon,
+          watermark: def.watermark,
           weaponType: def.weaponType,
           damageType: def.damageType,
           tierType: def.tierType,

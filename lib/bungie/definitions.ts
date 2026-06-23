@@ -19,6 +19,7 @@ export interface WeaponDefinition {
   itemHash: number;
   name: string;
   icon: string;
+  watermark?: string;
   weaponType: string;
   ammoType: string;
   damageType: string;

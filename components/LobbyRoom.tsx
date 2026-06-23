@@ -104,7 +104,7 @@ export default function LobbyRoom({
   const [roundId, setRoundId] = useState<string | null>(null);
   const [intersection, setIntersection] = useState<Record<WeaponSlot, number[]> | null>(null);
   const [weaponDetails, setWeaponDetails] = useState<Record<string, {
-    name: string; icon: string; weaponType: string; damageType: string;
+    name: string; icon: string; watermark?: string; weaponType: string; damageType: string;
     tierType: number; tierName: string; ammoType: string; stats: Record<string, number>;
   }>>({});
   const [instancePerks, setInstancePerks] = useState<Record<string, Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>>>({});

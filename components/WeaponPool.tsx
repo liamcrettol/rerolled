@@ -7,6 +7,7 @@ import type { WeaponSlot } from "@/types/bungie";
 type WeaponDetail = {
   name: string;
   icon: string;
+  watermark?: string;
   weaponType: string;
   damageType: string;
   tierType: number;
@@ -199,6 +200,9 @@ function WeaponCard({
         <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800">
           {detail.icon && (
             <Image src={detail.icon} alt={detail.name} fill className="object-cover" unoptimized />
+          )}
+          {detail.watermark && (
+            <Image src={detail.watermark} alt="" fill className="object-cover pointer-events-none" unoptimized />
           )}
         </div>
         <div className="min-w-0 flex-1">
