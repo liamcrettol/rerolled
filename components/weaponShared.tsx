@@ -145,20 +145,6 @@ function FloatingTooltip({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 mt-1 text-xs flex-wrap">
-          <span className={`font-medium ${tier.label}`}>{detail.tierName}</span>
-          <span className="text-gray-600">·</span>
-          <span className={DAMAGE_COLOR[detail.damageType] ?? "text-gray-300"}>{detail.damageType}</span>
-          <span className="text-gray-600">·</span>
-          <span className="text-gray-400">{detail.weaponType}</span>
-          {detail.ammoType && (
-            <>
-              <span className="text-gray-600">·</span>
-              <span className="text-gray-500">{detail.ammoType}</span>
-            </>
-          )}
-        </div>
-
         {isCollection && (
           <p className="mt-2 text-[11px] text-amber-300/90 leading-snug">
             Not everyone owns this - each player pulls it from Collections in-game before applying.
