@@ -2,13 +2,14 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import LobbyControls from "@/components/LobbyControls";
+import Leaderboard from "@/components/Leaderboard";
 
 export default async function Dashboard() {
   const session = await auth();
   if (!session?.userId) redirect("/");
 
   return (
-    <main className="min-h-screen p-6 w-full">
+    <main className="min-h-screen p-6 w-full max-w-3xl mx-auto">
       <header className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
@@ -23,6 +24,10 @@ export default async function Dashboard() {
       </header>
 
       <LobbyControls />
+
+      <div className="mt-10">
+        <Leaderboard />
+      </div>
     </main>
   );
 }
