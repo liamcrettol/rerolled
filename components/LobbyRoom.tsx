@@ -536,6 +536,7 @@ export default function LobbyRoom({
       instancePerks={instancePerks}
       collectionHashes={collectionHashes}
       currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
+      currentInstances={preferredInstances}
       onSelectWeapon={(slot, hash, instanceId) => handleSelectWeapon(slot, hash, instanceId)}
       disabled={loadingAction !== null}
     />
@@ -711,7 +712,8 @@ export default function LobbyRoom({
         )}
 
         {slots.length > 0 && (
-          <LoadoutQueue slots={slots} weaponDetails={weaponDetails} onApply={handleApply}
+          <LoadoutQueue slots={slots} weaponDetails={weaponDetails} instancePerks={instancePerks}
+            collectionHashes={collectionHashes} onApply={handleApply}
             onCancelApply={handleCancelApply} selectedCharId={selectedCharId} loading={loadingAction === "apply"} />
         )}
 
