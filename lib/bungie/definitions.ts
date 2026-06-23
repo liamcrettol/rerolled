@@ -1,5 +1,8 @@
-// Look up individual item definitions from the Bungie API.
-// Much faster than downloading the full manifest in a serverless environment.
+// Item and perk definition lookups with Supabase-backed cache.
+// First request per serverless instance loads all cached defs from Supabase in one query.
+// Bungie API is only hit for hashes not yet in the cache.
+
+import { adminSupabase } from "@/lib/supabase/admin";
 
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
 const BUNGIE_CDN = "https://www.bungie.net";
@@ -15,13 +18,12 @@ export interface WeaponDefinition {
   tierType: number;
   flavorText: string;
   defaultBucketHash: number;
-  collectibleHash?: number; // present if this item appears in Collections
-  stats: Record<string, number>; // stat label → value (0-100 range for most)
-  intrinsicPerk: string | null;  // archetype/frame name
+  collectibleHash?: number;
+  stats: Record<string, number>;
+  intrinsicPerk: string | null;
 }
 
 const AMMO_TYPE_NAMES: Record<number, string> = { 1: "Primary", 2: "Special", 3: "Heavy" };
-
 const WEAPON_STAT_HASHES: Record<number, string> = {
   4284893193: "RPM",
   4043523819: "Impact",
@@ -45,47 +47,100 @@ const DAMAGE_TYPE_NAMES: Record<number, string> = {
   3949783978: "Strand",
 };
 
-// In-memory cache per serverless invocation
-const defCache = new Map<number, WeaponDefinition>();
+// ── Per-instance memory caches ────────────────────────────────────────────────
+// These survive across multiple requests in the same serverless instance.
+const defMemCache = new Map<number, WeaponDefinition>();
+const perkMemCache = new Map<number, string | null>();
 
-export async function getWeaponDefinition(
-  itemHash: number
-): Promise<WeaponDefinition | null> {
-  if (defCache.has(itemHash)) return defCache.get(itemHash)!;
+// Supabase cache is loaded once per serverless instance (Promise reuse).
+let supabaseDefCachePromise: Promise<Record<string, WeaponDefinition>> | null = null;
+let supabasePerkCachePromise: Promise<Record<string, string>> | null = null;
 
+// Defs/perks fetched from Bungie this invocation (need to be flushed to Supabase).
+const pendingDefs = new Map<number, WeaponDefinition>();
+const pendingPerks = new Map<number, string>();
+
+function loadSupabaseDefCache(): Promise<Record<string, WeaponDefinition>> {
+  if (!supabaseDefCachePromise) {
+    supabaseDefCachePromise = adminSupabase
+      .from("cached_manifest_metadata")
+      .select("items_json")
+      .eq("version", "weapon_defs")
+      .single()
+      .then(({ data }) => (data?.items_json ?? {}) as Record<string, WeaponDefinition>)
+      .catch(() => ({}));
+  }
+  return supabaseDefCachePromise;
+}
+
+function loadSupabasePerkCache(): Promise<Record<string, string>> {
+  if (!supabasePerkCachePromise) {
+    supabasePerkCachePromise = adminSupabase
+      .from("cached_manifest_metadata")
+      .select("sandbox_perks_json")
+      .eq("version", "perk_names")
+      .single()
+      .then(({ data }) => (data?.sandbox_perks_json ?? {}) as Record<string, string>)
+      .catch(() => ({}));
+  }
+  return supabasePerkCachePromise;
+}
+
+// Call at end of a request to persist any new defs/perks fetched from Bungie.
+export async function flushDefinitionCache(): Promise<void> {
+  const flushDefs = async () => {
+    if (pendingDefs.size === 0) return;
+    const existing = await loadSupabaseDefCache();
+    const merged = { ...existing };
+    for (const [hash, def] of pendingDefs) merged[hash.toString()] = def;
+    await adminSupabase.from("cached_manifest_metadata").upsert({
+      version: "weapon_defs",
+      items_json: merged,
+      stats_json: {},
+      damage_types_json: {},
+      sandbox_perks_json: {},
+    });
+    pendingDefs.clear();
+  };
+
+  const flushPerks = async () => {
+    if (pendingPerks.size === 0) return;
+    const existing = await loadSupabasePerkCache();
+    const merged = { ...existing };
+    for (const [hash, name] of pendingPerks) merged[hash.toString()] = name;
+    await adminSupabase.from("cached_manifest_metadata").upsert({
+      version: "perk_names",
+      items_json: {},
+      stats_json: {},
+      damage_types_json: {},
+      sandbox_perks_json: merged,
+    });
+    pendingPerks.clear();
+  };
+
+  await Promise.all([flushDefs(), flushPerks()]);
+}
+
+// ── Raw Bungie fetch (no cache) ───────────────────────────────────────────────
+
+async function fetchWeaponDefFromBungie(itemHash: number): Promise<WeaponDefinition | null> {
   try {
     const res = await fetch(
       `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}/`,
-      {
-        headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
-        next: { revalidate: 86400 }, // cache 24h at edge
-      }
+      { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
     );
     if (!res.ok) return null;
     const data = await res.json();
     const def = data.Response;
-    if (!def || def.itemType !== 3) return null; // not a weapon
+    if (!def || def.itemType !== 3) return null;
 
-    // Parse weapon stats
     const stats: Record<string, number> = {};
     for (const [hashStr, statData] of Object.entries(def.stats?.stats ?? {})) {
       const label = WEAPON_STAT_HASHES[Number(hashStr)];
       if (label) stats[label] = (statData as { value: number }).value;
     }
 
-    // Intrinsic frame/archetype — first socket's initial plug display name
-    let intrinsicPerk: string | null = null;
-    const firstSocket = def.sockets?.socketEntries?.[0];
-    if (firstSocket?.singleInitialItemHash) {
-      intrinsicPerk = null; // resolved lazily via separate lookup if needed
-    }
-    // Try to get frame name from itemTypeAndTierDisplayName or intrinsic category
-    if (def.itemSubType) {
-      // itemTypeDisplayName often contains frame info like "Aggressive Frame Hand Cannon"
-      intrinsicPerk = def.itemTypeDisplayName ?? null;
-    }
-
-    const result: WeaponDefinition = {
+    return {
       itemHash,
       name: def.displayProperties?.name ?? "Unknown",
       icon: def.displayProperties?.icon ? `${BUNGIE_CDN}${def.displayProperties.icon}` : "",
@@ -98,62 +153,132 @@ export async function getWeaponDefinition(
       defaultBucketHash: def.inventory?.bucketTypeHash ?? 0,
       collectibleHash: def.collectibleHash ?? undefined,
       stats,
-      intrinsicPerk,
+      intrinsicPerk: def.itemTypeDisplayName ?? null,
     };
-    defCache.set(itemHash, result);
-    return result;
   } catch {
     return null;
   }
 }
 
-// ── Perk name lookup (works for any DestinyInventoryItemDefinition) ───────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
-const perkNameCache = new Map<number, string | null>();
+export async function getWeaponDefinitions(
+  hashes: number[]
+): Promise<Map<number, WeaponDefinition>> {
+  if (hashes.length === 0) return new Map();
 
-export async function getPerkName(hash: number): Promise<string | null> {
-  if (perkNameCache.has(hash)) return perkNameCache.get(hash)!;
+  const results = new Map<number, WeaponDefinition>();
+  const memMissing: number[] = [];
+
+  // 1. Memory cache
+  for (const hash of hashes) {
+    if (defMemCache.has(hash)) {
+      results.set(hash, defMemCache.get(hash)!);
+    } else {
+      memMissing.push(hash);
+    }
+  }
+  if (memMissing.length === 0) return results;
+
+  // 2. Supabase cache (loaded once per instance, Promise reused on subsequent calls)
+  const supabaseCache = await loadSupabaseDefCache();
+  const bungieNeeded: number[] = [];
+
+  for (const hash of memMissing) {
+    const cached = supabaseCache[hash.toString()];
+    if (cached) {
+      results.set(hash, cached);
+      defMemCache.set(hash, cached);
+    } else {
+      bungieNeeded.push(hash);
+    }
+  }
+  if (bungieNeeded.length === 0) return results;
+
+  // 3. Bungie API for remaining misses (parallel)
+  await Promise.all(
+    bungieNeeded.map(async (hash) => {
+      const def = await fetchWeaponDefFromBungie(hash);
+      if (def) {
+        results.set(hash, def);
+        defMemCache.set(hash, def);
+        pendingDefs.set(hash, def);
+      }
+    })
+  );
+
+  return results;
+}
+
+export async function getWeaponDefinition(
+  itemHash: number
+): Promise<WeaponDefinition | null> {
+  const map = await getWeaponDefinitions([itemHash]);
+  return map.get(itemHash) ?? null;
+}
+
+// ── Perk names ────────────────────────────────────────────────────────────────
+
+async function fetchPerkNameFromBungie(hash: number): Promise<string | null> {
   try {
     const res = await fetch(
       `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyInventoryItemDefinition/${hash}/`,
-      {
-        headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
-        next: { revalidate: 86400 },
-      }
+      { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
     );
-    if (!res.ok) { perkNameCache.set(hash, null); return null; }
+    if (!res.ok) return null;
     const data = await res.json();
-    const name: string | null = data.Response?.displayProperties?.name ?? null;
-    perkNameCache.set(hash, name);
-    return name;
+    return data.Response?.displayProperties?.name ?? null;
   } catch {
-    perkNameCache.set(hash, null);
     return null;
   }
 }
 
 export async function getPerkNames(hashes: number[]): Promise<Map<number, string>> {
+  if (hashes.length === 0) return new Map();
+
   const results = new Map<number, string>();
+  const memMissing: number[] = [];
+
+  for (const hash of hashes) {
+    const cached = perkMemCache.get(hash);
+    if (cached !== undefined) {
+      if (cached !== null) results.set(hash, cached);
+    } else {
+      memMissing.push(hash);
+    }
+  }
+  if (memMissing.length === 0) return results;
+
+  const supabaseCache = await loadSupabasePerkCache();
+  const bungieNeeded: number[] = [];
+
+  for (const hash of memMissing) {
+    const cached = supabaseCache[hash.toString()];
+    if (cached) {
+      results.set(hash, cached);
+      perkMemCache.set(hash, cached);
+    } else {
+      bungieNeeded.push(hash);
+    }
+  }
+  if (bungieNeeded.length === 0) return results;
+
   await Promise.all(
-    [...new Set(hashes)].map(async (hash) => {
-      const name = await getPerkName(hash);
-      if (name) results.set(hash, name);
+    bungieNeeded.map(async (hash) => {
+      const name = await fetchPerkNameFromBungie(hash);
+      perkMemCache.set(hash, name);
+      if (name) {
+        results.set(hash, name);
+        pendingPerks.set(hash, name);
+      }
     })
   );
+
   return results;
 }
 
-// ── Batch weapon definition lookup ───────────────────────────────────────────
-
-export async function getWeaponDefinitions(
-  hashes: number[]
-): Promise<Map<number, WeaponDefinition>> {
-  const results = new Map<number, WeaponDefinition>();
-  await Promise.all(
-    hashes.map(async (hash) => {
-      const def = await getWeaponDefinition(hash);
-      if (def) results.set(hash, def);
-    })
-  );
-  return results;
+// Kept for backwards-compat
+export async function getPerkName(hash: number): Promise<string | null> {
+  const map = await getPerkNames([hash]);
+  return map.get(hash) ?? null;
 }
