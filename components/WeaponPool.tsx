@@ -26,6 +26,8 @@ interface Props {
 }
 
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
+// Meta filter: limit the browser to the staple Crucible archetypes.
+const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
 
 // ── A single selectable roll row ──────────────────────────────────────────────
 
@@ -198,6 +200,7 @@ export default function WeaponPool({
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState<"all" | "exotic" | "nonexotic">("all");
+  const [metaOnly, setMetaOnly] = useState(false);
 
   const { onHover, onLeave, node: tooltipNode } = useWeaponTooltip(weaponDetails, instancePerks, collectionHashes);
 
@@ -224,7 +227,7 @@ export default function WeaponPool({
     return [...set].sort();
   }, [intersection, activeTab, weaponDetails]);
 
-  const filtersActive = query !== "" || typeFilter !== "all" || rarityFilter !== "all";
+  const filtersActive = query !== "" || typeFilter !== "all" || rarityFilter !== "all" || metaOnly;
 
   const sorted = sortWeapons(intersection[activeTab], weaponDetails);
   const filtered = sorted.filter((h) => {
@@ -234,6 +237,7 @@ export default function WeaponPool({
     if (typeFilter !== "all" && d.weaponType !== typeFilter) return false;
     if (rarityFilter === "exotic" && d.tierType !== 6) return false;
     if (rarityFilter === "nonexotic" && d.tierType === 6) return false;
+    if (metaOnly && !META_BROWSER_TYPES.has(d.weaponType)) return false;
     return true;
   });
   const activeHash = currentHashes[activeTab];
@@ -306,6 +310,17 @@ export default function WeaponPool({
               <option value="exotic">Exotic</option>
               <option value="nonexotic">Non-exotic</option>
             </select>
+            <button
+              onClick={() => setMetaOnly((v) => !v)}
+              title="Show only Hand Cannons, Shotguns, and Snipers"
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
+                metaOnly
+                  ? "border-bungie-blue bg-bungie-blue/20 text-white"
+                  : "border-bungie-border text-gray-300 hover:border-gray-400"
+              }`}
+            >
+              Meta
+            </button>
           </div>
         </div>
 

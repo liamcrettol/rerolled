@@ -39,6 +39,12 @@ export function playTick() {
   tone(880, 0, 0.04, 0.025, "square");
 }
 
+/** Soft two-note confirm for a manual pick from the browser (no spin). */
+export function playPick() {
+  tone(659.25, 0, 0.09, 0.045, "sine"); // E5
+  tone(987.77, 0.05, 0.12, 0.045, "sine"); // B5
+}
+
 /** Played when a slot settles. Exotic gets a brighter ascending triad. */
 export function playReveal(exotic: boolean) {
   if (exotic) {

@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
 import { type WeaponDetail, type InstancePerk, useWeaponTooltip } from "./weaponShared";
-import { playTick, playReveal } from "./rollSound";
+import { playTick, playReveal, playPick } from "./rollSound";
+
+type AnimKind = "roll" | "pick";
 
 const SLOT_LABELS: Record<string, string> = {
   kinetic: "Kinetic",
@@ -21,6 +23,8 @@ interface Props {
   onCancelApply: () => void;
   selectedCharId: string | null;
   loading: boolean;
+  // Why each slot last changed: "roll" → slot-machine spin, "pick" → quick pop.
+  animKindRef?: React.MutableRefObject<Record<string, AnimKind>>;
 }
 
 const SLOT_ORDER = ["kinetic", "energy", "power"];
@@ -32,13 +36,16 @@ const SPIN_TOTAL_MS = 700;
 // The name/type/damage are held back ("Rolling…") until the icon settles, so
 // the result isn't spoiled before the spin finishes.
 function WeaponSlotContent({
-  hash, icon, watermark, name, weaponType, damageType, isCollection, iconPool, exotic,
+  hash, icon, watermark, name, weaponType, damageType, isCollection, iconPool, exotic, slot, animKindRef,
 }: {
   hash: number; icon: string; watermark?: string; name: string; weaponType: string;
   damageType: string; isCollection: boolean; iconPool: string[]; exotic: boolean;
+  slot: string; animKindRef?: React.MutableRefObject<Record<string, AnimKind>>;
 }) {
   const [displayIcon, setDisplayIcon] = useState(icon);
   const [spinning, setSpinning] = useState(false);
+  const [picked, setPicked] = useState(false); // transient: manual-pick pop+glow
+  const [popKey, setPopKey] = useState(0); // bump to replay the pop animation
   const firstRender = useRef(true);
   const prevHash = useRef(hash);
 
@@ -48,8 +55,20 @@ function WeaponSlotContent({
     if (hash === prevHash.current) { setDisplayIcon(icon); return; }
     prevHash.current = hash;
 
-    if (iconPool.length < 2) { setDisplayIcon(icon); playReveal(exotic); return; }
+    const kind: AnimKind = animKindRef?.current[slot] ?? "roll";
 
+    // Manual pick from the browser: no shuffle — snap in with a quick pop.
+    if (kind === "pick" || iconPool.length < 2) {
+      setDisplayIcon(icon);
+      setSpinning(false);
+      setPicked(true);
+      setPopKey((k) => k + 1);
+      playPick();
+      const t = setTimeout(() => setPicked(false), 600);
+      return () => clearTimeout(t);
+    }
+
+    setPicked(false);
     setSpinning(true);
     let elapsed = 0;
     const id = setInterval(() => {
@@ -64,11 +83,16 @@ function WeaponSlotContent({
       }
     }, SPIN_STEP_MS);
     return () => clearInterval(id);
-  }, [hash, icon, exotic, iconPool]);
+  }, [hash, icon, exotic, iconPool, slot, animKindRef]);
 
   return (
     <>
-      <div className={`relative w-14 h-14 transition-transform duration-150 ${spinning ? "blur-[1px] scale-110" : "scale-100"}`}>
+      <div
+        key={popKey}
+        className={`relative w-14 h-14 transition-transform duration-150 ${
+          spinning ? "blur-[1px] scale-110" : picked ? "animate-pick-pop ring-2 ring-bungie-blue rounded" : "scale-100"
+        }`}
+      >
         <Image src={displayIcon} alt={spinning ? "" : name} fill className="object-cover rounded" unoptimized />
         {!spinning && watermark && (
           <Image src={watermark} alt="" fill className="object-cover rounded pointer-events-none" unoptimized />
@@ -96,7 +120,7 @@ function WeaponSlotContent({
 
 export default function LoadoutQueue({
   slots, weaponDetails, instancePerks = {}, collectionHashes = new Set(),
-  onApply, onCancelApply, selectedCharId, loading,
+  onApply, onCancelApply, selectedCharId, loading, animKindRef,
 }: Props) {
   const sorted = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s)).filter(Boolean) as LobbyLoadoutSlot[];
   const { onHover, onLeave, node: tooltipNode } = useWeaponTooltip(weaponDetails, instancePerks, collectionHashes);
@@ -162,6 +186,8 @@ export default function LoadoutQueue({
                   isCollection={collectionHashes.has(slot.item_hash)}
                   iconPool={iconPool}
                   exotic={weaponDetails[slot.item_hash]?.tierType === 6}
+                  slot={slotName}
+                  animKindRef={animKindRef}
                 />
               ) : (
                 <div className="w-14 h-14 rounded bg-gray-800 flex items-center justify-center text-gray-600 text-xl">

@@ -22,9 +22,15 @@ const config: Config = {
           "60%": { transform: "scale(1.1)", opacity: "1" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        "pick-pop": {
+          "0%": { transform: "scale(0.7) rotate(-6deg)", opacity: "0.3" },
+          "55%": { transform: "scale(1.18) rotate(3deg)", opacity: "1" },
+          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+        },
       },
       animation: {
         "bounce-in": "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        "pick-pop": "pick-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },
   },

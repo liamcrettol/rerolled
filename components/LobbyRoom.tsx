@@ -141,6 +141,9 @@ export default function LobbyRoom({
   // Recent weapons per slot (most-recent first), so rolls can avoid repeating
   // any of the last few picks — not just the immediately previous one.
   const recentRollsRef = useRef<Record<WeaponSlot, number[]>>({ kinetic: [], energy: [], power: [] });
+  // Why each slot last changed, so the loadout animates a spin (roll) vs a
+  // quick pop (manual browser pick).
+  const animKindRef = useRef<Record<string, "roll" | "pick">>({});
   const recordRoll = useCallback((slot: WeaponSlot, hash: number) => {
     if (!hash) return;
     const hist = recentRollsRef.current[slot];
@@ -480,6 +483,7 @@ export default function LobbyRoom({
   // an optional slot being rerolled.
   const rollWithModes = useCallback(async (nextWildcards: Set<WeaponSlot>, rerollSlot?: WeaponSlot) => {
     if (!intersection || !roundId) return;
+    for (const s of ["kinetic", "energy", "power"]) animKindRef.current[s] = "roll";
     setLoadingAction("roll");
     const keep: Record<string, number> = {};
     for (const s of slots) {
@@ -531,6 +535,9 @@ export default function LobbyRoom({
   const handleRoll = useCallback(async (rerollSlot?: WeaponSlot) => {
     if (!intersection || !roundId) return;
     if (rerollExhausted) return; // reroll budget spent for this round
+    // Slots about to roll should animate as a spin.
+    if (rerollSlot) animKindRef.current[rerollSlot] = "roll";
+    else for (const s of ["kinetic", "energy", "power"]) animKindRef.current[s] = "roll";
     setLoadingAction("roll");
     // Dismiss the prominent last-game card when captain rolls for a new round
     setLastGameStats(null);
@@ -595,6 +602,7 @@ export default function LobbyRoom({
 
   const handleSelectWeapon = useCallback(async (slot: WeaponSlot, hash: number, instanceId?: string) => {
     if (!intersection || !roundId) return;
+    animKindRef.current[slot] = "pick"; // animate as a manual pick, not a spin
     setLoadingAction("roll");
     setLastGameStats(null);
     if (instanceId) {
@@ -900,7 +908,7 @@ export default function LobbyRoom({
 
         {slots.length > 0 && (
           <LoadoutQueue slots={slots} weaponDetails={weaponDetails} instancePerks={instancePerks}
-            collectionHashes={collectionHashes} onApply={handleApply}
+            collectionHashes={collectionHashes} onApply={handleApply} animKindRef={animKindRef}
             onCancelApply={handleCancelApply} selectedCharId={selectedCharId} loading={loadingAction === "apply"} />
         )}
 
