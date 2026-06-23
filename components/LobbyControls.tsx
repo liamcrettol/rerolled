@@ -49,14 +49,14 @@ export default function LobbyControls() {
       <div className="bg-bungie-surface border border-bungie-border rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-1">Create Lobby</h2>
         <p className="text-gray-400 text-sm mb-4">
-          Start a new session and share the code with your fireteam.
+          Create a lobby and share the code with your fireteam.
         </p>
         <button
           onClick={handleCreate}
           disabled={loading !== null}
           className="w-full bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition"
         >
-          {loading === "create" ? "Creating…" : "Create Lobby"}
+          {loading === "create" ? "Creating..." : "Create Lobby"}
         </button>
       </div>
 
@@ -64,7 +64,7 @@ export default function LobbyControls() {
       <div className="bg-bungie-surface border border-bungie-border rounded-xl p-6">
         <h2 className="text-lg font-semibold text-white mb-1">Join Lobby</h2>
         <p className="text-gray-400 text-sm mb-4">
-          Enter the 6-character code from your friend.
+          Got a code? Enter it here.
         </p>
         <form onSubmit={handleJoin} className="flex gap-2">
           <input
@@ -79,7 +79,7 @@ export default function LobbyControls() {
             disabled={loading !== null || !code.trim()}
             className="bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold px-4 rounded-lg transition"
           >
-            {loading === "join" ? "…" : "Join"}
+            {loading === "join" ? "..." : "Join"}
           </button>
         </form>
       </div>
