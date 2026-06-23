@@ -27,12 +27,15 @@ const SLOT_ORDER = ["kinetic", "energy", "power"];
 const SPIN_STEP_MS = 60;
 const SPIN_TOTAL_MS = 700;
 
-// Slot-machine icon: when the weapon hash changes, flicker through random
+// Slot-machine slot: when the weapon hash changes, flicker through random
 // pooled icons for a beat, then snap to the final and play a reveal sound.
-function SlotIcon({
-  hash, icon, watermark, alt, iconPool, exotic,
+// The name/type/damage are held back ("Rolling…") until the icon settles, so
+// the result isn't spoiled before the spin finishes.
+function WeaponSlotContent({
+  hash, icon, watermark, name, weaponType, damageType, isCollection, iconPool, exotic,
 }: {
-  hash: number; icon: string; watermark?: string; alt: string; iconPool: string[]; exotic: boolean;
+  hash: number; icon: string; watermark?: string; name: string; weaponType: string;
+  damageType: string; isCollection: boolean; iconPool: string[]; exotic: boolean;
 }) {
   const [displayIcon, setDisplayIcon] = useState(icon);
   const [spinning, setSpinning] = useState(false);
@@ -64,12 +67,30 @@ function SlotIcon({
   }, [hash, icon, exotic, iconPool]);
 
   return (
-    <div className={`relative w-14 h-14 transition-transform duration-150 ${spinning ? "blur-[1px] scale-110" : "scale-100"}`}>
-      <Image src={displayIcon} alt={alt} fill className="object-cover rounded" unoptimized />
-      {!spinning && watermark && (
-        <Image src={watermark} alt="" fill className="object-cover rounded pointer-events-none" unoptimized />
-      )}
-    </div>
+    <>
+      <div className={`relative w-14 h-14 transition-transform duration-150 ${spinning ? "blur-[1px] scale-110" : "scale-100"}`}>
+        <Image src={displayIcon} alt={spinning ? "" : name} fill className="object-cover rounded" unoptimized />
+        {!spinning && watermark && (
+          <Image src={watermark} alt="" fill className="object-cover rounded pointer-events-none" unoptimized />
+        )}
+      </div>
+      <div className="text-center">
+        {spinning ? (
+          <p className="text-bungie-blue text-xs font-semibold animate-pulse">Rolling…</p>
+        ) : (
+          <>
+            <p className="text-white text-xs font-semibold leading-tight">{name}</p>
+            <p className="text-gray-400 text-xs">{weaponType}</p>
+            <p className="text-gray-500 text-xs">{damageType}</p>
+            {isCollection && (
+              <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
+                Pull from Collections
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -131,28 +152,17 @@ export default function LoadoutQueue({
                   </div>
                 </>
               ) : slot ? (
-                <>
-                  <SlotIcon
-                    hash={slot.item_hash}
-                    icon={slot.weapon_icon}
-                    watermark={weaponDetails[slot.item_hash]?.watermark}
-                    alt={slot.weapon_name}
-                    iconPool={iconPool}
-                    exotic={weaponDetails[slot.item_hash]?.tierType === 6}
-                  />
-                  <div className="text-center">
-                    <p className="text-white text-xs font-semibold leading-tight">
-                      {slot.weapon_name}
-                    </p>
-                    <p className="text-gray-400 text-xs">{slot.weapon_type}</p>
-                    <p className="text-gray-500 text-xs">{slot.damage_type}</p>
-                    {collectionHashes.has(slot.item_hash) && (
-                      <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
-                        Pull from Collections
-                      </span>
-                    )}
-                  </div>
-                </>
+                <WeaponSlotContent
+                  hash={slot.item_hash}
+                  icon={slot.weapon_icon}
+                  watermark={weaponDetails[slot.item_hash]?.watermark}
+                  name={slot.weapon_name}
+                  weaponType={slot.weapon_type}
+                  damageType={slot.damage_type}
+                  isCollection={collectionHashes.has(slot.item_hash)}
+                  iconPool={iconPool}
+                  exotic={weaponDetails[slot.item_hash]?.tierType === 6}
+                />
               ) : (
                 <div className="w-14 h-14 rounded bg-gray-800 flex items-center justify-center text-gray-600 text-xl">
                   ?
