@@ -22,6 +22,13 @@ interface PlayerStat {
   rouletteWeaponKills: number;
 }
 
+interface RoundRecord {
+  sessionId: string;
+  playedAt: string;
+  roundNum: number;
+  stats: PlayerStat[];
+}
+
 interface Props {
   lobby: Lobby;
   initialMembers: LobbyMember[];
@@ -34,6 +41,38 @@ interface Props {
 const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 const POLL_INTERVAL_MS = 30_000;
+
+function StatsTable({ stats }: { stats: PlayerStat[] }) {
+  const sorted = [...stats].sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills);
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-gray-500 text-xs border-b border-bungie-border">
+            <th className="text-left pb-2 pr-4">Player</th>
+            <th className="text-right pb-2 pr-3">Roulette Kills</th>
+            <th className="text-right pb-2 pr-3">K</th>
+            <th className="text-right pb-2 pr-3">D</th>
+            <th className="text-right pb-2 pr-3">A</th>
+            <th className="text-right pb-2">K/D</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-bungie-border/40">
+          {sorted.map((s, i) => (
+            <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
+              <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
+              <td className="py-2 pr-3 text-right font-bold text-bungie-blue">{s.rouletteWeaponKills}</td>
+              <td className="py-2 pr-3 text-right">{s.kills}</td>
+              <td className="py-2 pr-3 text-right">{s.deaths}</td>
+              <td className="py-2 pr-3 text-right">{s.assists}</td>
+              <td className="py-2 text-right">{s.kd.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function LobbyRoom({
   lobby,
@@ -64,8 +103,11 @@ export default function LobbyRoom({
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
   const [lockedSlots, setLockedSlots] = useState<Set<WeaponSlot>>(new Set());
   const [wildcardSlots, setWildcardSlots] = useState<Set<WeaponSlot>>(new Set());
-  // Last game results — shown as inline card, dismissed when captain rolls
+  // Current game results (prominent card, clears when captain rolls)
   const [lastGameStats, setLastGameStats] = useState<PlayerStat[] | null>(null);
+  // All past rounds for scrollable history
+  const [roundHistory, setRoundHistory] = useState<RoundRecord[]>([]);
+  const [expandedRound, setExpandedRound] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -84,6 +126,22 @@ export default function LobbyRoom({
     setPolling(false);
   }, []);
 
+  const fetchHistory = useCallback(async () => {
+    const res = await fetch(`/api/stats/history?lobbyId=${lobby.id}`);
+    const data = await res.json();
+    if (data.rounds) {
+      setRoundHistory(data.rounds);
+      // Auto-expand the most recent round when history loads/updates
+      if (data.rounds.length > 0) {
+        setExpandedRound((prev) => prev ?? data.rounds[data.rounds.length - 1].sessionId);
+      }
+    }
+  }, [lobby.id]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
   const detectGameEnd = useCallback(async () => {
     try {
       const res = await fetch("/api/stats/detect", {
@@ -95,6 +153,7 @@ export default function LobbyRoom({
       if (data.done && data.stats) {
         stopPolling();
         setLastGameStats(data.stats);
+        fetchHistory();
         // Reset local round state — server already advanced the round
         setSlots([]);
         setApplyResults([]);
@@ -106,7 +165,7 @@ export default function LobbyRoom({
     } catch {
       // ignore poll errors
     }
-  }, [lobby.id, stopPolling]);
+  }, [lobby.id, stopPolling, fetchHistory]);
 
   const startPolling = useCallback(() => {
     if (pollTimerRef.current) return;
@@ -142,7 +201,8 @@ export default function LobbyRoom({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "game_sessions", filter: `lobby_id=eq.${lobby.id}` },
         () => {
-          // Another client detected the game first; pick up stats if we haven't yet
+          // Refresh history for all clients when a new game is logged
+          fetchHistory();
           if (!lastGameStats) detectGameEnd();
         }
       )
@@ -285,7 +345,7 @@ export default function LobbyRoom({
   const handleRoll = useCallback(async (rerollSlot?: WeaponSlot) => {
     if (!intersection || !roundId) return;
     setLoadingAction("roll");
-    // Dismiss last game results when captain starts rolling for a new round
+    // Dismiss the prominent last-game card when captain rolls for a new round
     setLastGameStats(null);
     const effectiveWildcards = new Set(wildcardSlots);
     if (rerollSlot) effectiveWildcards.delete(rerollSlot);
@@ -399,41 +459,14 @@ export default function LobbyRoom({
           </div>
         </div>
 
-        {/* Last game results — inline card, dismissed when captain rolls */}
+        {/* Last game results — prominent inline card, clears when captain rolls */}
         {lastGameStats && (
           <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-white font-semibold">Last Game</h2>
               <button onClick={() => setLastGameStats(null)} className="text-gray-600 hover:text-gray-300 text-sm leading-none">✕</button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 text-xs border-b border-bungie-border">
-                    <th className="text-left pb-2 pr-4">Player</th>
-                    <th className="text-right pb-2 pr-3">Roulette Kills</th>
-                    <th className="text-right pb-2 pr-3">K</th>
-                    <th className="text-right pb-2 pr-3">D</th>
-                    <th className="text-right pb-2 pr-3">A</th>
-                    <th className="text-right pb-2">K/D</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-bungie-border/40">
-                  {[...lastGameStats]
-                    .sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills)
-                    .map((s, i) => (
-                      <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-                        <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
-                        <td className="py-2 pr-3 text-right font-bold text-bungie-blue">{s.rouletteWeaponKills}</td>
-                        <td className="py-2 pr-3 text-right">{s.kills}</td>
-                        <td className="py-2 pr-3 text-right">{s.deaths}</td>
-                        <td className="py-2 pr-3 text-right">{s.assists}</td>
-                        <td className="py-2 text-right">{s.kd.toFixed(2)}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+            <StatsTable stats={lastGameStats} />
           </div>
         )}
 
@@ -536,6 +569,44 @@ export default function LobbyRoom({
         )}
 
         {applyResults.length > 0 && <ApplyStatus results={applyResults} />}
+
+        {/* Round history — scrollable accordion of all past games */}
+        {roundHistory.length > 0 && (
+          <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-bungie-border">
+              <h2 className="text-white font-semibold text-sm">Round History</h2>
+            </div>
+            <div className="divide-y divide-bungie-border/40">
+              {[...roundHistory].reverse().map((round) => {
+                const isOpen = expandedRound === round.sessionId;
+                const topPlayer = [...round.stats].sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills)[0];
+                return (
+                  <div key={round.sessionId}>
+                    <button
+                      onClick={() => setExpandedRound(isOpen ? null : round.sessionId)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-bungie-dark/40 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-400 text-sm font-medium">Round {round.roundNum}</span>
+                        {topPlayer && (
+                          <span className="text-xs text-gray-500">
+                            👑 {topPlayer.displayName} · {topPlayer.rouletteWeaponKills} kills
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-gray-600 text-xs">{isOpen ? "▲" : "▼"}</span>
+                    </button>
+                    {isOpen && (
+                      <div className="px-4 pb-4">
+                        <StatsTable stats={round.stats} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {weaponBrowser && <div className="xl:hidden">{weaponBrowser}</div>}
       </div>
