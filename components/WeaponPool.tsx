@@ -250,7 +250,7 @@ function WeaponCard({
             disabled={disabled}
             className="w-full px-3 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-white/5 transition flex items-center justify-between"
           >
-            <span>{rolls.length} rolls — pick one</span>
+            <span>{rolls.length} rolls, pick one</span>
             <span>{rollsOpen ? "▲" : "▼"}</span>
           </button>
           {rollsOpen && (
