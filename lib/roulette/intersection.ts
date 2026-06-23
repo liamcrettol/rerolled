@@ -59,9 +59,27 @@ const ARCHETYPE_RULES: Record<string, string[]> = {
   "Shotgun": ["Pulse Rifle", "Scout Rifle", "Combat Bow", "Auto Rifle", "Hand Cannon"],
 };
 
+// Mismatch mode — the INVERSE of the pairing rules above. Deliberately bad
+// range coverage for a challenge: short primaries get a close-range special and
+// long primaries get a long-range special (no complementary coverage).
+//   SMG / Sidearm   → Shotgun     (close + close)
+//   Pulse/Scout/Bow → Sniper      (long + long)
+const MISMATCH_RULES: Record<string, string[]> = {
+  "Submachine Gun": ["Shotgun"],
+  "Sidearm": ["Shotgun"],
+  "Pulse Rifle": ["Sniper Rifle"],
+  "Scout Rifle": ["Sniper Rifle"],
+  "Combat Bow": ["Sniper Rifle"],
+  "Auto Rifle": ["Sniper Rifle", "Shotgun"],
+  "Hand Cannon": ["Sniper Rifle", "Shotgun"],
+  // Reverse: special → the "wrong" primary
+  "Shotgun": ["Submachine Gun", "Sidearm", "Auto Rifle", "Hand Cannon"],
+  "Sniper Rifle": ["Pulse Rifle", "Scout Rifle", "Combat Bow", "Auto Rifle", "Hand Cannon"],
+};
+
 type WeaponDetail = { weaponType: string; tierType?: number; damageType?: string; stats?: Record<string, number> };
 
-export type RollMode = "normal" | "chaos" | "meta" | "element";
+export type RollMode = "normal" | "chaos" | "meta" | "mismatch";
 
 // Crucible "meta" frames for the Meta mode, identified by archetype RPM:
 //   Hand Cannon  — 120 (Aggressive) / 140 (Adaptive)
@@ -81,9 +99,10 @@ function isMetaWeapon(d?: WeaponDetail): boolean {
 function applyPairingRule(
   pool: number[],
   pairedType: string,
-  details: Record<string, WeaponDetail>
+  details: Record<string, WeaponDetail>,
+  rules: Record<string, string[]>
 ): number[] {
-  const allowed = ARCHETYPE_RULES[pairedType];
+  const allowed = rules[pairedType];
   if (!allowed) return pool;
   const filtered = pool.filter((h) => allowed.includes(details[h.toString()]?.weaponType ?? ""));
   // Fall back to full pool if no matching weapons exist (don't leave slot empty)
@@ -149,8 +168,6 @@ export function rollLoadout(
     return nonExotic.length > 0 ? nonExotic : pool;
   };
 
-  const damageOf = (h: number) => weaponDetails[h.toString()]?.damageType;
-
   // Meta mode: restrict to the meta frames above (soft).
   const applyMeta = (pool: number[]): number[] => {
     if (mode !== "meta") return pool;
@@ -158,35 +175,15 @@ export function rollLoadout(
     return filtered.length > 0 ? filtered : pool;
   };
 
-  // Element mode: pick a single damage type and pin every slot to it (soft).
-  let targetElement: string | undefined;
-  if (mode === "element") {
-    // Prefer an already-locked slot's element, else a type shared by both flex slots.
-    const keptEl = [keep.kinetic, keep.energy, keep.power]
-      .map((h) => (h != null ? damageOf(h) : undefined))
-      .find((d): d is string => !!d);
-    if (keptEl) {
-      targetElement = keptEl;
-    } else {
-      const kEl = new Set(intersection.kinetic.map(damageOf).filter((d): d is string => !!d));
-      const eEl = new Set(intersection.energy.map(damageOf).filter((d): d is string => !!d));
-      const common = [...kEl].filter((d) => eEl.has(d));
-      const candidates = common.length > 0 ? common : [...kEl, ...eEl];
-      if (candidates.length) targetElement = candidates[Math.floor(Math.random() * candidates.length)];
-    }
-  }
-  const applyElement = (pool: number[]): number[] => {
-    if (!targetElement) return pool;
-    const filtered = pool.filter((h) => damageOf(h) === targetElement);
-    return filtered.length > 0 ? filtered : pool;
-  };
+  // Mismatch flips the pairing table; Chaos skips pairing entirely.
+  const pairingRules = mode === "mismatch" ? MISMATCH_RULES : ARCHETYPE_RULES;
 
   // Roll kinetic first (if not locked)
   if (!kineticKept) {
     // If energy is already locked, let its type constrain the kinetic pool
     const energyType = energyHash !== null ? weaponDetails[energyHash.toString()]?.weaponType : null;
-    let kPool = applyElement(applyMeta(intersection.kinetic));
-    if (mode !== "chaos" && energyType) kPool = applyPairingRule(kPool, energyType, weaponDetails);
+    let kPool = applyMeta(intersection.kinetic);
+    if (mode !== "chaos" && energyType) kPool = applyPairingRule(kPool, energyType, weaponDetails, pairingRules);
     kPool = dropExoticsIf(kPool, keptExotic || isExotic(energyHash));
     kPool = dropAvoided(kPool, "kinetic");
     kineticHash = pick(kPool);
@@ -195,8 +192,8 @@ export function rollLoadout(
   // Roll energy (if not locked), constrained by whatever kinetic ended up as
   if (!energyKept) {
     const kineticType = kineticHash !== null ? weaponDetails[kineticHash.toString()]?.weaponType : null;
-    let ePool = applyElement(applyMeta(intersection.energy));
-    if (mode !== "chaos" && kineticType) ePool = applyPairingRule(ePool, kineticType, weaponDetails);
+    let ePool = applyMeta(intersection.energy);
+    if (mode !== "chaos" && kineticType) ePool = applyPairingRule(ePool, kineticType, weaponDetails, pairingRules);
     ePool = dropExoticsIf(ePool, keptExotic || isExotic(kineticHash));
     ePool = dropAvoided(ePool, "energy");
     energyHash = pick(ePool);
@@ -207,7 +204,7 @@ export function rollLoadout(
     (h) => (weaponDetails[h.toString()]?.tierType ?? 5) !== 6
   );
   if (powerPool.length === 0) powerPool = intersection.power; // fallback if all exotics
-  powerPool = applyElement(applyMeta(powerPool));
+  powerPool = applyMeta(powerPool);
   const powerHash = keep.power ?? pick(dropAvoided(powerPool, "power"));
 
   return { kinetic: kineticHash, energy: energyHash, power: powerHash };

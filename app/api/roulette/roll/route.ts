@@ -35,7 +35,7 @@ const schema = z.object({
     power: z.array(z.number()).optional(),
   }).optional(),
   wildcardSlots: z.array(z.enum(["kinetic", "energy", "power"])).optional(),
-  mode: z.enum(["normal", "chaos", "meta", "element"]).optional(),
+  mode: z.enum(["normal", "chaos", "meta", "mismatch"]).optional(),
 });
 
 export async function POST(req: NextRequest) {

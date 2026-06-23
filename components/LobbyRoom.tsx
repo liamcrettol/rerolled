@@ -132,7 +132,7 @@ export default function LobbyRoom({
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
-  const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta" | "element">("normal");
+  const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta" | "mismatch">("normal");
   const [bannedTypes, setBannedTypes] = useState<Set<string>>(new Set());
   const [rerollLimit, setRerollLimit] = useState<number | null>(null); // null = unlimited
   const [rerollsUsed, setRerollsUsed] = useState(0);
@@ -154,7 +154,7 @@ export default function LobbyRoom({
       const raw = localStorage.getItem("gr_roll_prefs");
       if (!raw) return;
       const p = JSON.parse(raw);
-      if (["normal", "chaos", "meta", "element"].includes(p.mode)) setRollMode(p.mode);
+      if (["normal", "chaos", "meta", "mismatch"].includes(p.mode)) setRollMode(p.mode);
       if (Array.isArray(p.banned)) setBannedTypes(new Set(p.banned));
       if (p.rerollLimit === null || typeof p.rerollLimit === "number") setRerollLimit(p.rerollLimit);
     } catch { /* ignore */ }
@@ -789,7 +789,7 @@ export default function LobbyRoom({
                       <option value="normal">Normal (paired)</option>
                       <option value="chaos">Chaos (anything)</option>
                       <option value="meta">Meta (HC + shotgun/sniper)</option>
-                      <option value="element">Same Element</option>
+                      <option value="mismatch">Mismatch (bad pairings)</option>
                     </select>
                   </label>
 
