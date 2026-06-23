@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import Image from "next/image";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -296,6 +296,8 @@ export default function WeaponPool({
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [rarityFilter, setRarityFilter] = useState<"all" | "exotic" | "nonexotic">("all");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
   const handleHover = useCallback((hash: number, x: number, y: number) => {
@@ -303,18 +305,41 @@ export default function WeaponPool({
   }, []);
   const handleLeave = useCallback(() => setTooltip(null), []);
 
-  // Clear search when tab changes
-  useEffect(() => { setSearch(""); setTooltip(null); }, [activeTab]);
+  // Reset search + filters when the slot tab changes (types differ per slot)
+  useEffect(() => {
+    setSearch("");
+    setTypeFilter("all");
+    setRarityFilter("all");
+    setTooltip(null);
+  }, [activeTab]);
 
   const slotList: WeaponSlot[] = ["kinetic", "energy", "power"];
   const totalWeapons = slotList.reduce((n, s) => n + intersection[s].length, 0);
   const collectionCount = collectionHashes.size;
   const query = search.toLowerCase().trim();
 
+  // Distinct weapon types present in the current slot (for the type dropdown)
+  const availableTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of intersection[activeTab]) {
+      const t = weaponDetails[h.toString()]?.weaponType;
+      if (t) set.add(t);
+    }
+    return [...set].sort();
+  }, [intersection, activeTab, weaponDetails]);
+
+  const filtersActive = query !== "" || typeFilter !== "all" || rarityFilter !== "all";
+
   const sorted = sortWeapons(intersection[activeTab], weaponDetails);
-  const filtered = query
-    ? sorted.filter((h) => weaponDetails[h.toString()]?.name.toLowerCase().includes(query))
-    : sorted;
+  const filtered = sorted.filter((h) => {
+    const d = weaponDetails[h.toString()];
+    if (!d) return false;
+    if (query && !d.name.toLowerCase().includes(query)) return false;
+    if (typeFilter !== "all" && d.weaponType !== typeFilter) return false;
+    if (rarityFilter === "exotic" && d.tierType !== 6) return false;
+    if (rarityFilter === "nonexotic" && d.tierType === 6) return false;
+    return true;
+  });
   const activeHash = currentHashes[activeTab];
 
   return (
@@ -362,8 +387,8 @@ export default function WeaponPool({
           </div>
         </div>
 
-        {/* Search */}
-        <div className="px-3 py-2 border-b border-bungie-border">
+        {/* Search + filters */}
+        <div className="px-3 py-2 border-b border-bungie-border space-y-2">
           <input
             type="text"
             value={search}
@@ -371,17 +396,38 @@ export default function WeaponPool({
             placeholder={`Search ${SLOT_LABELS[activeTab].toLowerCase()}…`}
             className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-bungie-blue transition"
           />
+          <div className="flex gap-2">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="flex-1 min-w-0 bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+            >
+              <option value="all">All types</option>
+              {availableTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={rarityFilter}
+              onChange={(e) => setRarityFilter(e.target.value as "all" | "exotic" | "nonexotic")}
+              className="bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+            >
+              <option value="all">All rarities</option>
+              <option value="exotic">Exotic</option>
+              <option value="nonexotic">Non-exotic</option>
+            </select>
+          </div>
         </div>
 
         {/* Weapon list */}
         <div className="px-3 pb-3 space-y-2 overflow-y-auto flex-1">
           {filtered.length === 0 ? (
             <p className="text-gray-600 text-xs py-4 text-center">
-              {query ? "No matches" : "No shared weapons"}
+              {filtersActive ? "No matches" : "No shared weapons"}
             </p>
           ) : (
             <>
-              {query && filtered.length !== sorted.length && (
+              {filtersActive && filtered.length !== sorted.length && (
                 <p className="text-gray-500 text-xs pt-2">{filtered.length} of {sorted.length} weapons</p>
               )}
               {filtered.map((hash) => {
