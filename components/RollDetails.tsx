@@ -34,12 +34,20 @@ function StatBars({ stats, base }: { stats: Record<string, number>; base: Record
     <div className="space-y-1.5">
       {bars.map((s) => {
         const val = stats[s] ?? base[s] ?? 0;
-        const delta = base[s] !== undefined ? val - base[s] : 0;
+        const hasBase = base[s] !== undefined;
+        const delta = hasBase ? val - base[s] : 0;
+        // Segmented bar: blue up to the lower of base/value, then the difference
+        // in green (perk gain) or red (perk loss) - like the in-game stat bars.
+        const lo = Math.min(100, Math.max(0, Math.min(val, hasBase ? base[s] : val)));
+        const hi = Math.min(100, Math.max(0, Math.max(val, hasBase ? base[s] : val)));
         return (
           <div key={s} className="flex items-center gap-2">
             <span className="text-gray-400 text-[11px] w-20 shrink-0">{s}</span>
-            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-bungie-blue rounded-full" style={{ width: `${Math.min(100, val)}%` }} />
+            <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden flex">
+              <div className="h-full bg-bungie-blue" style={{ width: `${lo}%` }} />
+              {hi > lo && (
+                <div className={`h-full ${delta >= 0 ? "bg-green-400" : "bg-red-500/80"}`} style={{ width: `${hi - lo}%` }} />
+              )}
             </div>
             <span className="text-gray-300 text-[11px] w-6 text-right tabular-nums">{val}</span>
             <span className={`text-[10px] w-7 text-right tabular-nums ${delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-transparent"}`}>
@@ -66,6 +74,8 @@ export default function RollDetails({
   rolls,
   chosenInstances,
   onChooseInstance,
+  favorites,
+  onToggleFavorite,
   loading,
   error,
   onRetry,
@@ -74,6 +84,8 @@ export default function RollDetails({
   // The current player's chosen instanceId per slot (for swap + apply).
   chosenInstances: Partial<Record<WeaponSlot, string>>;
   onChooseInstance: (slot: WeaponSlot, instanceId: string) => void;
+  favorites?: Record<string, string>;
+  onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -153,22 +165,36 @@ export default function RollDetails({
             {myInstances.length > 1 && (
               <div>
                 <p className="text-gray-500 text-[10px] uppercase tracking-wide mb-1.5">
-                  Swap roll - you have {myInstances.length}
+                  Swap roll - you have {myInstances.length} · ★ = favorite (auto-picked on roll)
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {myInstances.map((inst, i) => {
                     const active = inst.instanceId === chosen?.instanceId;
+                    const fav = favorites?.[slot.itemHash.toString()] === inst.instanceId;
                     return (
-                      <button
+                      <div
                         key={inst.instanceId}
-                        onClick={() => onChooseInstance(activeTab, inst.instanceId)}
-                        className={`text-xs px-2 py-1 rounded border transition ${
-                          active ? "border-bungie-blue bg-bungie-blue/20 text-white" : "border-bungie-border text-gray-300 hover:border-gray-400"
+                        className={`flex items-center rounded border transition ${
+                          active ? "border-bungie-blue bg-bungie-blue/20" : "border-bungie-border"
                         }`}
-                        title={inst.perks.join(", ")}
                       >
-                        Roll {i + 1} {inst.location === "vault" ? "· vault" : ""}
-                      </button>
+                        <button
+                          onClick={() => onChooseInstance(activeTab, inst.instanceId)}
+                          className={`text-xs pl-2 pr-1 py-1 transition ${active ? "text-white" : "text-gray-300 hover:text-white"}`}
+                          title={inst.perks.join(", ")}
+                        >
+                          Roll {i + 1} {inst.location === "vault" ? "· vault" : ""}
+                        </button>
+                        {onToggleFavorite && (
+                          <button
+                            onClick={() => onToggleFavorite(activeTab, slot.itemHash, inst.instanceId)}
+                            title={fav ? "Unfavorite" : "Favorite this roll"}
+                            className={`px-1.5 py-1 text-xs ${fav ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+                          >
+                            {fav ? "★" : "☆"}
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

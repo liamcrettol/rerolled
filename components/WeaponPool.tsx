@@ -22,6 +22,8 @@ interface Props {
   currentHashes: Partial<Record<WeaponSlot, number>>;
   currentInstances: Partial<Record<WeaponSlot, string>>;
   onSelectWeapon: (slot: WeaponSlot, hash: number, instanceId?: string) => void;
+  favorites?: Record<string, string>;
+  onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   disabled?: boolean;
 }
 
@@ -32,16 +34,15 @@ const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
 // ── A single selectable roll row ──────────────────────────────────────────────
 
 function RollRow({
-  title, location, perks, selected, onClick, disabled,
+  title, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
   title: string; location?: string; perks?: string[];
   selected: boolean; onClick: () => void; disabled?: boolean;
+  favorited?: boolean; onToggleFavorite?: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative w-full text-left rounded-lg pl-3 pr-2.5 py-2 transition disabled:opacity-40 ${
+    <div
+      className={`relative w-full rounded-lg transition flex items-stretch ${
         selected ? "bg-bungie-blue/15" : "hover:bg-white/5"
       }`}
     >
@@ -51,36 +52,50 @@ function RollRow({
           selected ? "bg-bungie-blue" : "bg-transparent"
         }`}
       />
-      <div className="flex items-center justify-between gap-2">
-        <span className={`text-xs font-semibold ${selected ? "text-white" : "text-gray-300"}`}>
-          {title}
-          {location && (
-            <span className="ml-1.5 text-[10px] font-normal text-gray-500">
-              {location === "vault" ? "in vault" : "on character"}
-            </span>
-          )}
-        </span>
-        {selected && <span className="text-bungie-blue text-xs shrink-0">✓</span>}
-      </div>
-      {perks && perks.length > 0 && (
-        <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
-          {perks.join("  ·  ")}
-        </p>
+      <button onClick={onClick} disabled={disabled} className="flex-1 text-left pl-3 pr-2 py-2 disabled:opacity-40">
+        <div className="flex items-center justify-between gap-2">
+          <span className={`text-xs font-semibold ${selected ? "text-white" : "text-gray-300"}`}>
+            {title}
+            {location && (
+              <span className="ml-1.5 text-[10px] font-normal text-gray-500">
+                {location === "vault" ? "in vault" : "on character"}
+              </span>
+            )}
+          </span>
+          {selected && <span className="text-bungie-blue text-xs shrink-0">✓</span>}
+        </div>
+        {perks && perks.length > 0 && (
+          <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
+            {perks.join("  ·  ")}
+          </p>
+        )}
+      </button>
+      {onToggleFavorite && (
+        <button
+          onClick={onToggleFavorite}
+          disabled={disabled}
+          title={favorited ? "Unfavorite" : "Favorite this roll (auto-picked on roll)"}
+          className={`px-2 shrink-0 ${favorited ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+        >
+          {favorited ? "★" : "☆"}
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 
 // ── Weapon card ─────────────────────────────────────────────────────────────
 
 function WeaponCard({
-  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, onHover, onLeave,
+  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, onHover, onLeave, favoritedInstance, onToggleFavorite,
 }: {
   hash: number; detail: WeaponDetail; isActive: boolean; isCollection: boolean;
   rolls: InstancePerk[]; currentInstance?: string;
   onSelect: (hash: number, instanceId?: string) => void;
   disabled?: boolean;
   onHover: (hash: number, el: HTMLElement) => void; onLeave: () => void;
+  favoritedInstance?: string;
+  onToggleFavorite?: (instanceId: string) => void;
 }) {
   const tier = TIER_COLORS[detail.tierType] ?? DEFAULT_TIER;
   const inlineStat = CARD_INLINE_STATS.find((s) => detail.stats[s] !== undefined);
@@ -173,6 +188,8 @@ function WeaponCard({
                 selected={currentInstance === inst.instanceId}
                 onClick={() => onSelect(hash, inst.instanceId)}
                 disabled={disabled}
+                favorited={favoritedInstance === inst.instanceId}
+                onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(inst.instanceId) : undefined}
               />
             ))}
           </div>
@@ -194,7 +211,7 @@ function WeaponCard({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function WeaponPool({
-  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, disabled,
+  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled,
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
@@ -353,6 +370,8 @@ export default function WeaponPool({
                     disabled={disabled}
                     onHover={onHover}
                     onLeave={onLeave}
+                    favoritedInstance={favorites?.[hash.toString()]}
+                    onToggleFavorite={onToggleFavorite ? (instanceId) => onToggleFavorite(activeTab, hash, instanceId) : undefined}
                   />
                 );
               })}

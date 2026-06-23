@@ -120,6 +120,9 @@ export default function LobbyRoom({
   const [myChosenInstances, setMyChosenInstances] = useState<Partial<Record<WeaponSlot, string>>>({});
   const [rollsLoading, setRollsLoading] = useState(false);
   const [rollsError, setRollsError] = useState<string | null>(null);
+  // Favorited roll per weapon hash (weaponHash -> instanceId), persisted. When a
+  // weapon is randomized, the player's favorited instance is auto-selected.
+  const [favorites, setFavorites] = useState<Record<string, string>>({});
   const [applyResults, setApplyResults] = useState<ApplyResult[]>([]);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
@@ -178,6 +181,32 @@ export default function LobbyRoom({
   // Reset the reroll budget at the start of each round.
   useEffect(() => { setRerollsUsed(0); }, [lobbyData.current_round]);
 
+  // Load/save favorited rolls.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("gr_fav_rolls");
+      if (raw) setFavorites(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("gr_fav_rolls", JSON.stringify(favorites)); } catch { /* ignore */ }
+  }, [favorites]);
+
+  const favoritesRef = useRef(favorites);
+  useEffect(() => { favoritesRef.current = favorites; }, [favorites]);
+
+  const toggleFavorite = useCallback((slot: WeaponSlot, hash: number, instanceId: string) => {
+    const key = hash.toString();
+    setFavorites((prev) => {
+      const next = { ...prev };
+      if (next[key] === instanceId) delete next[key];
+      else next[key] = instanceId;
+      return next;
+    });
+    // Favoriting also selects it for this slot right away.
+    setMyChosenInstances((prev) => ({ ...prev, [slot]: instanceId }));
+  }, []);
+
   const rerollExhausted = rerollLimit !== null && rerollsUsed >= rerollLimit;
 
   // Fetch every member's rolls (their instances + perk-adjusted stats) for the
@@ -205,8 +234,11 @@ export default function LobbyRoom({
         for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
           const mine = next[s]?.members.find((m) => m.isMe)?.instances ?? [];
           if (mine.length === 0) continue;
+          // Priority: favorited roll for this weapon > still-valid prior choice > best available.
+          const favId = favoritesRef.current[(next[s]?.itemHash ?? 0).toString()];
+          const favOwned = favId && mine.some((i) => i.instanceId === favId);
           const keep = prev[s] && mine.some((i) => i.instanceId === prev[s]);
-          out[s] = keep ? prev[s] : (mine.find((i) => i.location === "character") ?? mine[0]).instanceId;
+          out[s] = favOwned ? favId : keep ? prev[s]! : (mine.find((i) => i.location === "character") ?? mine[0]).instanceId;
         }
         return out;
       });
@@ -699,6 +731,8 @@ export default function LobbyRoom({
       currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
       currentInstances={preferredInstances}
       onSelectWeapon={(slot, hash, instanceId) => handleSelectWeapon(slot, hash, instanceId)}
+      favorites={favorites}
+      onToggleFavorite={toggleFavorite}
       disabled={loadingAction !== null}
     />
   ) : null;
@@ -972,6 +1006,8 @@ export default function LobbyRoom({
             rolls={rollsData}
             chosenInstances={myChosenInstances}
             onChooseInstance={handleChooseInstance}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
             loading={rollsLoading}
             error={rollsError}
             onRetry={fetchRolls}
