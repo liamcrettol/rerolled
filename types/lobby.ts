@@ -35,7 +35,7 @@ export interface LobbyLoadoutSlot {
   id: string;
   round_id: string;
   slot: WeaponSlot;
-  item_hash: number; // shared hash — every member equips their own instance
+  item_hash: number;
   weapon_name: string;
   weapon_icon: string;
   weapon_type: string;
@@ -50,7 +50,6 @@ export interface RollHistoryEntry {
   applied_at: string | null;
 }
 
-// Realtime payload shapes from Supabase
 export type LobbyRealtimeEvent =
   | { event: "member_joined"; member: LobbyMember }
   | { event: "member_ready"; user_id: string; is_ready: boolean }
@@ -66,4 +65,25 @@ export interface ApplyResult {
   item_hash: number;
   success: boolean;
   error?: string;
+}
+
+export interface GameSession {
+  id: string;
+  lobby_id: string;
+  played_at: string;
+  player_count: number;
+  roulette_hashes: number[];
+}
+
+export interface PlayerGameStat {
+  id: string;
+  game_session_id: string;
+  user_id: string;
+  display_name: string;
+  kills: number;
+  deaths: number;
+  assists: number;
+  kd: number;
+  roulette_weapon_kills: number;
+  created_at: string;
 }
