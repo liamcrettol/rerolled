@@ -11,7 +11,7 @@ const SLOT_LABELS: Record<string, string> = {
 export default function ApplyStatus({ results }: { results: ApplyResult[] }) {
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-      <h2 className="text-white font-semibold mb-3">Apply Results</h2>
+      <h2 className="text-white font-semibold mb-3">Loadout</h2>
       <div className="space-y-2">
         {results.map((r, i) => (
           <div
@@ -22,7 +22,7 @@ export default function ApplyStatus({ results }: { results: ApplyResult[] }) {
           >
             <span>{r.success ? "✅" : "❌"}</span>
             <span className="font-medium text-white">{r.display_name}</span>
-            <span className="text-gray-400">—</span>
+            <span className="text-gray-600">·</span>
             <span className="text-gray-300 capitalize">
               {SLOT_LABELS[r.slot] ?? r.slot}
             </span>
