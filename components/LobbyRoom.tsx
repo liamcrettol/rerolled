@@ -330,7 +330,7 @@ export default function LobbyRoom({
       setIntersectionError(e instanceof Error ? e.message : "Network error");
     }
     setLoadingAction(null);
-  }, [lobby.id, isCaptain, slots.length, roundId]);
+  }, [lobby.id, isCaptain, slots.length, roundId, selectedCharId]);
 
   const toggleLock = useCallback((slot: WeaponSlot) => {
     setLockedSlots((prev) => { const n = new Set(prev); n.has(slot) ? n.delete(slot) : n.add(slot); return n; });
@@ -368,7 +368,7 @@ export default function LobbyRoom({
       body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection, weaponDetails, rerollSlot, keepSlots, wildcardSlots: Array.from(effectiveWildcards) }),
     });
     setLoadingAction(null);
-  }, [intersection, roundId, lobby.id, slots, weaponDetails, lockedSlots]);
+  }, [intersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots]);
 
   const handleApply = useCallback(async () => {
     if (!selectedCharId || !roundId) return;

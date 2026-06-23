@@ -86,16 +86,30 @@ export async function POST(req: NextRequest) {
       session.displayName
     );
 
-    await adminSupabase.from("roll_history").upsert(
-      {
+    // One roll_history row per round, updated on re-apply.
+    // NOTE: roll_history has no unique constraint on round_id, so we can't use
+    // upsert/onConflict here — do an explicit select-then-update/insert instead.
+    const appliedAt = new Date().toISOString();
+    const { data: existingHistory } = await adminSupabase
+      .from("roll_history")
+      .select("id")
+      .eq("round_id", body.roundId)
+      .maybeSingle();
+
+    if (existingHistory) {
+      await adminSupabase
+        .from("roll_history")
+        .update({ applied_at: appliedAt, apply_results: results })
+        .eq("id", existingHistory.id);
+    } else {
+      await adminSupabase.from("roll_history").insert({
         lobby_id: body.lobbyId,
         round_id: body.roundId,
         round_number: 0,
-        applied_at: new Date().toISOString(),
+        applied_at: appliedAt,
         apply_results: results,
-      },
-      { onConflict: "round_id" }
-    );
+      });
+    }
 
     return NextResponse.json({ results });
   } catch (err) {
