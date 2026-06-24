@@ -90,38 +90,10 @@ interface SessionTotal {
 }
 
 // Running cumulative K/A/D per player across every recorded game this lobby.
-type TotalsSort = "kills" | "ka" | "kd";
-const totalsKd = (s: SessionTotal) => (s.deaths > 0 ? s.kills / s.deaths : s.kills);
-const TOTALS_SORTS: { key: TotalsSort; label: string }[] = [
-  { key: "kills", label: "Kills" },
-  { key: "ka", label: "K+A" },
-  { key: "kd", label: "K/D" },
-];
 function SessionTotalsTable({ totals }: { totals: SessionTotal[] }) {
-  const [sortBy, setSortBy] = useState<TotalsSort>("kills");
-  const sorted = [...totals].sort((a, b) => {
-    if (sortBy === "kd") return totalsKd(b) - totalsKd(a);
-    if (sortBy === "ka") return b.kills + b.assists - (a.kills + a.assists);
-    return b.kills - a.kills;
-  });
+  const sorted = [...totals].sort((a, b) => b.kills - a.kills);
   return (
     <div className="overflow-x-auto">
-      <div className="flex items-center justify-end gap-1 mb-2 text-xs">
-        <span className="text-gray-500 mr-1">Rank by</span>
-        {TOTALS_SORTS.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setSortBy(opt.key)}
-            className={`px-2 py-0.5 rounded border transition ${
-              sortBy === opt.key
-                ? "border-bungie-blue bg-bungie-blue/20 text-white"
-                : "border-bungie-border text-gray-400 hover:border-gray-400"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-gray-500 text-xs border-b border-bungie-border">
@@ -230,19 +202,9 @@ function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classT
 function LightLevelIcon({ light }: { light: number }) {
   return (
     <span className="flex items-center gap-1">
-      {/* Power-button glyph: a circle broken at the top with a vertical line through it. */}
-      <svg
-        viewBox="0 0 24 24"
-        className="w-4 h-4 text-yellow-400"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-        <line x1="12" y1="2" x2="12" y2="12" />
+      <svg viewBox="0 0 24 24" className="w-4 h-4 text-yellow-400" fill="currentColor">
+        <circle cx="12" cy="12" r="2" />
+        <path d="M12 1v6m0 4v6M1 12h6m4 0h6M3.22 3.22l4.24 4.24m5.08 0l4.24-4.24M3.22 20.78l4.24-4.24m5.08 0l4.24 4.24" stroke="currentColor" strokeWidth="1.5" fill="none" />
       </svg>
       <span>{light}</span>
     </span>
@@ -532,14 +494,6 @@ export default function LobbyRoom({
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
-  // Who rotates in next round. Mirrors rotateCaptain: next member in joined order
-  // (the members array is kept in joined_at order). Hidden when the captain is
-  // locked in, since rotation won't happen.
-  const captainIdx = members.findIndex((m) => m.is_captain);
-  const nextCaptainName =
-    !captainLocked && captainIdx >= 0 && members.length > 1
-      ? trimBungieName(members[(captainIdx + 1) % members.length].display_name)
-      : null;
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -1156,7 +1110,7 @@ export default function LobbyRoom({
                                     <div key={slot} className="flex items-center gap-1.5 bg-bungie-dark/60 border border-bungie-border rounded px-2 py-1">
                                       {w.icon && (
                                         <img
-                                          src={w.icon}
+                                          src={`https://www.bungie.net${w.icon}`}
                                           alt=""
                                           className="w-5 h-5 rounded"
                                         />
@@ -1226,10 +1180,7 @@ export default function LobbyRoom({
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-white font-semibold">Fireteam ({members.length})</h2>
-            <div className="flex flex-col items-end gap-0.5">
-              {captainName && <span className="text-xs text-yellow-400">👑 {captainName}&apos;s turn</span>}
-              {nextCaptainName && <span className="text-[11px] text-gray-500">Next: {nextCaptainName}</span>}
-            </div>
+            {captainName && <span className="text-xs text-yellow-400">👑 {captainName}&apos;s turn</span>}
           </div>
           <div className="flex flex-wrap gap-3">
             {members.map((m) => (
@@ -1427,18 +1378,7 @@ export default function LobbyRoom({
               </div>
             )}
 
-            {intersectionError && (
-              <div className="mt-2 flex items-start justify-between gap-2 rounded border border-red-800/60 bg-red-900/20 px-2.5 py-1.5">
-                <span className="text-xs text-red-400 break-all">{intersectionError}</span>
-                <button
-                  onClick={() => setIntersectionError(null)}
-                  aria-label="Dismiss error"
-                  className="shrink-0 text-red-400/70 hover:text-red-300 text-sm leading-none"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+            {intersectionError && <div className="mt-2 text-xs text-red-400 break-all">{intersectionError}</div>}
             {effectiveIntersection && (
               <div className="mt-2 text-xs text-gray-400">
                 Kinetic: {effectiveIntersection.kinetic.length} · Energy: {effectiveIntersection.energy.length} · Power: {effectiveIntersection.power.length}
@@ -1467,11 +1407,7 @@ export default function LobbyRoom({
         )}
 
         {applyResults.length > 0 && (
-          <ApplyStatus
-            results={applyResults}
-            onClear={() => setApplyResults([])}
-            onDismiss={() => setApplyResults([])}
-          />
+          <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
         )}
 
         {weaponBrowser && <div className="xl:hidden">{weaponBrowser}</div>}
