@@ -192,27 +192,49 @@ export default function RollDetails({
             return (
               <div key={`p-${m.userId}`} className="text-center px-0.5">
                 {inst ? (
-                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                    {inst.perkHashes.length
-                      ? inst.perkHashes.map((hash, i) => {
-                          const perk = inst.perks[i];
-                          if (!perk) return null;
-                          const icon = inst.perkIcons[hash];
-                          return icon ? (
-                            <img
-                              key={`${hash}-${i}`}
-                              src={icon}
-                              alt={perk.name}
-                              title={perk.description || perk.name}
-                              className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
-                            />
-                          ) : (
-                            <span key={`${hash}-${i}`} title={perk.description || undefined} className={`text-[10px] leading-tight ${m.isMe ? theme.text : "text-gray-400"}`}>
-                              {perk.name}
-                            </span>
-                          );
-                        })
-                      : <span className="text-[10px] text-gray-500">—</span>}
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {inst.barrelIcon && (
+                      <img
+                        src={inst.barrelIcon}
+                        alt={inst.barrelName}
+                        title={inst.barrelName}
+                        className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
+                      />
+                    )}
+                    {inst.magazineIcon && (
+                      <img
+                        src={inst.magazineIcon}
+                        alt={inst.magazineName}
+                        title={inst.magazineName}
+                        className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
+                      />
+                    )}
+                    {inst.perkHashes.length > 0 ? (
+                      inst.perkHashes.map((hash, i) => {
+                        const icon = inst.perkIcons[hash];
+                        const perk = inst.perks[i];
+                        return icon ? (
+                          <img
+                            key={hash}
+                            src={icon}
+                            alt={perk?.name}
+                            title={perk?.name}
+                            className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
+                          />
+                        ) : null;
+                      })
+                    ) : null}
+                    {inst.masterworkIcon && (
+                      <img
+                        src={inst.masterworkIcon}
+                        alt={inst.masterworkName}
+                        title={inst.masterworkName}
+                        className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
+                      />
+                    )}
+                    {!inst.barrelIcon && !inst.magazineIcon && inst.perkHashes.length === 0 && !inst.masterworkIcon && (
+                      <span className="text-[11px] text-gray-500">no perk data</span>
+                    )}
                   </div>
                 ) : (
                   <p className="text-[10px] text-gray-600" title={m.failed ? "Couldn't read their inventory - they may need to allow inventory access in their Bungie.net privacy settings" : undefined}>
