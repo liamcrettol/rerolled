@@ -7,6 +7,8 @@ import WeaponIcon from "@/components/WeaponIcon";
 export const dynamic = "force-dynamic";
 
 type WeaponEntry = { name: string; icon: string; watermark?: string; weaponType: string; tierName: string; tierType: number };
+type GameSession = { played_at: string; roulette_hashes?: number[] };
+
 const weapons = weaponsTable as Record<string, WeaponEntry>;
 
 export default async function PlayerStatsPage({ params }: { params: Promise<{ userId: string }> }) {
@@ -146,23 +148,23 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
             </thead>
             <tbody className="divide-y divide-bungie-border/40">
               {rows.map((row) => {
-                const session = row.game_sessions as { played_at: string; roulette_hashes?: number[] } | null;
+                const session = row.game_sessions as GameSession | null;
                 const date = session?.played_at
                   ? new Date(session.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
                   : " - ";
 
                 // Find the most common weapon from roulette_hashes
                 let mostCommonWeapon: WeaponEntry | null = null;
-                let weaponCount = 0;
+                let totalWeaponsRolled = 0;
 
                 if (session?.roulette_hashes && session.roulette_hashes.length > 0) {
                   const hashFreq = new Map<number, number>();
                   for (const hash of session.roulette_hashes) {
                     hashFreq.set(hash, (hashFreq.get(hash) ?? 0) + 1);
                   }
-                  const [mostCommonHash] = [...hashFreq.entries()].sort((a, b) => b[1] - a[1])[0];
+                  const [[mostCommonHash]] = [...hashFreq.entries()].sort((a, b) => b[1] - a[1]);
                   mostCommonWeapon = weapons[mostCommonHash.toString()] ?? null;
-                  weaponCount = session.roulette_hashes.length;
+                  totalWeaponsRolled = session.roulette_hashes.length;
                 }
 
                 return (
@@ -180,7 +182,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                           watermark={mostCommonWeapon.watermark}
                           name={mostCommonWeapon.name}
                           size="small"
-                          count={weaponCount}
+                          count={totalWeaponsRolled}
                         />
                       ) : (
                         <span className="text-gray-500 text-xs">-</span>
