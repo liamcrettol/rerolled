@@ -8,7 +8,7 @@ import {
   type InventoryClearResult,
   type WeaponToApply,
 } from "@/lib/bungie/equip";
-import { getWeaponDefinition, getWeaponGroupHashes } from "@/lib/bungie/definitions";
+import { getWeaponDefinition } from "@/lib/bungie/definitions";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
@@ -28,19 +28,14 @@ function findBestInstance(
   targetCharacterId: string,
   preferredInstanceId?: string
 ): RawWeapon | null {
-  // Honor an explicitly chosen instance first, even if it's a re-released /
-  // Adept / craftable variant whose itemHash differs from the rolled one.
+  const candidates = weapons.filter((w) => w.itemHash === itemHash);
+  if (candidates.length === 0) return null;
+
+  // Honor captain's chosen roll if it exists in this user's inventory
   if (preferredInstanceId) {
-    const preferred = weapons.find((w) => w.itemInstanceId === preferredInstanceId);
+    const preferred = candidates.find((w) => w.itemInstanceId === preferredInstanceId);
     if (preferred) return preferred;
   }
-
-  // Consider every variant of this weapon the player owns, not just the exact
-  // rolled hash, so a player who only has a different release of the same gun
-  // can still equip it (#56). Falls back to the exact hash if grouping finds none.
-  const groupHashes = new Set(getWeaponGroupHashes(itemHash));
-  const candidates = weapons.filter((w) => groupHashes.has(w.itemHash));
-  if (candidates.length === 0) return null;
 
   const transferCost = (w: RawWeapon) => {
     if (w.characterId === targetCharacterId) return 0;
@@ -151,7 +146,6 @@ export async function POST(req: NextRequest) {
           error_detail: r.error,
           weapon_name: def?.name,
           weapon_icon: def?.icon,
-          kind: "vault" as const,
         };
       })
     );
