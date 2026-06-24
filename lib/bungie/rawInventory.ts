@@ -16,6 +16,7 @@ export interface RawWeapon {
   characterId?: string;
   isEquipped: boolean;
   lightLevel: number;
+  tierType: number;
 }
 
 const PROFILE_COMPONENTS = [200, 201, 205, 102, 300].join(",");
