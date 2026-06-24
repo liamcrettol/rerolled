@@ -1258,9 +1258,9 @@ export default function LobbyRoom({
                       onChange={(e) => setRollMode(e.target.value as typeof rollMode)}
                       className="bg-bungie-surface border border-bungie-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-bungie-blue"
                     >
-                      <option value="normal">Normal (paired)</option>
-                      <option value="chaos">Chaos (random, never 2 specials)</option>
-                      <option value="meta">Meta (HC + shotgun/sniper)</option>
+                      <option value="normal">Normal</option>
+                      <option value="chaos">Chaos</option>
+                      <option value="meta">Meta</option>
                     </select>
                   </label>
 
