@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Enhance the "Loadout" transaction-log card so each weapon-swap transaction names the weapon (icon + name), shows a prominent color-coded slot badge, and lets failed rows expand in place to reveal a detailed error.
+**Goal:** Rename the "Loadout" card to "Transaction Logs" and enhance it so each weapon-swap transaction names the weapon (icon + name), shows a prominent color-coded slot badge, and lets failed rows expand in place to reveal a detailed error — plus a "Clear all logs" control to dismiss the log (#63).
 
 **Architecture:** Add three optional fields to `ApplyResult` (`weapon_name`, `weapon_icon`, `error_detail`). Enrich results server-side — in `lib/bungie/equip.ts` (the equip/transfer paths) and `app/api/apply/route.ts` (vault-clear + missing paths) — using the static in-memory weapon definitions (no network). Rewrite `components/ApplyStatus.tsx` as a presentational client component that renders the enriched rows with a per-row expand toggle.
 
@@ -19,7 +19,8 @@
 | `types/lobby.ts` | `ApplyResult` shape | Add 3 optional fields |
 | `lib/bungie/equip.ts` | Build equip/transfer `ApplyResult`s | DRY all result-pushes through one enrich helper; add raw `error_detail` |
 | `app/api/apply/route.ts` | Build vault-clear + missing `ApplyResult`s | Resolve weapon name/icon; add `error_detail` |
-| `components/ApplyStatus.tsx` | Render transaction log | Full rewrite: slot badge, icon+name, per-row expandable detail |
+| `components/ApplyStatus.tsx` | Render transaction log | Full rewrite: "Transaction Logs" heading, slot badge, icon+name, per-row expandable detail, "Clear all logs" control (#63) |
+| `components/LobbyRoom.tsx` | Owns `applyResults` state | Pass `onClear` to `ApplyStatus` (#63) |
 | `lib/bungie/__tests__/equip.test.ts` | Unit tests for `applyWeapons` enrichment | Add a `describe("applyWeapons result enrichment")` block |
 
 ---
@@ -363,7 +364,7 @@ git commit -m "feat: resolve weapon name/icon for vault-clear and missing apply 
 
 ## Task 4: Rewrite `components/ApplyStatus.tsx` with the enhanced row layout
 
-Presentational client component. Slot badge (prominent, color-coded), weapon icon + name, muted player name, status, and a per-row expand chevron on failed rows revealing guidance + raw detail. Falls back gracefully for older persisted rows missing the new fields. No DOM testing library exists, so this is verified by type-check, lint, and manual run.
+Presentational client component. Heading reads "Transaction Logs". Slot badge (prominent, color-coded), weapon icon + name, muted player name, status, and a per-row expand chevron on failed rows revealing guidance + raw detail. A "Clear all logs" control in the header calls an optional `onClear` prop (issue #63). Falls back gracefully for older persisted rows missing the new fields. No DOM testing library exists, so this is verified by type-check, lint, and manual run.
 
 **Files:**
 - Modify: `components/ApplyStatus.tsx` (full rewrite)
@@ -391,7 +392,13 @@ const SLOT_BADGE_CLASSES: Record<string, string> = {
   power: "text-purple-300 bg-purple-500/10 border-purple-500/30",
 };
 
-export default function ApplyStatus({ results }: { results: ApplyResult[] }) {
+export default function ApplyStatus({
+  results,
+  onClear,
+}: {
+  results: ApplyResult[];
+  onClear?: () => void;
+}) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const toggle = (i: number) => {
@@ -405,12 +412,23 @@ export default function ApplyStatus({ results }: { results: ApplyResult[] }) {
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-      <h2 className="text-white font-semibold mb-3 flex items-center gap-2">
-        Loadout
-        <span className="text-xs font-medium text-gray-400 bg-bungie-dark border border-bungie-border px-2 py-0.5 rounded-full">
-          {results.length} {results.length === 1 ? "transaction" : "transactions"}
-        </span>
-      </h2>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h2 className="text-white font-semibold flex items-center gap-2">
+          Transaction Logs
+          <span className="text-xs font-medium text-gray-400 bg-bungie-dark border border-bungie-border px-2 py-0.5 rounded-full">
+            {results.length} {results.length === 1 ? "transaction" : "transactions"}
+          </span>
+        </h2>
+        {onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-gray-400 hover:text-white border border-bungie-border hover:border-gray-500 rounded-md px-2.5 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
+          >
+            Clear all logs
+          </button>
+        )}
+      </div>
       <div className="space-y-2">
         {results.map((r, i) => {
           const slotLabel = SLOT_LABELS[r.slot] ?? r.slot;
@@ -516,18 +534,61 @@ Run: `npm run dev`, open a lobby, roll a loadout, and Apply. Confirm:
 - Failed rows show ❌ and a chevron; clicking toggles a panel with the guidance and (when distinct) a "Detail" block with the raw error.
 - Rolling/applying a brand-new loadout still works (new fields populate). If you have a `roll_history` row that predates this change, its rows render with the slot label in place of a missing weapon name and no broken image.
 
+(The "Clear all logs" button and its end-to-end behavior are verified after Task 5, once `onClear` is wired in `LobbyRoom`. At this point the button does not yet appear because `LobbyRoom` doesn't pass `onClear`.)
+
 - [ ] **Step 4: Commit**
 
 ```bash
 git add components/ApplyStatus.tsx
-git commit -m "feat: enhanced Loadout transaction rows with weapon, slot badge, expandable error (#79)"
+git commit -m "feat: Transaction Logs card — weapon, slot badge, expandable error, clear control (#79, #63)"
+```
+
+---
+
+## Task 5: Wire the "Clear all logs" control in `components/LobbyRoom.tsx` (#63)
+
+`LobbyRoom` owns the `applyResults` state (`const [applyResults, setApplyResults] = useState<ApplyResult[]>([])` at `components/LobbyRoom.tsx:249`) and renders `<ApplyStatus>` only when there are results (`components/LobbyRoom.tsx:1409`). Pass an `onClear` callback that resets the results, which hides the card. Session-only — `applyResults` is already transient.
+
+**Files:**
+- Modify: `components/LobbyRoom.tsx:1409`
+
+- [ ] **Step 1: Pass `onClear` to `ApplyStatus`**
+
+Replace the render line (currently `components/LobbyRoom.tsx:1409`):
+
+```tsx
+        {applyResults.length > 0 && <ApplyStatus results={applyResults} />}
+```
+
+with:
+
+```tsx
+        {applyResults.length > 0 && (
+          <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
+        )}
+```
+
+- [ ] **Step 2: Verify type-check and lint pass**
+
+Run: `npx tsc --noEmit && npm run lint`
+Expected: both exit 0.
+
+- [ ] **Step 3: Manual verification in the running app**
+
+With `npm run dev`, after an Apply produces transaction rows: confirm a "Clear all logs" button appears in the card header, and clicking it removes the entire Transaction Logs section (all rows, successes and failures). Confirm the log reappears on the next Apply.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add components/LobbyRoom.tsx
+git commit -m "feat: wire Clear all logs control for transaction log (#63)"
 ```
 
 ---
 
 ## Self-Review Notes
 
-- **Spec coverage:** weapon icon+name (Tasks 2-4) ✓; prominent color-coded slot badge (Task 4) ✓; per-row expandable detailed error with raw + guidance (Tasks 2-4) ✓; additive optional fields / graceful fallback (Tasks 1, 4) ✓; server-side enrichment so client stays presentational (Tasks 2-3) ✓; count pill (Task 4) ✓; testing within node-only Jest (Task 2) ✓.
+- **Spec coverage:** weapon icon+name (Tasks 2-4) ✓; prominent color-coded slot badge (Task 4) ✓; per-row expandable detailed error with raw + guidance (Tasks 2-4) ✓; additive optional fields / graceful fallback (Tasks 1, 4) ✓; server-side enrichment so client stays presentational (Tasks 2-3) ✓; count pill (Task 4) ✓; rename to "Transaction Logs" (Task 4) ✓; "Clear all logs" / dismiss errors #63 (Tasks 4-5) ✓; testing within node-only Jest (Task 2) ✓.
 - **Type consistency:** `weapon_name` / `weapon_icon` / `error_detail` used identically in the type (Task 1), `makeResult` (Task 2), route enrichment (Task 3), and component (Task 4). `getWeaponDefinition` returns `WeaponDefinition | null`; `getWeaponDefinitions` returns `Map<number, WeaponDefinition>` — both have `.name` and `.icon`.
 - **No placeholders:** every code step shows full code; every run step states expected output.
 ```
