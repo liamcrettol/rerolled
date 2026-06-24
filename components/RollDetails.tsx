@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { WeaponSlot } from "@/types/bungie";
 import { BAR_STATS, NUM_STATS, damageTheme } from "./weaponShared";
+import { trimBungieName } from "@/lib/utils";
 
 export interface Perk { name: string; description: string }
 export interface RollInstance {
@@ -149,8 +150,8 @@ export default function RollDetails({
           {members.map((m) => {
             return (
               <div key={`h-${m.userId}`} className="text-center">
-                <p className={`text-xs font-semibold truncate ${m.isMe ? theme.text : "text-gray-200"}`}>
-                  {m.isMe ? "You" : m.displayName}
+                <p className={`text-xs font-semibold truncate text-center ${m.isMe ? theme.text : "text-gray-200"}`}>
+                  {m.isMe ? "You" : trimBungieName(m.displayName)}
                 </p>
                 {/* Your swap chips + favorite */}
                 {m.isMe && myInstances.length > 1 && (

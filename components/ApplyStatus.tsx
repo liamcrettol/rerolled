@@ -1,6 +1,7 @@
 "use client";
 
 import type { ApplyResult } from "@/types/lobby";
+import { trimBungieName } from "@/lib/utils";
 
 const SLOT_LABELS: Record<string, string> = {
   kinetic: "Kinetic",
@@ -21,7 +22,7 @@ export default function ApplyStatus({ results }: { results: ApplyResult[] }) {
             }`}
           >
             <span>{r.success ? "✅" : "❌"}</span>
-            <span className="font-medium text-white">{r.display_name}</span>
+            <span className="font-medium text-white">{trimBungieName(r.display_name)}</span>
             <span className="text-gray-600">·</span>
             <span className="text-gray-300 capitalize">
               {SLOT_LABELS[r.slot] ?? r.slot}
