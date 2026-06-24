@@ -68,19 +68,23 @@ Use `superpowers:writing-plans` to structure the implementation:
 
 Document the plan in conversation context (not a file).
 
-### 4. Create Feature Branch
+### 4. Create Feature Branch with Issue Number
+
+**CRITICAL: The branch name MUST include the issue number.** This creates a backlink and makes tracking work to issues effortless.
 
 ```bash
 # Branch naming: <issue-type>/<issue-number>-<kebab-case-description>
+# The issue number creates automatic GitHub backlinks to the issue
+
 # Examples:
-# - feature/123-add-user-authentication
-# - fix/456-handle-null-pointer-exception
-# - docs/789-update-api-documentation
+# - feature/42-add-dark-mode-support
+# - fix/123-handle-null-pointer-exception
+# - docs/456-update-api-documentation
 
 git checkout -b <branch-name>
 ```
 
-Track which issue the branch addresses in the branch name.
+The issue number in the branch name helps GitHub and humans trace which work belongs to which issue.
 
 ### 5. Execute the Work
 
@@ -88,15 +92,22 @@ Follow your implementation plan:
 - Work through each step in order
 - Test as you go
 - Commit with clear, descriptive messages
-- Link commits to the issue with `Closes #<issue-number>`
+- **Use `Closes #<issue-number>` in commit messages** — GitHub automatically closes the issue when this commit is merged
+
+```bash
+# Example commit that will auto-close issue #42 when merged:
+git commit -m "feat: add dark mode toggle component
+
+Closes #42"
+```
 
 ### 6. Complete Work
 
 When implementation is done:
 - Run full test suite
-- Create a pull request linked to the issue
+- Create a pull request linked to the issue using `Closes #<issue-number>` in the PR description
 - Use `superpowers:requesting-code-review` for review
-- Merge when approved
+- Merge when approved — GitHub automatically closes the issue
 
 ## Example Usage
 
@@ -128,11 +139,25 @@ Returns issue details about adding dark mode.
 git checkout -b feature/42-add-dark-mode-support
 ```
 
+The `42` in the branch name creates automatic GitHub backlinks.
+
 **Execute:**
 - Implement each step
-- Commit: `feat: add theme context provider (closes #42)`
+- Commit with closing keyword:
+  ```bash
+  git commit -m "feat: add theme context provider
+
+  Closes #42"
+  ```
 - Test dark/light switching
-- Create PR with reference to #42
+- Create PR with reference in description:
+  ```
+  ## Summary
+  Implements dark mode toggle with persistent preference storage.
+
+  Closes #42
+  ```
+- When PR is merged, GitHub automatically closes issue #42
 
 ## Common Mistakes
 
@@ -141,15 +166,20 @@ Starting implementation without analyzing the issue thoroughly. You'll build the
 
 **Fix:** Always spend 5 minutes analyzing requirements first.
 
-### ❌ Not Creating a Feature Branch
-Working directly on main/master makes it hard to track which work belongs to which issue.
+### ❌ Creating a Branch Without the Issue Number
+Creating a branch like `feature/dark-mode-support` instead of `feature/42-dark-mode-support` breaks GitHub's automatic linking.
 
-**Fix:** Always create a feature branch named with the issue number.
+**Fix:** Always include the issue number in the branch name: `type/issue-number-description`.
 
-### ❌ Unclear Commit Messages
-Committing with messages like "fix stuff" or "update" makes it impossible to trace work back to issues.
+### ❌ Not Using "Closes" Keyword in Commits
+Using `git commit -m "feat: stuff"` instead of including `Closes #42` means the issue won't auto-close when merged.
 
-**Fix:** Use `Closes #<issue-number>` in commit messages to link work to issues.
+**Fix:** Always use `Closes #<issue-number>` in commit messages. GitHub recognizes these keywords:
+- `Closes #N`
+- `Fixes #N`
+- `Resolves #N`
+
+When merged, the issue automatically closes.
 
 ### ❌ Skipping the Plan Step
 Jumping into implementation without a plan leads to refactoring and false starts.
@@ -157,21 +187,21 @@ Jumping into implementation without a plan leads to refactoring and false starts
 **Fix:** Use `superpowers:writing-plans` to create a structured plan before implementing.
 
 ### ❌ Not Linking PR to Issue
-Creating a PR without linking to the original issue loses the context.
+Creating a PR without linking to the original issue loses the context and prevents automatic issue closure.
 
-**Fix:** Reference the issue in the PR description: "Closes #42" or "Fixes #42".
+**Fix:** Reference the issue in the PR description using `Closes #42` so the issue auto-closes when PR is merged.
 
 ## Quick Reference
 
-| Step | Tool | Output |
-|------|------|--------|
-| Fetch Issue | `gh issue view #N` | Issue details |
-| Analyze | Read carefully | Requirements list |
-| Plan | `superpowers:writing-plans` | Implementation steps |
-| Branch | `git checkout -b` | Local feature branch |
-| Execute | Code implementation | Working code on branch |
-| Review | `superpowers:requesting-code-review` | Reviewed work |
-| Complete | Merge to main | Issue closed |
+| Step | Tool | Output | GitHub Linking |
+|------|------|--------|---|
+| Fetch Issue | `gh issue view #N` | Issue details | - |
+| Analyze | Read carefully | Requirements list | - |
+| Plan | `superpowers:writing-plans` | Implementation steps | - |
+| Branch | `git checkout -b type/N-desc` | Local feature branch | ✓ Issue #N in name |
+| Execute | Code implementation | Working code on branch | Commit: "Closes #N" |
+| Review | `superpowers:requesting-code-review` | Reviewed work | PR description: "Closes #N" |
+| Complete | Merge to main | Issue auto-closes | ✓ GitHub closes issue |
 
 ## Integration with Other Skills
 
@@ -184,9 +214,12 @@ Creating a PR without linking to the original issue loses the context.
 ## Red Flags - Things That Mean You're Skipping Steps
 
 - Branching before analyzing the issue → You don't understand requirements yet
+- Creating a branch without the issue number → GitHub linking broken, backlinks won't work
 - Implementing without a plan → You'll refactor multiple times
-- Not linking commits to the issue → Lost traceability
-- Creating PR without issue reference → Loses context
+- Committing without `Closes #N` keyword → Issue won't auto-close, traceability lost
+- Creating PR without `Closes #N` in description → Issue won't auto-close
 - Merging without review → Bypasses quality gate
 
 **All of these mean: Stop. Go back to the previous step.**
+
+**CRITICAL:** The issue number must appear in BOTH the branch name AND in commit/PR messages using "Closes #N" to ensure automatic linking and closure.
