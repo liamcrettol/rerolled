@@ -35,6 +35,15 @@ Local development uses:
 
 Early development / personal project.
 
+## Developer docs
+
+- [Match detection architecture](docs/match-detection.md) — how games are
+  detected, recorded, and how captain rotation works (read this before touching
+  the stats pipeline).
+- [Database migrations](supabase/migrations/README.md) — migrations are applied
+  **by hand**, not automatically. Check the status table before assuming a
+  migration is live.
+
 ## Contributors
 
 ### Development:
