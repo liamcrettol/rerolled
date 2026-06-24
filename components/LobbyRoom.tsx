@@ -410,14 +410,22 @@ export default function LobbyRoom({
     setMyChosenInstances((prev) => ({ ...prev, [slot]: instanceId }));
   }, []);
 
+  // Build a display type key that distinguishes special-ammo weapons (e.g. Rocket Sidearms)
+  // from their primary-ammo counterparts by appending " · Special".
+  const weaponDisplayType = useCallback((h: number): string => {
+    const d = weaponDetails[h.toString()];
+    if (!d) return "";
+    return d.ammoType === "Special" ? `${d.weaponType} · Special` : d.weaponType;
+  }, [weaponDetails]);
+
   // Pool with banned weapon types removed - drives both the browser and rolls.
   const effectiveIntersection = useMemo(() => {
     if (!intersection) return null;
     if (bannedTypes.size === 0) return intersection;
     const filt = (arr: number[]) =>
-      arr.filter((h) => !bannedTypes.has(weaponDetails[h.toString()]?.weaponType ?? ""));
+      arr.filter((h) => !bannedTypes.has(weaponDisplayType(h)));
     return { kinetic: filt(intersection.kinetic), energy: filt(intersection.energy), power: filt(intersection.power) };
-  }, [intersection, bannedTypes, weaponDetails]);
+  }, [intersection, bannedTypes, weaponDisplayType]);
 
   // Distinct weapon types in the current pool (for the ban checkboxes).
   const poolWeaponTypes = useMemo(() => {
@@ -425,11 +433,11 @@ export default function LobbyRoom({
     const s = new Set<string>();
     for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[])
       for (const h of intersection[slot]) {
-        const t = weaponDetails[h.toString()]?.weaponType;
+        const t = weaponDisplayType(h);
         if (t) s.add(t);
       }
     return [...s].sort();
-  }, [intersection, weaponDetails]);
+  }, [intersection, weaponDisplayType]);
 
   const copyCode = useCallback(async () => {
     try {
