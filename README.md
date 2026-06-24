@@ -21,8 +21,12 @@ This app uses the Bungie API to read Destiny 2 profile, inventory, vault, and eq
 
 The app does not store Bungie passwords. Authentication is handled through Bungie OAuth.
 
-## Development Redirect URL
+## Deployment URLs
 
+### Production
+`https://destiny-gun-roulette.vercel.app`
+
+### Development
 Local development uses:
 
 `http://localhost:3000/api/auth/callback/bungie`
