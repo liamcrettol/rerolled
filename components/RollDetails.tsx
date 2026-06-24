@@ -8,6 +8,8 @@ export interface RollInstance {
   instanceId: string;
   location: "character" | "vault";
   perks: string[];
+  perkHashes: number[];
+  perkIcons: Record<number, string>;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -149,11 +151,23 @@ export default function RollDetails({
             {chosen && (
               <div>
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {chosen.perks.map((p) => (
-                    <span key={p} className="text-[10px] bg-bungie-blue/20 border border-bungie-blue/40 text-blue-300 rounded px-1.5 py-0.5">
-                      {p}
-                    </span>
-                  ))}
+                  {chosen.perkHashes.map((hash, i) => {
+                    const icon = chosen.perkIcons[hash];
+                    const perkName = chosen.perks[i];
+                    return icon ? (
+                      <img
+                        key={hash}
+                        src={icon}
+                        alt={perkName}
+                        title={perkName}
+                        className="w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition"
+                      />
+                    ) : (
+                      <span key={hash} className="text-[10px] bg-bungie-blue/20 border border-bungie-blue/40 text-blue-300 rounded px-1.5 py-0.5">
+                        {perkName}
+                      </span>
+                    );
+                  })}
                 </div>
                 <StatBars stats={chosen.stats} base={slot.baseStats} />
                 <p className="text-gray-600 text-[10px] mt-1.5">Green/red = perk impact vs the weapon&apos;s base stats.</p>
@@ -179,7 +193,29 @@ export default function RollDetails({
                     )}
                   </div>
                   {inst && (
-                    <p className="text-[11px] text-gray-400 leading-snug mt-0.5">{inst.perks.join("  ·  ") || "no perk data"}</p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {inst.perkHashes.length > 0 ? (
+                        inst.perkHashes.map((hash, i) => {
+                          const icon = inst.perkIcons[hash];
+                          const perkName = inst.perks[i];
+                          return icon ? (
+                            <img
+                              key={hash}
+                              src={icon}
+                              alt={perkName}
+                              title={perkName}
+                              className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
+                            />
+                          ) : (
+                            <span key={hash} className="text-[10px] text-gray-400">
+                              {perkName}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <span className="text-[11px] text-gray-500">no perk data</span>
+                      )}
+                    </div>
                   )}
                 </div>
               );

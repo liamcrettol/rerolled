@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
-import { getPerkNames, getWeaponDefinitions } from "@/lib/bungie/definitions";
+import { getPerkNames, getPerkIcons, getWeaponDefinitions } from "@/lib/bungie/definitions";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -41,6 +41,7 @@ interface RollInstance {
   location: "character" | "vault";
   perkHashes: number[];
   perks: string[];
+  perkIcons: Record<number, string>;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -127,6 +128,7 @@ export async function POST(req: NextRequest) {
               location,
               perkHashes,
               perks: [],
+              perkIcons: {},
               stats,
               lightLevel: instanceData[id]?.primaryStat?.value ?? 0,
             };
@@ -150,12 +152,14 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Resolve all perk plug hashes to names in one pass; base stats per weapon.
-    const [perkNameMap, defs] = await Promise.all([
+    // Resolve all perk plug hashes to names and icons in one pass; base stats per weapon.
+    const [perkNameMap, perkIconMap, defs] = await Promise.all([
       getPerkNames([...allPerkHashes]),
+      getPerkIcons([...allPerkHashes]),
       getWeaponDefinitions([...loadoutHashes]),
     ]);
     const nameOf = (h: number) => perkNameMap.get(h) ?? "Unknown";
+    const iconOf = (h: number) => perkIconMap.get(h) ?? "";
 
     // Build the response: per slot -> { itemHash, baseStats, members: [{...instances}] }
     const slots: Record<string, { itemHash: number; baseStats: Record<string, number>; members: MemberRolls[] }> = {};
@@ -163,10 +167,18 @@ export async function POST(req: NextRequest) {
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
         if (!m) continue;
-        const instances = (m.byHash.get(hash) ?? []).map((inst) => ({
-          ...inst,
-          perks: inst.perkHashes.map(nameOf),
-        }));
+        const instances = (m.byHash.get(hash) ?? []).map((inst) => {
+          const perkIcons: Record<number, string> = {};
+          inst.perkHashes.forEach((h) => {
+            const icon = iconOf(h);
+            if (icon) perkIcons[h] = icon;
+          });
+          return {
+            ...inst,
+            perks: inst.perkHashes.map(nameOf),
+            perkIcons,
+          };
+        });
         memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances });
       }
       // Put the caller first.
