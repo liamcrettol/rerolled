@@ -1110,7 +1110,7 @@ export default function LobbyRoom({
                                     <div key={slot} className="flex items-center gap-1.5 bg-bungie-dark/60 border border-bungie-border rounded px-2 py-1">
                                       {w.icon && (
                                         <img
-                                          src={`https://www.bungie.net${w.icon}`}
+                                          src={w.icon}
                                           alt=""
                                           className="w-5 h-5 rounded"
                                         />
