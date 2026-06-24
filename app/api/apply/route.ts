@@ -8,6 +8,7 @@ import {
   type InventoryClearResult,
   type WeaponToApply,
 } from "@/lib/bungie/equip";
+import { getWeaponDefinition } from "@/lib/bungie/definitions";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
@@ -88,6 +89,8 @@ export async function POST(req: NextRequest) {
           item_hash: slot.item_hash,
           success: false,
           error: `Not in inventory - pull ${slot.weapon_name} from Collections in-game, then Apply again`,
+          weapon_name: slot.weapon_name,
+          weapon_icon: slot.weapon_icon,
         });
         continue;
       }
@@ -130,18 +133,24 @@ export async function POST(req: NextRequest) {
       rosterAfterClearing
     );
 
-    const results = [
-      ...clearResults.map((r) => ({
-        user_id: session.userId,
-        display_name: session.displayName,
-        slot: "kinetic" as WeaponSlot, // vault operations don't have a specific slot
-        item_hash: r.itemHash,
-        success: r.success,
-        error: r.error ? `Vaulted to make room: ${r.error}` : undefined,
-      })),
-      ...equipResults,
-      ...missing,
-    ];
+    const clearResultsEnriched = await Promise.all(
+      clearResults.map(async (r) => {
+        const def = await getWeaponDefinition(r.itemHash);
+        return {
+          user_id: session.userId,
+          display_name: session.displayName,
+          slot: "kinetic" as WeaponSlot, // vault operations don't have a specific slot
+          item_hash: r.itemHash,
+          success: r.success,
+          error: r.error ? `Vaulted to make room: ${r.error}` : undefined,
+          error_detail: r.error,
+          weapon_name: def?.name,
+          weapon_icon: def?.icon,
+        };
+      })
+    );
+
+    const results = [...clearResultsEnriched, ...equipResults, ...missing];
 
     // One roll_history row per round, updated on re-apply.
     // NOTE: roll_history has no unique constraint on round_id, so we can't use
