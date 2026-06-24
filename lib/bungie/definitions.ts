@@ -46,6 +46,43 @@ const PERK_NAMES = perkNamesRaw as unknown as Record<string, string>;
 const PERK_DATA = perkDataRaw as unknown as Record<string, { n: string; d: string }>;
 const PERK_ICONS = perkIconsRaw as unknown as Record<string, string>;
 
+// ── Weapon grouping ────────────────────────────────────────────────────────
+// The same gun is re-issued across expansions/seasons (and as Adept/craftable
+// variants), each with a DIFFERENT itemHash. To treat "all your Roses" as one
+// weapon we group by normalized name + weapon type. Built once from the static
+// table, so no manifest regen is needed.
+
+function normalizeWeaponName(name: string): string {
+  // Drop the Adept/Timelost/Harrowed/Pinnacle suffix so those pool with the base.
+  return name.replace(/\s*\((adept|timelost|harrowed)\)\s*$/i, "").trim().toLowerCase();
+}
+
+function groupKeyFor(def: WeaponDefinition): string {
+  return `${normalizeWeaponName(def.name)}|${def.weaponType}`;
+}
+
+const HASH_TO_GROUP = new Map<number, string>();
+const GROUP_TO_HASHES = new Map<string, number[]>();
+for (const [hash, def] of WEAPONS) {
+  const key = groupKeyFor(def);
+  HASH_TO_GROUP.set(hash, key);
+  const list = GROUP_TO_HASHES.get(key) ?? [];
+  list.push(hash);
+  GROUP_TO_HASHES.set(key, list);
+}
+
+/**
+ * Every itemHash that represents the same weapon as `itemHash` — re-releases
+ * across seasons, craftable vs world-drop, and Adept vs non-Adept. Always
+ * includes `itemHash` itself; falls back to `[itemHash]` for weapons missing
+ * from the static table.
+ */
+export function getWeaponGroupHashes(itemHash: number): number[] {
+  const key = HASH_TO_GROUP.get(itemHash);
+  if (!key) return [itemHash];
+  return GROUP_TO_HASHES.get(key) ?? [itemHash];
+}
+
 export interface PerkInfo { name: string; description: string }
 
 /** Resolve perk hashes to { name, description }. Unknown/cosmetic hashes are omitted. */
