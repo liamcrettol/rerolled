@@ -141,14 +141,30 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 <th className="text-right px-3 py-2">D</th>
                 <th className="text-right px-3 py-2">A</th>
                 <th className="text-right px-4 py-2">K/D</th>
+                <th className="text-center px-3 py-2">Weapons</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-bungie-border/40">
               {rows.map((row) => {
-                const session = row.game_sessions as { played_at: string } | null;
+                const session = row.game_sessions as { played_at: string; roulette_hashes?: number[] } | null;
                 const date = session?.played_at
                   ? new Date(session.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
                   : " - ";
+
+                // Find the most common weapon from roulette_hashes
+                let mostCommonWeapon: WeaponEntry | null = null;
+                let weaponCount = 0;
+
+                if (session?.roulette_hashes && session.roulette_hashes.length > 0) {
+                  const hashFreq = new Map<number, number>();
+                  for (const hash of session.roulette_hashes) {
+                    hashFreq.set(hash, (hashFreq.get(hash) ?? 0) + 1);
+                  }
+                  const [mostCommonHash] = [...hashFreq.entries()].sort((a, b) => b[1] - a[1])[0];
+                  mostCommonWeapon = weapons[mostCommonHash.toString()] ?? null;
+                  weaponCount = session.roulette_hashes.length;
+                }
+
                 return (
                   <tr key={row.id} className="text-gray-300 hover:bg-bungie-dark/30 transition">
                     <td className="px-4 py-2.5 text-gray-500 text-xs">{date}</td>
@@ -157,6 +173,19 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                     <td className="px-3 py-2.5 text-right">{row.deaths}</td>
                     <td className="px-3 py-2.5 text-right">{row.assists}</td>
                     <td className="px-4 py-2.5 text-right">{Number(row.kd).toFixed(2)}</td>
+                    <td className="px-3 py-2.5">
+                      {mostCommonWeapon ? (
+                        <WeaponIcon
+                          icon={mostCommonWeapon.icon}
+                          watermark={mostCommonWeapon.watermark}
+                          name={mostCommonWeapon.name}
+                          size="small"
+                          count={weaponCount}
+                        />
+                      ) : (
+                        <span className="text-gray-500 text-xs">-</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
