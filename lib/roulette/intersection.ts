@@ -199,5 +199,26 @@ export function rollLoadout(
   powerPool = applyMeta(powerPool);
   const powerHash = keep.power ?? pick(dropAvoided(powerPool, "power"));
 
+  // Post-roll: guarantee at most one exotic across kinetic+energy.
+  // dropExoticsIf falls back to the full pool when all weapons are exotic,
+  // which can let both slots land on exotics. Fix it here.
+  if (!kineticKept && !energyKept && isExotic(kineticHash) && isExotic(energyHash)) {
+    const nonExoticE = intersection.energy.filter((h) => !isExotic(h));
+    if (nonExoticE.length > 0) {
+      energyHash = pick(dropAvoided(nonExoticE, "energy")) ?? energyHash;
+    } else {
+      const nonExoticK = intersection.kinetic.filter((h) => !isExotic(h));
+      if (nonExoticK.length > 0) {
+        kineticHash = pick(dropAvoided(nonExoticK, "kinetic")) ?? kineticHash;
+      }
+    }
+  } else if (!energyKept && isExotic(kineticHash) && isExotic(energyHash)) {
+    const nonExoticE = intersection.energy.filter((h) => !isExotic(h));
+    if (nonExoticE.length > 0) energyHash = pick(nonExoticE) ?? energyHash;
+  } else if (!kineticKept && isExotic(kineticHash) && isExotic(energyHash)) {
+    const nonExoticK = intersection.kinetic.filter((h) => !isExotic(h));
+    if (nonExoticK.length > 0) kineticHash = pick(nonExoticK) ?? kineticHash;
+  }
+
   return { kinetic: kineticHash, energy: energyHash, power: powerHash };
 }
