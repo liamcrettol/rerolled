@@ -4,16 +4,14 @@ import type { WeaponSlot } from "@/types/bungie";
 import type { ApplyResult } from "@/types/lobby";
 import type { RawWeapon } from "./rawInventory";
 
-// Constants
 const EXOTIC_TIER_TYPE = 6;
 const LEGENDARY_TIER_TYPE = 5;
 
-// Helper function to determine if a weapon is exotic
 function isExotic(tierType: number): boolean {
   return tierType === EXOTIC_TIER_TYPE;
 }
 
-// Find any exotics already equipped in different slots than the new weapons
+// Find any exotics currently equipped in a different slot than the incoming exotic
 function findConflictingExotics(
   newWeapons: WeaponToApply[],
   roster: RawWeapon[]
@@ -21,15 +19,9 @@ function findConflictingExotics(
   const conflictingExotics = new Map<WeaponSlot, RawWeapon>();
 
   for (const newWeapon of newWeapons) {
-    // Look up the new weapon in the roster to get its tierType
-    const newWeaponData = roster.find(
-      (w) => w.itemInstanceId === newWeapon.itemInstanceId
-    );
-
-    // Skip non-exotics - no conflict possible
+    const newWeaponData = roster.find((w) => w.itemInstanceId === newWeapon.itemInstanceId);
     if (!newWeaponData?.tierType || !isExotic(newWeaponData.tierType)) continue;
 
-    // Find equipped exotics in different slots
     for (const existingWeapon of roster) {
       if (
         existingWeapon.isEquipped &&
@@ -46,29 +38,26 @@ function findConflictingExotics(
   return conflictingExotics;
 }
 
-// Find a legendary weapon in the given slot to swap in as replacement
+// Find the lowest-light legendary on the character in the given slot (excluding loadout items)
 function findLegendaryReplacement(
   slot: WeaponSlot,
   characterId: string,
   roster: RawWeapon[],
   excludeInstanceIds: Set<string>
 ): RawWeapon | null {
-  return (
-    roster.find(
-      (w) =>
-        w.slot === slot &&
-        w.location === "character" &&
-        w.characterId === characterId &&
-        w.tierType !== undefined &&
-        !isExotic(w.tierType) && // must be legendary or lower
-        !w.isEquipped &&
-        !excludeInstanceIds.has(w.itemInstanceId)
-    ) ?? null
+  const candidates = roster.filter(
+    (w) =>
+      w.slot === slot &&
+      w.location === "character" &&
+      w.characterId === characterId &&
+      w.tierType !== undefined &&
+      !isExotic(w.tierType) &&
+      !w.isEquipped &&
+      !excludeInstanceIds.has(w.itemInstanceId)
   );
+  return candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
 }
 
-// A transfer fails with this Bungie error code when the destination bucket is
-// full (no room on the character for another weapon of that slot).
 function isNoRoomError(err: unknown): boolean {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return msg.includes("1642") || msg.includes("no room") || msg.includes("destinationfull");
@@ -92,7 +81,7 @@ interface EquipItemsRequest {
 interface EquipItemsResponse {
   equipResults: Array<{
     itemInstanceId: string;
-    equipStatus: number; // 1 = success
+    equipStatus: number;
   }>;
 }
 
@@ -105,10 +94,6 @@ export interface WeaponToApply {
   tierType?: number;
 }
 
-/**
- * Move a weapon from vault to the target character, then equip it.
- * If the weapon is already on the character, skip the transfer.
- */
 export async function applyWeapons(
   weapons: WeaponToApply[],
   targetCharacterId: string,
@@ -116,31 +101,26 @@ export async function applyWeapons(
   accessToken: string,
   userId: string,
   displayName: string,
-  // The player's full weapon list, used to auto-make-room (farming style) when
-  // the target character's weapon slot is full.
   roster: RawWeapon[] = []
 ): Promise<ApplyResult[]> {
   const results: ApplyResult[] = [];
 
-  // Fetch weapon definitions to determine tierType for new weapons being equipped
   const uniqueHashes = new Set(weapons.map((w) => w.itemHash));
   const weaponDefs = await getWeaponDefinitions(Array.from(uniqueHashes));
 
-  // Enrich weapons with tierType info
   const weaponsWithTierType = weapons.map((w) => ({
     ...w,
     tierType: weaponDefs.get(w.itemHash)?.tierType ?? LEGENDARY_TIER_TYPE,
   }));
 
-  // Instances we must never shove to the vault to make room: the loadout itself.
   const loadoutInstanceIds = new Set(weapons.map((w) => w.itemInstanceId));
-  // Track instances already moved to the vault this run so we don't pick them again.
   const movedToVault = new Set<string>();
+  // Track weapons Step 1.5 already transferred so Step 1 doesn't re-transfer them
+  const alreadyOnCharacter = new Set<string>();
 
-  // Move one non-equipped, non-loadout weapon of this slot off the target
-  // character into the vault, freeing a bucket slot. Returns false if none found.
+  // Vault the lowest-light spare weapon in this slot to free a bucket slot
   async function makeRoom(slot: WeaponSlot): Promise<boolean> {
-    const candidate = roster.find(
+    const candidates = roster.filter(
       (w) =>
         w.slot === slot &&
         w.location === "character" &&
@@ -149,6 +129,7 @@ export async function applyWeapons(
         !loadoutInstanceIds.has(w.itemInstanceId) &&
         !movedToVault.has(w.itemInstanceId)
     );
+    const candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
     if (!candidate) return false;
     try {
       await bungiePost<unknown>(
@@ -171,7 +152,6 @@ export async function applyWeapons(
   }
 
   async function moveToCharacter(weapon: WeaponToApply) {
-    // Items on another character must first go to the vault
     if (weapon.location === "character" && weapon.characterId && weapon.characterId !== targetCharacterId) {
       await bungiePost<unknown>(
         "/Destiny2/Actions/Items/TransferItem/",
@@ -186,7 +166,6 @@ export async function applyWeapons(
         } satisfies TransferItemRequest
       );
     }
-    // Move from vault to target character
     await bungiePost<unknown>(
       "/Destiny2/Actions/Items/TransferItem/",
       accessToken,
@@ -201,60 +180,97 @@ export async function applyWeapons(
     );
   }
 
-  // Step 1.5: Handle exotic weapon conflicts
-  // If any of the weapons being equipped are exotics, check if an exotic is already equipped
-  // in a different slot and auto-swap it for a legendary
+  // Step 1.5: Resolve exotic slot conflicts before transferring anything.
+  // If we're equipping an exotic and a different exotic is already equipped,
+  // we must equip a legendary in the conflicting slot first.
+  // When no spare legendary is on the character, use the loadout's own weapon
+  // for that slot — transfer it now and mark it so Step 1 doesn't repeat the transfer.
   const exoticConflicts = findConflictingExotics(weaponsWithTierType, roster);
-  if (exoticConflicts.size > 0) {
-    for (const [conflictSlot, conflictingExotic] of exoticConflicts) {
-      // Find a legendary to swap in place of the conflicting exotic
-      const replacement = findLegendaryReplacement(
-        conflictSlot,
-        targetCharacterId,
-        roster,
-        loadoutInstanceIds
+
+  for (const [conflictSlot, conflictingExotic] of exoticConflicts) {
+    let replacement = findLegendaryReplacement(conflictSlot, targetCharacterId, roster, loadoutInstanceIds);
+
+    if (!replacement) {
+      // No spare on character — use the loadout's own non-exotic weapon for this slot
+      const loadoutWeaponForSlot = weaponsWithTierType.find(
+        (w) => w.slot === conflictSlot && !isExotic(w.tierType ?? LEGENDARY_TIER_TYPE)
       );
 
-      if (!replacement) {
-        // No legendary found to replace with - we can't auto-swap
-        results.push({
-          user_id: userId,
-          display_name: displayName,
-          slot: conflictSlot,
-          item_hash: conflictingExotic.itemHash,
-          success: false,
-          error: `Cannot auto-swap exotic - no legendary weapon available in ${conflictSlot} slot`,
-        });
-        continue;
-      }
-
-      // Unequip the conflicting exotic and equip the legendary replacement
-      try {
-        await bungiePost<EquipItemsResponse>(
-          "/Destiny2/Actions/Items/EquipItems/",
-          accessToken,
-          {
-            itemIds: [replacement.itemInstanceId],
+      if (loadoutWeaponForSlot) {
+        try {
+          // Make room first if the bucket is full
+          try {
+            await moveToCharacter(loadoutWeaponForSlot);
+          } catch (transferErr) {
+            if (isNoRoomError(transferErr) && (await makeRoom(conflictSlot))) {
+              await moveToCharacter(loadoutWeaponForSlot);
+            } else {
+              throw transferErr;
+            }
+          }
+          alreadyOnCharacter.add(loadoutWeaponForSlot.itemInstanceId);
+          replacement = {
+            itemHash: loadoutWeaponForSlot.itemHash,
+            itemInstanceId: loadoutWeaponForSlot.itemInstanceId,
+            slot: conflictSlot,
+            location: "character",
             characterId: targetCharacterId,
-            membershipType,
-          } satisfies EquipItemsRequest
-        );
-        // Successfully swapped - the exotic is now unequipped
-      } catch (err) {
-        results.push({
-          user_id: userId,
-          display_name: displayName,
-          slot: conflictSlot,
-          item_hash: conflictingExotic.itemHash,
-          success: false,
-          error: err instanceof Error ? err.message : "Failed to auto-swap conflicting exotic",
-        });
+            isEquipped: false,
+            lightLevel: 0,
+            tierType: loadoutWeaponForSlot.tierType,
+          };
+        } catch (err) {
+          results.push({
+            user_id: userId,
+            display_name: displayName,
+            slot: conflictSlot,
+            item_hash: conflictingExotic.itemHash,
+            success: false,
+            error: err instanceof Error ? err.message : "Failed to transfer weapon to clear exotic conflict",
+          });
+          continue;
+        }
       }
+    }
+
+    if (!replacement) {
+      results.push({
+        user_id: userId,
+        display_name: displayName,
+        slot: conflictSlot,
+        item_hash: conflictingExotic.itemHash,
+        success: false,
+        error: `Cannot swap out exotic in ${conflictSlot} slot — no legendary available`,
+      });
+      continue;
+    }
+
+    try {
+      await bungiePost<EquipItemsResponse>(
+        "/Destiny2/Actions/Items/EquipItems/",
+        accessToken,
+        {
+          itemIds: [replacement.itemInstanceId],
+          characterId: targetCharacterId,
+          membershipType,
+        } satisfies EquipItemsRequest
+      );
+    } catch (err) {
+      results.push({
+        user_id: userId,
+        display_name: displayName,
+        slot: conflictSlot,
+        item_hash: conflictingExotic.itemHash,
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to swap out conflicting exotic",
+      });
     }
   }
 
-  // Step 1: move weapons to the target character (from vault or another character)
+  // Step 1: Move remaining weapons to the target character
   for (const weapon of weapons) {
+    if (alreadyOnCharacter.has(weapon.itemInstanceId)) continue;
+
     const needsTransfer =
       weapon.location === "vault" ||
       (weapon.location === "character" && weapon.characterId !== targetCharacterId);
@@ -264,17 +280,16 @@ export async function applyWeapons(
     try {
       await moveToCharacter(weapon);
     } catch (err) {
-      // Bucket full? Make room by vaulting a spare weapon of that slot, then retry.
       if (isNoRoomError(err) && (await makeRoom(weapon.slot))) {
         try {
           await moveToCharacter(weapon);
-          continue; // success on retry
+          continue;
         } catch (retryErr) {
           err = retryErr;
         }
       }
       const friendly = isNoRoomError(err)
-        ? "Inventory full and no spare weapon to move - clear a slot, then Apply again"
+        ? "Inventory full and no spare weapon to move — clear a slot, then Apply again"
         : err instanceof Error ? err.message : "Transfer failed";
       results.push({
         user_id: userId,
@@ -287,12 +302,9 @@ export async function applyWeapons(
     }
   }
 
-  // Step 2: equip all three at once
+  // Step 2: Equip everything in one batch
   const itemIdsToEquip = weaponsWithTierType
-    .filter(
-      (w) =>
-        !results.find((r) => r.slot === w.slot && r.success === false)
-    )
+    .filter((w) => !results.find((r) => r.slot === w.slot && r.success === false))
     .map((w) => w.itemInstanceId);
 
   if (itemIdsToEquip.length === 0) return results;
