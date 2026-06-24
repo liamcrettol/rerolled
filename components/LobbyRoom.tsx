@@ -653,6 +653,11 @@ export default function LobbyRoom({
           .eq("round_id", round.id);
         if (existingSlots) {
           setSlots(existingSlots);
+          // Reconstruct wildcard state: slots stored with item_hash=0 are wildcards ("Your own").
+          const wc = new Set<WeaponSlot>(
+            existingSlots.filter((s) => s.item_hash === 0).map((s) => s.slot as WeaponSlot)
+          );
+          if (wc.size > 0) setWildcardSlots(wc);
           for (const s of existingSlots) {
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
           }
