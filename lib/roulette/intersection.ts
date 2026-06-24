@@ -23,19 +23,6 @@ export function computeWeaponIntersection(
   return result;
 }
 
-export function findBestInstance(
-  itemHash: number,
-  userWeapons: ResolvedWeapon[]
-): ResolvedWeapon | null {
-  const candidates = userWeapons.filter((w) => w.itemHash === itemHash);
-  if (candidates.length === 0) return null;
-  return (
-    candidates.find((w) => w.isEquipped) ??
-    candidates.find((w) => w.location === "character") ??
-    candidates[0]
-  );
-}
-
 // Archetype pairing rules - pair a primary with a complementary special so the
 // loadout covers both ranges.
 //   Short-range primary (SMG, Sidearm)        → Sniper Rifle (long-range special)

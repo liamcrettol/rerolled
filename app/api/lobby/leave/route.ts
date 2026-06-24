@@ -19,6 +19,14 @@ export async function POST(req: NextRequest) {
 
     if (!member) return NextResponse.json({ ok: true }); // already gone
 
+    // Capture the full roster (rotation order) BEFORE deleting, so we can hand
+    // captaincy to the NEXT member in rotation rather than always the oldest.
+    const { data: roster } = await adminSupabase
+      .from("lobby_members")
+      .select("user_id")
+      .eq("lobby_id", lobbyId)
+      .order("joined_at", { ascending: true });
+
     // Remove this member
     await adminSupabase
       .from("lobby_members")
@@ -26,17 +34,18 @@ export async function POST(req: NextRequest) {
       .eq("lobby_id", lobbyId)
       .eq("user_id", session.userId);
 
-    // If they were captain, hand off to next member
+    // If they were captain, hand off to the next member in rotation order
     if (member.is_captain) {
-      const { data: remaining } = await adminSupabase
-        .from("lobby_members")
-        .select("user_id")
-        .eq("lobby_id", lobbyId)
-        .order("joined_at", { ascending: true })
-        .limit(1);
+      const order = (roster ?? []).map((r) => r.user_id);
+      const leaverIdx = order.indexOf(session.userId);
+      const remaining = order.filter((id) => id !== session.userId);
 
-      if (remaining?.length) {
-        const newCaptain = remaining[0].user_id;
+      if (remaining.length) {
+        // Next person clockwise from the leaver; wraps to the front.
+        const newCaptain =
+          leaverIdx >= 0
+            ? remaining[leaverIdx % remaining.length]
+            : remaining[0];
         await adminSupabase
           .from("lobby_members")
           .update({ is_captain: true })
