@@ -35,6 +35,16 @@ Local development uses:
 
 Early development / personal project.
 
+## Contributors
+
+### Development:
+- [@liamcrettol](https://github.com/liamcrettol)
+- [@jxsoren](https://github.com/jxsoren)
+
+### QA / Testing
+
+- [@Oboluss](https://github.com/Oboluss)
+
 ## Disclaimer
 
 This project is not affiliated with, endorsed by, sponsored by, or approved by Bungie. Destiny, Destiny 2, and Bungie are trademarks of Bungie, Inc.
