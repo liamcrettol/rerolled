@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
           error_detail: r.error,
           weapon_name: def?.name,
           weapon_icon: def?.icon,
+          kind: "vault" as const,
         };
       })
     );
