@@ -394,6 +394,9 @@ export async function POST(req: NextRequest) {
     // ── Phase 8: Perk rolls from pre-fetched sockets (no extra API call) ─────
 
     const allIntersectionHashSet = new Set(allIntersectionHashes);
+    // Include ALL weapons the player owns, not just intersection.
+    // This ensures we capture perk data for re-released weapons.
+    const myAllWeapons = myWeapons;
 
     const instancePerks: Record<
       string,
@@ -412,8 +415,8 @@ export async function POST(req: NextRequest) {
     > = {};
 
     const myData = memberDataMap.get(session.userId);
-    if (myData && myWeapons.length > 0) {
-      const myInstanceIds = new Set(myWeapons.map((w) => w.itemInstanceId));
+    if (myData && myAllWeapons.length > 0) {
+      const myInstanceIds = new Set(myAllWeapons.map((w) => w.itemInstanceId));
       const allPerkHashes = new Set<number>();
 
       for (const instanceId of myInstanceIds) {
@@ -435,7 +438,7 @@ export async function POST(req: NextRequest) {
         getPerkIcons([...allPerkHashes]),
       ]);
 
-      for (const weapon of myWeapons) {
+      for (const weapon of myAllWeapons) {
         const hashes = myData.sockets.get(weapon.itemInstanceId);
         if (!hashes) continue;
         const perks = hashes
