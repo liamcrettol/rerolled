@@ -90,10 +90,10 @@ function isNoRoomError(err: unknown): boolean {
 
 export async function ensureInventorySpace(
   characterId: string,
-  roster: RawWeapon[],
   accessToken: string,
   membershipType: number,
-  userId: string,
+  roster: RawWeapon[],
+  userId: string | undefined = undefined,
   loadoutInstanceIds: Set<string> = new Set()
 ): Promise<InventoryClearResult[]> {
   const results: InventoryClearResult[] = [];
@@ -103,17 +103,8 @@ export async function ensureInventorySpace(
     return results;
   }
 
-  // Find the lowest-light unequipped weapon on the character to vault
-  const candidates = roster.filter(
-    (w) =>
-      w.location === "character" &&
-      w.characterId === characterId &&
-      !w.isEquipped &&
-      !loadoutInstanceIds.has(w.itemInstanceId)
-  );
-
-  // Sort by light level ascending to find the lowest-light weapon
-  const weaponToVault = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+  // Find the last unequipped weapon on the character to vault
+  const weaponToVault = findLastWeapon(characterId, roster, loadoutInstanceIds);
 
   if (!weaponToVault) {
     return results;
@@ -138,9 +129,17 @@ export async function ensureInventorySpace(
       itemInstanceId: weaponToVault.itemInstanceId,
       itemHash: weaponToVault.itemHash,
       transferredToVault: true,
+      success: true,
     });
-  } catch {
+  } catch (err) {
     // If vault transfer fails, return empty array per requirements
+    results.push({
+      itemInstanceId: weaponToVault.itemInstanceId,
+      itemHash: weaponToVault.itemHash,
+      transferredToVault: false,
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to vault weapon",
+    });
     return [];
   }
 
@@ -159,7 +158,9 @@ interface TransferItemRequest {
 export interface InventoryClearResult {
   itemInstanceId: string;
   itemHash: number;
-  transferredToVault: boolean;
+  transferredToVault?: boolean;
+  success?: boolean;
+  error?: string;
 }
 
 interface EquipItemsRequest {

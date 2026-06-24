@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getRawWeapons, type RawWeapon } from "@/lib/bungie/rawInventory";
-import { applyWeapons } from "@/lib/bungie/equip";
-import type { WeaponToApply } from "@/lib/bungie/equip";
+import {
+  applyWeapons,
+  ensureInventorySpace,
+  type InventoryClearResult,
+  type WeaponToApply,
+} from "@/lib/bungie/equip";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
@@ -96,6 +100,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Build set of instance IDs we're about to equip - don't vault these!
+    const loadoutInstanceIds = new Set(weaponsToApply.map((w) => w.itemInstanceId));
+
+    // Proactively ensure inventory has space for incoming weapons.
+    // If this fails, applyWeapons still has fallback retry logic to vault additional items.
+    const clearResults = await ensureInventorySpace(
+      body.characterId,
+      token,
+      session.bungieMembershipType,
+      myWeapons,
+      undefined,
+      loadoutInstanceIds
+    );
+
+    // Update roster after vaulting to reflect space made
+    const rosterAfterClearing = myWeapons.filter(
+      (w) => !clearResults.find((r) => r.itemInstanceId === w.itemInstanceId)
+    );
+
     const equipResults = await applyWeapons(
       weaponsToApply,
       body.characterId,
@@ -103,10 +126,21 @@ export async function POST(req: NextRequest) {
       token,
       session.userId,
       session.displayName,
-      myWeapons
+      rosterAfterClearing
     );
 
-    const results = [...equipResults, ...missing];
+    const results = [
+      ...clearResults.map((r) => ({
+        user_id: session.userId,
+        display_name: session.displayName,
+        slot: "kinetic" as WeaponSlot, // vault operations don't have a specific slot
+        item_hash: r.itemHash,
+        success: r.success,
+        error: r.error ? `Vaulted to make room: ${r.error}` : undefined,
+      })),
+      ...equipResults,
+      ...missing,
+    ];
 
     // One roll_history row per round, updated on re-apply.
     // NOTE: roll_history has no unique constraint on round_id, so we can't use
