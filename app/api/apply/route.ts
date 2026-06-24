@@ -6,6 +6,7 @@ import { applyWeapons } from "@/lib/bungie/equip";
 import type { WeaponToApply } from "@/lib/bungie/equip";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
+import { rotateCaptain } from "@/lib/lobby";
 import { z } from "zod";
 
 const schema = z.object({
@@ -137,6 +138,27 @@ export async function POST(req: NextRequest) {
       .from("lobbies")
       .update({ status: "in_game", last_active_at: appliedAt })
       .eq("id", body.lobbyId);
+
+    // Track that this player applied and check if captain should rotate.
+    // The RPC atomically appends the player and returns true only for the
+    // first caller who completes the full fireteam (race guard).
+    const { data: shouldRotate } = await adminSupabase.rpc("mark_player_applied", {
+      p_round_id: body.roundId,
+      p_user_id: session.userId,
+      p_lobby_id: body.lobbyId,
+    });
+
+    if (shouldRotate) {
+      const { data: lobbyRow } = await adminSupabase
+        .from("lobbies")
+        .select("captain_locked")
+        .eq("id", body.lobbyId)
+        .single();
+
+      if (!lobbyRow?.captain_locked) {
+        await rotateCaptain(body.lobbyId);
+      }
+    }
 
     return NextResponse.json({ results });
   } catch (err) {

@@ -89,6 +89,7 @@ export interface WeaponKillStat {
 export interface PostMatchResult {
   playerStats: CollectedPlayerStat[];
   weaponKills: WeaponKillStat[];
+  activityHash: number;
 }
 
 export async function collectPostMatchStats(
@@ -174,7 +175,7 @@ export async function collectPostMatchStats(
     }
     const weaponKills: WeaponKillStat[] = [...killsByHash.entries()].map(([itemHash, totalKills]) => ({ itemHash, totalKills }));
 
-    return { playerStats, weaponKills };
+    return { playerStats, weaponKills, activityHash: activity.activityDetails.referenceId };
   }
 
   return null;

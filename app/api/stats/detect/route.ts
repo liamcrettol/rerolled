@@ -2,10 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { collectPostMatchStats } from "@/lib/bungie/pgcr";
-import { rotateCaptain } from "@/lib/lobby";
 import { z } from "zod";
 
+const BUNGIE_ROOT = "https://www.bungie.net/Platform";
+
 const schema = z.object({ lobbyId: z.string().uuid() });
+
+async function resolveActivityName(hash: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyActivityDefinition/${hash}/`,
+      { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.Response?.displayProperties?.name as string) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,9 +28,6 @@ export async function POST(req: NextRequest) {
     const { lobbyId } = schema.parse(await req.json());
 
     // ── Step 1: Find the most recent apply time for this lobby ──────────────
-    // This anchors ALL session lookups to the current round. Without this,
-    // a game_session created for round N would incorrectly satisfy the "done"
-    // check for round N+1 (the old 90-min window bug).
     const { data: recentHistory } = await adminSupabase
       .from("roll_history")
       .select("applied_at, round_id")
@@ -25,14 +37,11 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    // No apply has happened for this lobby yet - nothing to detect
     if (!recentHistory?.applied_at) return NextResponse.json({ done: false, pending: false });
 
     const appliedAt = recentHistory.applied_at as string;
 
     // ── Step 2: Check if a session already exists for THIS round ───────────
-    // Only look for sessions created after the most recent apply - never
-    // return a session from a previous round.
     const { data: existingSession } = await adminSupabase
       .from("game_sessions")
       .select("id, player_game_stats(*)")
@@ -43,8 +52,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existingSession) {
-      // Map snake_case DB rows to the camelCase shape the client expects, so
-      // names/numbers don't come back blank.
       const stats = (existingSession.player_game_stats ?? []).map((s) => ({
         userId: s.user_id,
         displayName: s.display_name,
@@ -78,8 +85,6 @@ export async function POST(req: NextRequest) {
     if (memberInputs.length < 2) return NextResponse.json({ done: false, pending: true });
 
     // ── Step 4: Get CURRENT round's loadout slots only ────────────────────
-    // Using all historical rounds would build a hash set that could match
-    // a previous game's PGCR accidentally.
     const { data: slots } = await adminSupabase
       .from("lobby_loadout_slots")
       .select("item_hash")
@@ -97,12 +102,11 @@ export async function POST(req: NextRequest) {
     // ── Step 5: Hit Bungie PGCR ──────────────────────────────────────────────
     const token = await getBungieToken(session.userId);
     const result = await collectPostMatchStats(memberInputs, rouletteHashes, token, session.userId);
-    // PGCR not found yet - game is in progress or hasn't appeared on Bungie's servers
     if (!result) return NextResponse.json({ done: false, pending: true });
 
-    const { playerStats, weaponKills } = result;
+    const { playerStats, weaponKills, activityHash } = result;
 
-    // ── Step 6: Race check (prevent duplicate saves from concurrent polls) ──
+    // ── Step 6: Race check ──────────────────────────────────────────────────
     const { data: raceCheck } = await adminSupabase
       .from("game_sessions")
       .select("id")
@@ -113,10 +117,20 @@ export async function POST(req: NextRequest) {
 
     if (raceCheck) return NextResponse.json({ done: true, stats: playerStats });
 
-    // ── Step 7: Persist the game session ────────────────────────────────────
+    // ── Step 7: Resolve map name ─────────────────────────────────────────────
+    const mapName = await resolveActivityName(activityHash);
+
+    // ── Step 8: Persist the game session ────────────────────────────────────
     const { data: gameSession } = await adminSupabase
       .from("game_sessions")
-      .insert({ lobby_id: lobbyId, player_count: playerStats.length, roulette_hashes: rouletteHashes })
+      .insert({
+        lobby_id: lobbyId,
+        player_count: playerStats.length,
+        roulette_hashes: rouletteHashes,
+        round_id: recentHistory.round_id,
+        map_name: mapName,
+        activity_hash: activityHash,
+      })
       .select()
       .single();
 
@@ -145,8 +159,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      await rotateCaptain(lobbyId);
-
+      // Advance to next round - captain rotation now happens at apply time
       const { data: lobby } = await adminSupabase
         .from("lobbies")
         .select("current_round")

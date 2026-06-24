@@ -67,7 +67,7 @@ function RollRow({
         </div>
         {perks && perks.length > 0 && (
           <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
-            {perks.join("  ·  ")}
+            {perks.map((p) => String(p)).join("  ·  ")}
           </p>
         )}
       </button>
@@ -158,7 +158,7 @@ function WeaponCard({
           </div>
           {previewRoll && (
             <p className="text-[11px] text-gray-500 leading-snug mt-1 truncate">
-              {previewRoll.perks.join("  ·  ")}
+              {previewRoll.perks.map((p) => String(p)).join("  ·  ")}
             </p>
           )}
         </div>

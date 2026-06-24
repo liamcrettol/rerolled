@@ -162,7 +162,7 @@ function FloatingTooltip({
                     {" · "}{inst.location === "vault" ? "in vault" : "on character"}
                   </span>
                 </p>
-                <p className={`text-xs leading-snug ${theme.text}`}>{inst.perks.join("  ·  ")}</p>
+                <p className={`text-xs leading-snug ${theme.text}`}>{inst.perks.map((p) => String(p)).join("  ·  ")}</p>
               </div>
             ))}
           </div>

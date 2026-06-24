@@ -9,6 +9,7 @@ export interface Lobby {
   current_round: number;
   created_at: string;
   last_active_at?: string;
+  captain_locked?: boolean;
 }
 
 export interface LobbyMember {
