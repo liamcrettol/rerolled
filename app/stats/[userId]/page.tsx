@@ -2,11 +2,13 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import weaponsTable from "@/lib/bungie/data/weapons-table.json";
-import Image from "next/image";
+import WeaponIcon from "@/components/WeaponIcon";
 
 export const dynamic = "force-dynamic";
 
 type WeaponEntry = { name: string; icon: string; watermark?: string; weaponType: string; tierName: string; tierType: number };
+type GameSession = { played_at: string; roulette_hashes?: number[] };
+
 const weapons = weaponsTable as Record<string, WeaponEntry>;
 
 export default async function PlayerStatsPage({ params }: { params: Promise<{ userId: string }> }) {
@@ -51,6 +53,29 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
     .slice(0, 5);
 
   const TIER_COLOR: Record<number, string> = { 6: "text-yellow-400", 5: "text-purple-400", 4: "text-blue-400" };
+
+  // Extract weapon selection logic to improve testability and maintainability
+  function getMostCommonWeapon(roulette_hashes?: number[]): { weapon: WeaponEntry | null; count: number } {
+    if (!roulette_hashes?.length) {
+      return { weapon: null, count: 0 };
+    }
+
+    const hashFreq = new Map<number, number>();
+    for (const hash of roulette_hashes) {
+      hashFreq.set(hash, (hashFreq.get(hash) ?? 0) + 1);
+    }
+
+    const sortedEntries = [...hashFreq.entries()].sort((a, b) => b[1] - a[1]);
+    if (sortedEntries.length === 0) {
+      return { weapon: null, count: 0 };
+    }
+
+    const [mostCommonHash] = sortedEntries[0];
+    return {
+      weapon: weapons[mostCommonHash.toString()] ?? null,
+      count: roulette_hashes.length,
+    };
+  }
 
   return (
     <main className="min-h-screen p-6 w-full max-w-3xl mx-auto">
@@ -103,12 +128,13 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
           <div className="divide-y divide-bungie-border/40">
             {topWeapons.map((e) => (
               <div key={e.hash} className="flex items-center gap-3 px-4 py-3">
-                <div className="relative w-9 h-9 shrink-0 rounded overflow-hidden bg-bungie-dark">
-                  <Image src={e.def.icon} alt={e.def.name} fill className="object-cover" unoptimized />
-                  {e.def.watermark && (
-                    <Image src={e.def.watermark} alt="" fill className="object-cover absolute inset-0" unoptimized />
-                  )}
-                </div>
+                <WeaponIcon
+                  icon={e.def.icon}
+                  watermark={e.def.watermark}
+                  name={e.def.name}
+                  size="medium"
+                  count={e.count}
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">{e.def.name}</p>
                   <p className={`text-xs ${TIER_COLOR[e.def.tierType] ?? "text-gray-400"}`}>
@@ -140,14 +166,19 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 <th className="text-right px-3 py-2">D</th>
                 <th className="text-right px-3 py-2">A</th>
                 <th className="text-right px-4 py-2">K/D</th>
+                <th className="text-left px-3 py-2">Weapons</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-bungie-border/40">
               {rows.map((row) => {
-                const session = row.game_sessions as { played_at: string } | null;
+                const session = row.game_sessions as GameSession | null;
                 const date = session?.played_at
                   ? new Date(session.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
                   : " - ";
+
+                // Get the most common weapon from this session's roulette hashes
+                const { weapon: mostCommonWeapon, count: totalWeaponsRolled } = getMostCommonWeapon(session?.roulette_hashes);
+
                 return (
                   <tr key={row.id} className="text-gray-300 hover:bg-bungie-dark/30 transition">
                     <td className="px-4 py-2.5 text-gray-500 text-xs">{date}</td>
@@ -156,6 +187,19 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                     <td className="px-3 py-2.5 text-right">{row.deaths}</td>
                     <td className="px-3 py-2.5 text-right">{row.assists}</td>
                     <td className="px-4 py-2.5 text-right">{Number(row.kd).toFixed(2)}</td>
+                    <td className="px-3 py-2.5">
+                      {mostCommonWeapon ? (
+                        <WeaponIcon
+                          icon={mostCommonWeapon.icon}
+                          watermark={mostCommonWeapon.watermark}
+                          name={mostCommonWeapon.name}
+                          size="small"
+                          count={totalWeaponsRolled}
+                        />
+                      ) : (
+                        <span className="text-gray-500 text-xs">-</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
