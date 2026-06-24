@@ -43,6 +43,15 @@ interface RollInstance {
   perkHashes: number[];
   perks: Perk[];
   perkIcons: Record<number, string>;
+  barrelHash?: number;
+  barrelName?: string;
+  barrelIcon?: string;
+  magazineHash?: number;
+  magazineName?: string;
+  magazineIcon?: string;
+  masterworkHash?: number;
+  masterworkName?: string;
+  masterworkIcon?: string;
   stats: Record<string, number>;
   lightLevel: number;
 }
