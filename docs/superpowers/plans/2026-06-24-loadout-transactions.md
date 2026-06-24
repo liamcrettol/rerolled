@@ -16,9 +16,9 @@
 
 | File | Responsibility | Change |
 |------|----------------|--------|
-| `types/lobby.ts` | `ApplyResult` shape | Add 3 optional fields |
+| `types/lobby.ts` | `ApplyResult` shape | Add 3 optional fields (Task 1) + `kind?: "vault"` (Task 3.5) |
 | `lib/bungie/equip.ts` | Build equip/transfer `ApplyResult`s | DRY all result-pushes through one enrich helper; add raw `error_detail` |
-| `app/api/apply/route.ts` | Build vault-clear + missing `ApplyResult`s | Resolve weapon name/icon; add `error_detail` |
+| `app/api/apply/route.ts` | Build vault-clear + missing `ApplyResult`s | Resolve weapon name/icon; add `error_detail`; mark vault rows `kind: "vault"` (Task 3.5) |
 | `components/ApplyStatus.tsx` | Render transaction log | Full rewrite: "Transaction Logs" heading, slot badge, icon+name, per-row expandable detail, "Clear all logs" control (#63) |
 | `components/LobbyRoom.tsx` | Owns `applyResults` state | Pass `onClear` to `ApplyStatus` (#63) |
 | `lib/bungie/__tests__/equip.test.ts` | Unit tests for `applyWeapons` enrichment | Add a `describe("applyWeapons result enrichment")` block |
@@ -362,6 +362,61 @@ git commit -m "feat: resolve weapon name/icon for vault-clear and missing apply 
 
 ---
 
+## Task 3.5: Mark vault-clear rows with `kind: "vault"` (#79 UX wrinkle)
+
+Vault-clear rows carry a meaningless `slot: "kinetic"`. Add an additive discriminator so the component can render a neutral **VAULTED** badge instead of a misleading slot badge.
+
+**Files:**
+- Modify: `types/lobby.ts` (the `ApplyResult` interface)
+- Modify: `app/api/apply/route.ts` (the `clearResultsEnriched` map)
+
+- [ ] **Step 1: Add the `kind` field to `ApplyResult`**
+
+In `types/lobby.ts`, add one line to the `ApplyResult` interface, right after `error_detail?: string;`:
+
+```ts
+  kind?: "vault"; // marks a vault-clear ("made room") row, which has no real weapon slot
+```
+
+- [ ] **Step 2: Set `kind: "vault"` on vault-clear results**
+
+In `app/api/apply/route.ts`, inside the `clearResultsEnriched` map's returned object (the one that already sets `error_detail`/`weapon_name`/`weapon_icon`), add:
+
+```ts
+          kind: "vault" as const,
+```
+
+So the returned object becomes (full object for clarity):
+
+```ts
+        return {
+          user_id: session.userId,
+          display_name: session.displayName,
+          slot: "kinetic" as WeaponSlot, // vault operations don't have a specific slot
+          item_hash: r.itemHash,
+          success: r.success,
+          error: r.error ? `Vaulted to make room: ${r.error}` : undefined,
+          error_detail: r.error,
+          weapon_name: def?.name,
+          weapon_icon: def?.icon,
+          kind: "vault" as const,
+        };
+```
+
+- [ ] **Step 3: Verify type-check passes**
+
+Run: `npx tsc --noEmit`
+Expected: exit 0.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add types/lobby.ts app/api/apply/route.ts
+git commit -m "feat: mark vault-clear transactions with kind so UI shows a VAULTED badge (#79)"
+```
+
+---
+
 ## Task 4: Rewrite `components/ApplyStatus.tsx` with the enhanced row layout
 
 Presentational client component. Heading reads "Transaction Logs". Slot badge (prominent, color-coded), weapon icon + name, muted player name, status, and a per-row expand chevron on failed rows revealing guidance + raw detail. A "Clear all logs" control in the header calls an optional `onClear` prop (issue #63). Falls back gracefully for older persisted rows missing the new fields. No DOM testing library exists, so this is verified by type-check, lint, and manual run.
@@ -391,6 +446,9 @@ const SLOT_BADGE_CLASSES: Record<string, string> = {
   energy: "text-bungie-blue bg-bungie-blue/10 border-bungie-blue/30",
   power: "text-purple-300 bg-purple-500/10 border-purple-500/30",
 };
+
+// Vault-clear rows ("made room") have no real slot — show a distinct neutral badge.
+const VAULT_BADGE_CLASS = "text-amber-300/90 bg-amber-500/10 border-amber-500/30";
 
 export default function ApplyStatus({
   results,
@@ -431,8 +489,13 @@ export default function ApplyStatus({
       </div>
       <div className="space-y-2">
         {results.map((r, i) => {
+          const isVault = r.kind === "vault";
           const slotLabel = SLOT_LABELS[r.slot] ?? r.slot;
-          const weaponName = r.weapon_name ?? slotLabel;
+          const badgeLabel = isVault ? "Vaulted" : slotLabel;
+          const badgeClass = isVault
+            ? VAULT_BADGE_CLASS
+            : SLOT_BADGE_CLASSES[r.slot] ?? SLOT_BADGE_CLASSES.kinetic;
+          const weaponName = r.weapon_name ?? (isVault ? "Weapon" : slotLabel);
           const isOpen = expanded.has(i);
           const canExpand = !r.success;
           const detailText =
@@ -441,11 +504,9 @@ export default function ApplyStatus({
           const rowInner = (
             <>
               <span
-                className={`flex-shrink-0 uppercase tracking-wide text-[11px] font-bold px-2.5 py-1 rounded-md min-w-[76px] text-center border ${
-                  SLOT_BADGE_CLASSES[r.slot] ?? SLOT_BADGE_CLASSES.kinetic
-                }`}
+                className={`flex-shrink-0 uppercase tracking-wide text-[11px] font-bold px-2.5 py-1 rounded-md min-w-[76px] text-center border ${badgeClass}`}
               >
-                {slotLabel}
+                {badgeLabel}
               </span>
               <span className="flex items-center gap-2 min-w-0">
                 {r.weapon_icon && (

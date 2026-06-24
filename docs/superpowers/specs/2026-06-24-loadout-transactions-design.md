@@ -43,6 +43,7 @@ export interface ApplyResult {
   weapon_name?: string;    // NEW — weapon for this transaction
   weapon_icon?: string;    // NEW — Bungie icon path (rendered as https://www.bungie.net${weapon_icon})
   error_detail?: string;   // NEW — raw underlying technical error, shown only when a failed row is expanded
+  kind?: "vault";          // NEW — marks a vault-clear ("made room") row, which has no real weapon slot
 }
 ```
 
@@ -65,7 +66,7 @@ Where a result's hash has no definition (shouldn't happen for real weapons), `we
 
 Two result groups are built here rather than in `applyWeapons`:
 
-- **Vault-clear results** (`clearResults`): the vaulted weapon is *not* part of the loadout, so resolve its name/icon with `getWeaponDefinition(r.itemHash)`. Set `error_detail` to the raw `r.error` (the existing `error` keeps the `Vaulted to make room: …` framing).
+- **Vault-clear results** (`clearResults`): the vaulted weapon is *not* part of the loadout, so resolve its name/icon with `getWeaponDefinition(r.itemHash)`. Set `error_detail` to the raw `r.error` (the existing `error` keeps the `Vaulted to make room: …` framing). Set `kind: "vault"` — these rows have no real weapon slot (the `slot` field is a meaningless `"kinetic"` placeholder), so the UI renders a distinct **VAULTED** badge instead of a slot badge.
 - **Missing results** (`missing`): the loadout slot is known, so set `weapon_name`/`weapon_icon` from the slot's `weapon_name`/`weapon_icon` columns.
 
 The enriched `results` array is what's both returned to the client and written to `roll_history.apply_results` (unchanged persistence path).
@@ -78,7 +79,7 @@ Stays a client component. The card heading reads **"Transaction Logs"** (renamed
 [ SLOT BADGE ]   <icon>  Weapon Name        PlayerName   <status>  <chevron?>
 ```
 
-- **Slot badge** — prominent, uppercase, color-coded per slot (Kinetic neutral, Energy blue `#00aeef`-tinted, Power purple-tinted). This is the most visually weighted element in the row.
+- **Slot badge** — prominent, uppercase, color-coded per slot (Kinetic neutral, Energy blue `#00aeef`-tinted, Power purple-tinted). This is the most visually weighted element in the row. For vault-clear rows (`kind === "vault"`) the badge instead reads **VAULTED** in a neutral style, since these rows have no real slot.
 - **Weapon** — small (~30px) rounded icon `https://www.bungie.net${weapon_icon}` + `weapon_name`. If `weapon_icon` is absent, skip the `<img>`; if `weapon_name` is absent, fall back to the slot label so older rows still read sensibly.
 - **Player name** — muted, right-aligned secondary text (`trimBungieName(display_name)`, unchanged helper). Kept per-row; may repeat across a single player's rows — acceptable per design discussion.
 - **Status** — ✅ / ❌ as today.
