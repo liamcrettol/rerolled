@@ -38,7 +38,7 @@ interface LeaderboardEntry {
   userId: string;
   displayName: string;
   gamesPlayed: number;
-  totalRouletteKills: number;
+  totalKills: number;
   avgKd: number;
   wins: number;
   losses: number;

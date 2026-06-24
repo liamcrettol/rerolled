@@ -6,7 +6,7 @@ interface LeaderboardEntry {
   user_id: string;
   display_name: string;
   games_played: number;
-  total_roulette_kills: number;
+  total_kills: number;
   avg_kd: number;
   wins: number;
   losses: number;
@@ -15,7 +15,7 @@ interface LeaderboardEntry {
 export default async function Leaderboard() {
   const { data } = await adminSupabase
     .from("player_game_stats")
-    .select("user_id, display_name, roulette_weapon_kills, kd, won");
+    .select("user_id, display_name, kills, kd, won");
 
   if (!data?.length) {
     return (
@@ -29,7 +29,7 @@ export default async function Leaderboard() {
   for (const row of data) {
     const existing = byUser.get(row.user_id);
     if (existing) {
-      existing.total_roulette_kills += row.roulette_weapon_kills;
+      existing.total_kills += row.kills;
       existing.avg_kd =
         (existing.avg_kd * existing.games_played + row.kd) / (existing.games_played + 1);
       existing.games_played += 1;
@@ -40,7 +40,7 @@ export default async function Leaderboard() {
         user_id: row.user_id,
         display_name: row.display_name,
         games_played: 1,
-        total_roulette_kills: row.roulette_weapon_kills,
+        total_kills: row.kills,
         avg_kd: row.kd,
         wins: row.won === true ? 1 : 0,
         losses: row.won === false ? 1 : 0,
@@ -49,7 +49,7 @@ export default async function Leaderboard() {
   }
 
   const entries = [...byUser.values()].sort(
-    (a, b) => b.total_roulette_kills - a.total_roulette_kills
+    (a, b) => b.total_kills - a.total_kills
   );
 
   return (
@@ -61,7 +61,7 @@ export default async function Leaderboard() {
             <tr className="text-gray-500 text-xs border-b border-bungie-border">
               <th className="text-left pb-2 pr-4">#</th>
               <th className="text-left pb-2 pr-4">Player</th>
-              <th className="text-right pb-2 pr-3">Roulette Kills</th>
+              <th className="text-right pb-2 pr-3">Kills</th>
               <th className="text-right pb-2 pr-3">Games</th>
               <th className="text-right pb-2 pr-3">W-L</th>
               <th className="text-right pb-2">Avg K/D</th>
@@ -77,7 +77,7 @@ export default async function Leaderboard() {
                   </Link>
                 </td>
                 <td className="py-2 pr-3 text-right font-bold text-bungie-blue">
-                  {e.total_roulette_kills}
+                  {e.total_kills}
                 </td>
                 <td className="py-2 pr-3 text-right">{e.games_played}</td>
                 <td className="py-2 pr-3 text-right tabular-nums">

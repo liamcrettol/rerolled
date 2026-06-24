@@ -4,7 +4,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 export async function GET() {
   const { data } = await adminSupabase
     .from("player_game_stats")
-    .select("user_id, display_name, roulette_weapon_kills, kd, won");
+    .select("user_id, display_name, kills, kd, won");
 
   if (!data?.length) return NextResponse.json({ entries: [] });
 
@@ -12,7 +12,7 @@ export async function GET() {
     userId: string;
     displayName: string;
     gamesPlayed: number;
-    totalRouletteKills: number;
+    totalKills: number;
     avgKd: number;
     wins: number;
     losses: number;
@@ -21,7 +21,7 @@ export async function GET() {
   for (const row of data) {
     const existing = byUser.get(row.user_id);
     if (existing) {
-      existing.totalRouletteKills += row.roulette_weapon_kills;
+      existing.totalKills += row.kills;
       existing.avgKd =
         (existing.avgKd * existing.gamesPlayed + Number(row.kd)) / (existing.gamesPlayed + 1);
       existing.gamesPlayed += 1;
@@ -32,7 +32,7 @@ export async function GET() {
         userId: row.user_id,
         displayName: row.display_name,
         gamesPlayed: 1,
-        totalRouletteKills: row.roulette_weapon_kills,
+        totalKills: row.kills,
         avgKd: Number(row.kd),
         wins: row.won === true ? 1 : 0,
         losses: row.won === false ? 1 : 0,
@@ -41,7 +41,7 @@ export async function GET() {
   }
 
   const entries = [...byUser.values()].sort(
-    (a, b) => b.totalRouletteKills - a.totalRouletteKills
+    (a, b) => b.totalKills - a.totalKills
   );
 
   return NextResponse.json({ entries });
