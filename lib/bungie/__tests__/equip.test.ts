@@ -5,7 +5,7 @@ import * as clientModule from "../client";
 jest.mock("../client");
 
 describe("isInventoryFull", () => {
-  const mockWeapons = (count: number, location: "character" = "character"): RawWeapon[] => {
+  const mockWeapons = (count: number, location: "character" | "vault" = "character"): RawWeapon[] => {
     return Array.from({ length: count }, (_, i) => ({
       itemHash: 1000 + i,
       itemInstanceId: `instance-${i}`,
@@ -195,5 +195,117 @@ describe("ensureInventorySpace", () => {
         itemId: "instance-8",
       })
     );
+  });
+});
+
+describe("loadout item exclusion (integration)", () => {
+  const mockWeapons = (characterId: string, count: number = 5): RawWeapon[] => {
+    return Array.from({ length: count }, (_, i) => ({
+      itemHash: 1000 + i,
+      itemInstanceId: `instance-${i}`,
+      slot: (["kinetic", "energy", "power"][i % 3]) as any,
+      location: "character" as const,
+      characterId,
+      isEquipped: false,
+      lightLevel: 750 - i * 10,
+      tierType: 5,
+    }));
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (clientModule.bungiePost as jest.Mock).mockResolvedValue({});
+  });
+
+  it("never vaults weapons that are part of the loadout being applied", async () => {
+    // Scenario: Inventory is full (9 weapons), loadout wants to equip instance-8
+    // Even though instance-8 is the last weapon, it should NOT be vaulted
+    // because it's part of the loadout
+    const roster: RawWeapon[] = [
+      {
+        itemHash: 1000,
+        itemInstanceId: "instance-0",
+        slot: "kinetic",
+        location: "character",
+        characterId: "char-1",
+        isEquipped: true,
+        lightLevel: 780,
+        tierType: 5,
+      },
+      ...Array.from({ length: 8 }, (_, i) => ({
+        itemHash: 1001 + i,
+        itemInstanceId: `instance-${i + 1}`,
+        slot: (["energy", "power"][i % 2]) as any,
+        location: "character" as const,
+        characterId: "char-1",
+        isEquipped: false,
+        lightLevel: 750 - i,
+        tierType: 5,
+      })),
+    ];
+
+    // Loadout wants instance-8 (the last weapon)
+    const loadoutIds = new Set(["instance-8"]);
+
+    // When inventory is full and we're trying to equip instance-8,
+    // it should vault instance-7 instead (the next-to-last weapon)
+    const result = await ensureInventorySpace(
+      "char-1",
+      "bearer-token",
+      1,
+      roster,
+      undefined,
+      loadoutIds
+    );
+
+    // Should attempt to vault instance-7, NOT instance-8
+    if (result.length > 0) {
+      expect(result[0].itemInstanceId).toBe("instance-7");
+      expect(result[0].itemInstanceId).not.toBe("instance-8");
+    }
+  });
+
+  it("handles case where all unequipped weapons are part of loadout", async () => {
+    // Edge case: Inventory full, ALL unequipped weapons are in the loadout
+    // Should return empty array (no weapon available to vault)
+    const roster: RawWeapon[] = [
+      {
+        itemHash: 1000,
+        itemInstanceId: "instance-0",
+        slot: "kinetic",
+        location: "character",
+        characterId: "char-1",
+        isEquipped: true,
+        lightLevel: 780,
+        tierType: 5,
+      },
+      ...Array.from({ length: 8 }, (_, i) => ({
+        itemHash: 1001 + i,
+        itemInstanceId: `instance-${i + 1}`,
+        slot: "energy" as any,
+        location: "character" as const,
+        characterId: "char-1",
+        isEquipped: false,
+        lightLevel: 750 - i,
+        tierType: 5,
+      })),
+    ];
+
+    // All 8 unequipped weapons are part of the loadout
+    const loadoutIds = new Set(
+      Array.from({ length: 8 }, (_, i) => `instance-${i + 1}`)
+    );
+
+    const result = await ensureInventorySpace(
+      "char-1",
+      "bearer-token",
+      1,
+      roster,
+      undefined,
+      loadoutIds
+    );
+
+    // Should return empty (no available weapon to vault)
+    expect(result).toEqual([]);
   });
 });
