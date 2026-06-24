@@ -4,6 +4,31 @@ import type { WeaponSlot } from "@/types/bungie";
 import type { ApplyResult } from "@/types/lobby";
 import type { RawWeapon } from "./rawInventory";
 
+const INVENTORY_SLOT_LIMIT = 9;
+
+export function isInventoryFull(characterId: string, roster: RawWeapon[]): boolean {
+  const characterWeapons = roster.filter(
+    (w) => w.location === "character" && w.characterId === characterId
+  );
+  return characterWeapons.length >= INVENTORY_SLOT_LIMIT;
+}
+
+export function findLastWeapon(
+  characterId: string,
+  roster: RawWeapon[],
+  excludeInstanceIds: Set<string> = new Set()
+): RawWeapon | null {
+  const candidates = roster.filter(
+    (w) =>
+      w.location === "character" &&
+      w.characterId === characterId &&
+      !w.isEquipped &&
+      !excludeInstanceIds.has(w.itemInstanceId)
+  );
+  // Return the last weapon in the filtered list (highest index)
+  return candidates[candidates.length - 1] ?? null;
+}
+
 const EXOTIC_TIER_TYPE = 6;
 const LEGENDARY_TIER_TYPE = 5;
 
@@ -63,6 +88,64 @@ function isNoRoomError(err: unknown): boolean {
   return msg.includes("1642") || msg.includes("no room") || msg.includes("destinationfull");
 }
 
+export async function ensureInventorySpace(
+  characterId: string,
+  accessToken: string,
+  membershipType: number,
+  roster: RawWeapon[],
+  userId: string | undefined = undefined,
+  loadoutInstanceIds: Set<string> = new Set()
+): Promise<InventoryClearResult[]> {
+  const results: InventoryClearResult[] = [];
+
+  // Check if inventory is full
+  if (!isInventoryFull(characterId, roster)) {
+    return results;
+  }
+
+  // Find the last unequipped weapon on the character to vault
+  const weaponToVault = findLastWeapon(characterId, roster, loadoutInstanceIds);
+
+  if (!weaponToVault) {
+    return results;
+  }
+
+  // Attempt to vault the weapon
+  try {
+    await bungiePost<unknown>(
+      "/Destiny2/Actions/Items/TransferItem/",
+      accessToken,
+      {
+        itemReferenceHash: weaponToVault.itemHash,
+        stackSize: 1,
+        transferToVault: true,
+        itemId: weaponToVault.itemInstanceId,
+        characterId,
+        membershipType,
+      } satisfies TransferItemRequest
+    );
+
+    results.push({
+      itemInstanceId: weaponToVault.itemInstanceId,
+      itemHash: weaponToVault.itemHash,
+      transferredToVault: true,
+      success: true,
+    });
+  } catch (err) {
+    // If vault transfer fails, return empty array per requirements
+    results.push({
+      itemInstanceId: weaponToVault.itemInstanceId,
+      itemHash: weaponToVault.itemHash,
+      transferredToVault: false,
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to vault weapon",
+    });
+    return [];
+  }
+
+  return results;
+}
+
 interface TransferItemRequest {
   itemReferenceHash: number;
   stackSize: number;
@@ -70,6 +153,14 @@ interface TransferItemRequest {
   itemId: string;
   characterId: string;
   membershipType: number;
+}
+
+export interface InventoryClearResult {
+  itemInstanceId: string;
+  itemHash: number;
+  transferredToVault?: boolean;
+  success?: boolean;
+  error?: string;
 }
 
 interface EquipItemsRequest {
