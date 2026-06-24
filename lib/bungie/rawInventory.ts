@@ -38,23 +38,53 @@ export async function getRawWeapons(
     item: { itemHash: number; itemInstanceId: string },
     slot: WeaponSlot,
     location: "character" | "vault",
+    tierType: number,
     characterId?: string,
     isEquipped = false
   ) {
     const lightLevel = instances[item.itemInstanceId]?.primaryStat?.value ?? 0;
-    weapons.push({ itemHash: item.itemHash, itemInstanceId: item.itemInstanceId, slot, location, characterId, isEquipped, lightLevel });
+    weapons.push({
+      itemHash: item.itemHash,
+      itemInstanceId: item.itemInstanceId,
+      slot,
+      location,
+      characterId,
+      isEquipped,
+      lightLevel,
+      tierType,
+    });
   }
+
+  // Fetch weapon definitions once to avoid duplicate lookups
+  const charEquipItemHashes = new Set<number>();
+  for (const charEquip of Object.values(profile.characterEquipment?.data ?? {})) {
+    for (const item of charEquip.items) {
+      charEquipItemHashes.add(item.itemHash);
+    }
+  }
+  for (const charInv of Object.values(profile.characterInventories?.data ?? {})) {
+    for (const item of charInv.items ?? []) {
+      charEquipItemHashes.add(item.itemHash);
+    }
+  }
+  const charDefs = await getWeaponDefinitions(Array.from(charEquipItemHashes));
 
   // Character-equipped and character-bag items always have the correct slot bucket hash.
   for (const [charId, charEquip] of Object.entries(profile.characterEquipment?.data ?? {})) {
     const equippedIds = new Set(charEquip.items.map((i) => i.itemInstanceId));
     for (const item of charEquip.items) {
       const slot = bucketToSlot(item.bucketHash);
-      if (slot) addWeapon(item, slot, "character", charId, true);
+      if (slot) {
+        const tierType = charDefs.get(item.itemHash)?.tierType ?? 5; // default to legendary
+        addWeapon(item, slot, "character", tierType, charId, true);
+      }
     }
     for (const item of profile.characterInventories?.data[charId]?.items ?? []) {
       const slot = bucketToSlot(item.bucketHash);
-      if (slot) addWeapon(item, slot, "character", charId, equippedIds.has(item.itemInstanceId));
+      if (slot) {
+        const tierType = charDefs.get(item.itemHash)?.tierType ?? 5;
+        addWeapon(item, slot, "character", tierType, charId, equippedIds.has(item.itemInstanceId));
+      }
     }
   }
 
@@ -65,7 +95,7 @@ export async function getRawWeapons(
 
   if (vaultWeaponItems.length > 0) {
     const uniqueHashes = [...new Set(vaultWeaponItems.map((i) => i.itemHash))];
-    const defs = await getWeaponDefinitions(uniqueHashes); // returns only itemType === 3 (weapons)
+    const defs = await getWeaponDefinitions(uniqueHashes);
 
     for (const item of vaultWeaponItems) {
       const def = defs.get(item.itemHash);
@@ -73,7 +103,8 @@ export async function getRawWeapons(
       // Use the definition's bucketTypeHash - the canonical slot for this weapon
       const slot = bucketToSlot(def.defaultBucketHash);
       if (!slot) continue;
-      addWeapon(item, slot, "vault");
+      const tierType = def.tierType;
+      addWeapon(item, slot, "vault", tierType);
     }
   }
 
