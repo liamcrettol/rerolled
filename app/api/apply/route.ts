@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
 
     // Proactively ensure inventory has space for incoming weapons.
     // If this fails, applyWeapons still has fallback retry logic to vault additional items.
+    // Non-fatal failures here are reported in the response but don't block equipping.
     const clearResults = await ensureInventorySpace(
       body.characterId,
       token,
