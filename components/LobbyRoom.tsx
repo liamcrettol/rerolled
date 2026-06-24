@@ -250,7 +250,7 @@ export default function LobbyRoom({
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
   const [lockedSlots, setLockedSlots] = useState<Set<WeaponSlot>>(new Set());
-  const [wildcardSlots, setWildcardSlots] = useState<Set<WeaponSlot>>(new Set());
+  const [wildcardSlots, setWildcardSlots] = useState<Set<WeaponSlot>>(new Set<WeaponSlot>(["power"]));
   // Current game results (prominent card, clears when captain rolls)
   const [lastGameStats, setLastGameStats] = useState<PlayerStat[] | null>(null);
   // All past rounds for scrollable history
@@ -484,7 +484,7 @@ export default function LobbyRoom({
       setSlots([]);
       setApplyResults([]);
       setLockedSlots(new Set());
-      setWildcardSlots(new Set());
+      setWildcardSlots(new Set<WeaponSlot>(["power"]));
       setPreferredInstances({});
       hasAutoLoaded.current = false;
     }
@@ -670,7 +670,10 @@ export default function LobbyRoom({
           const wc = new Set<WeaponSlot>(
             existingSlots.filter((s) => s.item_hash === 0).map((s) => s.slot as WeaponSlot)
           );
-          if (wc.size > 0) setWildcardSlots(wc);
+          // Default power to wildcard unless the captain explicitly rolled a real heavy
+          const hasPowerRoll = existingSlots.some((s) => s.slot === "power" && s.item_hash !== 0);
+          if (!hasPowerRoll) wc.add("power");
+          setWildcardSlots(wc);
           for (const s of existingSlots) {
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
           }
