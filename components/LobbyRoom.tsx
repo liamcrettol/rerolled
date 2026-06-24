@@ -469,6 +469,19 @@ export default function LobbyRoom({
   const roundIdRef = useRef<string | null>(null);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
   const hasAutoLoaded = useRef(false);
+  const prevRoundIdRef = useRef<string | null>(null);
+  // Clear per-round UI state when the round actually advances (non-null → different non-null).
+  useEffect(() => {
+    if (roundId && prevRoundIdRef.current && roundId !== prevRoundIdRef.current) {
+      setSlots([]);
+      setApplyResults([]);
+      setLockedSlots(new Set());
+      setWildcardSlots(new Set());
+      setPreferredInstances({});
+      hasAutoLoaded.current = false;
+    }
+    prevRoundIdRef.current = roundId;
+  }, [roundId]);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
 
@@ -508,13 +521,7 @@ export default function LobbyRoom({
         stopPolling();
         setLastGameStats(data.stats);
         fetchHistory(true);
-        // Reset local round state - server already advanced the round
-        setSlots([]);
-        setApplyResults([]);
-        setLockedSlots(new Set());
-        setWildcardSlots(new Set());
-        setPreferredInstances({});
-        hasAutoLoaded.current = false;
+        // Per-round state is cleared by the prevRoundIdRef effect when roundId changes.
       }
       // If a game is pending but not yet found, return whether we should poll
       return data.pending ?? false;
