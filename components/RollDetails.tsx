@@ -103,6 +103,20 @@ export default function RollDetails({
   // of stretching across the whole panel when only one player is loaded.
   const gridCols = { gridTemplateColumns: `5.5rem repeat(${members.length}, 15rem)`, width: "max-content", margin: "0 auto" };
 
+  // Helper to render socket icons
+  const renderSocketIcon = (hash: number | undefined, name: string | undefined, icon: string | undefined) => {
+    if (!hash || !icon) return null;
+    return (
+      <img
+        key={hash}
+        src={icon}
+        alt={name}
+        title={name}
+        className="w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition"
+      />
+    );
+  };
+
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
       <div className="px-4 py-2.5 border-b border-bungie-border flex items-center justify-between gap-2">
@@ -211,6 +225,26 @@ export default function RollDetails({
 
           {/* Divider */}
           <div className="col-span-full h-px bg-bungie-border/50 my-1" />
+
+          {/* Chosen roll: all sockets + perk-adjusted stats with deltas vs base */}
+          {myChosen && (
+            <>
+              <div className="text-gray-500 text-[10px] uppercase tracking-wide self-start pt-1">Your Roll</div>
+              <div className="col-span-full">
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {renderSocketIcon(myChosen.barrelHash, myChosen.barrelName, myChosen.barrelIcon)}
+                  {renderSocketIcon(myChosen.magazineHash, myChosen.magazineName, myChosen.magazineIcon)}
+                  {myChosen.perkHashes.map((hash, i) => {
+                    const icon = myChosen.perkIcons[hash];
+                    const perk = myChosen.perks[i];
+                    return renderSocketIcon(hash, perk?.name, icon);
+                  })}
+                  {renderSocketIcon(myChosen.masterworkHash, myChosen.masterworkName, myChosen.masterworkIcon)}
+                </div>
+                <p className="text-gray-600 text-[10px] mt-1.5">Green/red = perk impact vs the weapon&apos;s base stats.</p>
+              </div>
+            </>
+          )}
 
           {/* Stat rows: value per member, team-best highlighted */}
           {statRows.map((s) => {
