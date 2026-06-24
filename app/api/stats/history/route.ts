@@ -41,14 +41,6 @@ export async function GET(req: NextRequest) {
     for (const w of weaponKills ?? []) {
       if (w.game_session_id === session.id) killsByHash.set(w.item_hash, w.total_kills);
     }
-    let cursed: { name: string; icon: string; kills: number } | null = null;
-    for (const hash of (session.roulette_hashes as number[]) ?? []) {
-      const def = weapons[hash.toString()];
-      if (!def) continue;
-      const kills = killsByHash.get(hash) ?? 0;
-      if (!cursed || kills < cursed.kills) cursed = { name: def.name, icon: def.icon, kills };
-    }
-
     // Reconstruct weapons rolled that round (kinetic / energy / power)
     const roundSlots = session.round_id ? (slotsByRound.get(session.round_id) ?? []) : [];
     const weaponsRolled: Record<string, { name: string; icon: string }> = {};
@@ -64,7 +56,6 @@ export async function GET(req: NextRequest) {
       roundNum: i + 1,
       mapName: (session.map_name as string | null) ?? null,
       weapons: Object.keys(weaponsRolled).length > 0 ? weaponsRolled : undefined,
-      cursed,
       stats: (allStats ?? [])
         .filter((s) => s.game_session_id === session.id)
         .map((s) => ({

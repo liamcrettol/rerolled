@@ -30,7 +30,6 @@ interface RoundRecord {
   playedAt: string;
   roundNum: number;
   stats: PlayerStat[];
-  cursed?: { name: string; icon: string; kills: number } | null;
   weapons?: Record<string, { name: string; icon: string }>;
   mapName?: string | null;
 }
@@ -1052,12 +1051,6 @@ export default function LobbyRoom({
                               </div>
                             )}
                             <StatsTable stats={round.stats} />
-                            {round.cursed && (
-                              <p className="mt-3 text-xs text-gray-500">
-                                💀 Most cursed: <span className="text-gray-300">{round.cursed.name}</span>
-                                {" "} - {round.cursed.kills} {round.cursed.kills === 1 ? "kill" : "kills"}
-                              </p>
-                            )}
                           </div>
                         )}
                       </div>
