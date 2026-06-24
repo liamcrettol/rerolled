@@ -1406,7 +1406,9 @@ export default function LobbyRoom({
           />
         )}
 
-        {applyResults.length > 0 && <ApplyStatus results={applyResults} />}
+        {applyResults.length > 0 && (
+          <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
+        )}
 
         {weaponBrowser && <div className="xl:hidden">{weaponBrowser}</div>}
       </div>
