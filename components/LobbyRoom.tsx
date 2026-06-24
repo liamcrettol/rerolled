@@ -613,7 +613,7 @@ export default function LobbyRoom({
         (payload) => {
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             const s = payload.new as LobbyLoadoutSlot;
-            if (roundIdRef.current && s.round_id !== roundIdRef.current) return;
+            if (!roundIdRef.current || s.round_id !== roundIdRef.current) return;
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
             setSlots((prev) => [...prev.filter((x) => x.slot !== s.slot), s]);
           }
