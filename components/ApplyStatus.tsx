@@ -22,11 +22,9 @@ const VAULT_BADGE_CLASS = "text-amber-300/90 bg-amber-500/10 border-amber-500/30
 export default function ApplyStatus({
   results,
   onClear,
-  onDismiss,
 }: {
   results: ApplyResult[];
   onClear?: () => void;
-  onDismiss?: () => void;
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -48,27 +46,15 @@ export default function ApplyStatus({
             {results.length} {results.length === 1 ? "transaction" : "transactions"}
           </span>
         </h2>
-        <div className="flex items-center gap-2">
-          {onClear && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="text-xs text-gray-400 hover:text-white border border-bungie-border hover:border-gray-500 rounded-md px-2.5 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
-            >
-              Clear all logs
-            </button>
-          )}
-          {onDismiss && (
-            <button
-              type="button"
-              onClick={onDismiss}
-              aria-label="Dismiss"
-              className="shrink-0 text-gray-500 hover:text-gray-300 text-sm leading-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
-            >
-              ✕
-            </button>
-          )}
-        </div>
+        {onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-gray-400 hover:text-white border border-bungie-border hover:border-gray-500 rounded-md px-2.5 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
+          >
+            Clear all logs
+          </button>
+        )}
       </div>
       <div className="space-y-2">
         {results.map((r, i) => {
