@@ -261,8 +261,6 @@ export default function LobbyRoom({
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedWatch, setCopiedWatch] = useState(false);
-  const [mvpPlayer, setMvpPlayer] = useState<PlayerStat | null>(null);
-  const prevLastGameStatsRef = useRef<PlayerStat[] | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Stats panel tab: session totals | match history | global leaderboard
@@ -497,19 +495,6 @@ export default function LobbyRoom({
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
-
-  // Trigger MVP flash when new stats arrive for the first time this round
-  useEffect(() => {
-    if (lastGameStats && !prevLastGameStatsRef.current) {
-      const top = [...lastGameStats].sort((a, b) => b.rouletteWeaponKills - a.rouletteWeaponKills)[0];
-      if (top) {
-        setMvpPlayer(top);
-        const t = setTimeout(() => setMvpPlayer(null), 5000);
-        return () => clearTimeout(t);
-      }
-    }
-    prevLastGameStatsRef.current = lastGameStats;
-  }, [lastGameStats]);
 
   const detectGameEnd = useCallback(async () => {
     try {
@@ -925,21 +910,6 @@ export default function LobbyRoom({
 
   return (
     <>
-    {/* MVP flash overlay */}
-    {mvpPlayer && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-        <div className="animate-bounce-in bg-bungie-dark border-2 border-yellow-500 rounded-2xl px-10 py-8 text-center shadow-2xl shadow-yellow-500/20">
-          <p className="text-yellow-400 text-5xl mb-3">👑</p>
-          <p className="text-white font-bold text-2xl">{mvpPlayer.displayName}</p>
-          <p className="text-yellow-400 font-semibold text-lg mt-1">
-            {mvpPlayer.rouletteWeaponKills} roulette kills
-          </p>
-          <p className="text-gray-400 text-sm mt-2">
-            {mvpPlayer.kills}K / {mvpPlayer.deaths}D / {mvpPlayer.assists}A · {mvpPlayer.kd.toFixed(2)} K/D
-          </p>
-        </div>
-      </div>
-    )}
     <div className="flex gap-6 items-start">
       <div className="flex-1 min-w-0 space-y-6">
         {/* Header */}
