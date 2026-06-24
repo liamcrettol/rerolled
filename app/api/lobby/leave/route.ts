@@ -47,8 +47,9 @@ export async function POST(req: NextRequest) {
           .update({ captain_user_id: newCaptain })
           .eq("id", lobbyId);
       } else {
-        // No one left - delete the lobby
-        await adminSupabase.from("lobbies").delete().eq("id", lobbyId);
+        // No one left - mark done to preserve stats (delete cascades to game_sessions)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await adminSupabase.from("lobbies").update({ status: "done", ended_at: new Date().toISOString() } as any).eq("id", lobbyId);
       }
     }
 

@@ -27,6 +27,17 @@ export async function POST(req: NextRequest) {
     const session = await requireSession();
     const { lobbyId } = schema.parse(await req.json());
 
+    // ── Step 0: Bail out if this lobby's session has already ended ──────────
+    const { data: lobbyStatus } = await adminSupabase
+      .from("lobbies")
+      .select("status")
+      .eq("id", lobbyId)
+      .single();
+
+    if (!lobbyStatus || lobbyStatus.status === "done") {
+      return NextResponse.json({ done: false, pending: false });
+    }
+
     // ── Step 1: Find the most recent apply time for this lobby ──────────────
     const { data: recentHistory } = await adminSupabase
       .from("roll_history")

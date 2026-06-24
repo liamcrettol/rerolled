@@ -17,6 +17,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Mark lobbies idle for >2 hours as done so they stop accumulating.
+  const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await adminSupabase.from("lobbies").update({ status: "done", ended_at: new Date().toISOString() } as any)
+    .neq("status", "done")
+    .lt("last_active_at", idleCutoff);
+
   // Find lobbies that have an apply in the last 3 hours but no game_session after it.
   // We join through roll_history to find the apply timestamp per lobby.
   const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
@@ -61,10 +68,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ processed: 0, message: "All lobbies already have sessions" });
   }
 
+  // Skip any lobbies that are done (ended by captain, last-member-leave, or idle timeout above)
+  const { data: lobbyStatuses } = await adminSupabase
+    .from("lobbies")
+    .select("id, status")
+    .in("id", stuck.map((s) => s.lobbyId));
+
+  const doneIds = new Set((lobbyStatuses ?? []).filter((l) => l.status === "done").map((l) => l.id));
+  const activeStuck = stuck.filter((s) => !doneIds.has(s.lobbyId));
+
+  if (!activeStuck.length) {
+    return NextResponse.json({ processed: 0, message: "All pending lobbies are already done" });
+  }
+
   let processed = 0;
   const errors: string[] = [];
 
-  for (const { lobbyId, roundId, appliedAt } of stuck) {
+  for (const { lobbyId, roundId, appliedAt } of activeStuck) {
     try {
       const { data: members } = await adminSupabase
         .from("lobby_members")
@@ -200,5 +220,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed, stuck: stuck.length, errors });
+  return NextResponse.json({ processed, stuck: activeStuck.length, errors });
 }
