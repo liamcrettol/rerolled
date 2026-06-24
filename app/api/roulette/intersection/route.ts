@@ -4,6 +4,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import {
   getWeaponDefinitions,
   getPerkNames,
+  getPerkIcons,
   flushDefinitionCache,
 } from "@/lib/bungie/definitions";
 import { bungieGet } from "@/lib/bungie/client";
@@ -43,6 +44,9 @@ interface MemberData {
   vaultItems: Array<{ itemHash: number; itemInstanceId: string; lightLevel: number }>;
   collectibles: Set<number>;
   sockets: Map<string, number[]>;
+  barrelHashes: Map<string, number>;
+  magazineHashes: Map<string, number>;
+  masterworkHashes: Map<string, number>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,6 +148,9 @@ export async function POST(req: NextRequest) {
           }
 
           const sockets = new Map<string, number[]>();
+          const barrelHashes = new Map<string, number>();
+          const magazineHashes = new Map<string, number>();
+          const masterworkHashes = new Map<string, number>();
           const socketsData: Record<string, { sockets: Array<{ plugHash?: number; isVisible?: boolean }> }> =
             profile?.itemComponents?.sockets?.data ?? {};
           for (const [instanceId, sockData] of Object.entries(socketsData)) {
@@ -155,9 +162,17 @@ export async function POST(req: NextRequest) {
               perks.push(socket.plugHash);
             }
             if (perks.length > 0) sockets.set(instanceId, perks);
+
+            const barrelHash = sockData.sockets[1]?.plugHash;
+            const magazineHash = sockData.sockets[2]?.plugHash;
+            const masterworkHash = sockData.sockets[6]?.plugHash;
+
+            if (barrelHash) barrelHashes.set(instanceId, barrelHash);
+            if (magazineHash) magazineHashes.set(instanceId, magazineHash);
+            if (masterworkHash) masterworkHashes.set(instanceId, masterworkHash);
           }
 
-          memberDataMap.set(member.user_id, { weapons, vaultItems, collectibles, sockets });
+          memberDataMap.set(member.user_id, { weapons, vaultItems, collectibles, sockets, barrelHashes, magazineHashes, masterworkHashes });
         } catch (e) {
           console.warn(
             `Skipping member ${member.user_id}:`,
@@ -390,6 +405,12 @@ export async function POST(req: NextRequest) {
         perks: string[];
         location: string;
         characterId?: string;
+        barrelName?: string;
+        barrelIcon?: string;
+        magazineName?: string;
+        magazineIcon?: string;
+        masterworkName?: string;
+        masterworkIcon?: string;
       }>
     > = {};
 
@@ -397,11 +418,25 @@ export async function POST(req: NextRequest) {
     if (myData && myIntersectionWeapons.length > 0) {
       const myInstanceIds = new Set(myIntersectionWeapons.map((w) => w.itemInstanceId));
       const allPerkHashes = new Set<number>();
+
       for (const instanceId of myInstanceIds) {
         for (const h of myData.sockets.get(instanceId) ?? []) allPerkHashes.add(h);
       }
 
-      const perkNameMap = await getPerkNames([...allPerkHashes]);
+      for (const instanceId of myInstanceIds) {
+        const barrelHash = myData.barrelHashes.get(instanceId);
+        const magazineHash = myData.magazineHashes.get(instanceId);
+        const masterworkHash = myData.masterworkHashes.get(instanceId);
+
+        if (barrelHash) allPerkHashes.add(barrelHash);
+        if (magazineHash) allPerkHashes.add(magazineHash);
+        if (masterworkHash) allPerkHashes.add(masterworkHash);
+      }
+
+      const [perkNameMap, perkIconMap] = await Promise.all([
+        getPerkNames([...allPerkHashes]),
+        getPerkIcons([...allPerkHashes]),
+      ]);
 
       for (const weapon of myIntersectionWeapons) {
         const hashes = myData.sockets.get(weapon.itemInstanceId);
@@ -412,11 +447,22 @@ export async function POST(req: NextRequest) {
         if (perks.length === 0) continue;
         const key = weapon.itemHash.toString();
         if (!instancePerks[key]) instancePerks[key] = [];
+
+        const barrelHash = myData.barrelHashes.get(weapon.itemInstanceId);
+        const magazineHash = myData.magazineHashes.get(weapon.itemInstanceId);
+        const masterworkHash = myData.masterworkHashes.get(weapon.itemInstanceId);
+
         instancePerks[key].push({
           instanceId: weapon.itemInstanceId,
           perks,
           location: weapon.location,
           characterId: weapon.characterId,
+          barrelName: barrelHash ? perkNameMap.get(barrelHash) : undefined,
+          barrelIcon: barrelHash ? perkIconMap.get(barrelHash) : undefined,
+          magazineName: magazineHash ? perkNameMap.get(magazineHash) : undefined,
+          magazineIcon: magazineHash ? perkIconMap.get(magazineHash) : undefined,
+          masterworkName: masterworkHash ? perkNameMap.get(masterworkHash) : undefined,
+          masterworkIcon: masterworkHash ? perkIconMap.get(masterworkHash) : undefined,
         });
       }
     }
