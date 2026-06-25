@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
       token,
       session.bungieMembershipType,
       myWeapons,
-      undefined,
+      weaponsToApply.length, // Pass actual loadout size for intelligent calculation
       loadoutInstanceIds
     );
 

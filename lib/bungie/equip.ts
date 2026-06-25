@@ -29,6 +29,67 @@ export function findLastWeapon(
   return candidates[candidates.length - 1] ?? null;
 }
 
+export function findLowestLightWeapons(
+  characterId: string,
+  roster: RawWeapon[],
+  count: number,
+  excludeInstanceIds: Set<string> = new Set()
+): RawWeapon[] {
+  const candidates = roster.filter(
+    (w) =>
+      w.location === "character" &&
+      w.characterId === characterId &&
+      !w.isEquipped &&
+      !excludeInstanceIds.has(w.itemInstanceId)
+  );
+
+  // Sort by light level ascending (lowest first)
+  return candidates.sort((a, b) => a.lightLevel - b.lightLevel).slice(0, count);
+}
+
+const SAFETY_VAULT_THRESHOLD = 0.5; // Never vault more than 50% of unequipped weapons
+
+export function calculateVaultNeeded(
+  characterId: string,
+  roster: RawWeapon[],
+  incomingWeaponCount: number,
+  alreadyOnCharacter: Set<string> = new Set()
+): number {
+  const characterWeapons = roster.filter(
+    (w) => w.location === "character" && w.characterId === characterId
+  );
+
+  const unequippedWeapons = characterWeapons.filter((w) => !w.isEquipped);
+  const equippedWeapons = characterWeapons.filter((w) => w.isEquipped);
+
+  // How many of the incoming weapons are already on this character?
+  const incomingOnCharacter = roster.filter(
+    (w) =>
+      w.location === "character" &&
+      w.characterId === characterId &&
+      alreadyOnCharacter.has(w.itemInstanceId)
+  ).length;
+
+  // How many new weapons are coming from outside?
+  const incomingFromOutside = incomingWeaponCount - incomingOnCharacter;
+
+  if (incomingFromOutside <= 0) return 0;
+
+  // Current capacity: equipped + unequipped
+  // After adding incoming: equipped + unequipped + incoming
+  // Max allowed: 9
+  // So we need to vault: (equipped + unequipped + incoming) - 9
+  const currentTotal = equippedWeapons.length + unequippedWeapons.length;
+  const afterAdding = currentTotal + incomingFromOutside;
+  const basicNeed = Math.max(0, afterAdding - INVENTORY_SLOT_LIMIT);
+
+  // Apply safety threshold: never vault more than 50% of unequipped
+  const maxSafeVault = Math.floor(unequippedWeapons.length * SAFETY_VAULT_THRESHOLD);
+  const capped = Math.min(basicNeed, maxSafeVault);
+
+  return Math.max(0, capped);
+}
+
 const EXOTIC_TIER_TYPE = 6;
 const LEGENDARY_TIER_TYPE = 5;
 
@@ -93,54 +154,70 @@ export async function ensureInventorySpace(
   accessToken: string,
   membershipType: number,
   roster: RawWeapon[],
-  userId: string | undefined = undefined,
+  incomingWeaponCount: number = 0,
   loadoutInstanceIds: Set<string> = new Set()
 ): Promise<InventoryClearResult[]> {
   const results: InventoryClearResult[] = [];
 
-  // Check if inventory is full
-  if (!isInventoryFull(characterId, roster)) {
+  // Determine how many weapons actually need to be vaulted
+  const vaultNeeded = calculateVaultNeeded(
+    characterId,
+    roster,
+    incomingWeaponCount,
+    loadoutInstanceIds
+  );
+
+  if (vaultNeeded === 0) {
+    return results; // No vaulting needed
+  }
+
+  // Find the lowest-light weapons to vault
+  const weaponsToVault = findLowestLightWeapons(
+    characterId,
+    roster,
+    vaultNeeded,
+    loadoutInstanceIds
+  );
+
+  if (weaponsToVault.length === 0) {
+    // No unequipped weapons available to vault - this shouldn't happen with safety threshold
+    // but if it does, just return empty and let applyWeapons handle it with fallback logic
     return results;
   }
 
-  // Find the last unequipped weapon on the character to vault
-  const weaponToVault = findLastWeapon(characterId, roster, loadoutInstanceIds);
+  // Vault each weapon in sequence, continue even if one fails
+  for (const weapon of weaponsToVault) {
+    try {
+      await bungiePost<unknown>(
+        "/Destiny2/Actions/Items/TransferItem/",
+        accessToken,
+        {
+          itemReferenceHash: weapon.itemHash,
+          stackSize: 1,
+          transferToVault: true,
+          itemId: weapon.itemInstanceId,
+          characterId,
+          membershipType,
+        } satisfies TransferItemRequest
+      );
 
-  if (!weaponToVault) {
-    return results;
-  }
-
-  // Attempt to vault the weapon
-  try {
-    await bungiePost<unknown>(
-      "/Destiny2/Actions/Items/TransferItem/",
-      accessToken,
-      {
-        itemReferenceHash: weaponToVault.itemHash,
-        stackSize: 1,
-        transferToVault: true,
-        itemId: weaponToVault.itemInstanceId,
-        characterId,
-        membershipType,
-      } satisfies TransferItemRequest
-    );
-
-    results.push({
-      itemInstanceId: weaponToVault.itemInstanceId,
-      itemHash: weaponToVault.itemHash,
-      transferredToVault: true,
-      success: true,
-    });
-  } catch (err) {
-    // If vault transfer fails, return empty array per requirements
-    results.push({
-      itemInstanceId: weaponToVault.itemInstanceId,
-      itemHash: weaponToVault.itemHash,
-      transferredToVault: false,
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to vault weapon",
-    });
-    return [];
+      results.push({
+        itemInstanceId: weapon.itemInstanceId,
+        itemHash: weapon.itemHash,
+        transferredToVault: true,
+        success: true,
+      });
+    } catch (err) {
+      // If a vault fails, note it but continue trying others
+      results.push({
+        itemInstanceId: weapon.itemInstanceId,
+        itemHash: weapon.itemHash,
+        transferredToVault: false,
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to vault weapon",
+      });
+      // Continue trying to vault remaining weapons
+    }
   }
 
   return results;
@@ -230,9 +307,11 @@ export async function applyWeapons(
   // Track weapons Step 1.5 already transferred so Step 1 doesn't re-transfer them
   const alreadyOnCharacter = new Set<string>();
 
-  // Vault the lowest-light spare weapon in this slot to free a bucket slot
+  // Vault the lowest-light unequipped weapon to free up a slot
+  // First tries to find one in the target slot, then searches globally
   async function makeRoom(slot: WeaponSlot): Promise<boolean> {
-    const candidates = roster.filter(
+    // First, try to find an unequipped weapon in the target slot
+    let candidates = roster.filter(
       (w) =>
         w.slot === slot &&
         w.location === "character" &&
@@ -241,8 +320,24 @@ export async function applyWeapons(
         !loadoutInstanceIds.has(w.itemInstanceId) &&
         !movedToVault.has(w.itemInstanceId)
     );
-    const candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+
+    let candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+
+    // If no unequipped weapon in slot, search globally for lowest-light unequipped weapon
+    if (!candidate) {
+      candidates = roster.filter(
+        (w) =>
+          w.location === "character" &&
+          w.characterId === targetCharacterId &&
+          !w.isEquipped &&
+          !loadoutInstanceIds.has(w.itemInstanceId) &&
+          !movedToVault.has(w.itemInstanceId)
+      );
+      candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+    }
+
     if (!candidate) return false;
+
     try {
       await bungiePost<unknown>(
         "/Destiny2/Actions/Items/TransferItem/",

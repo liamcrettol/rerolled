@@ -1,4 +1,4 @@
-import { isInventoryFull, findLastWeapon, ensureInventorySpace } from "../equip";
+import { isInventoryFull, findLastWeapon, ensureInventorySpace, calculateVaultNeeded } from "../equip";
 import type { RawWeapon } from "../rawInventory";
 import * as clientModule from "../client";
 
@@ -139,28 +139,31 @@ describe("ensureInventorySpace", () => {
 
   it("returns empty array when inventory is not full", async () => {
     const weapons = mockWeapons("char-1", 5);
-    const result = await ensureInventorySpace("char-1", "token", 2, weapons);
+    const result = await ensureInventorySpace("char-1", "token", 2, weapons, 3);
     expect(result).toEqual([]);
   });
 
-  it("vaults the last unequipped weapon when inventory is full", async () => {
+  it("vaults the lowest light unequipped weapons to make room", async () => {
     const weapons = mockWeapons("char-1", 9);
-    const result = await ensureInventorySpace("char-1", "token", 2, weapons);
-    expect(result).toHaveLength(1);
+    const result = await ensureInventorySpace("char-1", "token", 2, weapons, 3);
+    expect(result).toHaveLength(3); // Need to vault 3 to fit incoming 3
+    // Should vault the 3 lowest light weapons (instance-8, instance-7, instance-6)
     expect(result[0].itemInstanceId).toBe("instance-8");
+    expect(result[1].itemInstanceId).toBe("instance-7");
+    expect(result[2].itemInstanceId).toBe("instance-6");
   });
 
   it("returns empty array when no unequipped weapons available to vault", async () => {
     const weapons = mockWeapons("char-1", 9);
     weapons.forEach(w => w.isEquipped = true);
-    const result = await ensureInventorySpace("char-1", "token", 2, weapons);
+    const result = await ensureInventorySpace("char-1", "token", 2, weapons, 3);
     expect(result).toEqual([]);
   });
 
   it("excludes loadout item instance IDs from being vaulted", async () => {
     const weapons = mockWeapons("char-1", 9);
     const loadoutIds = new Set(["instance-8", "instance-7"]);
-    const clearResult = await ensureInventorySpace("char-1", "token", 2, weapons, undefined, loadoutIds);
+    const clearResult = await ensureInventorySpace("char-1", "token", 2, weapons, 3, loadoutIds);
     expect(clearResult).toHaveLength(1);
     expect(clearResult[0].itemInstanceId).toBe("instance-6"); // next last item
     expect(clearResult[0].transferredToVault).toBe(true);
@@ -173,17 +176,20 @@ describe("ensureInventorySpace", () => {
     const otherCharWeapons = mockWeapons("char-2", 5);
 
     const allWeapons = [...charWeapons, ...vaultWeapons, ...otherCharWeapons];
-    const clearResult = await ensureInventorySpace("char-1", "token", 2, allWeapons);
+    const clearResult = await ensureInventorySpace("char-1", "token", 2, allWeapons, 3);
 
-    expect(clearResult).toHaveLength(1);
-    expect(clearResult[0].itemInstanceId).toBe("instance-8"); // last unequipped on char-1
-    expect(clearResult[0].transferredToVault).toBe(true);
+    expect(clearResult).toHaveLength(3); // Need to vault 3 to fit incoming 3
+    // Should only vault weapons from char-1, not from vault or other characters
+    expect(clearResult[0].itemInstanceId).toBe("instance-8");
+    expect(clearResult[1].itemInstanceId).toBe("instance-7");
+    expect(clearResult[2].itemInstanceId).toBe("instance-6");
+    clearResult.forEach(r => expect(r.transferredToVault).toBe(true));
   });
 
   it("uses correct Bungie API parameters for transfer request", async () => {
     const weapons = mockWeapons("char-1", 9);
     const membershipType = 2;
-    await ensureInventorySpace("char-1", "token", membershipType, weapons);
+    await ensureInventorySpace("char-1", "token", membershipType, weapons, 3);
 
     expect(clientModule.bungiePost).toHaveBeenCalledWith(
       "/Destiny2/Actions/Items/TransferItem/",
@@ -255,7 +261,7 @@ describe("loadout item exclusion (integration)", () => {
       "bearer-token",
       1,
       roster,
-      undefined,
+      1, // Incoming weapon count forces vault calculation
       loadoutIds
     );
 
@@ -302,12 +308,61 @@ describe("loadout item exclusion (integration)", () => {
       "bearer-token",
       1,
       roster,
-      undefined,
+      1, // Incoming weapon count forces vault calculation
       loadoutIds
     );
 
     // Should return empty (no available weapon to vault)
     expect(result).toEqual([]);
+  });
+});
+
+describe("calculateVaultNeeded", () => {
+  const mockWeapons = (charCount: number, equipped: number = 3): RawWeapon[] => {
+    const allWeapons: RawWeapon[] = [];
+    for (let i = 0; i < charCount; i++) {
+      allWeapons.push({
+        itemHash: 1000 + i,
+        itemInstanceId: `instance-${i}`,
+        slot: (["kinetic", "energy", "power"][i % 3]) as any,
+        location: "character",
+        characterId: "char-1",
+        isEquipped: i < equipped,
+        lightLevel: 750 - i,
+        tierType: 5,
+      });
+    }
+    return allWeapons;
+  };
+
+  it("returns 0 when inventory has space", () => {
+    const weapons = mockWeapons(7, 3);
+    const needed = calculateVaultNeeded("char-1", weapons, 1);
+    expect(needed).toBe(0);
+  });
+
+  it("returns needed count when inventory is full", () => {
+    const weapons = mockWeapons(9, 3);
+    const needed = calculateVaultNeeded("char-1", weapons, 6);
+    expect(needed).toBe(3);
+  });
+
+  it("respects safety threshold (never vault more than 50% of unequipped)", () => {
+    const weapons = mockWeapons(9, 3);
+    const needed = calculateVaultNeeded("char-1", weapons, 8);
+    expect(needed).toBe(3);
+  });
+
+  it("returns 0 when loadout has weapons already on character", () => {
+    const weapons = mockWeapons(9, 3);
+    const needed = calculateVaultNeeded("char-1", weapons, 3, new Set(["instance-0", "instance-1", "instance-2"]));
+    expect(needed).toBe(0);
+  });
+
+  it("returns 0 when no weapons to vault available", () => {
+    const weapons = mockWeapons(9, 9);
+    const needed = calculateVaultNeeded("char-1", weapons, 3);
+    expect(needed).toBe(0);
   });
 });
 
