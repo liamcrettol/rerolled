@@ -31,7 +31,9 @@ digraph develop_issue {
     sync [shape=box, label="Pull & rebase main\nbefore any work"];
     rebase [shape=box, label="Rebase on main\nbefore pushing"];
 
-    start -> fetch -> analyze -> plan -> sync -> branch -> execute -> rebase -> end;
+    claim [shape=box, label="Assign to self\n+ apply 'doing' label"];
+
+    start -> fetch -> claim -> analyze -> plan -> sync -> branch -> execute -> rebase -> end;
 }
 ```
 
@@ -49,7 +51,22 @@ Extract:
 - Related labels (bug, feature, enhancement)
 - Links to other issues/PRs
 
-### 2. Analyze Requirements
+### 2. Claim the Issue
+
+Before analyzing, signal that work is actively in progress.
+
+```bash
+# Assign the issue to yourself
+gh issue edit <issue-number> --add-assignee @me
+
+# Apply the "doing" label (create it if it doesn't exist)
+gh label create "doing" --color "0075ca" --description "Actively being worked on" 2>/dev/null || true
+gh issue edit <issue-number> --add-label "doing"
+```
+
+This makes in-flight work visible to the whole team in the issue tracker.
+
+### 3. Analyze Requirements
 
 Read the issue and identify:
 - **What**: What is being requested?
@@ -60,7 +77,7 @@ Read the issue and identify:
 
 Ask clarifying questions if requirements are ambiguous.
 
-### 3. Create Implementation Plan
+### 4. Create Implementation Plan
 
 Use `superpowers:writing-plans` to structure the implementation:
 - Break down into logical steps
@@ -71,7 +88,7 @@ Use `superpowers:writing-plans` to structure the implementation:
 
 Document the plan in conversation context (not a file).
 
-### 4. Sync Main Before Creating the Worktree
+### 5. Sync Main Before Creating the Worktree
 
 **ALWAYS pull and rebase main before creating a worktree.** Starting from a stale base means your branch will immediately diverge and you'll face larger conflicts later.
 
@@ -83,7 +100,7 @@ git pull --rebase origin main
 
 Only create the worktree once main is up to date. This ensures your feature branch starts from the latest commit.
 
-### 5. Create Git Worktree with Issue Branch
+### 6. Create Git Worktree with Issue Branch
 
 **CRITICAL: The branch name MUST include the issue number.** This creates a backlink and makes tracking work to issues effortless. Use a **git worktree** so multiple issues can be worked on concurrently without switching branches in your main checkout.
 
@@ -102,7 +119,7 @@ git worktree add ../$(basename $(pwd))-wt-<issue-number> -b <branch-name>
 
 The worktree gives you a separate working directory on its own branch — your main checkout stays on whatever branch it was on. Multiple worktrees = multiple issues in flight simultaneously.
 
-### 6. Execute the Work
+### 7. Execute the Work
 
 Follow your implementation plan:
 - Work through each step in order
@@ -117,7 +134,7 @@ git commit -m "feat: add dark mode toggle component
 Closes #42"
 ```
 
-### 7. Rebase on Main Before Pushing
+### 8. Rebase on Main Before Pushing
 
 **Before pushing your feature branch, rebase on the latest main to incorporate any changes that landed while you were working.** Resolve conflicts locally so the PR is clean.
 
@@ -135,11 +152,28 @@ git rebase origin/main
 
 Once the rebase is clean, push and open the PR.
 
-### 8. Complete Work
+### 9. Complete Work
 
 When implementation is done:
 - Run full test suite
-- Create a pull request linked to the issue using `Closes #<issue-number>` in the PR description
+- Create a pull request, mirroring the issue's metadata:
+  - Use `Closes #<issue-number>` in the PR description
+  - Assign the PR to the same person the issue is assigned to
+  - Apply the same labels the issue has (minus "doing")
+
+```bash
+# Capture issue metadata
+ASSIGNEE=$(gh issue view <issue-number> --json assignees --jq '.assignees[0].login')
+LABELS=$(gh issue view <issue-number> --json labels --jq '[.labels[].name | select(. != "doing")] | join(",")')
+
+# Create PR with matching assignee and labels
+gh pr create \
+  --title "<title>" \
+  --body "$(printf 'Closes #<issue-number>')" \
+  --assignee "$ASSIGNEE" \
+  --label "$LABELS"
+```
+
 - Use `superpowers:requesting-code-review` for review
 - Merge when approved — GitHub automatically closes the issue
 
@@ -236,6 +270,7 @@ Creating a PR without linking to the original issue loses the context and preven
 | Step | Tool | Output | GitHub Linking |
 |------|------|--------|---|
 | Fetch Issue | `gh issue view #N` | Issue details | - |
+| Claim | `gh issue edit` | Assigned to self + "doing" label | ✓ Visible in issue tracker |
 | Analyze | Read carefully | Requirements list | - |
 | Plan | `superpowers:writing-plans` | Implementation steps | - |
 | Sync main | `git pull --rebase origin main` | Up-to-date base | - |
@@ -243,7 +278,7 @@ Creating a PR without linking to the original issue loses the context and preven
 | Execute | Code implementation | Working code on branch | Commit: "Closes #N" |
 | Rebase | `git fetch origin && git rebase origin/main` | Conflict-free branch | - |
 | Review | `superpowers:requesting-code-review` | Reviewed work | PR description: "Closes #N" |
-| Complete | Merge to main | Issue auto-closes | ✓ GitHub closes issue |
+| Complete | `gh pr create` with matching assignee + labels | Issue auto-closes | ✓ GitHub closes issue |
 
 ## Integration with Other Skills
 
