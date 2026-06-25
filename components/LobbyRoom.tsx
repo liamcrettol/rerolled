@@ -493,6 +493,7 @@ export default function LobbyRoom({
   }, [roundId]);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
+  const isHost = lobbyData.host_user_id === currentUserId;
   const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
@@ -1034,7 +1035,7 @@ export default function LobbyRoom({
             {polling && (
               <span className="text-xs text-green-500 animate-pulse">● watching</span>
             )}
-            {isCaptain && (
+            {isHost && (
               <button onClick={handleEndSession} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
                 End Session
               </button>
