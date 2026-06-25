@@ -99,7 +99,12 @@ export async function POST(req: NextRequest) {
     const callerMember = members.find((m) => m.user_id === session.userId);
     if (!callerMember?.selected_character_id) return NextResponse.json({ done: false, pending: true });
 
-    // ── Step 5: Claim the detection slot ─────────────────────────────────────
+    // ── Step 5: Get the caller's token BEFORE claiming ───────────────────────
+    // Fetch the token first so a member with a dead refresh token fails here
+    // instead of grabbing the lease and blocking everyone else for its TTL.
+    const token = await getBungieToken(session.userId);
+
+    // ── Step 6: Claim the detection slot ─────────────────────────────────────
     // Only one worker scans Bungie per cycle; everyone else returns pending and
     // picks up the recorded game via realtime. Avoids N redundant PGCR scans.
     const { data: claimed } = await adminSupabase.rpc("claim_detection", {
@@ -108,8 +113,7 @@ export async function POST(req: NextRequest) {
     });
     if (!claimed) return NextResponse.json({ done: false, pending: true });
 
-    // ── Step 6: Scan + record via the shared pipeline ────────────────────────
-    const token = await getBungieToken(session.userId);
+    // ── Step 7: Scan + record via the shared pipeline ────────────────────────
     const outcome = await detectAndRecordGame({
       lobbyId,
       roundId: recentHistory.round_id,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
-import { getPerkIcons, getPerkInfos, getWeaponDefinitions } from "@/lib/bungie/definitions";
+import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -93,6 +93,14 @@ export async function POST(req: NextRequest) {
     const loadoutHashes = new Set(Object.values(slotHash));
     if (loadoutHashes.size === 0) return NextResponse.json({ slots: {} });
 
+    // Map every re-released/Adept/craftable variant of each loadout weapon back
+    // to that loadout hash, so a player's instances of ALL versions of the gun
+    // show up under the slot (#68), not just the exact hash the captain rolled.
+    const variantToLoadout = new Map<number, number>();
+    for (const lh of loadoutHashes) {
+      for (const vh of getWeaponGroupHashes(lh)) variantToLoadout.set(vh, lh);
+    }
+
     const allPerkHashes = new Set<number>();
 
     // Fetch each member's instances of the loadout weapons in parallel.
@@ -116,7 +124,11 @@ export async function POST(req: NextRequest) {
           const consider = (item: { itemHash?: number; itemInstanceId?: string }, location: "character" | "vault") => {
             const hash = item.itemHash;
             const id = item.itemInstanceId;
-            if (hash == null || !id || !loadoutHashes.has(hash)) return;
+            if (hash == null || !id) return;
+            // Bucket this instance under the slot's loadout hash if it's any
+            // variant of that weapon (re-release / Adept / craftable).
+            const loadoutHash = variantToLoadout.get(hash);
+            if (loadoutHash == null) return;
 
             const perkHashes: number[] = [];
             const sockets = socketData[id]?.sockets ?? [];
@@ -155,9 +167,9 @@ export async function POST(req: NextRequest) {
               stats,
               lightLevel: instanceData[id]?.primaryStat?.value ?? 0,
             };
-            const list = byHash.get(hash) ?? [];
+            const list = byHash.get(loadoutHash) ?? [];
             list.push(inst);
-            byHash.set(hash, list);
+            byHash.set(loadoutHash, list);
           };
 
           for (const [, charEquip] of Object.entries(profile?.characterEquipment?.data ?? {})) {

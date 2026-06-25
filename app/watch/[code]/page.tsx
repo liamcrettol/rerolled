@@ -1,6 +1,6 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
-import WatchView from "./WatchView";
+import WatchView, { type WatchMember, type WatchGame } from "./WatchView";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function WatchPage({ params }: { params: Promise<{ code: st
 
   const { data: lobby } = await adminSupabase
     .from("lobbies")
-    .select("id, code, current_round")
+    .select("id, code, current_round, status")
     .eq("code", code.toUpperCase())
     .maybeSingle();
 
@@ -32,6 +32,43 @@ export default async function WatchPage({ params }: { params: Promise<{ code: st
     initialSlots = slots ?? [];
   }
 
+  const { data: memberRows } = await adminSupabase
+    .from("lobby_members")
+    .select("id, user_id, display_name, is_captain, selected_character_id")
+    .eq("lobby_id", lobby.id)
+    .order("joined_at", { ascending: true });
+
+  const initialMembers: WatchMember[] = (memberRows ?? []).map((m) => ({
+    id: m.id,
+    userId: m.user_id,
+    displayName: m.display_name,
+    isCaptain: m.is_captain,
+    hasCharacter: !!m.selected_character_id,
+  }));
+
+  const { data: lastSession } = await adminSupabase
+    .from("game_sessions")
+    .select("id, map_name, played_at, player_game_stats(*)")
+    .eq("lobby_id", lobby.id)
+    .order("played_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const initialLastGame: WatchGame | null = lastSession
+    ? {
+        sessionId: lastSession.id,
+        mapName: (lastSession.map_name as string | null) ?? null,
+        stats: (lastSession.player_game_stats ?? []).map((s) => ({
+          userId: s.user_id,
+          displayName: s.display_name,
+          kills: s.kills,
+          deaths: s.deaths,
+          assists: s.assists,
+          won: s.won as boolean | null,
+        })),
+      }
+    : null;
+
   return (
     <main className="min-h-screen p-6 w-full max-w-2xl mx-auto">
       <WatchView
@@ -40,6 +77,9 @@ export default async function WatchPage({ params }: { params: Promise<{ code: st
         initialRoundNumber={lobby.current_round}
         initialRoundId={round?.id ?? null}
         initialSlots={initialSlots}
+        initialMembers={initialMembers}
+        initialStatus={lobby.status}
+        initialLastGame={initialLastGame}
       />
     </main>
   );

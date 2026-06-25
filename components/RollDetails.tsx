@@ -104,15 +104,22 @@ export default function RollDetails({
   // of stretching across the whole panel when only one player is loaded.
   const gridCols = { gridTemplateColumns: `5.5rem repeat(${members.length}, 15rem)`, width: "max-content", margin: "0 auto" };
 
-  // Helper to render socket icons
-  const renderSocketIcon = (hash: number | undefined, name: string | undefined, icon: string | undefined) => {
+  // Helper to render socket icons. A description (perks have one) is appended to
+  // the hover tooltip so players can see what a perk actually does.
+  const renderSocketIcon = (
+    hash: number | undefined,
+    name: string | undefined,
+    icon: string | undefined,
+    description?: string
+  ) => {
     if (!hash || !icon) return null;
+    const title = description ? `${name ?? ""} — ${description}` : name;
     return (
       <img
         key={hash}
         src={icon}
         alt={name}
-        title={name}
+        title={title}
         className="w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition"
       />
     );
@@ -219,7 +226,7 @@ export default function RollDetails({
                             key={hash}
                             src={icon}
                             alt={perk?.name}
-                            title={perk?.name}
+                            title={perk?.description ? `${perk.name} — ${perk.description}` : perk?.name}
                             className="w-6 h-6 rounded border border-bungie-border/40 hover:border-bungie-blue/60 cursor-help transition"
                           />
                         ) : null;
@@ -260,7 +267,7 @@ export default function RollDetails({
                   {myChosen.perkHashes.map((hash, i) => {
                     const icon = myChosen.perkIcons[hash];
                     const perk = myChosen.perks[i];
-                    return renderSocketIcon(hash, perk?.name, icon);
+                    return renderSocketIcon(hash, perk?.name, icon, perk?.description);
                   })}
                   {renderSocketIcon(myChosen.masterworkHash, myChosen.masterworkName, myChosen.masterworkIcon)}
                 </div>
