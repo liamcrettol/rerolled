@@ -116,6 +116,7 @@ Early development / personal project.
 ### Development:
 - [@liamcrettol](https://github.com/liamcrettol)
 - [@jxsoren](https://github.com/jxsoren)
+- [@vxkudo](https://github.com/vxkudo)
 
 ### QA / Testing
 
