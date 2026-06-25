@@ -72,11 +72,8 @@ function buildVariantGroups(
     const variants = getWeaponGroupHashes(hash);
     const variantSet = new Set(variants);
     for (const v of variants) {
-      if (!seen.has(v)) {
-        variantSet.forEach((vv) => seen.add(vv));
-        // All variants in this group map to the same set
-        variantGroups.set(v, variantSet);
-      }
+      seen.add(v);  // Mark ALL variants as seen
+      variantGroups.set(v, variantSet);
     }
   }
 
