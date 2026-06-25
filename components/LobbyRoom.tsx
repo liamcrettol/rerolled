@@ -650,16 +650,6 @@ export default function LobbyRoom({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCaptain, roundId]);
 
-  const prevCharId = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedCharId || !isCaptain || !roundId) return;
-    if (selectedCharId === prevCharId.current) return;
-    prevCharId.current = selectedCharId;
-    if (!hasAutoLoaded.current) return;
-    handleLoadIntersection();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCharId]);
-
   useEffect(() => {
     async function loadCurrentRound() {
       const { data: round } = await supabase
@@ -731,7 +721,7 @@ export default function LobbyRoom({
   const handleSelectCharacter = useCallback(async (characterId: string) => {
     setSelectedCharId(characterId);
     const char = characters.find((c) => c.characterId === characterId);
-    const res = await fetch("/api/lobby/ready", {
+    await fetch("/api/lobby/ready", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -742,9 +732,6 @@ export default function LobbyRoom({
         emblemBackgroundPath: char?.emblemBackgroundPath,
       }),
     });
-    if (!res.ok) {
-      setSelectedCharId(null);
-    }
   }, [lobby.id, characters]);
 
   // Once characters load, ensure emblem paths are saved for the selected character.
