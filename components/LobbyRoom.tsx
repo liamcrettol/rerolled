@@ -747,16 +747,20 @@ export default function LobbyRoom({
     }
   }, [lobby.id, characters]);
 
-  // Auto-select the most recently played character once characters load,
-  // but only if the player hasn't already picked one (e.g. from a previous join).
+  // Once characters load, ensure emblem paths are saved for the selected character.
+  // We always fire once — using the existing selection if present, or picking the
+  // most-recently-played guardian. This handles the case where a player had a
+  // character selected before emblem paths were introduced (emblem_path would be
+  // null without this re-send).
   useEffect(() => {
-    if (hasAutoSelected.current || !characters.length || selectedCharId) return;
+    if (hasAutoSelected.current || !characters.length) return;
     hasAutoSelected.current = true;
-    const latest = [...characters].sort(
-      (a, b) => new Date(b.dateLastPlayed).getTime() - new Date(a.dateLastPlayed).getTime()
-    )[0];
-    if (latest) handleSelectCharacter(latest.characterId);
-  }, [characters, selectedCharId, handleSelectCharacter]);
+    const target = selectedCharId
+      ?? [...characters].sort(
+          (a, b) => new Date(b.dateLastPlayed).getTime() - new Date(a.dateLastPlayed).getTime()
+        )[0]?.characterId;
+    if (target) handleSelectCharacter(target);
+  }, [characters, handleSelectCharacter]);
 
   const handleLoadIntersection = useCallback(async () => {
     setLoadingAction("intersection");
