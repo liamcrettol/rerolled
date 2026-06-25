@@ -29,24 +29,6 @@ export function findLastWeapon(
   return candidates[candidates.length - 1] ?? null;
 }
 
-export function findLowestLightWeapons(
-  characterId: string,
-  roster: RawWeapon[],
-  count: number,
-  excludeInstanceIds: Set<string> = new Set()
-): RawWeapon[] {
-  const candidates = roster.filter(
-    (w) =>
-      w.location === "character" &&
-      w.characterId === characterId &&
-      !w.isEquipped &&
-      !excludeInstanceIds.has(w.itemInstanceId)
-  );
-
-  // Sort by light level ascending (lowest first)
-  return candidates.sort((a, b) => a.lightLevel - b.lightLevel).slice(0, count);
-}
-
 const SAFETY_VAULT_THRESHOLD = 0.5; // Never vault more than 50% of unequipped weapons
 
 export function calculateVaultNeeded(
