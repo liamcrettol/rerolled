@@ -141,7 +141,7 @@ export async function getLobbyMembers(lobbyId: string): Promise<LobbyMember[]> {
 }
 
 export async function rotateCaptain(lobbyId: string): Promise<void> {
-  const members = await getLobbyMembers(lobbyId);
+  const members = (await getLobbyMembers(lobbyId)).filter((m) => !m.is_spectator);
   if (members.length < 2) return;
 
   const currentCaptainIdx = members.findIndex((m) => m.is_captain);

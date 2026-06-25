@@ -22,6 +22,7 @@ export interface LobbyMember {
   selected_character_id: string | null;
   is_ready: boolean;
   is_captain: boolean;
+  is_spectator: boolean;
   joined_at: string;
 }
 
