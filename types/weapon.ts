@@ -47,3 +47,9 @@ export interface WeaponHashEntry {
   characterId?: string;
   slot: "kinetic" | "energy" | "power";
 }
+
+export interface SealStatus {
+  isInLoadout: boolean;
+  isInYourRoll: boolean;
+  isInFireteamRoll: boolean;
+}
