@@ -5,6 +5,7 @@ export interface AppLogger {
   info(message: string, fields?: Record<string, unknown>): void;
   warn(message: string, fields?: Record<string, unknown>): void;
   error(message: string, fields?: Record<string, unknown>): void;
+  debug(message: string, fields?: Record<string, unknown>): void;
   flush(): Promise<void>;
 }
 
@@ -17,5 +18,5 @@ export function createLogger(req: NextRequest, userId?: string): AppLogger {
   if (userId) context.userId = userId;
 
   const logger = new Logger();
-  return logger.with(context);
+  return logger.with(context) as AppLogger;
 }

@@ -1,4 +1,5 @@
 import { createLogger } from "@/lib/logger";
+import { Logger } from "next-axiom";
 import { NextRequest } from "next/server";
 
 // next-axiom's Logger calls out to Axiom — mock it so tests are offline-safe
@@ -32,8 +33,8 @@ describe("createLogger", () => {
   it("binds traceId from x-trace-id header", () => {
     const req = makeRequest({ "x-trace-id": "trace-xyz" });
     const log = createLogger(req);
-    const { Logger } = require("next-axiom");
-    const instance = Logger.mock.results[Logger.mock.results.length - 1].value;
+    const MockedLogger = jest.mocked(Logger);
+    const instance = MockedLogger.mock.results[MockedLogger.mock.results.length - 1].value;
     expect(instance.with).toHaveBeenCalledWith(
       expect.objectContaining({ traceId: "trace-xyz" })
     );
@@ -42,8 +43,8 @@ describe("createLogger", () => {
   it("binds path and method from the request", () => {
     const req = makeRequest({ "x-trace-id": "t1" });
     const log = createLogger(req);
-    const { Logger } = require("next-axiom");
-    const instance = Logger.mock.results[Logger.mock.results.length - 1].value;
+    const MockedLogger = jest.mocked(Logger);
+    const instance = MockedLogger.mock.results[MockedLogger.mock.results.length - 1].value;
     expect(instance.with).toHaveBeenCalledWith(
       expect.objectContaining({ path: "/api/test", method: "POST" })
     );
@@ -52,8 +53,8 @@ describe("createLogger", () => {
   it("binds userId when provided", () => {
     const req = makeRequest({ "x-trace-id": "t2" });
     const log = createLogger(req, "user-999");
-    const { Logger } = require("next-axiom");
-    const instance = Logger.mock.results[Logger.mock.results.length - 1].value;
+    const MockedLogger = jest.mocked(Logger);
+    const instance = MockedLogger.mock.results[MockedLogger.mock.results.length - 1].value;
     expect(instance.with).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "user-999" })
     );
@@ -62,9 +63,19 @@ describe("createLogger", () => {
   it("omits userId when not provided", () => {
     const req = makeRequest({ "x-trace-id": "t3" });
     createLogger(req);
-    const { Logger } = require("next-axiom");
-    const instance = Logger.mock.results[Logger.mock.results.length - 1].value;
+    const MockedLogger = jest.mocked(Logger);
+    const instance = MockedLogger.mock.results[MockedLogger.mock.results.length - 1].value;
     const callArg = instance.with.mock.calls[instance.with.mock.calls.length - 1][0];
     expect(callArg).not.toHaveProperty("userId");
+  });
+
+  it("falls back to 'no-trace' when x-trace-id header is absent", () => {
+    const req = makeRequest(); // no headers
+    createLogger(req);
+    const MockedLogger = jest.mocked(Logger);
+    const instance = MockedLogger.mock.results[MockedLogger.mock.results.length - 1].value;
+    expect(instance.with).toHaveBeenCalledWith(
+      expect.objectContaining({ traceId: "no-trace" })
+    );
   });
 });
