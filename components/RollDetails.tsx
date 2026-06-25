@@ -211,7 +211,6 @@ export default function RollDetails({
                   })}
                   {renderSocketIcon(myChosen.masterworkHash, myChosen.masterworkName, myChosen.masterworkIcon)}
                 </div>
-                <p className="text-gray-400 text-[10px] mt-1.5">Green/red = perk impact vs the weapon&apos;s base stats.</p>
               </div>
             </>
           )}
@@ -269,11 +268,6 @@ export default function RollDetails({
             ))}
           </div>
         )}
-        <p className="text-gray-400 text-[10px] mt-2">
-          {myChosen && Object.keys(myChosen.stats).length === 0
-            ? "Live perk stats unavailable - showing base values."
-            : "+/- = perk impact vs base · highlighted = team best"}
-        </p>
       </div>
     </div>
   );
