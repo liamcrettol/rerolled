@@ -179,7 +179,7 @@ export default function RollDetails({
                             <button
                               onClick={() => onToggleFavorite(activeTab, slot.itemHash, ins.instanceId)}
                               title={fav ? "Unfavorite" : "Favorite (auto-picked on roll)"}
-                              className={`px-1 text-[10px] ${fav ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+                              className={`px-1 text-[10px] ${fav ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
                             >
                               {fav ? "★" : "☆"}
                             </button>
@@ -199,7 +199,7 @@ export default function RollDetails({
           {/* Chosen roll: all sockets + perk-adjusted stats with deltas vs base */}
           {myChosen && (
             <>
-              <div className="text-gray-500 text-[10px] uppercase tracking-wide self-start pt-1">Your Roll</div>
+              <div className="text-gray-400 text-[10px] uppercase tracking-wide self-start pt-1">Your Roll</div>
               <div className="col-span-full">
                 <div className="flex flex-wrap gap-1 mb-2">
                   {renderSocketIcon(myChosen.barrelHash, myChosen.barrelName, myChosen.barrelIcon)}
@@ -211,7 +211,7 @@ export default function RollDetails({
                   })}
                   {renderSocketIcon(myChosen.masterworkHash, myChosen.masterworkName, myChosen.masterworkIcon)}
                 </div>
-                <p className="text-gray-600 text-[10px] mt-1.5">Green/red = perk impact vs the weapon&apos;s base stats.</p>
+                <p className="text-gray-400 text-[10px] mt-1.5">Green/red = perk impact vs the weapon&apos;s base stats.</p>
               </div>
             </>
           )}
@@ -228,7 +228,7 @@ export default function RollDetails({
                 <div className="text-gray-400 text-[11px]">{s}</div>
                 {members.map((m, i) => {
                   const v = vals[i];
-                  if (v === undefined) return <div key={`${s}-${m.userId}`} className="text-center text-gray-700 text-[11px]">—</div>;
+                  if (v === undefined) return <div key={`${s}-${m.userId}`} className="text-center text-gray-500 text-[11px]">—</div>;
                   const isBest = members.length > 1 && v === max;
                   const hasBase = base[s] !== undefined;
                   const delta = hasBase ? v - base[s] : 0;
@@ -269,7 +269,7 @@ export default function RollDetails({
             ))}
           </div>
         )}
-        <p className="text-gray-600 text-[10px] mt-2">
+        <p className="text-gray-400 text-[10px] mt-2">
           {myChosen && Object.keys(myChosen.stats).length === 0
             ? "Live perk stats unavailable - showing base values."
             : "+/- = perk impact vs base · highlighted = team best"}

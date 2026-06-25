@@ -156,9 +156,9 @@ function FloatingTooltip({
           <div className="mt-3 pt-3 border-t border-bungie-border/60 space-y-2">
             {rolls.map((inst, i) => (
               <div key={inst.instanceId}>
-                <p className="text-gray-500 text-[10px] uppercase tracking-wide mb-0.5">
+                <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5">
                   {rolls.length > 1 ? `Roll ${i + 1}` : "Your roll"}
-                  <span className="text-gray-600 normal-case tracking-normal">
+                  <span className="text-gray-400 normal-case tracking-normal">
                     {" · "}{inst.location === "vault" ? "in vault" : "on character"}
                   </span>
                 </p>

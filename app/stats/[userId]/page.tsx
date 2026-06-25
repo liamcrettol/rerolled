@@ -111,7 +111,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
           {winRate !== null && (
             <p className="text-xs mt-1">
               <span className="text-green-400">{wins}W</span>
-              <span className="text-gray-600"> · </span>
+              <span className="text-gray-500"> · </span>
               <span className="text-red-400">{losses}L</span>
               <span className="text-gray-500"> ({winRate}%)</span>
             </p>
@@ -139,7 +139,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
           <p className="text-gray-400 text-sm">{bestRound.kills}K / {bestRound.deaths}D · {Number(bestRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(bestRound.game_sessions as any)?.map_name && (
-            <p className="text-gray-600 text-xs mt-1">{(bestRound.game_sessions as any).map_name}</p>
+            <p className="text-gray-500 text-xs mt-1">{(bestRound.game_sessions as any).map_name}</p>
           )}
         </div>
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
@@ -148,7 +148,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
           <p className="text-gray-400 text-sm">{Number(worstRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(worstRound.game_sessions as any)?.map_name && (
-            <p className="text-gray-600 text-xs mt-1">{(worstRound.game_sessions as any).map_name}</p>
+            <p className="text-gray-500 text-xs mt-1">{(worstRound.game_sessions as any).map_name}</p>
           )}
         </div>
       </div>
@@ -209,7 +209,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                   <p className="text-gray-400 text-xs">{date}</p>
                   <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                     {session?.map_name && (
-                      <p className="text-gray-600 text-[10px] truncate">{session.map_name}</p>
+                      <p className="text-gray-400 text-[10px] truncate">{session.map_name}</p>
                     )}
                     {isPrivate && (
                       <span className="text-[9px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded px-1 py-0.5 shrink-0">Private</span>
@@ -221,18 +221,18 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 <div className="w-8 shrink-0 text-center">
                   {row.won === true && <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1 py-0.5">W</span>}
                   {row.won === false && <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1 py-0.5">L</span>}
-                  {row.won === null && <span className="text-gray-600 text-xs">—</span>}
+                  {row.won === null && <span className="text-gray-500 text-xs">—</span>}
                 </div>
 
                 {/* Stats */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="text-center shrink-0">
                     <p className="text-white text-sm tabular-nums">{row.kills}/{row.deaths}/{row.assists}</p>
-                    <p className="text-gray-600 text-[10px]">K/D/A</p>
+                    <p className="text-gray-400 text-[10px]">K/D/A</p>
                   </div>
                   <div className="text-center shrink-0">
                     <p className="text-gray-300 text-sm tabular-nums">{Number(row.kd).toFixed(2)}</p>
-                    <p className="text-gray-600 text-[10px]">K/D</p>
+                    <p className="text-gray-400 text-[10px]">K/D</p>
                   </div>
                 </div>
 

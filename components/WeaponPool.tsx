@@ -63,7 +63,7 @@ function RollRow({
           <span className={`text-xs font-semibold ${selected ? "text-white" : "text-gray-300"}`}>
             {title}
             {location && (
-              <span className="ml-1.5 text-[10px] font-normal text-gray-500">
+              <span className="ml-1.5 text-[10px] font-normal text-gray-400">
                 {location === "vault" ? "in vault" : "on character"}
               </span>
             )}
@@ -81,7 +81,7 @@ function RollRow({
           onClick={onToggleFavorite}
           disabled={disabled}
           title={favorited ? "Unfavorite" : "Favorite this roll (auto-picked on roll)"}
-          className={`px-2 shrink-0 ${favorited ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}
+          className={`px-2 shrink-0 ${favorited ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
         >
           {favorited ? "★" : "☆"}
         </button>
@@ -178,7 +178,7 @@ function WeaponCard({
       {hasMultiple && (
         isActive ? (
           <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
-            <p className="text-gray-500 text-[10px] uppercase tracking-wide px-3 pb-0.5">
+            <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
               Choose roll
               {selectedRoll
                 ? ` · Roll ${selectedRollIndex + 1} selected`
@@ -356,7 +356,7 @@ export default function WeaponPool({
         {/* Weapon list */}
         <div className="px-3 pb-3 space-y-2 overflow-y-auto flex-1">
           {filtered.length === 0 ? (
-            <p className="text-gray-600 text-xs py-4 text-center">
+            <p className="text-gray-500 text-xs py-4 text-center">
               {filtersActive ? "No matches" : "No shared weapons"}
             </p>
           ) : (

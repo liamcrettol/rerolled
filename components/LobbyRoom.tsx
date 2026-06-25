@@ -144,7 +144,7 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
               <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
               {hasWon && (
                 <td className="py-2 pr-3 text-right text-xs">
-                  {s.won === true ? <span className="text-green-400">W</span> : s.won === false ? <span className="text-red-400">L</span> : <span className="text-gray-600">-</span>}
+                  {s.won === true ? <span className="text-green-400">W</span> : s.won === false ? <span className="text-red-400">L</span> : <span className="text-gray-500">-</span>}
                 </td>
               )}
               <td className="py-2 pr-3 text-right">{s.kills}</td>
@@ -1137,7 +1137,7 @@ export default function LobbyRoom({
                                         />
                                       )}
                                       <div>
-                                        <p className="text-[10px] text-gray-500 uppercase tracking-wide leading-none">{slot}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wide leading-none">{slot}</p>
                                         <p className="text-xs text-gray-200 leading-snug">{w.name}</p>
                                       </div>
                                     </div>
@@ -1183,8 +1183,8 @@ export default function LobbyRoom({
                           <td className="py-2 pr-3 text-right">{e.gamesPlayed}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {e.wins + e.losses > 0 ? (
-                              <><span className="text-green-400">{e.wins}</span><span className="text-gray-600">-</span><span className="text-red-400">{e.losses}</span></>
-                            ) : <span className="text-gray-600">-</span>}
+                              <><span className="text-green-400">{e.wins}</span><span className="text-gray-500">-</span><span className="text-red-400">{e.losses}</span></>
+                            ) : <span className="text-gray-500">-</span>}
                           </td>
                           <td className="py-2 text-right">{e.avgKd.toFixed(2)}</td>
                         </tr>
@@ -1338,7 +1338,7 @@ export default function LobbyRoom({
                 {showRollSettings && (
                   <div className="flex flex-wrap gap-1.5 pt-1 border-t border-bungie-border/60">
                     {poolWeaponTypes.length === 0 && (
-                      <span className="text-xs text-gray-600">No weapons loaded yet.</span>
+                      <span className="text-xs text-gray-500">No weapons loaded yet.</span>
                     )}
                     {poolWeaponTypes.map((t) => {
                       const banned = bannedTypes.has(t);
@@ -1398,7 +1398,7 @@ export default function LobbyRoom({
                     );
                   })}
                 </div>
-                <p className="mt-1.5 text-xs text-gray-600">
+                <p className="mt-1.5 text-xs text-gray-500">
                   Click a slot to cycle: 🎲 Random → 🔒 Locked (keep on reroll) → 👤 Your own (skipped on apply)
                 </p>
               </div>

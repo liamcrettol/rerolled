@@ -38,7 +38,7 @@ export default async function WeaponHallOfFame() {
       <div className="divide-y divide-bungie-border/40">
         {data.map((e, i) => (
           <div key={e.item_hash} className="flex items-center gap-3 px-4 py-3">
-            <span className="text-gray-600 font-mono text-sm w-5 text-right shrink-0">{i + 1}</span>
+            <span className="text-gray-400 font-mono text-sm w-5 text-right shrink-0">{i + 1}</span>
             <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden bg-bungie-dark">
               {e.weapon_icon ? (
                 <Image
@@ -49,7 +49,7 @@ export default async function WeaponHallOfFame() {
                   unoptimized
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-600 text-xs">?</div>
+                <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">?</div>
               )}
             </div>
             <div className="flex-1 min-w-0">
