@@ -73,7 +73,7 @@ export default async function Leaderboard() {
                 <td className="py-2 pr-4 text-gray-500 font-mono">{i + 1}</td>
                 <td className="py-2 pr-4 font-medium">
                   <Link href={`/stats/${e.user_id}`} className="hover:text-bungie-blue transition">
-                    {trimBungieName(e.display_name)}
+                    {e.display_name}
                   </Link>
                 </td>
                 <td className="py-2 pr-3 text-right font-bold text-bungie-blue">
