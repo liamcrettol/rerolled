@@ -24,7 +24,7 @@ digraph develop_issue {
     fetch [shape=box, label="Fetch issue\nvia gh API"];
     analyze [shape=box, label="Analyze requirements\nand acceptance criteria"];
     plan [shape=box, label="Create implementation plan\nwith review checkpoints"];
-    branch [shape=box, label="Create feature branch\nlinked to issue"];
+    branch [shape=box, label="Create git worktree\non issue branch"];
     execute [shape=box, label="Execute work\nfollowing plan"];
     end [shape=ellipse, label="Work complete\non feature branch"];
 
@@ -68,23 +68,24 @@ Use `superpowers:writing-plans` to structure the implementation:
 
 Document the plan in conversation context (not a file).
 
-### 4. Create Feature Branch with Issue Number
+### 4. Create Git Worktree with Issue Branch
 
-**CRITICAL: The branch name MUST include the issue number.** This creates a backlink and makes tracking work to issues effortless.
+**CRITICAL: The branch name MUST include the issue number.** This creates a backlink and makes tracking work to issues effortless. Use a **git worktree** so multiple issues can be worked on concurrently without switching branches in your main checkout.
+
+Use `superpowers:using-git-worktrees` to create the worktree. It handles directory placement, branch creation, and safety verification for you.
 
 ```bash
 # Branch naming: <issue-type>/<issue-number>-<kebab-case-description>
-# The issue number creates automatic GitHub backlinks to the issue
-
 # Examples:
 # - feature/42-add-dark-mode-support
 # - fix/123-handle-null-pointer-exception
 # - docs/456-update-api-documentation
 
-git checkout -b <branch-name>
+# Worktree is created alongside the main repo (e.g., ../repo-wt-42/)
+git worktree add ../$(basename $(pwd))-wt-<issue-number> -b <branch-name>
 ```
 
-The issue number in the branch name helps GitHub and humans trace which work belongs to which issue.
+The worktree gives you a separate working directory on its own branch — your main checkout stays on whatever branch it was on. Multiple worktrees = multiple issues in flight simultaneously.
 
 ### 5. Execute the Work
 
@@ -134,12 +135,13 @@ Returns issue details about adding dark mode.
 5. Add localStorage persistence
 6. Test theme switching
 
-**Branch:**
+**Worktree:**
 ```bash
-git checkout -b feature/42-add-dark-mode-support
+git worktree add ../destiny-gun-roulette-wt-42 -b feature/42-add-dark-mode-support
+cd ../destiny-gun-roulette-wt-42
 ```
 
-The `42` in the branch name creates automatic GitHub backlinks.
+The `42` in the branch name creates automatic GitHub backlinks. The worktree keeps your main checkout untouched.
 
 **Execute:**
 - Implement each step
@@ -165,6 +167,11 @@ The `42` in the branch name creates automatic GitHub backlinks.
 Starting implementation without analyzing the issue thoroughly. You'll build the wrong thing.
 
 **Fix:** Always spend 5 minutes analyzing requirements first.
+
+### ❌ Using `git checkout -b` Instead of a Worktree
+Switching branches in your main checkout blocks you from working on other issues concurrently and discards in-progress work.
+
+**Fix:** Use `git worktree add` (via `superpowers:using-git-worktrees`) to get an isolated directory per issue.
 
 ### ❌ Creating a Branch Without the Issue Number
 Creating a branch like `feature/dark-mode-support` instead of `feature/42-dark-mode-support` breaks GitHub's automatic linking.
@@ -198,12 +205,14 @@ Creating a PR without linking to the original issue loses the context and preven
 | Fetch Issue | `gh issue view #N` | Issue details | - |
 | Analyze | Read carefully | Requirements list | - |
 | Plan | `superpowers:writing-plans` | Implementation steps | - |
-| Branch | `git checkout -b type/N-desc` | Local feature branch | ✓ Issue #N in name |
+| Worktree | `git worktree add ../repo-wt-N -b type/N-desc` | Isolated worktree dir | ✓ Issue #N in name |
 | Execute | Code implementation | Working code on branch | Commit: "Closes #N" |
 | Review | `superpowers:requesting-code-review` | Reviewed work | PR description: "Closes #N" |
 | Complete | Merge to main | Issue auto-closes | ✓ GitHub closes issue |
 
 ## Integration with Other Skills
+
+**REQUIRED:** Use `superpowers:using-git-worktrees` when creating the worktree for the issue branch
 
 **REQUIRED:** Use `superpowers:writing-plans` when creating your implementation plan
 
@@ -214,6 +223,7 @@ Creating a PR without linking to the original issue loses the context and preven
 ## Red Flags - Things That Mean You're Skipping Steps
 
 - Branching before analyzing the issue → You don't understand requirements yet
+- Using `git checkout -b` in main checkout → Blocks concurrent issue work; use `git worktree add` instead
 - Creating a branch without the issue number → GitHub linking broken, backlinks won't work
 - Implementing without a plan → You'll refactor multiple times
 - Committing without `Closes #N` keyword → Issue won't auto-close, traceability lost
