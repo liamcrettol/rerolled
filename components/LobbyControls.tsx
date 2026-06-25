@@ -2,8 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Lobby } from "@/types/lobby";
 
-export default function LobbyControls() {
+const STATUS_LABELS: Record<Lobby["status"], string> = {
+  waiting: "Waiting for players",
+  rolling: "Rolling weapons",
+  applying: "Applying loadout",
+  in_game: "In game",
+  done: "Ended",
+};
+
+interface Props {
+  activeSession?: { code: string; status: Lobby["status"] } | null;
+}
+
+export default function LobbyControls({ activeSession }: Props) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState<"create" | "join" | null>(null);
@@ -44,6 +57,25 @@ export default function LobbyControls() {
   }
 
   return (
+    <div className="space-y-4">
+      {activeSession && (
+        <div className="bg-bungie-surface border border-bungie-blue/50 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-white font-semibold text-sm">Active session detected</p>
+            <p className="text-gray-400 text-xs mt-0.5">
+              <span className="font-mono text-bungie-blue">{activeSession.code}</span>
+              {" · "}
+              {STATUS_LABELS[activeSession.status]}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push(`/lobby/${activeSession.code}`)}
+            className="shrink-0 bg-bungie-blue hover:opacity-90 text-white font-semibold text-sm px-4 py-2 rounded-lg transition"
+          >
+            Rejoin
+          </button>
+        </div>
+      )}
     <div className="grid md:grid-cols-2 gap-6">
       {/* Create */}
       <div className="bg-bungie-surface border border-bungie-border rounded-xl p-6">
@@ -89,6 +121,7 @@ export default function LobbyControls() {
           {error}
         </div>
       )}
+    </div>
     </div>
   );
 }

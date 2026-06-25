@@ -6,6 +6,7 @@ import LobbyControls from "@/components/LobbyControls";
 import Leaderboard from "@/components/Leaderboard";
 import WeaponHallOfFame from "@/components/WeaponHallOfFame";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
+import { getActiveSessionForUser } from "@/lib/lobby";
 
 // Always render fresh so the global leaderboard reflects the latest games.
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 export default async function Dashboard() {
   const session = await auth();
   if (!session?.userId) redirect("/");
+
+  const activeSession = await getActiveSessionForUser(session.userId);
 
   return (
     <main className="min-h-screen p-6 w-full max-w-3xl mx-auto">
@@ -29,7 +32,7 @@ export default async function Dashboard() {
         <SignOutButton />
       </header>
 
-      <LobbyControls />
+      <LobbyControls activeSession={activeSession} />
 
       <DashboardLiveRefresh />
 

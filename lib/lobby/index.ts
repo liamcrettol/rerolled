@@ -98,6 +98,30 @@ export async function joinLobby(
   return { lobby, member };
 }
 
+export async function getActiveSessionForUser(
+  userId: string
+): Promise<{ code: string; status: Lobby["status"] } | null> {
+  const { data: memberships } = await adminSupabase
+    .from("lobby_members")
+    .select("lobby_id")
+    .eq("user_id", userId);
+
+  if (!memberships || memberships.length === 0) return null;
+
+  const lobbyIds = memberships.map((m) => m.lobby_id);
+
+  const { data: lobby } = await adminSupabase
+    .from("lobbies")
+    .select("code, status")
+    .in("id", lobbyIds)
+    .neq("status", "done")
+    .limit(1)
+    .single();
+
+  if (!lobby) return null;
+  return { code: lobby.code, status: lobby.status as Lobby["status"] };
+}
+
 export async function getLobbyByCode(code: string): Promise<Lobby | null> {
   const { data } = await adminSupabase
     .from("lobbies")
