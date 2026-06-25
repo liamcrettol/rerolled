@@ -987,7 +987,9 @@ export default function LobbyRoom({
     });
   }, [captainLocked, lobby.id]);
 
-  const weaponBrowser = isCaptain && intersection && showWeaponBrowser ? (
+  // The shared weapon pool is viewable by every player. The captain can select
+  // weapons into the loadout; everyone else gets a read-only browse view.
+  const weaponBrowser = intersection && showWeaponBrowser ? (
     <WeaponPool
       intersection={effectiveIntersection ?? intersection}
       weaponDetails={weaponDetails}
@@ -999,8 +1001,52 @@ export default function LobbyRoom({
       favorites={favorites}
       onToggleFavorite={toggleFavorite}
       disabled={loadingAction !== null}
+      readOnly={!isCaptain}
     />
   ) : null;
+
+  // Header row for the weapon-pool panel (shared between the mobile and sidebar
+  // placements). `pad` adds the sidebar's inset padding.
+  const poolHeader = (pad: boolean) => (
+    <div className={`flex items-center justify-between mb-3 ${pad ? "px-4 pt-4" : ""}`}>
+      <div className="flex items-center gap-2">
+        <h2 className="text-white font-semibold">Shared Weapon Pool</h2>
+        {!isCaptain && (
+          <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5">
+            View only
+          </span>
+        )}
+      </div>
+      {intersection && (
+        <button
+          onClick={() => setShowWeaponBrowser((v) => !v)}
+          className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
+        >
+          {showWeaponBrowser ? "Minimize" : "Expand"}
+        </button>
+      )}
+    </div>
+  );
+
+  // Non-captains load the pool on demand (avoids firing a Bungie inventory
+  // fetch for every viewer unless they actually want to see it).
+  const poolLoadButton = (pad: boolean) => !isCaptain ? (
+    <div className={pad ? "px-4 pb-4" : "pb-4"}>
+      <button
+        onClick={handleLoadIntersection}
+        disabled={loadingAction !== null}
+        className="w-full px-4 py-2.5 bg-bungie-surface border border-bungie-border rounded-lg text-sm text-gray-200 hover:border-gray-400 disabled:opacity-50 transition"
+      >
+        {loadingAction === "intersection" ? "Loading shared weapons…" : "🔫 Load shared weapons"}
+      </button>
+      <p className="mt-2 text-xs text-gray-500">See every weapon your fireteam shares. The captain does the rolling.</p>
+      {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+    </div>
+  ) : null;
+
+  // Whether to render the pool panel at all: any non-spectator, once there's
+  // either a loaded pool or (for non-captains) a load affordance to offer.
+  const showPoolPanel = !isSpectator && (intersection != null || !isCaptain);
 
   return (
     <>
@@ -1473,34 +1519,20 @@ export default function LobbyRoom({
           <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
         )}
 
-        {isCaptain && intersection && (
+        {showPoolPanel && (
           <div className="xl:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-white font-semibold">Weapon Pool</h2>
-              <button
-                onClick={() => setShowWeaponBrowser((v) => !v)}
-                className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
-              >
-                {showWeaponBrowser ? "Hide" : "Show"}
-              </button>
-            </div>
-            {weaponBrowser}
+            {poolHeader(false)}
+            {intersection ? weaponBrowser : poolLoadButton(false)}
           </div>
         )}
       </div>
 
-      {isCaptain && intersection && (
+      {showPoolPanel && (
         <div className="hidden xl:flex xl:flex-col w-[420px] shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2">
-          <div className="flex items-center justify-between mb-3 px-4 pt-4">
-            <h2 className="text-white font-semibold">Weapon Pool</h2>
-            <button
-              onClick={() => setShowWeaponBrowser((v) => !v)}
-              className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
-            >
-              {showWeaponBrowser ? "Hide" : "Show"}
-            </button>
-          </div>
-          {weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>}
+          {poolHeader(true)}
+          {intersection
+            ? (weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>)
+            : poolLoadButton(true)}
         </div>
       )}
     </div>

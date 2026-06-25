@@ -26,6 +26,9 @@ interface Props {
   favorites?: Record<string, string>;
   onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   disabled?: boolean;
+  // View-only mode for non-captains: the pool is browsable (search, filter,
+  // hover for perks/stats) but weapons can't be selected into the loadout.
+  readOnly?: boolean;
   weaponSeals?: Record<number, {
     isInLoadout: boolean;
     isInYourRoll: boolean;
@@ -93,12 +96,13 @@ function RollRow({
 // ── Weapon card ─────────────────────────────────────────────────────────────
 
 function WeaponCard({
-  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, onHover, onLeave, favoritedInstance, onToggleFavorite, seals,
+  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, readOnly, onHover, onLeave, favoritedInstance, onToggleFavorite, seals,
 }: {
   hash: number; detail: WeaponDetail; isActive: boolean; isCollection: boolean;
   rolls: InstancePerk[]; currentInstance?: string;
   onSelect: (hash: number, instanceId?: string) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   onHover: (hash: number, el: HTMLElement) => void; onLeave: () => void;
   favoritedInstance?: string;
   onToggleFavorite?: (instanceId: string) => void;
@@ -119,6 +123,48 @@ function WeaponCard({
   const previewRoll = selectedRoll ?? rolls.find((r) => r.location !== "vault") ?? rolls[0];
   const selectedRollIndex = selectedRoll ? rolls.indexOf(selectedRoll) : -1;
 
+  const cardInner = (
+    <>
+      <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800">
+        {detail.icon && (
+          <Image src={detail.icon} alt={detail.name} fill className="object-cover" unoptimized />
+        )}
+        {detail.watermark && (
+          <Image src={detail.watermark} alt="" fill className="object-cover pointer-events-none" unoptimized />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-1 mb-0.5">
+          <p className="text-white text-xs font-semibold leading-tight">{detail.name}</p>
+          <div className="flex items-center gap-1 shrink-0">
+            {isCollection && (
+              <span className="text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 leading-none">
+                C
+              </span>
+            )}
+            {isActive && <span className="text-bungie-blue text-sm leading-none">✓</span>}
+          </div>
+        </div>
+        <p className="text-gray-400 text-xs leading-tight truncate">{detail.weaponType}</p>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <span className={`text-xs ${DAMAGE_COLOR[detail.damageType] ?? "text-gray-400"}`}>
+            {detail.damageType}
+          </span>
+          {inlineStat && (
+            <span className="text-gray-500 text-xs tabular-nums">
+              {inlineStat} {detail.stats[inlineStat]}
+            </span>
+          )}
+        </div>
+        {previewRoll && (
+          <p className="text-[11px] text-gray-500 leading-snug mt-1 truncate">
+            {previewRoll.perks.map((p) => String(p)).join("  ·  ")}
+          </p>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div
       className={`rounded-lg border overflow-hidden transition ${
@@ -127,55 +173,26 @@ function WeaponCard({
       onMouseEnter={(e) => onHover(hash, e.currentTarget)}
       onMouseLeave={onLeave}
     >
-      {/* Main card row - selects the weapon (clears any specific roll) */}
-      <button
-        onClick={() => onSelect(hash)}
-        disabled={disabled}
-        className={`w-full flex items-start gap-3 p-3 text-left transition ${
-          isActive ? theme.bg : `${tier.bg} hover:brightness-125`
-        } disabled:opacity-40 disabled:cursor-default`}
-      >
-        <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800">
-          {detail.icon && (
-            <Image src={detail.icon} alt={detail.name} fill className="object-cover" unoptimized />
-          )}
-          {detail.watermark && (
-            <Image src={detail.watermark} alt="" fill className="object-cover pointer-events-none" unoptimized />
-          )}
+      {/* Main card row. Read-only viewers get a static row (still hoverable for
+          the perk/stat tooltip); captains get a button that selects the weapon. */}
+      {readOnly ? (
+        <div className={`w-full flex items-start gap-3 p-3 ${isActive ? theme.bg : tier.bg}`}>
+          {cardInner}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-1 mb-0.5">
-            <p className="text-white text-xs font-semibold leading-tight">{detail.name}</p>
-            <div className="flex items-center gap-1 shrink-0">
-              {isCollection && (
-                <span className="text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 leading-none">
-                  C
-                </span>
-              )}
-              {isActive && <span className="text-bungie-blue text-sm leading-none">✓</span>}
-            </div>
-          </div>
-          <p className="text-gray-400 text-xs leading-tight truncate">{detail.weaponType}</p>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className={`text-xs ${DAMAGE_COLOR[detail.damageType] ?? "text-gray-400"}`}>
-              {detail.damageType}
-            </span>
-            {inlineStat && (
-              <span className="text-gray-500 text-xs tabular-nums">
-                {inlineStat} {detail.stats[inlineStat]}
-              </span>
-            )}
-          </div>
-          {previewRoll && (
-            <p className="text-[11px] text-gray-500 leading-snug mt-1 truncate">
-              {previewRoll.perks.map((p) => String(p)).join("  ·  ")}
-            </p>
-          )}
-        </div>
-      </button>
+      ) : (
+        <button
+          onClick={() => onSelect(hash)}
+          disabled={disabled}
+          className={`w-full flex items-start gap-3 p-3 text-left transition ${
+            isActive ? theme.bg : `${tier.bg} hover:brightness-125`
+          } disabled:opacity-40 disabled:cursor-default`}
+        >
+          {cardInner}
+        </button>
+      )}
 
-      {/* Roll picker - only for weapons with >1 roll */}
-      {hasMultiple && (
+      {/* Roll picker - only for weapons with >1 roll, and only when interactive */}
+      {!readOnly && hasMultiple && (
         isActive ? (
           <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
             <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
@@ -223,7 +240,7 @@ function WeaponCard({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function WeaponPool({
-  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, weaponSeals,
+  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, readOnly, weaponSeals,
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
@@ -380,6 +397,7 @@ export default function WeaponPool({
                     currentInstance={isActive ? activeInstance : undefined}
                     onSelect={(h, instanceId) => onSelectWeapon(activeTab, h, instanceId)}
                     disabled={disabled}
+                    readOnly={readOnly}
                     onHover={onHover}
                     onLeave={onLeave}
                     favoritedInstance={favorites?.[hash.toString()]}
