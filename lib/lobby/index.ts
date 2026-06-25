@@ -115,8 +115,9 @@ export async function getActiveSessionForUser(
     .select("code, status")
     .in("id", lobbyIds)
     .neq("status", "done")
+    .order("last_active_at", { ascending: false, nullsFirst: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!lobby) return null;
   return { code: lobby.code, status: lobby.status as Lobby["status"] };
