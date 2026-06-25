@@ -37,7 +37,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         {[
           { icon: "🎲", title: "Random Rolls", desc: "Only rolls weapons everyone has" },
           { icon: "⚡", title: "Auto-Equip", desc: "Equips the whole fireteam at once" },
-          { icon: "👑", title: "Captain System", desc: "Captain rotates every game" },
+          { icon: "👑", title: "Turn Rotation", desc: "Roll control rotates every game" },
         ].map((f) => (
           <div key={f.title} className="bg-bungie-surface rounded-lg p-4 border border-bungie-border">
             <div className="text-3xl mb-2">{f.icon}</div>
