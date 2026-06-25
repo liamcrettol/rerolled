@@ -1405,13 +1405,14 @@ export default function LobbyRoom({
         )}
 
         {isCaptain && intersection && (
-          <div className="xl:hidden space-y-2">
-            <div className="flex justify-end">
+          <div className="xl:hidden">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-white font-semibold">Weapon Pool</h2>
               <button
                 onClick={() => setShowWeaponBrowser((v) => !v)}
                 className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
               >
-                {showWeaponBrowser ? "Hide Weapon List" : "Show Weapon List"}
+                {showWeaponBrowser ? "Hide" : "Show"}
               </button>
             </div>
             {weaponBrowser}
@@ -1421,12 +1422,13 @@ export default function LobbyRoom({
 
       {isCaptain && intersection && (
         <div className="hidden xl:flex xl:flex-col w-[420px] shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2">
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between mb-3 px-4 pt-4">
+            <h2 className="text-white font-semibold">Weapon Pool</h2>
             <button
               onClick={() => setShowWeaponBrowser((v) => !v)}
               className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
             >
-              {showWeaponBrowser ? "Hide Weapon List" : "Show Weapon List"}
+              {showWeaponBrowser ? "Hide" : "Show"}
             </button>
           </div>
           {weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>}
