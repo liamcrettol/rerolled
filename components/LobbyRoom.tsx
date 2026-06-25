@@ -1044,7 +1044,7 @@ export default function LobbyRoom({
           disabled={loadingAction !== null}
           className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
         >
-          {loadingAction === "intersection" ? "Loading…" : "🔫 Load Shared Weapons"}
+          {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
         </button>
         {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
       </div>
@@ -1093,6 +1093,11 @@ export default function LobbyRoom({
             <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
             {polling && (
               <span className="text-xs text-green-500 animate-pulse">● watching</span>
+            )}
+            {showPoolPanel && intersection && !showWeaponBrowser && (
+              <button onClick={() => setShowWeaponBrowser(true)} className="hidden xl:block px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:border-gray-400 transition">
+                Weapon Pool ▼
+              </button>
             )}
             {isHost && (
               <button onClick={handleEndSession} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
@@ -1353,7 +1358,7 @@ export default function LobbyRoom({
             <div className="flex flex-wrap gap-3">
               <button onClick={handleLoadIntersection} disabled={loadingAction !== null}
                 className="px-4 py-2 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition">
-                {loadingAction === "intersection" ? "Loading…" : "🔫 Load Shared Weapons"}
+                {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
               </button>
               {intersection && (
                 <>
@@ -1534,8 +1539,8 @@ export default function LobbyRoom({
         )}
       </div>
 
-      {showPoolPanel && (
-        <div className={`hidden xl:flex xl:flex-col shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2 transition-all ${showWeaponBrowser ? "w-[420px]" : "w-auto"}`}>
+      {showPoolPanel && (intersection == null || showWeaponBrowser) && (
+        <div className="hidden xl:flex xl:flex-col w-[420px] shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2">
           {poolHeader(true)}
           {intersection
             ? (weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>)
