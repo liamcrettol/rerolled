@@ -28,7 +28,10 @@ digraph develop_issue {
     execute [shape=box, label="Execute work\nfollowing plan"];
     end [shape=ellipse, label="Work complete\non feature branch"];
 
-    start -> fetch -> analyze -> plan -> branch -> execute -> end;
+    sync [shape=box, label="Pull & rebase main\nbefore any work"];
+    rebase [shape=box, label="Rebase on main\nbefore pushing"];
+
+    start -> fetch -> analyze -> plan -> sync -> branch -> execute -> rebase -> end;
 }
 ```
 
@@ -68,7 +71,19 @@ Use `superpowers:writing-plans` to structure the implementation:
 
 Document the plan in conversation context (not a file).
 
-### 4. Create Git Worktree with Issue Branch
+### 4. Sync Main Before Creating the Worktree
+
+**ALWAYS pull and rebase main before creating a worktree.** Starting from a stale base means your branch will immediately diverge and you'll face larger conflicts later.
+
+```bash
+# From the main repo checkout (not a worktree)
+git checkout main
+git pull --rebase origin main
+```
+
+Only create the worktree once main is up to date. This ensures your feature branch starts from the latest commit.
+
+### 5. Create Git Worktree with Issue Branch
 
 **CRITICAL: The branch name MUST include the issue number.** This creates a backlink and makes tracking work to issues effortless. Use a **git worktree** so multiple issues can be worked on concurrently without switching branches in your main checkout.
 
@@ -87,7 +102,7 @@ git worktree add ../$(basename $(pwd))-wt-<issue-number> -b <branch-name>
 
 The worktree gives you a separate working directory on its own branch — your main checkout stays on whatever branch it was on. Multiple worktrees = multiple issues in flight simultaneously.
 
-### 5. Execute the Work
+### 6. Execute the Work
 
 Follow your implementation plan:
 - Work through each step in order
@@ -102,7 +117,25 @@ git commit -m "feat: add dark mode toggle component
 Closes #42"
 ```
 
-### 6. Complete Work
+### 7. Rebase on Main Before Pushing
+
+**Before pushing your feature branch, rebase on the latest main to incorporate any changes that landed while you were working.** Resolve conflicts locally so the PR is clean.
+
+```bash
+# From inside the worktree
+git fetch origin
+git rebase origin/main
+
+# If conflicts arise, for each conflicted file:
+#   1. Open file and resolve conflict markers (<<<<, ====, >>>>)
+#   2. git add <resolved-file>
+#   3. git rebase --continue
+# To abort and start over: git rebase --abort
+```
+
+Once the rebase is clean, push and open the PR.
+
+### 8. Complete Work
 
 When implementation is done:
 - Run full test suite
@@ -205,8 +238,10 @@ Creating a PR without linking to the original issue loses the context and preven
 | Fetch Issue | `gh issue view #N` | Issue details | - |
 | Analyze | Read carefully | Requirements list | - |
 | Plan | `superpowers:writing-plans` | Implementation steps | - |
+| Sync main | `git pull --rebase origin main` | Up-to-date base | - |
 | Worktree | `git worktree add ../repo-wt-N -b type/N-desc` | Isolated worktree dir | ✓ Issue #N in name |
 | Execute | Code implementation | Working code on branch | Commit: "Closes #N" |
+| Rebase | `git fetch origin && git rebase origin/main` | Conflict-free branch | - |
 | Review | `superpowers:requesting-code-review` | Reviewed work | PR description: "Closes #N" |
 | Complete | Merge to main | Issue auto-closes | ✓ GitHub closes issue |
 
@@ -223,11 +258,13 @@ Creating a PR without linking to the original issue loses the context and preven
 ## Red Flags - Things That Mean You're Skipping Steps
 
 - Branching before analyzing the issue → You don't understand requirements yet
+- Creating a worktree without pulling main first → Branch starts from a stale base, bigger conflicts later
 - Using `git checkout -b` in main checkout → Blocks concurrent issue work; use `git worktree add` instead
 - Creating a branch without the issue number → GitHub linking broken, backlinks won't work
 - Implementing without a plan → You'll refactor multiple times
 - Committing without `Closes #N` keyword → Issue won't auto-close, traceability lost
 - Creating PR without `Closes #N` in description → Issue won't auto-close
+- Pushing without rebasing on main first → PR will have unnecessary merge conflicts or stale code
 - Merging without review → Bypasses quality gate
 
 **All of these mean: Stop. Go back to the previous step.**
