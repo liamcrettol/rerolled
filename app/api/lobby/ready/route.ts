@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const session = await requireSession();
     const body = schema.parse(await req.json());
 
-    await adminSupabase
+    const { error: updateError } = await adminSupabase
       .from("lobby_members")
       .update({
         is_ready: body.isReady,
@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       })
       .eq("lobby_id", body.lobbyId)
       .eq("user_id", session.userId);
+
+    if (updateError) throw new Error(updateError.message);
 
     return NextResponse.json({ ok: true });
   } catch (err) {
