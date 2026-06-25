@@ -1031,16 +1031,23 @@ export default function LobbyRoom({
   // Non-captains load the pool on demand (avoids firing a Bungie inventory
   // fetch for every viewer unless they actually want to see it).
   const poolLoadButton = (pad: boolean) => !isCaptain ? (
-    <div className={pad ? "px-4 pb-4" : "pb-4"}>
-      <button
-        onClick={handleLoadIntersection}
-        disabled={loadingAction !== null}
-        className="w-full px-4 py-2.5 bg-bungie-surface border border-bungie-border rounded-lg text-sm text-gray-200 hover:border-gray-400 disabled:opacity-50 transition"
-      >
-        {loadingAction === "intersection" ? "Loading shared weapons…" : "🔫 Load shared weapons"}
-      </button>
-      <p className="mt-2 text-xs text-gray-500">See every weapon your fireteam shares. The captain does the rolling.</p>
-      {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+    <div className={pad ? "px-4 pb-4" : "pb-2"}>
+      <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
+        {/* Pulse ring to draw the eye */}
+        <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
+        <p className="text-white text-sm font-semibold mb-1">⚡ Load your shared weapons</p>
+        <p className="text-gray-400 text-xs mb-3 leading-snug">
+          Everyone needs to do this so the captain can roll a loadout you all own.
+        </p>
+        <button
+          onClick={handleLoadIntersection}
+          disabled={loadingAction !== null}
+          className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
+        >
+          {loadingAction === "intersection" ? "Loading…" : "🔫 Load Shared Weapons"}
+        </button>
+        {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+      </div>
     </div>
   ) : null;
 
@@ -1345,8 +1352,8 @@ export default function LobbyRoom({
             </div>
             <div className="flex flex-wrap gap-3">
               <button onClick={handleLoadIntersection} disabled={loadingAction !== null}
-                className="px-4 py-2 bg-bungie-surface border border-bungie-border rounded-lg text-sm text-white hover:border-gray-400 disabled:opacity-50 transition">
-                {loadingAction === "intersection" ? "Loading..." : "Load Shared Weapons"}
+                className="px-4 py-2 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition">
+                {loadingAction === "intersection" ? "Loading…" : "🔫 Load Shared Weapons"}
               </button>
               {intersection && (
                 <>
@@ -1528,7 +1535,7 @@ export default function LobbyRoom({
       </div>
 
       {showPoolPanel && (
-        <div className="hidden xl:flex xl:flex-col w-[420px] shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2">
+        <div className={`hidden xl:flex xl:flex-col shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2 transition-all ${showWeaponBrowser ? "w-[420px]" : "w-auto"}`}>
           {poolHeader(true)}
           {intersection
             ? (weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>)
