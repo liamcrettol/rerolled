@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import { middleware } from "@/middleware";
 import { NextRequest } from "next/server";
 

@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import { createLogger } from "@/lib/logger";
 import { Logger } from "next-axiom";
 import { NextRequest } from "next/server";
