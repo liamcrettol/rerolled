@@ -26,6 +26,11 @@ interface Props {
   favorites?: Record<string, string>;
   onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   disabled?: boolean;
+  weaponSeals?: Record<number, {
+    isInLoadout: boolean;
+    isInYourRoll: boolean;
+    isInFireteamRoll: boolean;
+  }>;
 }
 
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
@@ -88,7 +93,7 @@ function RollRow({
 // ── Weapon card ─────────────────────────────────────────────────────────────
 
 function WeaponCard({
-  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, onHover, onLeave, favoritedInstance, onToggleFavorite,
+  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, onHover, onLeave, favoritedInstance, onToggleFavorite, seals,
 }: {
   hash: number; detail: WeaponDetail; isActive: boolean; isCollection: boolean;
   rolls: InstancePerk[]; currentInstance?: string;
@@ -97,6 +102,11 @@ function WeaponCard({
   onHover: (hash: number, el: HTMLElement) => void; onLeave: () => void;
   favoritedInstance?: string;
   onToggleFavorite?: (instanceId: string) => void;
+  seals?: {
+    isInLoadout: boolean;
+    isInYourRoll: boolean;
+    isInFireteamRoll: boolean;
+  };
 }) {
   const tier = TIER_COLORS[detail.tierType] ?? DEFAULT_TIER;
   const theme = damageTheme(detail.damageType);
@@ -213,7 +223,7 @@ function WeaponCard({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function WeaponPool({
-  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled,
+  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, weaponSeals,
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
@@ -374,6 +384,7 @@ export default function WeaponPool({
                     onLeave={onLeave}
                     favoritedInstance={favorites?.[hash.toString()]}
                     onToggleFavorite={onToggleFavorite ? (instanceId) => onToggleFavorite(activeTab, hash, instanceId) : undefined}
+                    seals={weaponSeals?.[hash] ?? { isInLoadout: false, isInYourRoll: false, isInFireteamRoll: false }}
                   />
                 );
               })}
