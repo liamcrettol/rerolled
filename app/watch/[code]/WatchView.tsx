@@ -56,6 +56,7 @@ interface Props {
   initialMembers: WatchMember[];
   initialStatus: string;
   initialLastGame: WatchGame | null;
+  initialLobbyLeaderboard: LobbyLeaderboardEntry[];
 }
 
 export default function WatchView({
@@ -67,6 +68,7 @@ export default function WatchView({
   initialMembers,
   initialStatus,
   initialLastGame,
+  initialLobbyLeaderboard,
 }: Props) {
   const supabase = createClient();
   const [roundNumber, setRoundNumber] = useState(initialRoundNumber);
@@ -74,6 +76,7 @@ export default function WatchView({
   const [members, setMembers] = useState<WatchMember[]>(initialMembers);
   const [status, setStatus] = useState(initialStatus);
   const [lastGame, setLastGame] = useState<WatchGame | null>(initialLastGame);
+  const [lobbyLeaderboard, setLobbyLeaderboard] = useState<LobbyLeaderboardEntry[]>(initialLobbyLeaderboard);
   const roundIdRef = useRef<string | null>(initialRoundId);
 
   const fetchLastGame = useCallback(async () => {
@@ -289,6 +292,35 @@ export default function WatchView({
                     <td className="p-2 text-right">{s.kills}</td>
                     <td className="p-2 text-right">{s.deaths}</td>
                     <td className="p-2 text-right pr-3">{s.assists}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Lobby leaderboard */}
+      {lobbyLeaderboard.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-white font-semibold text-sm mb-2">Lobby Stats (All Games)</h2>
+          <div className="overflow-x-auto rounded-xl border border-bungie-border bg-bungie-surface">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-500 text-xs border-b border-bungie-border">
+                  <th className="text-left p-2 pl-3">#</th>
+                  <th className="text-left p-2">Player</th>
+                  <th className="text-right p-2">Kills</th>
+                  <th className="text-right p-2 pr-3">Games</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-bungie-border/40">
+                {lobbyLeaderboard.map((entry, i) => (
+                  <tr key={entry.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
+                    <td className="p-2 pl-3 text-gray-500 font-mono text-xs">{i + 1}</td>
+                    <td className="p-2 font-medium">{trimBungieName(entry.displayName)}</td>
+                    <td className="p-2 text-right font-bold text-bungie-blue">{entry.totalKills}</td>
+                    <td className="p-2 text-right pr-3 text-xs">{entry.gamesPlayed}</td>
                   </tr>
                 ))}
               </tbody>
