@@ -103,6 +103,45 @@ export default function WatchView({
     });
   }, [supabase, lobbyId]);
 
+  const fetchLobbyLeaderboard = useCallback(async () => {
+    const { data: allGameStats } = await supabase
+      .from("game_sessions")
+      .select("player_game_stats(user_id, display_name, kills)")
+      .eq("lobby_id", lobbyId);
+
+    const lobbyLeaderboardMap = new Map<string, { displayName: string; gamesPlayed: number; totalKills: number }>();
+    if (allGameStats) {
+      for (const session of allGameStats) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stats = (session as any).player_game_stats || [];
+        for (const stat of stats) {
+          const existing = lobbyLeaderboardMap.get(stat.user_id);
+          if (existing) {
+            existing.gamesPlayed += 1;
+            existing.totalKills += stat.kills;
+          } else {
+            lobbyLeaderboardMap.set(stat.user_id, {
+              displayName: stat.display_name,
+              gamesPlayed: 1,
+              totalKills: stat.kills,
+            });
+          }
+        }
+      }
+    }
+
+    const updated = Array.from(lobbyLeaderboardMap.entries())
+      .map(([userId, data]) => ({
+        userId,
+        displayName: data.displayName,
+        gamesPlayed: data.gamesPlayed,
+        totalKills: data.totalKills,
+      }))
+      .sort((a, b) => b.totalKills - a.totalKills);
+
+    setLobbyLeaderboard(updated);
+  }, [supabase, lobbyId]);
+
   useEffect(() => {
     async function loadRound(roundNum: number) {
       const { data: round } = await supabase
@@ -178,12 +217,15 @@ export default function WatchView({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "game_sessions", filter: `lobby_id=eq.${lobbyId}` },
-        () => fetchLastGame()
+        () => {
+          fetchLastGame();
+          fetchLobbyLeaderboard();
+        }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [lobbyId, supabase, fetchLastGame]);
+  }, [lobbyId, supabase, fetchLastGame, fetchLobbyLeaderboard]);
 
   const ordered = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s));
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.waiting;
