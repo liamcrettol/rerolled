@@ -40,15 +40,13 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
   const totalKills = rows.reduce((s, r) => s + r.kills, 0);
   const totalDeaths = rows.reduce((s, r) => s + r.deaths, 0);
   const totalAssists = rows.reduce((s, r) => s + r.assists, 0);
-  const totalRouletteKills = rows.reduce((s, r) => s + r.roulette_weapon_kills, 0);
   // Average of per-game KD values (not total kills / total deaths)
   const avgKD = rows.reduce((s, r) => s + Number(r.kd), 0) / rows.length;
   const wins = rows.filter((r) => r.won === true).length;
   const losses = rows.filter((r) => r.won === false).length;
   const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
 
-  const byRouletteKills = [...rows].sort((a, b) => b.roulette_weapon_kills - a.roulette_weapon_kills);
-  const bestRound = byRouletteKills[0];
+  const bestRound = [...rows].sort((a, b) => b.kills - a.kills)[0];
   const worstRound = [...rows].sort((a, b) => Number(a.kd) - Number(b.kd))[0];
 
   // ── Weapon data from lobby_loadout_slots ───────────────────────────────
@@ -120,8 +118,8 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
           )}
         </div>
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-bungie-blue">{totalRouletteKills}</p>
-          <p className="text-gray-500 text-xs mt-1">Roulette Kills</p>
+          <p className="text-2xl font-bold text-bungie-blue">{totalKills}</p>
+          <p className="text-gray-500 text-xs mt-1">Kills</p>
         </div>
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-white">{avgKD.toFixed(2)}</p>
@@ -137,7 +135,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
       <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
           <p className="text-xs text-gray-500 mb-1">Best Round</p>
-          <p className="text-yellow-400 font-bold text-lg">👑 {bestRound.roulette_weapon_kills} roulette kills</p>
+          <p className="text-yellow-400 font-bold text-lg">👑 {bestRound.kills} kills</p>
           <p className="text-gray-400 text-sm">{bestRound.kills}K / {bestRound.deaths}D · {Number(bestRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(bestRound.game_sessions as any)?.map_name && (
@@ -221,10 +219,6 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
                 {/* Stats */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="text-center shrink-0">
-                    <p className="text-bungie-blue font-bold text-sm">{row.roulette_weapon_kills}</p>
-                    <p className="text-gray-600 text-[10px]">roulette</p>
-                  </div>
                   <div className="text-center shrink-0">
                     <p className="text-white text-sm tabular-nums">{row.kills}/{row.deaths}/{row.assists}</p>
                     <p className="text-gray-600 text-[10px]">K/D/A</p>
