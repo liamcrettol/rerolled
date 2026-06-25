@@ -27,7 +27,7 @@ interface PGCREntry {
 
 interface PGCR {
   period: string;
-  activityDetails: { instanceId: string };
+  activityDetails: { instanceId: string; isPrivate?: boolean };
   entries: PGCREntry[];
 }
 
@@ -104,6 +104,7 @@ export interface PostMatchResult {
   playerStats: CollectedPlayerStat[];
   weaponKills: WeaponKillStat[];
   activityHash: number;
+  isPrivate: boolean;
 }
 
 export async function collectPostMatchStats(
@@ -195,7 +196,7 @@ export async function collectPostMatchStats(
     }
     const weaponKills: WeaponKillStat[] = [...killsByHash.entries()].map(([itemHash, totalKills]) => ({ itemHash, totalKills }));
 
-    return { playerStats, weaponKills, activityHash: activity.activityDetails.referenceId };
+    return { playerStats, weaponKills, activityHash: activity.activityDetails.referenceId, isPrivate: pgcr.activityDetails.isPrivate ?? false };
   }
 
   return null;

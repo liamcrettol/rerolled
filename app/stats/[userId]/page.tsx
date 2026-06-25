@@ -27,7 +27,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
   const { data: rows } = await adminSupabase
     .from("player_game_stats")
-    .select("*, game_sessions(id, played_at, round_id, map_name)")
+    .select("*, game_sessions(id, played_at, round_id, map_name, is_private)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -145,7 +145,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
         <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
           <p className="text-xs text-gray-500 mb-1">Roughest Round</p>
           <p className="text-red-400 font-bold text-lg">{worstRound.kills}K / {worstRound.deaths}D</p>
-          <p className="text-gray-400 text-sm">{Number(worstRound.kd).toFixed(2)} K/D · {worstRound.roulette_weapon_kills} roulette kills</p>
+          <p className="text-gray-400 text-sm">{Number(worstRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(worstRound.game_sessions as any)?.map_name && (
             <p className="text-gray-600 text-xs mt-1">{(worstRound.game_sessions as any).map_name}</p>
@@ -200,14 +200,21 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
               ? new Date(session.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
               : "—";
 
+            const isPrivate = session?.is_private === true;
+
             return (
               <div key={row.id} className="px-4 py-3 flex items-center gap-4">
                 {/* Date + map */}
                 <div className="w-28 shrink-0">
                   <p className="text-gray-400 text-xs">{date}</p>
-                  {session?.map_name && (
-                    <p className="text-gray-600 text-[10px] truncate mt-0.5">{session.map_name}</p>
-                  )}
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                    {session?.map_name && (
+                      <p className="text-gray-600 text-[10px] truncate">{session.map_name}</p>
+                    )}
+                    {isPrivate && (
+                      <span className="text-[9px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded px-1 py-0.5 shrink-0">Private</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* W/L badge */}
