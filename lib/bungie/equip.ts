@@ -154,54 +154,70 @@ export async function ensureInventorySpace(
   accessToken: string,
   membershipType: number,
   roster: RawWeapon[],
-  userId: string | undefined = undefined,
+  incomingWeaponCount: number = 0,
   loadoutInstanceIds: Set<string> = new Set()
 ): Promise<InventoryClearResult[]> {
   const results: InventoryClearResult[] = [];
 
-  // Check if inventory is full
-  if (!isInventoryFull(characterId, roster)) {
+  // Determine how many weapons actually need to be vaulted
+  const vaultNeeded = calculateVaultNeeded(
+    characterId,
+    roster,
+    incomingWeaponCount,
+    loadoutInstanceIds
+  );
+
+  if (vaultNeeded === 0) {
+    return results; // No vaulting needed
+  }
+
+  // Find the lowest-light weapons to vault
+  const weaponsToVault = findLowestLightWeapons(
+    characterId,
+    roster,
+    vaultNeeded,
+    loadoutInstanceIds
+  );
+
+  if (weaponsToVault.length === 0) {
+    // No unequipped weapons available to vault - this shouldn't happen with safety threshold
+    // but if it does, just return empty and let applyWeapons handle it with fallback logic
     return results;
   }
 
-  // Find the last unequipped weapon on the character to vault
-  const weaponToVault = findLastWeapon(characterId, roster, loadoutInstanceIds);
+  // Vault each weapon in sequence, continue even if one fails
+  for (const weapon of weaponsToVault) {
+    try {
+      await bungiePost<unknown>(
+        "/Destiny2/Actions/Items/TransferItem/",
+        accessToken,
+        {
+          itemReferenceHash: weapon.itemHash,
+          stackSize: 1,
+          transferToVault: true,
+          itemId: weapon.itemInstanceId,
+          characterId,
+          membershipType,
+        } satisfies TransferItemRequest
+      );
 
-  if (!weaponToVault) {
-    return results;
-  }
-
-  // Attempt to vault the weapon
-  try {
-    await bungiePost<unknown>(
-      "/Destiny2/Actions/Items/TransferItem/",
-      accessToken,
-      {
-        itemReferenceHash: weaponToVault.itemHash,
-        stackSize: 1,
-        transferToVault: true,
-        itemId: weaponToVault.itemInstanceId,
-        characterId,
-        membershipType,
-      } satisfies TransferItemRequest
-    );
-
-    results.push({
-      itemInstanceId: weaponToVault.itemInstanceId,
-      itemHash: weaponToVault.itemHash,
-      transferredToVault: true,
-      success: true,
-    });
-  } catch (err) {
-    // If vault transfer fails, return empty array per requirements
-    results.push({
-      itemInstanceId: weaponToVault.itemInstanceId,
-      itemHash: weaponToVault.itemHash,
-      transferredToVault: false,
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to vault weapon",
-    });
-    return [];
+      results.push({
+        itemInstanceId: weapon.itemInstanceId,
+        itemHash: weapon.itemHash,
+        transferredToVault: true,
+        success: true,
+      });
+    } catch (err) {
+      // If a vault fails, note it but continue trying others
+      results.push({
+        itemInstanceId: weapon.itemInstanceId,
+        itemHash: weapon.itemHash,
+        transferredToVault: false,
+        success: false,
+        error: err instanceof Error ? err.message : "Failed to vault weapon",
+      });
+      // Continue trying to vault remaining weapons
+    }
   }
 
   return results;
