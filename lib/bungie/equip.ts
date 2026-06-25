@@ -307,9 +307,11 @@ export async function applyWeapons(
   // Track weapons Step 1.5 already transferred so Step 1 doesn't re-transfer them
   const alreadyOnCharacter = new Set<string>();
 
-  // Vault the lowest-light spare weapon in this slot to free a bucket slot
+  // Vault the lowest-light unequipped weapon to free up a slot
+  // First tries to find one in the target slot, then searches globally
   async function makeRoom(slot: WeaponSlot): Promise<boolean> {
-    const candidates = roster.filter(
+    // First, try to find an unequipped weapon in the target slot
+    let candidates = roster.filter(
       (w) =>
         w.slot === slot &&
         w.location === "character" &&
@@ -318,8 +320,24 @@ export async function applyWeapons(
         !loadoutInstanceIds.has(w.itemInstanceId) &&
         !movedToVault.has(w.itemInstanceId)
     );
-    const candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+
+    let candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+
+    // If no unequipped weapon in slot, search globally for lowest-light unequipped weapon
+    if (!candidate) {
+      candidates = roster.filter(
+        (w) =>
+          w.location === "character" &&
+          w.characterId === targetCharacterId &&
+          !w.isEquipped &&
+          !loadoutInstanceIds.has(w.itemInstanceId) &&
+          !movedToVault.has(w.itemInstanceId)
+      );
+      candidate = candidates.sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+    }
+
     if (!candidate) return false;
+
     try {
       await bungiePost<unknown>(
         "/Destiny2/Actions/Items/TransferItem/",
