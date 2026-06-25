@@ -40,6 +40,13 @@ export interface WatchGame {
   stats: WatchGameStat[];
 }
 
+export interface LobbyLeaderboardEntry {
+  userId: string;
+  displayName: string;
+  gamesPlayed: number;
+  totalKills: number;
+}
+
 interface Props {
   lobbyId: string;
   code: string;
