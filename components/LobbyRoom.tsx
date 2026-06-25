@@ -279,6 +279,8 @@ export default function LobbyRoom({
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
   const [showWeaponBrowser, setShowWeaponBrowser] = useState(true);
   const [showRollSettingsPopover, setShowRollSettingsPopover] = useState(false);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
   const gearButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
@@ -981,6 +983,16 @@ export default function LobbyRoom({
     if (statsTab === "leaderboard" && leaderboard === null) fetchLeaderboard();
   }, [statsTab, leaderboard, fetchLeaderboard]);
 
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node)) {
+        setShowOverflowMenu(false);
+      }
+    }
+    if (showOverflowMenu) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showOverflowMenu]);
+
   const handleToggleCaptainLock = useCallback(async () => {
     const next = !captainLocked;
     setCaptainLocked(next);
@@ -1114,64 +1126,81 @@ export default function LobbyRoom({
     <div className="flex gap-5 items-start">
       <div className="flex-1 min-w-0 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Lobby</h1>
-            <div className="text-gray-400 text-sm flex items-center gap-2 flex-wrap mt-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyCode}
                 title="Copy lobby code"
-                className="font-mono text-bungie-blue font-bold tracking-widest hover:opacity-75 transition"
+                className="font-mono text-bungie-blue font-bold tracking-widest text-lg hover:opacity-75 transition"
               >
                 {copied ? "✓" : lobby.code}
               </button>
               <button
                 onClick={copyLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
               >
-                {copiedLink ? "✓ Copied" : "Invite"}
+                {copiedLink ? "✓" : "Invite"}
               </button>
               <button
                 onClick={copyWatchLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
               >
-                {copiedWatch ? "✓ Copied" : "Watch link"}
+                {copiedWatch ? "✓" : "Watch"}
               </button>
             </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {(() => {
+                const cfg = LOBBY_STATUS_BADGE[lobbyData.status] ?? LOBBY_STATUS_BADGE.waiting;
+                return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
+              })()}
+              <span className="text-xs text-gray-500">Round {lobbyData.current_round}</span>
+              {isCaptain && <span className="text-xs text-yellow-400">👑 Your turn</span>}
+              {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {(() => {
-              const cfg = LOBBY_STATUS_BADGE[lobbyData.status] ?? LOBBY_STATUS_BADGE.waiting;
-              return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
-            })()}
-            <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
-            {polling && (
-              <span className="text-xs text-green-500 animate-pulse">● watching</span>
-            )}
-            {showPoolPanel && intersection && !showWeaponBrowser && (
-              <button onClick={() => setShowWeaponBrowser(true)} className="hidden xl:block px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:border-gray-400 transition">
-                Weapon Pool ▼
-              </button>
-            )}
-            {isHost && (
-              <button onClick={handleEndSession} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
-                End Session
-              </button>
-            )}
-            {!isCaptain && (
-              <button onClick={handleToggleSpectate} title={isSpectator ? "Rejoin as a player" : "Step back to spectate without leaving"} className={`px-3 py-1.5 text-sm border rounded-lg transition ${isSpectator ? "text-bungie-blue border-bungie-blue/50 hover:border-bungie-blue" : "text-gray-400 border-bungie-border hover:text-bungie-blue hover:border-bungie-blue/50"}`}>
-                {isSpectator ? "Rejoin" : "Spectate"}
-              </button>
-            )}
-            <button onClick={handleLeave} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
-              Leave
-            </button>
+
+          {/* Overflow menu */}
+          <div ref={overflowMenuRef} className="relative">
             <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="text-sm text-gray-500 hover:text-gray-300 transition"
+              onClick={() => setShowOverflowMenu((v) => !v)}
+              className="px-2.5 py-1.5 text-gray-400 border border-bungie-border/40 rounded-lg hover:border-gray-500 transition text-sm"
+              aria-label="More actions"
             >
-              Sign out
+              ···
             </button>
+            {showOverflowMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+                {!isCaptain && (
+                  <button
+                    onClick={() => { handleToggleSpectate(); setShowOverflowMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-bungie-dark transition"
+                  >
+                    {isSpectator ? "Rejoin" : "Spectate"}
+                  </button>
+                )}
+                {isHost && (
+                  <button
+                    onClick={() => { setShowOverflowMenu(false); handleEndSession(); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                  >
+                    End Session
+                  </button>
+                )}
+                <button
+                  onClick={() => { setShowOverflowMenu(false); handleLeave(); }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                >
+                  Leave
+                </button>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-bungie-dark transition border-t border-bungie-border/40"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
