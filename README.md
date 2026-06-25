@@ -89,7 +89,12 @@ The app does not store Bungie passwords. Authentication is handled through Bungi
 ## Deployment URLs
 
 ### Production
-`https://destiny-gun-roulette.vercel.app`
+`https://d2roulette.app` — deploys from the `release` branch.
+
+### Preview / Staging
+`https://preview.d2roulette.app` — deploys from the `main` branch (uses a
+separate Bungie OAuth app so sign-in works on preview). Promote to production
+by merging `main` into `release`.
 
 ### Development
 Local development uses:
