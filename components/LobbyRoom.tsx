@@ -471,7 +471,7 @@ export default function LobbyRoom({
   }, [lobby.code]);
 
   // Stats only record once at least two players have picked a guardian.
-  const charactersPicked = members.filter((m) => m.selected_character_id).length;
+  const charactersPicked = members.filter((m) => !m.is_spectator && m.selected_character_id).length;
 
   const applyAbortRef = useRef<AbortController | null>(null);
   const roundIdRef = useRef<string | null>(null);
@@ -492,6 +492,7 @@ export default function LobbyRoom({
   }, [roundId]);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
+  const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
 
@@ -683,6 +684,15 @@ export default function LobbyRoom({
     loadCurrentRound();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobby.id, lobbyData.current_round]);
+
+  const handleToggleSpectate = useCallback(async () => {
+    const next = !isSpectator;
+    await fetch("/api/lobby/spectate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lobbyId: lobby.id, spectate: next }),
+    });
+  }, [lobby.id, isSpectator]);
 
   const handleLeave = useCallback(async () => {
     stopPolling();
@@ -1029,6 +1039,11 @@ export default function LobbyRoom({
                 End Session
               </button>
             )}
+            {!isCaptain && (
+              <button onClick={handleToggleSpectate} title={isSpectator ? "Rejoin as a player" : "Step back to spectate without leaving"} className={`px-3 py-1.5 text-sm border rounded-lg transition ${isSpectator ? "text-bungie-blue border-bungie-blue/50 hover:border-bungie-blue" : "text-gray-400 border-bungie-border hover:text-bungie-blue hover:border-bungie-blue/50"}`}>
+                {isSpectator ? "Rejoin" : "Spectate"}
+              </button>
+            )}
             <button onClick={handleLeave} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
               Leave
             </button>
@@ -1184,10 +1199,11 @@ export default function LobbyRoom({
           </div>
           <div className="flex flex-wrap gap-3">
             {members.map((m) => (
-              <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${m.is_captain ? "border-yellow-500 bg-yellow-500/10" : "border-bungie-border bg-bungie-dark"}`}>
+              <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${m.is_captain ? "border-yellow-500 bg-yellow-500/10" : m.is_spectator ? "border-bungie-border bg-bungie-dark opacity-60" : "border-bungie-border bg-bungie-dark"}`}>
                 {m.is_captain && <span>👑</span>}
-                <span className={m.selected_character_id ? "text-green-400" : "text-gray-300"}>{trimBungieName(m.display_name)}</span>
-                {m.selected_character_id && <span className="text-green-500 text-xs" title="Guardian selected">✓</span>}
+                <span className={m.is_spectator ? "text-gray-500" : m.selected_character_id ? "text-green-400" : "text-gray-300"}>{trimBungieName(m.display_name)}</span>
+                {m.is_spectator && <span className="text-gray-500 text-xs">spectating</span>}
+                {!m.is_spectator && m.selected_character_id && <span className="text-green-500 text-xs" title="Guardian selected">✓</span>}
               </div>
             ))}
           </div>
@@ -1199,7 +1215,7 @@ export default function LobbyRoom({
         </div>
 
         {/* Character picker - selecting your guardian is all a player needs to do */}
-        {characters.length > 0 && (
+        {characters.length > 0 && !isSpectator && (
           <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
             <h2 className="text-white font-semibold mb-1">Your Character</h2>
             <p className="text-xs text-gray-500 mb-3">

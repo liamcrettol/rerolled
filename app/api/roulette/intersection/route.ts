@@ -88,7 +88,8 @@ export async function POST(req: NextRequest) {
     const { data: members } = await adminSupabase
       .from("lobby_members")
       .select("user_id, display_name, bungie_membership_type, bungie_membership_id")
-      .eq("lobby_id", lobbyId);
+      .eq("lobby_id", lobbyId)
+      .eq("is_spectator", false);
 
     if (!members?.length) {
       return NextResponse.json({ error: "No members found" }, { status: 404 });

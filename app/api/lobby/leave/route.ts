@@ -19,12 +19,13 @@ export async function POST(req: NextRequest) {
 
     if (!member) return NextResponse.json({ ok: true }); // already gone
 
-    // Capture the full roster (rotation order) BEFORE deleting, so we can hand
-    // captaincy to the NEXT member in rotation rather than always the oldest.
+    // Capture the non-spectator roster (rotation order) BEFORE deleting, so we
+    // can hand captaincy to the NEXT eligible member in rotation.
     const { data: roster } = await adminSupabase
       .from("lobby_members")
       .select("user_id")
       .eq("lobby_id", lobbyId)
+      .eq("is_spectator", false)
       .order("joined_at", { ascending: true });
 
     // Remove this member
