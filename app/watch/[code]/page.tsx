@@ -69,6 +69,42 @@ export default async function WatchPage({ params }: { params: Promise<{ code: st
       }
     : null;
 
+  // Fetch cumulative stats for all games in this lobby (for lobby leaderboard)
+  const { data: allGameStats } = await adminSupabase
+    .from("game_sessions")
+    .select("player_game_stats(user_id, display_name, kills)")
+    .eq("lobby_id", lobby.id);
+
+  // Aggregate kills by user
+  const lobbyLeaderboardMap = new Map<string, { displayName: string; gamesPlayed: number; totalKills: number }>();
+  if (allGameStats) {
+    for (const session of allGameStats) {
+      const stats = session.player_game_stats || [];
+      for (const stat of stats) {
+        const existing = lobbyLeaderboardMap.get(stat.user_id);
+        if (existing) {
+          existing.gamesPlayed += 1;
+          existing.totalKills += stat.kills;
+        } else {
+          lobbyLeaderboardMap.set(stat.user_id, {
+            displayName: stat.display_name,
+            gamesPlayed: 1,
+            totalKills: stat.kills,
+          });
+        }
+      }
+    }
+  }
+
+  const initialLobbyLeaderboard = Array.from(lobbyLeaderboardMap.entries())
+    .map(([userId, data]) => ({
+      userId,
+      displayName: data.displayName,
+      gamesPlayed: data.gamesPlayed,
+      totalKills: data.totalKills,
+    }))
+    .sort((a, b) => b.totalKills - a.totalKills);
+
   return (
     <main className="min-h-screen p-6 w-full max-w-2xl mx-auto">
       <WatchView
@@ -80,6 +116,7 @@ export default async function WatchPage({ params }: { params: Promise<{ code: st
         initialMembers={initialMembers}
         initialStatus={lobby.status}
         initialLastGame={initialLastGame}
+        initialLobbyLeaderboard={initialLobbyLeaderboard}
       />
     </main>
   );

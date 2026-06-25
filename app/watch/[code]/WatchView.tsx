@@ -40,6 +40,13 @@ export interface WatchGame {
   stats: WatchGameStat[];
 }
 
+export interface LobbyLeaderboardEntry {
+  userId: string;
+  displayName: string;
+  gamesPlayed: number;
+  totalKills: number;
+}
+
 interface Props {
   lobbyId: string;
   code: string;
@@ -49,6 +56,7 @@ interface Props {
   initialMembers: WatchMember[];
   initialStatus: string;
   initialLastGame: WatchGame | null;
+  initialLobbyLeaderboard: LobbyLeaderboardEntry[];
 }
 
 export default function WatchView({
@@ -60,6 +68,7 @@ export default function WatchView({
   initialMembers,
   initialStatus,
   initialLastGame,
+  initialLobbyLeaderboard,
 }: Props) {
   const supabase = createClient();
   const [roundNumber, setRoundNumber] = useState(initialRoundNumber);
@@ -67,6 +76,7 @@ export default function WatchView({
   const [members, setMembers] = useState<WatchMember[]>(initialMembers);
   const [status, setStatus] = useState(initialStatus);
   const [lastGame, setLastGame] = useState<WatchGame | null>(initialLastGame);
+  const [lobbyLeaderboard, setLobbyLeaderboard] = useState<LobbyLeaderboardEntry[]>(initialLobbyLeaderboard);
   const roundIdRef = useRef<string | null>(initialRoundId);
 
   const fetchLastGame = useCallback(async () => {
@@ -91,6 +101,45 @@ export default function WatchView({
         won: s.won,
       })),
     });
+  }, [supabase, lobbyId]);
+
+  const fetchLobbyLeaderboard = useCallback(async () => {
+    const { data: allGameStats } = await supabase
+      .from("game_sessions")
+      .select("player_game_stats(user_id, display_name, kills)")
+      .eq("lobby_id", lobbyId);
+
+    const lobbyLeaderboardMap = new Map<string, { displayName: string; gamesPlayed: number; totalKills: number }>();
+    if (allGameStats) {
+      for (const session of allGameStats) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stats = (session as any).player_game_stats || [];
+        for (const stat of stats) {
+          const existing = lobbyLeaderboardMap.get(stat.user_id);
+          if (existing) {
+            existing.gamesPlayed += 1;
+            existing.totalKills += stat.kills;
+          } else {
+            lobbyLeaderboardMap.set(stat.user_id, {
+              displayName: stat.display_name,
+              gamesPlayed: 1,
+              totalKills: stat.kills,
+            });
+          }
+        }
+      }
+    }
+
+    const updated = Array.from(lobbyLeaderboardMap.entries())
+      .map(([userId, data]) => ({
+        userId,
+        displayName: data.displayName,
+        gamesPlayed: data.gamesPlayed,
+        totalKills: data.totalKills,
+      }))
+      .sort((a, b) => b.totalKills - a.totalKills);
+
+    setLobbyLeaderboard(updated);
   }, [supabase, lobbyId]);
 
   useEffect(() => {
@@ -168,12 +217,15 @@ export default function WatchView({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "game_sessions", filter: `lobby_id=eq.${lobbyId}` },
-        () => fetchLastGame()
+        () => {
+          fetchLastGame();
+          fetchLobbyLeaderboard();
+        }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [lobbyId, supabase, fetchLastGame]);
+  }, [lobbyId, supabase, fetchLastGame, fetchLobbyLeaderboard]);
 
   const ordered = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s));
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.waiting;
@@ -282,6 +334,35 @@ export default function WatchView({
                     <td className="p-2 text-right">{s.kills}</td>
                     <td className="p-2 text-right">{s.deaths}</td>
                     <td className="p-2 text-right pr-3">{s.assists}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Lobby leaderboard */}
+      {lobbyLeaderboard.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-white font-semibold text-sm mb-2">Lobby Stats (All Games)</h2>
+          <div className="overflow-x-auto rounded-xl border border-bungie-border bg-bungie-surface">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-gray-500 text-xs border-b border-bungie-border">
+                  <th className="text-left p-2 pl-3">#</th>
+                  <th className="text-left p-2">Player</th>
+                  <th className="text-right p-2">Kills</th>
+                  <th className="text-right p-2 pr-3">Games</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-bungie-border/40">
+                {lobbyLeaderboard.map((entry, i) => (
+                  <tr key={entry.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
+                    <td className="p-2 pl-3 text-gray-500 font-mono text-xs">{i + 1}</td>
+                    <td className="p-2 font-medium">{trimBungieName(entry.displayName)}</td>
+                    <td className="p-2 text-right font-bold text-bungie-blue">{entry.totalKills}</td>
+                    <td className="p-2 text-right pr-3 text-xs">{entry.gamesPlayed}</td>
                   </tr>
                 ))}
               </tbody>
