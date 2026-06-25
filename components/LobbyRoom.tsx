@@ -126,31 +126,37 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
   const sorted = [...stats].sort((a, b) => b.kills - a.kills);
   const hasWon = stats.some((s) => s.won != null);
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-bungie-border/60 bg-bungie-dark/40">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-gray-500 text-xs border-b border-bungie-border">
-            <th className="text-left pb-2 pr-4">Player</th>
-            {hasWon && <th className="text-right pb-2 pr-3">Result</th>}
-            <th className="text-right pb-2 pr-3">K</th>
-            <th className="text-right pb-2 pr-3">D</th>
-            <th className="text-right pb-2 pr-3">A</th>
-            <th className="text-right pb-2">K/D</th>
+          <tr className="text-gray-500 text-xs border-b border-bungie-border/60">
+            <th className="text-left px-3 py-2">Player</th>
+            {hasWon && <th className="text-center px-2 py-2">Result</th>}
+            <th className="text-right px-2 py-2">K</th>
+            <th className="text-right px-2 py-2">D</th>
+            <th className="text-right px-2 py-2">A</th>
+            <th className="text-right px-3 py-2">K/D</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bungie-border/40">
           {sorted.map((s, i) => (
             <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-              <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
+              <td className="px-3 py-2 font-medium">
+                {i === 0 ? "👑 " : ""}{trimBungieName(s.displayName)}
+              </td>
               {hasWon && (
-                <td className="py-2 pr-3 text-right text-xs">
-                  {s.won === true ? <span className="text-green-400">W</span> : s.won === false ? <span className="text-red-400">L</span> : <span className="text-gray-500">-</span>}
+                <td className="px-2 py-2 text-center">
+                  {s.won === true
+                    ? <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1.5 py-0.5">W</span>
+                    : s.won === false
+                    ? <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1.5 py-0.5">L</span>
+                    : <span className="text-gray-500 text-xs">—</span>}
                 </td>
               )}
-              <td className="py-2 pr-3 text-right">{s.kills}</td>
-              <td className="py-2 pr-3 text-right">{s.deaths}</td>
-              <td className="py-2 pr-3 text-right">{s.assists}</td>
-              <td className="py-2 text-right">{s.kd.toFixed(2)}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{s.kills}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{s.deaths}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{s.assists}</td>
+              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{s.kd.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -1099,46 +1105,77 @@ export default function LobbyRoom({
                 <div className="divide-y divide-bungie-border/40">
                   {[...roundHistory].reverse().map((round) => {
                     const isOpen = expandedRound === round.sessionId;
-                    const topPlayer = [...round.stats].sort((a, b) => b.kills - a.kills)[0];
+                    const sorted = [...round.stats].sort((a, b) => b.kills - a.kills);
+                    const topPlayer = sorted[0];
+                    const teamResult = round.stats.find((s) => s.won != null)?.won ?? null;
+                    const time = round.playedAt
+                      ? new Date(round.playedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+                      : null;
                     return (
                       <div key={round.sessionId}>
                         <button
                           onClick={() => setExpandedRound(isOpen ? null : round.sessionId)}
-                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-bungie-dark/40 transition"
+                          className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-bungie-dark/40 transition"
                         >
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-gray-400 text-sm font-medium">Round {round.roundNum}</span>
-                            {round.mapName && (
-                              <span className="text-xs text-gray-500">{round.mapName}</span>
+                          {/* Round badge + W/L */}
+                          <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
+                            <span className="text-[11px] font-bold text-gray-300 bg-bungie-border/60 rounded px-1.5 py-0.5 leading-none tabular-nums">
+                              R{round.roundNum}
+                            </span>
+                            {teamResult === true && (
+                              <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1 leading-tight">W</span>
                             )}
-                            {topPlayer && (
-                              <span className="text-xs text-gray-500">
-                                👑 {topPlayer.displayName} · {topPlayer.kills}K {topPlayer.deaths}D
-                              </span>
+                            {teamResult === false && (
+                              <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1 leading-tight">L</span>
                             )}
                           </div>
-                          <span className="text-gray-600 text-xs shrink-0">{isOpen ? "▲" : "▼"}</span>
+
+                          {/* Main content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium leading-tight truncate">
+                              {round.mapName ?? "Unknown map"}
+                            </p>
+                            {topPlayer && (
+                              <p className="text-gray-400 text-xs mt-0.5 truncate">
+                                👑 {topPlayer.displayName}
+                                <span className="text-gray-500"> · </span>
+                                <span className="text-white tabular-nums">{topPlayer.kills}K</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="tabular-nums">{topPlayer.deaths}D</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="tabular-nums">{topPlayer.assists}A</span>
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Time + chevron */}
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            {time && <span className="text-gray-500 text-xs tabular-nums">{time}</span>}
+                            <span className="text-gray-400 text-xs">{isOpen ? "▲" : "▼"}</span>
+                          </div>
                         </button>
+
                         {isOpen && (
-                          <div className="px-4 pb-4">
+                          <div className="px-4 pb-4 bg-bungie-dark/20">
                             {/* Rolled weapons */}
                             {round.weapons && Object.keys(round.weapons).length > 0 && (
-                              <div className="mb-3 flex flex-wrap gap-2">
+                              <div className="mb-4 flex flex-wrap gap-2 pt-2">
                                 {(["kinetic", "energy", "power"] as const).map((slot) => {
                                   const w = round.weapons![slot];
                                   if (!w) return null;
+                                  const slotColor = slot === "kinetic" ? "text-gray-300 border-gray-500/40" : slot === "energy" ? "text-bungie-blue border-bungie-blue/40" : "text-purple-300 border-purple-500/40";
                                   return (
-                                    <div key={slot} className="flex items-center gap-1.5 bg-bungie-dark/60 border border-bungie-border rounded px-2 py-1">
+                                    <div key={slot} className={`flex items-center gap-2 bg-bungie-dark border rounded-lg px-2.5 py-2 ${slotColor.split(" ")[1]}`}>
                                       {w.icon && (
                                         <img
                                           src={`https://www.bungie.net${w.icon}`}
                                           alt=""
-                                          className="w-5 h-5 rounded"
+                                          className="w-8 h-8 rounded shrink-0"
                                         />
                                       )}
                                       <div>
-                                        <p className="text-[10px] text-gray-400 uppercase tracking-wide leading-none">{slot}</p>
-                                        <p className="text-xs text-gray-200 leading-snug">{w.name}</p>
+                                        <p className={`text-[10px] font-semibold uppercase tracking-wide leading-none ${slotColor.split(" ")[0]}`}>{slot}</p>
+                                        <p className="text-white text-xs font-medium leading-snug mt-0.5">{w.name}</p>
                                       </div>
                                     </div>
                                   );
