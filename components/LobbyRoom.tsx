@@ -684,19 +684,58 @@ export default function LobbyRoom({
     if (!isCaptain || !roundId || !intersection) return;
     if (slots.some((s) => s.item_hash !== 0)) { hasSeeded.current = true; return; }
     hasSeeded.current = true;
+    const seedRoundId = roundId;
     const keep: Record<string, number> = {};
     for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
       if (equippedHashes[s] != null) keep[s] = equippedHashes[s]!;
     }
-    void fetch("/api/roulette/roll", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lobbyId: lobby.id, roundId, intersection,
-        weaponDetails,
-        keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
-      }),
-    }).catch(() => { hasSeeded.current = false; });
+    (async () => {
+      try {
+        const res = await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lobbyId: lobby.id, roundId: seedRoundId, intersection,
+            weaponDetails,
+            keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.roll) { hasSeeded.current = false; return; }
+        // Reflect the seeded loadout locally right away. The seeding client
+        // otherwise waits on the realtime echo of its own write, which is why
+        // the captain stayed empty while viewers already saw the comparison.
+        const now = new Date().toISOString();
+        const seeded: LobbyLoadoutSlot[] = [];
+        for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+          const hash = data.roll[s];
+          if (!hash) continue;
+          const detail = weaponDetails[hash.toString()];
+          seeded.push({
+            id: `seed-${seedRoundId}-${s}`,
+            round_id: seedRoundId,
+            slot: s,
+            item_hash: hash,
+            weapon_name: detail?.name ?? "",
+            weapon_icon: detail?.icon ?? "",
+            weapon_type: detail?.weaponType ?? "",
+            damage_type: detail?.damageType ?? "",
+            locked_by_user_id: currentUserId,
+            created_at: now,
+          });
+        }
+        if (seeded.length > 0) {
+          setSlots((prev) => {
+            // If a real roll already landed (via realtime), don't clobber it.
+            if (prev.some((p) => p.item_hash !== 0)) return prev;
+            const others = prev.filter((p) => !seeded.some((x) => x.slot === p.slot));
+            return [...others, ...seeded];
+          });
+        }
+      } catch {
+        hasSeeded.current = false;
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCaptain, roundId, intersection, equippedHashes, slotKey]);
 
