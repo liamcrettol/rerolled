@@ -102,6 +102,18 @@ export default function RollDetails({
   const statRows = BAR_STATS.filter((s) => base[s] !== undefined || members.some((m) => shownFor(m)?.stats[s] !== undefined));
   const numRows = NUM_STATS.filter((s) => s !== "RPM" && s !== "Magazine" && (base[s] !== undefined || (myChosen && myChosen.stats[s] !== undefined)));
 
+  // Reserve height for the tallest slot so switching tabs doesn't resize the panel and yank the page.
+  const maxStatRows = Math.max(
+    ...present.map((s) =>
+      BAR_STATS.filter((st) => rolls[s]!.baseStats[st] !== undefined).length
+    )
+  );
+  const anyNumRows = present.some((s) =>
+    NUM_STATS.some(
+      (st) => st !== "RPM" && st !== "Magazine" && rolls[s]!.baseStats[st] !== undefined
+    )
+  );
+
   // Fixed-width member columns (centered) so bars stay a readable size instead
   // of stretching across the whole panel when only one player is loaded.
   const gridCols = { gridTemplateColumns: `5.5rem repeat(${members.length}, 15rem)`, width: "max-content", margin: "0 auto" };
@@ -267,11 +279,21 @@ export default function RollDetails({
               </div>
             );
           })}
+
+          {/* Reserve height for the tallest slot so switching tabs doesn't resize the panel and yank the page (it sits at the bottom of the column). */}
+          {Array.from({ length: Math.max(0, maxStatRows - statRows.length) }).map((_, i) => (
+            <div key={`pad-${i}`} className="contents" aria-hidden="true">
+              <div className="text-gray-400 text-[11px] invisible">—</div>
+              {members.map((m) => (
+                <div key={`pad-${i}-${m.userId}`} className="text-[11px] invisible">—</div>
+              ))}
+            </div>
+          ))}
         </div>
 
         {/* Intrinsic numeric stats (shared) + note */}
-        {numRows.length > 0 && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-2 border-t border-bungie-border/50">
+        {anyNumRows && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 pt-2 border-t border-bungie-border/50 min-h-[1.25rem]">
             {numRows.map((s) => (
               <div key={s} className="flex items-center gap-1.5">
                 <span className="text-gray-500 text-[11px]">{s}</span>
