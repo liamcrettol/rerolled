@@ -75,7 +75,7 @@ export default function RollDetails({
     return (
       <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-white font-semibold text-sm">Your Roll vs Fireteam</h2>
+          <h2 className="text-white font-semibold text-sm">Roll Comparison</h2>
           {onRetry && !loading && (
             <button onClick={onRetry} className="text-xs px-2 py-1 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition">
               Refresh
@@ -128,18 +128,36 @@ export default function RollDetails({
   };
 
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
-  // a hover tooltip describing exactly what it does. `large` is used in the
-  // comparison columns; the compact left rail passes false.
+  // a hover tooltip describing exactly what it does. The large variant (used in
+  // the comparison columns) wraps and centers; the compact variant (left rail)
+  // stays on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
-    const cls = `${large ? "w-11 h-11" : "w-8 h-8"} rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition`;
+    const cls = `${large ? "w-11 h-11" : "w-7 h-7"} rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition`;
+    const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} className={cls} />;
+    const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} className={cls} />;
+    const perks = inst.perkHashes.map((hash, i) => (
+      <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} className={cls} />
+    ));
+    const masterwork = <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} className={cls} />;
+
+    if (large) {
+      return (
+        <div className="flex flex-wrap gap-1.5 justify-center">
+          {barrel}{magazine}{perks}{masterwork}
+        </div>
+      );
+    }
+
+    // Compact: single row, sockets grouped (barrel/mag · perks · masterwork).
+    const sep = <div className="w-px self-stretch bg-bungie-border/70 mx-0.5 my-0.5" />;
+    const hasIntrinsic = Boolean(inst.barrelIcon || inst.magazineIcon);
     return (
-      <div className="flex flex-wrap gap-1.5 justify-center">
-        <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} className={cls} />
-        <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} className={cls} />
-        {inst.perkHashes.map((hash, i) => (
-          <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} className={cls} />
-        ))}
-        <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} className={cls} />
+      <div className="flex flex-nowrap items-center gap-1 min-w-0">
+        {hasIntrinsic && <div className="flex gap-1">{barrel}{magazine}</div>}
+        {hasIntrinsic && perks.length > 0 && sep}
+        {perks.length > 0 && <div className="flex gap-1">{perks}</div>}
+        {inst.masterworkIcon && sep}
+        {masterwork}
       </div>
     );
   };
@@ -148,7 +166,7 @@ export default function RollDetails({
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
       <div className="px-4 py-2.5 border-b border-bungie-border flex items-center justify-between gap-2">
         <h2 className="text-white font-semibold text-sm">
-          Your Roll vs Fireteam {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
+          Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
         </h2>
         {/* Slot tabs */}
         <div className="flex gap-1">
@@ -164,7 +182,7 @@ export default function RollDetails({
                   activeTab === s ? `${t.border} ${t.bg} text-white` : "border-transparent text-gray-400 hover:text-white"
                 }`}
               >
-                {weaponIcon && <img src={weaponIcon} alt="" className="w-4 h-4 rounded-sm" />}
+                {weaponIcon && <img src={weaponIcon} alt="" className="w-6 h-6 rounded-sm" />}
                 <span className="truncate max-w-[8rem]">{weaponName}</span>
               </button>
             );
@@ -175,8 +193,8 @@ export default function RollDetails({
       <div className="px-3 py-3 flex gap-3">
         {/* Far-left rail: your rolls for this gun, scrollable. Click to pick
             which one drives your column; star favorites it. */}
-        <div className="w-[13rem] shrink-0 max-h-[22rem] overflow-y-auto pr-1 border-r border-bungie-border/50">
-          <p className={`text-xs font-semibold px-1 mb-1 ${theme.text}`}>You</p>
+        <div className="w-[16rem] shrink-0 max-h-[22rem] overflow-y-auto pr-1 border-r border-bungie-border/50">
+          <p className={`text-xs font-semibold px-1 mb-1 ${theme.text}`}>Your rolls</p>
           {myInstances.length === 0 ? (
             <p className="text-gray-500 text-[10px] px-1">{me?.failed ? "couldn't load" : "—"}</p>
           ) : (
