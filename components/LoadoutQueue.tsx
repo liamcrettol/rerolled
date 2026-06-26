@@ -217,7 +217,7 @@ export default function LoadoutQueue({
                     ? `${theme.bg} ${theme.border} cursor-help`
                     : "bg-bungie-dark border-bungie-border/40"
                 }`}
-                style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
+                style={{ width: REEL_ITEM_H }}
               >
                 <span className="absolute top-1 left-0 right-0 text-center text-[9px] text-gray-500 uppercase tracking-wider z-10 pointer-events-none">
                   {SLOT_LABELS[slotName]}

@@ -1623,6 +1623,7 @@ export default function LobbyRoom({
               {rollSettingsOpen && (
                 <div className="px-4 pb-4 border-t border-bungie-border/40">
                   <RollSettingsPopover
+                    inline
                     anchorRef={{ current: null }}
                     onClose={() => {}}
                     rollMode={rollMode}

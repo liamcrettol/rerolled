@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 interface Props {
   anchorRef: React.RefObject<HTMLButtonElement | null>;
   onClose: () => void;
+  inline?: boolean;
   rollMode: "normal" | "chaos" | "meta";
   onRollModeChange: (m: "normal" | "chaos" | "meta") => void;
   rerollLimit: number | null;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export default function RollSettingsPopover({
-  anchorRef, onClose,
+  anchorRef, onClose, inline,
   rollMode, onRollModeChange,
   rerollLimit, onRerollLimitChange,
   rerollsUsed,
@@ -28,8 +29,8 @@ export default function RollSettingsPopover({
 }: Props) {
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Dismiss on outside click
   useEffect(() => {
+    if (inline) return;
     function handler(e: MouseEvent) {
       if (
         popoverRef.current &&
@@ -42,14 +43,16 @@ export default function RollSettingsPopover({
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [anchorRef, onClose]);
+  }, [anchorRef, onClose, inline]);
 
   const rerollExhausted = rerollLimit !== null && rerollsUsed >= rerollLimit;
 
   return (
     <div
       ref={popoverRef}
-      className="absolute right-0 top-full mt-2 z-50 w-72 bg-bungie-surface border border-bungie-border/60 rounded-xl shadow-2xl p-4 space-y-4"
+      className={inline
+        ? "space-y-4 pt-3"
+        : "absolute right-0 top-full mt-2 z-50 w-72 bg-bungie-surface border border-bungie-border/60 rounded-xl shadow-2xl p-4 space-y-4"}
     >
       {/* Mode */}
       <div>
