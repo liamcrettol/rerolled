@@ -243,6 +243,9 @@ export default function LobbyRoom({
   }>>({});
   const [instancePerks, setInstancePerks] = useState<Record<string, Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>>>({});
   const [collectionHashes, setCollectionHashes] = useState<Set<number>>(new Set());
+  // The caller's currently-equipped weapon per slot, captured when the pool
+  // loads — used to seed the captain's initial loadout from equipped.
+  const [equippedHashes, setEquippedHashes] = useState<Partial<Record<WeaponSlot, number>>>({});
   const [preferredInstances, setPreferredInstances] = useState<Partial<Record<WeaponSlot, string>>>({});
   // Per-player roll data (everyone's instances of the current loadout) and the
   // instance THIS player has chosen to equip for each slot.
@@ -485,6 +488,7 @@ export default function LobbyRoom({
   const roundIdRef = useRef<string | null>(null);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
   const hasAutoLoaded = useRef(false);
+  const hasSeeded = useRef(false);
   const prevMemberCount = useRef<number | null>(null);
   const prevRoundIdRef = useRef<string | null>(null);
   // Clear per-round UI state when the round actually advances (non-null → different non-null).
@@ -496,6 +500,7 @@ export default function LobbyRoom({
       setWildcardSlots(new Set<WeaponSlot>(["power"]));
       setPreferredInstances({});
       hasAutoLoaded.current = false;
+      hasSeeded.current = false;
     }
     prevRoundIdRef.current = roundId;
   }, [roundId]);
@@ -666,9 +671,34 @@ export default function LobbyRoom({
     prevMemberCount.current = count;
     if (!hasAutoLoaded.current || count <= prev) return;
     if (lobbyData.status === "in_game") return;
-    handleLoadIntersection({ roll: false });
+    handleLoadIntersection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, lobbyData.status]);
+
+  // Seed the captain's loadout from their equipped weapons once the pool is
+  // loaded and the round has no loadout yet, so the Roll Comparison reflects
+  // their equipped guns immediately (Roll All only randomizes). Runs once per
+  // round and never overwrites an existing/rolled loadout.
+  useEffect(() => {
+    if (hasSeeded.current) return;
+    if (!isCaptain || !roundId || !intersection) return;
+    if (slots.some((s) => s.item_hash !== 0)) { hasSeeded.current = true; return; }
+    hasSeeded.current = true;
+    const keep: Record<string, number> = {};
+    for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+      if (equippedHashes[s] != null) keep[s] = equippedHashes[s]!;
+    }
+    void fetch("/api/roulette/roll", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lobbyId: lobby.id, roundId, intersection,
+        weaponDetails,
+        keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+      }),
+    }).catch(() => { hasSeeded.current = false; });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCaptain, roundId, intersection, equippedHashes, slotKey]);
 
   useEffect(() => {
     async function loadCurrentRound() {
@@ -769,10 +799,10 @@ export default function LobbyRoom({
     if (target) handleSelectCharacter(target);
   }, [characters, handleSelectCharacter]);
 
-  const handleLoadIntersection = useCallback(async (opts?: { roll?: boolean }) => {
-    // Roster-change refreshes pass roll:false so the pool updates without
-    // re-rolling the captain's current loadout.
-    const doRoll = opts?.roll !== false;
+  // Loads the shared pool only. Seeding the captain's loadout from equipped is
+  // handled by a dedicated effect below, so the comparison appears as soon as
+  // the pool is ready (no Roll All needed) regardless of load/captain timing.
+  const handleLoadIntersection = useCallback(async () => {
     setLoadingAction("intersection");
     setIntersectionError(null);
     try {
@@ -791,27 +821,17 @@ export default function LobbyRoom({
       setWeaponDetails(data.weaponDetails ?? {});
       setInstancePerks(data.instancePerks ?? {});
       setCollectionHashes(new Set<number>(data.collectionHashes ?? []));
-      if (doRoll && isCaptain && roundId) {
-        const equipped: Record<string, number> = {};
-        const eq = data.equippedHashes as Record<string, number | null>;
-        for (const slot of ["kinetic", "energy", "power"]) {
-          if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
-        }
-        await fetch("/api/roulette/roll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lobbyId: lobby.id, roundId, intersection: data.intersection,
-            weaponDetails: data.weaponDetails ?? {},
-            keepSlots: Object.keys(equipped).length > 0 ? equipped : undefined,
-          }),
-        });
+      const eq = data.equippedHashes as Record<string, number | null> | undefined;
+      const equipped: Partial<Record<WeaponSlot, number>> = {};
+      for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+        if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
       }
+      setEquippedHashes(equipped);
     } catch (e) {
       setIntersectionError(e instanceof Error ? e.message : "Network error");
     }
     setLoadingAction(null);
-  }, [lobby.id, isCaptain, slots.length, roundId, selectedCharId]);
+  }, [lobby.id, selectedCharId]);
 
   // Write a roll for an explicit wildcard set (avoids stale wildcardSlots state).
   // Keeps every slot's current real weapon except wildcards, the sentinel 0, and
