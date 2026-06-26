@@ -671,7 +671,11 @@ export default function LobbyRoom({
     prevMemberCount.current = count;
     if (!hasAutoLoaded.current || count <= prev) return;
     if (lobbyData.status === "in_game") return;
+    console.log("[d2r-seed] roster grew", { prev, count, hasSlots: slots.some((s) => s.item_hash !== 0) });
     handleLoadIntersection();
+    // Refresh the comparison so the new member's rolls appear without waiting
+    // for a slot change (fetchRolls otherwise only re-runs on slot changes).
+    if (slots.some((s) => s.item_hash !== 0)) fetchRolls();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, lobbyData.status]);
 
