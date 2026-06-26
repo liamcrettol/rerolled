@@ -128,17 +128,21 @@ export default function RollDetails({
   };
 
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
-  // a hover tooltip describing exactly what it does.
-  const rollPreview = (inst: RollInstance) => (
-    <div className="flex flex-wrap gap-1">
-      <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} />
-      <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} />
-      {inst.perkHashes.map((hash, i) => (
-        <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} />
-      ))}
-      <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} />
-    </div>
-  );
+  // a hover tooltip describing exactly what it does. `large` is used in the
+  // comparison columns; the compact left rail passes false.
+  const rollPreview = (inst: RollInstance, large = true) => {
+    const cls = `${large ? "w-11 h-11" : "w-8 h-8"} rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition`;
+    return (
+      <div className="flex flex-wrap gap-1.5 justify-center">
+        <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} className={cls} />
+        <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} className={cls} />
+        {inst.perkHashes.map((hash, i) => (
+          <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} className={cls} />
+        ))}
+        <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} className={cls} />
+      </div>
+    );
+  };
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
@@ -187,7 +191,7 @@ export default function RollDetails({
                     isSel ? `${theme.border} ${theme.bg}` : "border-transparent hover:bg-bungie-border/20"
                   }`}
                 >
-                  {rollPreview(inst)}
+                  {rollPreview(inst, false)}
                   {onToggleFavorite && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleFavorite(activeTab, slot.itemHash, inst.instanceId); }}
@@ -206,8 +210,8 @@ export default function RollDetails({
         {/* Comparison: one column per member (you first), perks on top, stats below. */}
         <div className="flex-1 min-w-0 overflow-x-auto">
           <div
-            className="grid gap-x-3 gap-y-1 items-center"
-            style={{ gridTemplateColumns: `5.5rem repeat(${members.length}, 11rem)`, minWidth: "max-content" }}
+            className="grid gap-x-3 gap-y-1.5 items-center"
+            style={{ gridTemplateColumns: `5.5rem repeat(${members.length}, minmax(12rem, 1fr))` }}
           >
             {/* Header row: member names */}
             <div />
