@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
     const iconOf = (h: number) => perkIconMap.get(h) ?? "";
 
     // Build the response: per slot -> { itemHash, damageType, baseStats, members: [...] }
-    const slots: Record<string, { itemHash: number; damageType: string; baseStats: Record<string, number>; members: MemberRolls[] }> = {};
+    const slots: Record<string, { itemHash: number; damageType: string; baseStats: Record<string, number>; weaponName: string; weaponIcon: string; members: MemberRolls[] }> = {};
     for (const [slot, hash] of Object.entries(slotHash) as [WeaponSlot, number][]) {
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
-      slots[slot] = { itemHash: hash, damageType: defs.get(hash)?.damageType ?? "", baseStats: defs.get(hash)?.stats ?? {}, members: memberRolls };
+      slots[slot] = { itemHash: hash, damageType: defs.get(hash)?.damageType ?? "", baseStats: defs.get(hash)?.stats ?? {}, weaponName: defs.get(hash)?.name ?? "", weaponIcon: defs.get(hash)?.icon ?? "", members: memberRolls };
     }
 
     return NextResponse.json({ slots });
