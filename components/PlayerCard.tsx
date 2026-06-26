@@ -25,7 +25,7 @@ export default function PlayerCard({ member, compact }: Props) {
 
   return (
     <div
-      className={`relative flex items-center gap-0 rounded-lg overflow-hidden border ${compact ? "h-11 min-w-[170px] max-w-[230px]" : "h-16 min-w-[260px] max-w-[340px]"}
+      className={`relative flex items-center gap-0 rounded-lg overflow-hidden border ${compact ? "h-11 w-full min-w-0" : "h-16 min-w-[260px] max-w-[340px]"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator

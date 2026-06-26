@@ -250,7 +250,7 @@ export default function RollDetails({
             {members.map((m) => {
               const card = memberCards?.[m.userId];
               return (
-                <div key={`h-${m.userId}`} className="flex justify-center">
+                <div key={`h-${m.userId}`} className="min-w-0">
                   {card ? (
                     <PlayerCard member={card} compact />
                   ) : (
