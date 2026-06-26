@@ -100,7 +100,7 @@ export default function RollDetails({
 
   const members = slot.members;
   const statRows = BAR_STATS.filter((s) => base[s] !== undefined || members.some((m) => shownFor(m)?.stats[s] !== undefined));
-  const numRows = NUM_STATS.filter((s) => base[s] !== undefined || (myChosen && myChosen.stats[s] !== undefined));
+  const numRows = NUM_STATS.filter((s) => s !== "RPM" && s !== "Magazine" && (base[s] !== undefined || (myChosen && myChosen.stats[s] !== undefined)));
 
   // Fixed-width member columns (centered) so bars stay a readable size instead
   // of stretching across the whole panel when only one player is loaded.
