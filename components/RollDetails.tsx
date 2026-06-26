@@ -35,6 +35,8 @@ export interface SlotRolls {
   itemHash: number;
   damageType: string;
   baseStats: Record<string, number>;
+  weaponName?: string;
+  weaponIcon?: string;
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
@@ -135,15 +137,18 @@ export default function RollDetails({
         <div className="flex gap-1">
           {present.map((s) => {
             const t = damageTheme(rolls[s]!.damageType);
+            const weaponName = rolls[s]!.weaponName || SLOT_LABELS[s];
+            const weaponIcon = rolls[s]!.weaponIcon;
             return (
               <button
                 key={s}
                 onClick={() => setTab(s)}
-                className={`px-2.5 py-1 rounded text-xs font-semibold border transition ${
+                className={`px-2.5 py-1 rounded text-xs font-semibold border transition flex items-center gap-1 ${
                   activeTab === s ? `${t.border} ${t.bg} text-white` : "border-transparent text-gray-400 hover:text-white"
                 }`}
               >
-                {SLOT_LABELS[s]}
+                {weaponIcon && <img src={weaponIcon} alt="" className="w-4 h-4 rounded-sm" />}
+                <span className="truncate max-w-[8rem]">{weaponName}</span>
               </button>
             );
           })}
@@ -196,24 +201,31 @@ export default function RollDetails({
           {/* Divider */}
           <div className="col-span-full h-px bg-bungie-border/50 my-1" />
 
-          {/* Chosen roll: all sockets + perk-adjusted stats with deltas vs base */}
-          {myChosen && (
-            <>
-              <div className="text-gray-400 text-[10px] uppercase tracking-wide self-start pt-1">Your Roll</div>
-              <div className="col-span-full">
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {renderSocketIcon(myChosen.barrelHash, myChosen.barrelName, myChosen.barrelIcon)}
-                  {renderSocketIcon(myChosen.magazineHash, myChosen.magazineName, myChosen.magazineIcon)}
-                  {myChosen.perkHashes.map((hash, i) => {
-                    const icon = myChosen.perkIcons[hash];
-                    const perk = myChosen.perks[i];
-                    return renderSocketIcon(hash, perk?.name, icon, perk?.description);
-                  })}
-                  {renderSocketIcon(myChosen.masterworkHash, myChosen.masterworkName, myChosen.masterworkIcon)}
-                </div>
+          {/* Roll row: per-member sockets */}
+          <div className="text-gray-400 text-[10px] uppercase tracking-wide self-start pt-1">Roll</div>
+          {members.map((m) => {
+            const inst = shownFor(m);
+            return (
+              <div key={`roll-${m.userId}`} className="flex flex-wrap gap-1">
+                {m.failed ? (
+                  <div className="text-gray-500 text-[10px] italic">couldn&apos;t load</div>
+                ) : inst ? (
+                  <>
+                    {renderSocketIcon(inst.barrelHash, inst.barrelName, inst.barrelIcon)}
+                    {renderSocketIcon(inst.magazineHash, inst.magazineName, inst.magazineIcon)}
+                    {inst.perkHashes.map((hash, i) => {
+                      const icon = inst.perkIcons[hash];
+                      const perk = inst.perks[i];
+                      return renderSocketIcon(hash, perk?.name, icon, perk?.description);
+                    })}
+                    {renderSocketIcon(inst.masterworkHash, inst.masterworkName, inst.masterworkIcon)}
+                  </>
+                ) : (
+                  <div className="text-gray-500 text-[10px]">—</div>
+                )}
               </div>
-            </>
-          )}
+            );
+          })}
 
           {/* Stat rows: value per member, team-best highlighted */}
           {statRows.map((s) => {
