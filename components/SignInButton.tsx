@@ -2,6 +2,8 @@
 
 export default function SignInButton() {
   return (
+    // OAuth entry point — must be a full navigation to the API route, not a client-side <Link>.
+    // eslint-disable-next-line @next/next/no-html-link-for-pages
     <a
       href="/api/auth/bungie/login"
       className="w-full bg-bungie-blue hover:opacity-90 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2"

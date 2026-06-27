@@ -8,11 +8,13 @@ import type { DestinyCharacter } from "@/types/bungie";
 import type { WeaponSlot } from "@/types/bungie";
 import LoadoutQueue from "./LoadoutQueue";
 import ApplyStatus from "./ApplyStatus";
-import SignOutButton from "./SignOutButton";
+import { signOut } from "next-auth/react";
 import WeaponPool from "./WeaponPool";
 import RollDetails, { type RollsData } from "./RollDetails";
 import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
+import PlayerCard from "./PlayerCard";
+import RollSettingsPopover from "./RollSettingsPopover";
 
 interface PlayerStat {
   userId: string;
@@ -108,12 +110,12 @@ function SessionTotalsTable({ totals }: { totals: SessionTotal[] }) {
         <tbody className="divide-y divide-bungie-border/40">
           {sorted.map((s, i) => (
             <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-              <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
-              <td className="py-2 pr-3 text-right">{s.kills}</td>
-              <td className="py-2 pr-3 text-right">{s.assists}</td>
-              <td className="py-2 pr-3 text-right">{s.deaths}</td>
-              <td className="py-2 pr-3 text-right">{(s.deaths > 0 ? s.kills / s.deaths : s.kills).toFixed(2)}</td>
-              <td className="py-2 text-right text-gray-500">{s.games}</td>
+              <td className="py-1.5 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
+              <td className="py-1.5 pr-3 text-right">{s.kills}</td>
+              <td className="py-1.5 pr-3 text-right">{s.assists}</td>
+              <td className="py-1.5 pr-3 text-right">{s.deaths}</td>
+              <td className="py-1.5 pr-3 text-right">{(s.deaths > 0 ? s.kills / s.deaths : s.kills).toFixed(2)}</td>
+              <td className="py-1.5 text-right text-gray-500">{s.games}</td>
             </tr>
           ))}
         </tbody>
@@ -126,31 +128,37 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
   const sorted = [...stats].sort((a, b) => b.kills - a.kills);
   const hasWon = stats.some((s) => s.won != null);
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-bungie-border/60 bg-bungie-dark/40">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-gray-500 text-xs border-b border-bungie-border">
-            <th className="text-left pb-2 pr-4">Player</th>
-            {hasWon && <th className="text-right pb-2 pr-3">Result</th>}
-            <th className="text-right pb-2 pr-3">K</th>
-            <th className="text-right pb-2 pr-3">D</th>
-            <th className="text-right pb-2 pr-3">A</th>
-            <th className="text-right pb-2">K/D</th>
+          <tr className="text-gray-500 text-xs border-b border-bungie-border/60">
+            <th className="text-left px-3 py-2">Player</th>
+            {hasWon && <th className="text-center px-2 py-2">Result</th>}
+            <th className="text-right px-2 py-2">K</th>
+            <th className="text-right px-2 py-2">D</th>
+            <th className="text-right px-2 py-2">A</th>
+            <th className="text-right px-3 py-2">K/D</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-bungie-border/40">
           {sorted.map((s, i) => (
             <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-              <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
+              <td className="px-3 py-1.5 font-medium">
+                {i === 0 ? "👑 " : ""}{trimBungieName(s.displayName)}
+              </td>
               {hasWon && (
-                <td className="py-2 pr-3 text-right text-xs">
-                  {s.won === true ? <span className="text-green-400">W</span> : s.won === false ? <span className="text-red-400">L</span> : <span className="text-gray-600">-</span>}
+                <td className="px-2 py-1.5 text-center">
+                  {s.won === true
+                    ? <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1.5 py-0.5">W</span>
+                    : s.won === false
+                    ? <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1.5 py-0.5">L</span>
+                    : <span className="text-gray-500 text-xs">—</span>}
                 </td>
               )}
-              <td className="py-2 pr-3 text-right">{s.kills}</td>
-              <td className="py-2 pr-3 text-right">{s.deaths}</td>
-              <td className="py-2 pr-3 text-right">{s.assists}</td>
-              <td className="py-2 text-right">{s.kd.toFixed(2)}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{s.kills}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{s.deaths}</td>
+              <td className="px-2 py-1.5 text-right tabular-nums">{s.assists}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{s.kd.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
@@ -236,6 +244,9 @@ export default function LobbyRoom({
   }>>({});
   const [instancePerks, setInstancePerks] = useState<Record<string, Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>>>({});
   const [collectionHashes, setCollectionHashes] = useState<Set<number>>(new Set());
+  // The caller's currently-equipped weapon per slot, captured when the pool
+  // loads — used to seed the captain's initial loadout from equipped.
+  const [equippedHashes, setEquippedHashes] = useState<Partial<Record<WeaponSlot, number>>>({});
   const [preferredInstances, setPreferredInstances] = useState<Partial<Record<WeaponSlot, string>>>({});
   // Per-player roll data (everyone's instances of the current loadout) and the
   // instance THIS player has chosen to equip for each slot.
@@ -271,9 +282,16 @@ export default function LobbyRoom({
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
   const [showWeaponBrowser, setShowWeaponBrowser] = useState(true);
+  const [showRollSettingsPopover, setShowRollSettingsPopover] = useState(false);
+  const [rollSettingsOpen, setRollSettingsOpen] = useState(false);
+  const [weaponPoolOpen, setWeaponPoolOpen] = useState(false);
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
+  const gearButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
   const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta">("normal");
+  const [noDupMode, setNoDupMode] = useState(false);
   const [bannedTypes, setBannedTypes] = useState<Set<string>>(new Set());
   const [rerollLimit, setRerollLimit] = useState<number | null>(null); // null = unlimited
   const [rerollsUsed, setRerollsUsed] = useState(0);
@@ -477,6 +495,8 @@ export default function LobbyRoom({
   const roundIdRef = useRef<string | null>(null);
   useEffect(() => { roundIdRef.current = roundId; }, [roundId]);
   const hasAutoLoaded = useRef(false);
+  const hasSeeded = useRef(false);
+  const prevMemberCount = useRef<number | null>(null);
   const prevRoundIdRef = useRef<string | null>(null);
   // Clear per-round UI state when the round actually advances (non-null → different non-null).
   useEffect(() => {
@@ -487,11 +507,13 @@ export default function LobbyRoom({
       setWildcardSlots(new Set<WeaponSlot>(["power"]));
       setPreferredInstances({});
       hasAutoLoaded.current = false;
+      hasSeeded.current = false;
     }
     prevRoundIdRef.current = roundId;
   }, [roundId]);
 
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
+  const isHost = lobbyData.host_user_id === currentUserId;
   const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
@@ -633,23 +655,113 @@ export default function LobbyRoom({
       .then((d) => { if (d.characters) setCharacters(d.characters); });
   }, []);
 
+  // Auto-load the shared pool for any participant (not just the captain) once
+  // the round is ready, so a joining member doesn't have to click "Load Shared
+  // Weapons" themselves. The captain's load also seeds the initial roll;
+  // non-captains just populate their pool view (handleLoadIntersection only
+  // rolls when isCaptain).
   useEffect(() => {
     if (hasAutoLoaded.current) return;
-    if (!isCaptain || !roundId) return;
+    if (isSpectator || !roundId) return;
     hasAutoLoaded.current = true;
     handleLoadIntersection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCaptain, roundId]);
+  }, [isSpectator, roundId]);
 
-  const prevCharId = useRef<string | null>(null);
+  // When a new non-spectator joins, refresh the pool for everyone already
+  // loaded — without re-rolling — so the captain's pool reflects the new member
+  // without a manual reload. Skipped during an active game.
   useEffect(() => {
-    if (!selectedCharId || !isCaptain || !roundId) return;
-    if (selectedCharId === prevCharId.current) return;
-    prevCharId.current = selectedCharId;
-    if (!hasAutoLoaded.current) return;
+    const count = members.filter((m) => !m.is_spectator).length;
+    if (prevMemberCount.current === null) { prevMemberCount.current = count; return; }
+    const prev = prevMemberCount.current;
+    prevMemberCount.current = count;
+    if (!hasAutoLoaded.current || count <= prev) return;
+    if (lobbyData.status === "in_game") return;
+    console.log("[d2r-seed] roster grew", { prev, count, hasSlots: slots.some((s) => s.item_hash !== 0) });
     handleLoadIntersection();
+    // Refresh the comparison so the new member's rolls appear without waiting
+    // for a slot change (fetchRolls otherwise only re-runs on slot changes).
+    if (slots.some((s) => s.item_hash !== 0)) fetchRolls();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCharId]);
+  }, [members, lobbyData.status]);
+
+  // Seed the captain's loadout from their equipped weapons once the pool is
+  // loaded and the round has no loadout yet, so the Roll Comparison reflects
+  // their equipped guns immediately (Roll All only randomizes). Runs once per
+  // round and never overwrites an existing/rolled loadout.
+  useEffect(() => {
+    // TEMP diagnostics (#141) — remove once the captain seed is confirmed.
+    console.log("[d2r-seed] effect run", {
+      hasSeeded: hasSeeded.current,
+      isCaptain,
+      roundId,
+      hasIntersection: !!intersection,
+      nonZeroSlots: slots.filter((s) => s.item_hash !== 0).length,
+      equippedHashes,
+    });
+    if (hasSeeded.current) return;
+    if (!isCaptain || !roundId || !intersection) { console.log("[d2r-seed] blocked: missing captain/round/intersection"); return; }
+    if (slots.some((s) => s.item_hash !== 0)) { console.log("[d2r-seed] blocked: slots already populated"); hasSeeded.current = true; return; }
+    hasSeeded.current = true;
+    const seedRoundId = roundId;
+    const keep: Record<string, number> = {};
+    for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+      if (equippedHashes[s] != null) keep[s] = equippedHashes[s]!;
+    }
+    console.log("[d2r-seed] seeding now, keep=", keep);
+    (async () => {
+      try {
+        const res = await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lobbyId: lobby.id, roundId: seedRoundId, intersection,
+            weaponDetails,
+            keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+          }),
+        });
+        const data = await res.json();
+        console.log("[d2r-seed] roll response", { ok: res.ok, status: res.status, roll: data.roll, error: data.error });
+        if (!res.ok || !data.roll) { hasSeeded.current = false; return; }
+        // Reflect the seeded loadout locally right away. The seeding client
+        // otherwise waits on the realtime echo of its own write, which is why
+        // the captain stayed empty while viewers already saw the comparison.
+        const now = new Date().toISOString();
+        const seeded: LobbyLoadoutSlot[] = [];
+        for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+          const hash = data.roll[s];
+          if (!hash) continue;
+          const detail = weaponDetails[hash.toString()];
+          seeded.push({
+            id: `seed-${seedRoundId}-${s}`,
+            round_id: seedRoundId,
+            slot: s,
+            item_hash: hash,
+            weapon_name: detail?.name ?? "",
+            weapon_icon: detail?.icon ?? "",
+            weapon_type: detail?.weaponType ?? "",
+            damage_type: detail?.damageType ?? "",
+            locked_by_user_id: currentUserId,
+            created_at: now,
+          });
+        }
+        console.log("[d2r-seed] applying local slots", seeded.map((s) => ({ slot: s.slot, hash: s.item_hash, name: s.weapon_name })));
+        if (seeded.length > 0) {
+          setSlots((prev) => {
+            // If a real roll already landed (via realtime), don't clobber it.
+            if (prev.some((p) => p.item_hash !== 0)) return prev;
+            const others = prev.filter((p) => !seeded.some((x) => x.slot === p.slot));
+            return [...others, ...seeded];
+          });
+        }
+      } catch (e) {
+        console.log("[d2r-seed] error", e);
+        hasSeeded.current = false;
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCaptain, roundId, intersection, equippedHashes, slotKey]);
 
   useEffect(() => {
     async function loadCurrentRound() {
@@ -721,24 +833,38 @@ export default function LobbyRoom({
   // selection so post-match stats can be collected. No separate "ready" step.
   const handleSelectCharacter = useCallback(async (characterId: string) => {
     setSelectedCharId(characterId);
+    const char = characters.find((c) => c.characterId === characterId);
     await fetch("/api/lobby/ready", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, characterId, isReady: true }),
+      body: JSON.stringify({
+        lobbyId: lobby.id,
+        characterId,
+        isReady: true,
+        emblemPath: char?.emblemPath,
+        emblemBackgroundPath: char?.emblemBackgroundPath,
+      }),
     });
-  }, [lobby.id]);
+  }, [lobby.id, characters]);
 
-  // Auto-select the most recently played character once characters load,
-  // but only if the player hasn't already picked one (e.g. from a previous join).
+  // Once characters load, ensure emblem paths are saved for the selected character.
+  // We always fire once — using the existing selection if present, or picking the
+  // most-recently-played guardian. This handles the case where a player had a
+  // character selected before emblem paths were introduced (emblem_path would be
+  // null without this re-send).
   useEffect(() => {
-    if (hasAutoSelected.current || !characters.length || selectedCharId) return;
+    if (hasAutoSelected.current || !characters.length) return;
     hasAutoSelected.current = true;
-    const latest = [...characters].sort(
-      (a, b) => new Date(b.dateLastPlayed).getTime() - new Date(a.dateLastPlayed).getTime()
-    )[0];
-    if (latest) handleSelectCharacter(latest.characterId);
-  }, [characters, selectedCharId, handleSelectCharacter]);
+    const target = selectedCharId
+      ?? [...characters].sort(
+          (a, b) => new Date(b.dateLastPlayed).getTime() - new Date(a.dateLastPlayed).getTime()
+        )[0]?.characterId;
+    if (target) handleSelectCharacter(target);
+  }, [characters, handleSelectCharacter]);
 
+  // Loads the shared pool only. Seeding the captain's loadout from equipped is
+  // handled by a dedicated effect below, so the comparison appears as soon as
+  // the pool is ready (no Roll All needed) regardless of load/captain timing.
   const handleLoadIntersection = useCallback(async () => {
     setLoadingAction("intersection");
     setIntersectionError(null);
@@ -758,27 +884,17 @@ export default function LobbyRoom({
       setWeaponDetails(data.weaponDetails ?? {});
       setInstancePerks(data.instancePerks ?? {});
       setCollectionHashes(new Set<number>(data.collectionHashes ?? []));
-      if (isCaptain && roundId) {
-        const equipped: Record<string, number> = {};
-        const eq = data.equippedHashes as Record<string, number | null>;
-        for (const slot of ["kinetic", "energy", "power"]) {
-          if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
-        }
-        await fetch("/api/roulette/roll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lobbyId: lobby.id, roundId, intersection: data.intersection,
-            weaponDetails: data.weaponDetails ?? {},
-            keepSlots: Object.keys(equipped).length > 0 ? equipped : undefined,
-          }),
-        });
+      const eq = data.equippedHashes as Record<string, number | null> | undefined;
+      const equipped: Partial<Record<WeaponSlot, number>> = {};
+      for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+        if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
       }
+      setEquippedHashes(equipped);
     } catch (e) {
       setIntersectionError(e instanceof Error ? e.message : "Network error");
     }
     setLoadingAction(null);
-  }, [lobby.id, isCaptain, slots.length, roundId, selectedCharId]);
+  }, [lobby.id, selectedCharId]);
 
   // Write a roll for an explicit wildcard set (avoids stale wildcardSlots state).
   // Keeps every slot's current real weapon except wildcards, the sentinel 0, and
@@ -815,10 +931,11 @@ export default function LobbyRoom({
         avoid,
         wildcardSlots: Array.from(nextWildcards),
         mode: rollMode,
+        nodup: noDupMode || undefined,
       }),
     });
     setLoadingAction(null);
-  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, rollMode]);
+  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, rollMode, noDupMode]);
 
   // Cycle a slot through Random → 🔒 Locked → 👤 Your own → Random.
   // Locked = keep this shared weapon on Roll All. Your own = skip slot on apply
@@ -881,11 +998,11 @@ export default function LobbyRoom({
     await fetch("/api/roulette/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection: effectiveIntersection ?? intersection, weaponDetails, rerollSlot, keepSlots, avoid, wildcardSlots: Array.from(effectiveWildcards), mode: rollMode }),
+      body: JSON.stringify({ lobbyId: lobby.id, roundId, intersection: effectiveIntersection ?? intersection, weaponDetails, rerollSlot, keepSlots, avoid, wildcardSlots: Array.from(effectiveWildcards), mode: rollMode, nodup: noDupMode || undefined }),
     });
     setRerollsUsed((n) => n + 1);
     setLoadingAction(null);
-  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, rerollExhausted]);
+  }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, noDupMode, rerollExhausted]);
 
   const handleApply = useCallback(async () => {
     if (!selectedCharId || !roundId) return;
@@ -968,6 +1085,16 @@ export default function LobbyRoom({
     if (statsTab === "leaderboard" && leaderboard === null) fetchLeaderboard();
   }, [statsTab, leaderboard, fetchLeaderboard]);
 
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node)) {
+        setShowOverflowMenu(false);
+      }
+    }
+    if (showOverflowMenu) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showOverflowMenu]);
+
   const handleToggleCaptainLock = useCallback(async () => {
     const next = !captainLocked;
     setCaptainLocked(next);
@@ -978,7 +1105,59 @@ export default function LobbyRoom({
     });
   }, [captainLocked, lobby.id]);
 
-  const weaponBrowser = isCaptain && intersection && showWeaponBrowser ? (
+  // The shared weapon pool is viewable by every player. The captain can select
+  // weapons into the loadout; everyone else gets a read-only browse view.
+  const CLASS_ICONS: Record<number, string> = { 0: "🛡️", 1: "🏹", 2: "🔮" };
+
+  const sidebar = (
+    <aside className="flex flex-col w-full xl:w-36 shrink-0 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] gap-0 bg-bungie-surface border border-bungie-border/40 rounded-xl xl:overflow-hidden">
+      {/* Fireteam */}
+      <div className="px-3 pt-3 pb-2">
+        <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Fireteam</p>
+        <div className="space-y-0.5">
+          {members.map((m) => (
+            <PlayerCard key={m.id} member={m} variant="sidebar" />
+          ))}
+        </div>
+      </div>
+
+      {/* Guardian picker */}
+      {characters.length > 0 && !isSpectator && (
+        <>
+          <div className="mx-3 h-px bg-bungie-border/40" />
+          <div className="px-3 pt-2 pb-3">
+            <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Your Guardian</p>
+            <div className="space-y-1">
+              {[...characters]
+                .sort((a, b) => CLASS_ORDER.indexOf(a.classType) - CLASS_ORDER.indexOf(b.classType))
+                .map((c) => (
+                  <button
+                    key={c.characterId}
+                    onClick={() => handleSelectCharacter(c.characterId)}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition ${
+                      selectedCharId === c.characterId
+                        ? "border-bungie-blue/50 bg-bungie-blue/10 text-white"
+                        : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-300"
+                    }`}
+                  >
+                    <span className="text-sm">{CLASS_ICONS[c.classType] ?? "👤"}</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold leading-tight">{CLASS_NAMES[c.classType] ?? "Guardian"}</p>
+                      <p className="text-[9px] text-gray-500 leading-tight">{c.light}</p>
+                    </div>
+                    {selectedCharId === c.characterId && (
+                      <span className="ml-auto text-green-400 text-[10px]">✓</span>
+                    )}
+                  </button>
+                ))}
+            </div>
+          </div>
+        </>
+      )}
+    </aside>
+  );
+
+  const weaponBrowser = intersection && showWeaponBrowser ? (
     <WeaponPool
       intersection={effectiveIntersection ?? intersection}
       weaponDetails={weaponDetails}
@@ -990,71 +1169,164 @@ export default function LobbyRoom({
       favorites={favorites}
       onToggleFavorite={toggleFavorite}
       disabled={loadingAction !== null}
+      readOnly={!isCaptain}
     />
   ) : null;
 
+  // Header row for the weapon-pool panel (shared between the mobile and sidebar
+  // placements). `pad` adds the sidebar's inset padding.
+  const poolHeader = (pad: boolean) => (
+    <div className={`flex items-center justify-between mb-3 ${pad ? "px-4 pt-4" : ""}`}>
+      <div className="flex items-center gap-2">
+        <h2 className="text-white font-semibold">Shared Weapon Pool</h2>
+        {!isCaptain && (
+          <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5">
+            View only
+          </span>
+        )}
+      </div>
+      {intersection && (
+        <button
+          onClick={() => setShowWeaponBrowser((v) => !v)}
+          className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
+        >
+          {showWeaponBrowser ? "Minimize" : "Expand"}
+        </button>
+      )}
+    </div>
+  );
+
+  // Non-captains load the pool on demand (avoids firing a Bungie inventory
+  // fetch for every viewer unless they actually want to see it).
+  const poolLoadButton = (pad: boolean) => !isCaptain ? (
+    <div className={pad ? "px-4 pb-4" : "pb-2"}>
+      <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
+        {/* Pulse ring to draw the eye */}
+        <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
+        <p className="text-white text-sm font-semibold mb-1">⚡ Load your shared weapons</p>
+        <p className="text-gray-400 text-xs mb-3 leading-snug">
+          Everyone needs to do this so the captain can roll a loadout you all own.
+        </p>
+        <button
+          onClick={() => handleLoadIntersection()}
+          disabled={loadingAction !== null}
+          className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
+        >
+          {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
+        </button>
+        {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+      </div>
+    </div>
+  ) : null;
+
+  // Whether to render the pool panel at all: any non-spectator, once there's
+  // either a loaded pool or (for non-captains) a load affordance to offer.
+  const showPoolPanel = !isSpectator && (intersection != null || !isCaptain);
+
   return (
     <>
-    <div className="flex gap-6 items-start">
-      <div className="flex-1 min-w-0 space-y-6">
+    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
+      <div className="flex-1 min-w-0 flex flex-col gap-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="order-1 flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Lobby</h1>
-            <div className="text-gray-400 text-sm flex items-center gap-2 flex-wrap mt-0.5">
-              <span>
-                Code: <span className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero">{lobby.code}</span>
-              </span>
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyCode}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+                title="Copy lobby code"
+                className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero text-lg hover:opacity-75 transition"
               >
-                {copied ? "✓ Copied" : "Copy code"}
+                {copied ? "✓" : lobby.code}
               </button>
               <button
                 onClick={copyLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
               >
-                {copiedLink ? "✓ Link copied" : "Copy invite link"}
+                {copiedLink ? "✓" : "Invite"}
               </button>
               <button
                 onClick={copyWatchLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
               >
-                {copiedWatch ? "✓ Spectator copied" : "Copy spectator link"}
+                {copiedWatch ? "✓" : "Watch"}
               </button>
             </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              {(() => {
+                const cfg = LOBBY_STATUS_BADGE[lobbyData.status] ?? LOBBY_STATUS_BADGE.waiting;
+                return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
+              })()}
+              <span className="text-xs text-gray-500">Round {lobbyData.current_round}</span>
+              {isCaptain && <span className="text-xs text-yellow-400">👑 Your turn</span>}
+              {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {(() => {
-              const cfg = LOBBY_STATUS_BADGE[lobbyData.status] ?? LOBBY_STATUS_BADGE.waiting;
-              return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
-            })()}
-            <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
-            {polling && (
-              <span className="text-xs text-green-500 animate-pulse">● watching</span>
-            )}
-            {isCaptain && (
-              <button onClick={handleEndSession} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
-                End Session
-              </button>
-            )}
-            {!isCaptain && (
-              <button onClick={handleToggleSpectate} title={isSpectator ? "Rejoin as a player" : "Step back to spectate without leaving"} className={`px-3 py-1.5 text-sm border rounded-lg transition ${isSpectator ? "text-bungie-blue border-bungie-blue/50 hover:border-bungie-blue" : "text-gray-400 border-bungie-border hover:text-bungie-blue hover:border-bungie-blue/50"}`}>
-                {isSpectator ? "Rejoin" : "Spectate"}
-              </button>
-            )}
-            <button onClick={handleLeave} className="px-3 py-1.5 text-sm text-gray-400 border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 transition">
-              Leave
+
+          {/* Overflow menu */}
+          <div ref={overflowMenuRef} className="relative">
+            <button
+              onClick={() => setShowOverflowMenu((v) => !v)}
+              className="px-2.5 py-1.5 text-gray-400 border border-bungie-border/40 rounded-lg hover:border-gray-500 transition text-sm"
+              aria-label="More actions"
+            >
+              ···
             </button>
-            <SignOutButton />
+            {showOverflowMenu && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+                {!isCaptain && (
+                  <button
+                    onClick={() => { handleToggleSpectate(); setShowOverflowMenu(false); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-bungie-dark transition"
+                  >
+                    {isSpectator ? "Rejoin" : "Spectate"}
+                  </button>
+                )}
+                {isHost && (
+                  <button
+                    onClick={() => { setShowOverflowMenu(false); handleEndSession(); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                  >
+                    End Session
+                  </button>
+                )}
+                <button
+                  onClick={() => { setShowOverflowMenu(false); handleLeave(); }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                >
+                  Leave
+                </button>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-bungie-dark transition border-t border-bungie-border/40"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Stats panel: Session / History / Leaderboard tabs */}
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
+        <div className="order-7 bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
+          {/* Post-game dismissible banner */}
+          {lastGameStats && lastGameStats.length > 0 && (() => {
+            const top = [...lastGameStats].sort((a, b) => b.kills - a.kills)[0];
+            const result = lastGameStats.find((s) => s.won != null)?.won ?? null;
+            return (
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-bungie-border/40 bg-green-900/10">
+                <span className="text-xs font-semibold text-green-400">
+                  {result === true ? "W" : result === false ? "L" : "—"}
+                </span>
+                <span className="text-xs text-gray-300 flex-1 truncate">
+                  👑 {trimBungieName(top.displayName)} · {top.kills}K / {top.deaths}D
+                </span>
+                <button onClick={() => setLastGameStats(null)} className="text-gray-500 hover:text-gray-300 text-xs transition">✕</button>
+              </div>
+            );
+          })()}
+
           {/* Tab bar */}
-          <div className="flex border-b border-bungie-border">
+          <div className="flex border-b border-bungie-border/40">
             {(["session", "history", "leaderboard"] as const).map((tab) => (
               <button
                 key={tab}
@@ -1093,46 +1365,77 @@ export default function LobbyRoom({
                 <div className="divide-y divide-bungie-border/40">
                   {[...roundHistory].reverse().map((round) => {
                     const isOpen = expandedRound === round.sessionId;
-                    const topPlayer = [...round.stats].sort((a, b) => b.kills - a.kills)[0];
+                    const sorted = [...round.stats].sort((a, b) => b.kills - a.kills);
+                    const topPlayer = sorted[0];
+                    const teamResult = round.stats.find((s) => s.won != null)?.won ?? null;
+                    const time = round.playedAt
+                      ? new Date(round.playedAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+                      : null;
                     return (
                       <div key={round.sessionId}>
                         <button
                           onClick={() => setExpandedRound(isOpen ? null : round.sessionId)}
-                          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-bungie-dark/40 transition"
+                          className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-bungie-dark/40 transition"
                         >
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span className="text-gray-400 text-sm font-medium">Round {round.roundNum}</span>
-                            {round.mapName && (
-                              <span className="text-xs text-gray-500">{round.mapName}</span>
+                          {/* Round badge + W/L */}
+                          <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
+                            <span className="text-[11px] font-bold text-gray-300 bg-bungie-border/60 rounded px-1.5 py-0.5 leading-none tabular-nums">
+                              R{round.roundNum}
+                            </span>
+                            {teamResult === true && (
+                              <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1 leading-tight">W</span>
                             )}
-                            {topPlayer && (
-                              <span className="text-xs text-gray-500">
-                                👑 {topPlayer.displayName} · {topPlayer.kills}K {topPlayer.deaths}D
-                              </span>
+                            {teamResult === false && (
+                              <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1 leading-tight">L</span>
                             )}
                           </div>
-                          <span className="text-gray-600 text-xs shrink-0">{isOpen ? "▲" : "▼"}</span>
+
+                          {/* Main content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium leading-tight truncate">
+                              {round.mapName ?? "Unknown map"}
+                            </p>
+                            {topPlayer && (
+                              <p className="text-gray-400 text-xs mt-0.5 truncate">
+                                👑 {topPlayer.displayName}
+                                <span className="text-gray-500"> · </span>
+                                <span className="text-white tabular-nums">{topPlayer.kills}K</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="tabular-nums">{topPlayer.deaths}D</span>
+                                <span className="text-gray-500"> / </span>
+                                <span className="tabular-nums">{topPlayer.assists}A</span>
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Time + chevron */}
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            {time && <span className="text-gray-500 text-xs tabular-nums">{time}</span>}
+                            <span className="text-gray-400 text-xs">{isOpen ? "▲" : "▼"}</span>
+                          </div>
                         </button>
+
                         {isOpen && (
-                          <div className="px-4 pb-4">
+                          <div className="px-4 pb-4 bg-bungie-dark/20">
                             {/* Rolled weapons */}
                             {round.weapons && Object.keys(round.weapons).length > 0 && (
-                              <div className="mb-3 flex flex-wrap gap-2">
+                              <div className="mb-4 flex flex-wrap gap-2 pt-2">
                                 {(["kinetic", "energy", "power"] as const).map((slot) => {
                                   const w = round.weapons![slot];
                                   if (!w) return null;
+                                  const slotColor = slot === "kinetic" ? "text-gray-300 border-gray-500/40" : slot === "energy" ? "text-bungie-blue border-bungie-blue/40" : "text-purple-300 border-purple-500/40";
                                   return (
-                                    <div key={slot} className="flex items-center gap-1.5 bg-bungie-dark/60 border border-bungie-border rounded px-2 py-1">
+                                    <div key={slot} className={`flex items-center gap-2 bg-bungie-dark border rounded-lg px-2.5 py-2 ${slotColor.split(" ")[1]}`}>
                                       {w.icon && (
                                         <img
                                           src={`https://www.bungie.net${w.icon}`}
                                           alt=""
-                                          className="w-5 h-5 rounded"
+                                          className="w-8 h-8 rounded shrink-0"
                                         />
                                       )}
                                       <div>
-                                        <p className="text-[10px] text-gray-500 uppercase tracking-wide leading-none">{slot}</p>
-                                        <p className="text-xs text-gray-200 leading-snug">{w.name}</p>
+                                        <p className={`text-[10px] font-semibold uppercase tracking-wide leading-none ${slotColor.split(" ")[0]}`}>{slot}</p>
+                                        <p className="text-white text-xs font-medium leading-snug mt-0.5">{w.name}</p>
                                       </div>
                                     </div>
                                   );
@@ -1177,8 +1480,8 @@ export default function LobbyRoom({
                           <td className="py-2 pr-3 text-right">{e.gamesPlayed}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {e.wins + e.losses > 0 ? (
-                              <><span className="text-green-400">{e.wins}</span><span className="text-gray-600">-</span><span className="text-red-400">{e.losses}</span></>
-                            ) : <span className="text-gray-600">-</span>}
+                              <><span className="text-green-400">{e.wins}</span><span className="text-gray-500">-</span><span className="text-red-400">{e.losses}</span></>
+                            ) : <span className="text-gray-500">-</span>}
                           </td>
                           <td className="py-2 text-right">{e.avgKd.toFixed(2)}</td>
                         </tr>
@@ -1191,265 +1494,206 @@ export default function LobbyRoom({
           )}
         </div>
 
-        {/* Members */}
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-semibold">Fireteam ({members.length})</h2>
-            {captainName && <span className="text-xs text-yellow-400">👑 {captainName}&apos;s turn</span>}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {members.map((m) => (
-              <div key={m.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${m.is_captain ? "border-yellow-500 bg-yellow-500/10" : m.is_spectator ? "border-bungie-border bg-bungie-dark opacity-60" : "border-bungie-border bg-bungie-dark"}`}>
-                {m.is_captain && <span>👑</span>}
-                <span className={m.is_spectator ? "text-gray-500" : m.selected_character_id ? "text-green-400" : "text-gray-300"}>{trimBungieName(m.display_name)}</span>
-                {m.is_spectator && <span className="text-gray-500 text-xs">spectating</span>}
-                {!m.is_spectator && m.selected_character_id && <span className="text-green-500 text-xs" title="Guardian selected">✓</span>}
-              </div>
-            ))}
-          </div>
-          {charactersPicked < 2 && (
-            <p className="mt-3 text-xs text-amber-400/90">
-              ⚠ Stats won&apos;t track until at least 2 players pick a guardian ({charactersPicked}/2).
-            </p>
-          )}
-        </div>
 
-        {/* Character picker - selecting your guardian is all a player needs to do */}
-        {characters.length > 0 && !isSpectator && (
-          <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-            <h2 className="text-white font-semibold mb-1">Your Character</h2>
-            <p className="text-xs text-gray-500 mb-3">
-              {selectedCharId
-                ? "Your most recent guardian was auto-selected. Tap another to switch."
-                : "Pick your guardian. Your selection saves automatically so your stats get tracked."}
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              {[...characters]
-                .sort((a, b) => CLASS_ORDER.indexOf(a.classType) - CLASS_ORDER.indexOf(b.classType))
-                .map((c) => (
-                <button key={c.characterId} onClick={() => handleSelectCharacter(c.characterId)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition flex items-center gap-2 ${selectedCharId === c.characterId ? "border-bungie-blue bg-bungie-blue/20 text-white" : "border-bungie-border text-gray-400 hover:border-gray-500"}`}>
-                  <EmblemThumbnail emblemPath={c.emblemPath} classType={c.classType} />
-                  {selectedCharId === c.characterId && <span className="text-green-400">✓</span>}
-                  {CLASS_NAMES[c.classType] ?? "Guardian"} ·
-                  <LightLevelIcon light={c.light} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Captain controls */}
-        {isCaptain && (
-          <div className="bg-yellow-500/10 border border-yellow-500/40 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-yellow-400 font-semibold">👑 {captainName ? `${captainName}'s Turn` : "Your Turn"}</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleToggleCaptainLock}
-                  title={captainLocked ? "You stay captain every round — click to auto-rotate instead" : "Captain rotates each round — click to lock yourself in as captain"}
-                  className={`text-xs px-2.5 py-1 rounded border transition ${captainLocked ? "border-yellow-500 bg-yellow-500/20 text-yellow-300" : "border-bungie-border text-gray-400 hover:border-gray-400"}`}
-                >
-                  {captainLocked ? "🔒 Stay Captain" : "🔁 Auto-rotate"}
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={handleLoadIntersection} disabled={loadingAction !== null}
-                className="px-4 py-2 bg-bungie-surface border border-bungie-border rounded-lg text-sm text-white hover:border-gray-400 disabled:opacity-50 transition">
-                {loadingAction === "intersection" ? "Loading..." : "Load Shared Weapons"}
+        {/* Action row */}
+        {!isSpectator && roundId && (
+          <div className="order-3 relative flex items-center gap-3 flex-wrap">
+            {isCaptain && (
+              <button
+                onClick={() => handleRoll()}
+                disabled={loadingAction !== null || rerollExhausted || !intersection}
+                className="px-5 py-2.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-bold rounded-full transition text-sm"
+              >
+                {loadingAction === "roll" ? "Rolling…" : "🎲 Roll All"}
               </button>
-              {intersection && (
-                <>
-                  <button onClick={() => handleRoll()} disabled={loadingAction !== null || rerollExhausted}
-                    className="px-4 py-2 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition">
-                    {loadingAction === "roll" ? "Rolling..." : "🎲 Roll All"}
-                  </button>
-                  {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => (
-                    <button key={slot} onClick={() => handleRoll(slot)} disabled={loadingAction !== null || rerollExhausted}
-                      className="px-3 py-2 bg-bungie-surface border border-bungie-border rounded-lg text-xs text-gray-300 hover:border-gray-400 disabled:opacity-50 transition capitalize">
-                      Reroll {SLOT_LABELS[slot]}
-                    </button>
-                  ))}
-                </>
-              )}
-            </div>
-
-            {/* Roll settings: mode, reroll budget, type bans */}
-            {intersection && (
-              <div className="mt-3 rounded-lg border border-bungie-border bg-bungie-dark/40 p-3 space-y-3">
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                  <label className="flex items-center gap-2 text-xs text-gray-400">
-                    Mode
-                    <select
-                      value={rollMode}
-                      onChange={(e) => setRollMode(e.target.value as typeof rollMode)}
-                      className="bg-bungie-surface border border-bungie-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-bungie-blue"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="chaos">Chaos</option>
-                      <option value="meta">Meta</option>
-                    </select>
-                  </label>
-
-                  <label className="flex items-center gap-2 text-xs text-gray-400">
-                    Rerolls / round
-                    <select
-                      value={rerollLimit === null ? "inf" : String(rerollLimit)}
-                      onChange={(e) => setRerollLimit(e.target.value === "inf" ? null : Number(e.target.value))}
-                      className="bg-bungie-surface border border-bungie-border rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-bungie-blue"
-                    >
-                      <option value="inf">Unlimited</option>
-                      <option value="3">3</option>
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                    </select>
-                    {rerollLimit !== null && (
-                      <span className={rerollExhausted ? "text-red-400" : "text-gray-300"}>
-                        {Math.max(0, rerollLimit - rerollsUsed)} left
-                      </span>
-                    )}
-                  </label>
-
-                  <button
-                    onClick={() => setShowRollSettings((v) => !v)}
-                    className="text-xs text-gray-400 hover:text-white transition"
-                  >
-                    {bannedTypes.size > 0 ? `Banned types (${bannedTypes.size})` : "Ban weapon types"} {showRollSettings ? "▲" : "▼"}
-                  </button>
-                </div>
-
-                {showRollSettings && (
-                  <div className="flex flex-wrap gap-1.5 pt-1 border-t border-bungie-border/60">
-                    {poolWeaponTypes.length === 0 && (
-                      <span className="text-xs text-gray-600">No weapons loaded yet.</span>
-                    )}
-                    {poolWeaponTypes.map((t) => {
-                      const banned = bannedTypes.has(t);
-                      return (
-                        <button
-                          key={t}
-                          onClick={() => setBannedTypes((prev) => {
-                            const n = new Set(prev);
-                            if (n.has(t)) n.delete(t); else n.add(t);
-                            return n;
-                          })}
-                          className={`text-xs px-2 py-1 rounded border transition ${
-                            banned
-                              ? "border-red-700 bg-red-900/30 text-red-300 line-through"
-                              : "border-bungie-border text-gray-300 hover:border-gray-400"
-                          }`}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                    {bannedTypes.size > 0 && (
-                      <button
-                        onClick={() => setBannedTypes(new Set())}
-                        className="text-xs px-2 py-1 rounded text-gray-500 hover:text-gray-300"
-                      >
-                        Clear bans
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
             )}
 
-            {intersection && (
-              <div className="mt-3">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs text-gray-500">Slot mode:</span>
-                  {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => {
-                    const mode: SlotMode = lockedSlots.has(slot)
-                      ? "lock"
-                      : wildcardSlots.has(slot)
-                      ? "wildcard"
-                      : "normal";
-                    const cfg = SLOT_MODE_CONFIG[mode];
-                    return (
-                      <button
-                        key={slot}
-                        onClick={() => cycleSlotMode(slot)}
-                        title={`${SLOT_LABELS[slot]}: ${cfg.label}, click to cycle`}
-                        className={`px-2.5 py-1 rounded text-xs border transition flex items-center gap-1.5 ${cfg.cls}`}
-                      >
-                        <span>{cfg.icon}</span>
-                        <span className="font-medium">{SLOT_LABELS[slot]}</span>
-                        <span className="opacity-70">· {cfg.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-1.5 text-xs text-gray-600">
-                  Click a slot to cycle: 🎲 Random → 🔒 Locked (keep on reroll) → 👤 Your own (skipped on apply)
-                </p>
-              </div>
+            {slots.some((s) => s.item_hash !== 0) && (
+              <button
+                onClick={handleApply}
+                disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
+                className="px-5 py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold rounded-full transition text-sm"
+              >
+                {loadingAction === "apply" ? "Applying…" : "⚡ Apply"}
+              </button>
             )}
 
-            {intersectionError && <div className="mt-2 text-xs text-red-400 break-all">{intersectionError}</div>}
-            {effectiveIntersection && (
-              <div className="mt-2 text-xs text-gray-400">
-                Kinetic: {effectiveIntersection.kinetic.length} · Energy: {effectiveIntersection.energy.length} · Power: {effectiveIntersection.power.length}
-              </div>
+            {loadingAction === "apply" && (
+              <button
+                onClick={handleCancelApply}
+                className="px-3 py-2.5 border border-red-800 text-red-400 hover:border-red-600 rounded-full text-sm transition"
+              >
+                Cancel
+              </button>
+            )}
+
+            {isCaptain && intersection && (
+              <button
+                ref={gearButtonRef}
+                onClick={() => setShowRollSettingsPopover((v) => !v)}
+                className={`px-2.5 py-2.5 border rounded-full text-sm transition ${
+                  showRollSettingsPopover
+                    ? "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue"
+                    : "border-bungie-border/40 text-gray-400 hover:border-gray-500"
+                }`}
+                aria-label="Roll settings"
+              >
+                ⚙️
+              </button>
+            )}
+
+            {intersectionError && (
+              <span className="text-xs text-red-400">{intersectionError}</span>
+            )}
+            {!intersection && isCaptain && loadingAction === "intersection" && (
+              <span className="text-xs text-gray-500 animate-pulse">Loading shared weapons…</span>
+            )}
+
+            {showRollSettingsPopover && isCaptain && (
+              <RollSettingsPopover
+                anchorRef={gearButtonRef}
+                onClose={() => setShowRollSettingsPopover(false)}
+                rollMode={rollMode}
+                onRollModeChange={setRollMode}
+                rerollLimit={rerollLimit}
+                onRerollLimitChange={setRerollLimit}
+                rerollsUsed={rerollsUsed}
+                noDupMode={noDupMode}
+                onNoDupChange={setNoDupMode}
+                bannedTypes={bannedTypes}
+                onBannedTypesChange={setBannedTypes}
+                poolWeaponTypes={poolWeaponTypes}
+              />
             )}
           </div>
         )}
 
         {slots.length > 0 && (
-          <LoadoutQueue slots={slots} weaponDetails={weaponDetails} instancePerks={instancePerks}
-            collectionHashes={collectionHashes} onApply={handleApply} animKindRef={animKindRef}
-            onCancelApply={handleCancelApply} selectedCharId={selectedCharId} loading={loadingAction === "apply"} />
+          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:rounded-xl after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
+            <LoadoutQueue
+              slots={slots}
+              weaponDetails={weaponDetails}
+              instancePerks={instancePerks}
+              collectionHashes={collectionHashes}
+              onApply={handleApply}
+              animKindRef={animKindRef}
+              onCancelApply={handleCancelApply}
+              selectedCharId={selectedCharId}
+              loading={loadingAction === "apply"}
+              isCaptain={isCaptain}
+              lockedSlots={lockedSlots}
+              wildcardSlots={wildcardSlots}
+              onCycleSlotMode={cycleSlotMode}
+              onRerollSlot={(slot) => handleRoll(slot)}
+              rerollExhausted={rerollExhausted}
+            />
+          </div>
         )}
 
         {slots.some((s) => s.item_hash !== 0) && (
+          <div className="order-5">
           <RollDetails
             rolls={rollsData}
             chosenInstances={myChosenInstances}
             onChooseInstance={handleChooseInstance}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
+            memberCards={Object.fromEntries(members.map((m) => [m.user_id, m]))}
             loading={rollsLoading}
             error={rollsError}
             onRetry={fetchRolls}
           />
+          </div>
         )}
 
         {applyResults.length > 0 && (
+          <div className="order-6">
           <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
-        )}
-
-        {isCaptain && intersection && (
-          <div className="xl:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-white font-semibold">Weapon Pool</h2>
-              <button
-                onClick={() => setShowWeaponBrowser((v) => !v)}
-                className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
-              >
-                {showWeaponBrowser ? "Hide" : "Show"}
-              </button>
-            </div>
-            {weaponBrowser}
           </div>
         )}
+
+        {/* Drawers */}
+        <div className="order-4 flex flex-col gap-2">
+          {/* Roll Settings drawer (captain only) */}
+          {isCaptain && intersection && (
+            <div className="order-2 border border-bungie-border/40 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setRollSettingsOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-gray-200 transition"
+              >
+                <span>⚙️ Roll Settings{bannedTypes.size > 0 ? ` · ${bannedTypes.size} banned` : ""}</span>
+                <span className="text-xs">{rollSettingsOpen ? "▲" : "▼"}</span>
+              </button>
+              {rollSettingsOpen && (
+                <div className="px-4 pb-4 border-t border-bungie-border/40">
+                  <RollSettingsPopover
+                    inline
+                    anchorRef={{ current: null }}
+                    onClose={() => {}}
+                    rollMode={rollMode}
+                    onRollModeChange={setRollMode}
+                    rerollLimit={rerollLimit}
+                    onRerollLimitChange={setRerollLimit}
+                    rerollsUsed={rerollsUsed}
+                    noDupMode={noDupMode}
+                    onNoDupChange={setNoDupMode}
+                    bannedTypes={bannedTypes}
+                    onBannedTypesChange={setBannedTypes}
+                    poolWeaponTypes={poolWeaponTypes}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Weapon Pool drawer */}
+          {!isSpectator && (
+            <div className="order-1 border border-bungie-border/40 rounded-xl overflow-hidden">
+              <button
+                onClick={() => {
+                  if (!intersection && isCaptain) handleLoadIntersection();
+                  setWeaponPoolOpen((v) => !v);
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-gray-200 transition"
+              >
+                <span>
+                  🔫 Weapon Pool
+                  {effectiveIntersection
+                    ? ` · ${effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length} shared`
+                    : !isCaptain
+                    ? ""
+                    : " · tap to load"}
+                </span>
+                <span className="text-xs">{weaponPoolOpen ? "▲" : "▼"}</span>
+              </button>
+              {weaponPoolOpen && (
+                <div className="border-t border-bungie-border/40">
+                  {intersection ? (
+                    weaponBrowser ?? <p className="p-4 text-sm text-gray-500">Browse disabled.</p>
+                  ) : (
+                    <div className="p-4">
+                      {!isCaptain ? (
+                        <button
+                          onClick={handleLoadIntersection}
+                          disabled={loadingAction !== null}
+                          className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
+                        >
+                          {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
+                        </button>
+                      ) : (
+                        <p className="text-sm text-gray-500">Loading shared weapons…</p>
+                      )}
+                      {intersectionError && <p className="mt-2 text-xs text-red-400">{intersectionError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {isCaptain && intersection && (
-        <div className="hidden xl:flex xl:flex-col w-[420px] shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-2">
-          <div className="flex items-center justify-between mb-3 px-4 pt-4">
-            <h2 className="text-white font-semibold">Weapon Pool</h2>
-            <button
-              onClick={() => setShowWeaponBrowser((v) => !v)}
-              className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
-            >
-              {showWeaponBrowser ? "Hide" : "Show"}
-            </button>
-          </div>
-          {weaponBrowser && <div className="overflow-y-auto">{weaponBrowser}</div>}
-        </div>
-      )}
+      {sidebar}
     </div>
     </>
   );

@@ -3,6 +3,7 @@ import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { z } from "zod";
+import { createLogger } from "@/lib/logger";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
 
@@ -12,9 +13,13 @@ const schema = z.object({ lobbyId: z.string().uuid() });
 const DETECT_LEASE_SECONDS = 20;
 
 export async function POST(req: NextRequest) {
+  const t = Date.now();
+  let log: ReturnType<typeof createLogger> | null = null;
   try {
     const session = await requireSession();
+    log = createLogger(req, session.userId);
     const { lobbyId } = schema.parse(await req.json());
+    log.info("detect.start", { lobbyId });
 
     // ── Step 0: Bail out if this lobby's session has already ended ──────────
     const { data: lobbyStatus } = await adminSupabase
@@ -24,6 +29,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!lobbyStatus || lobbyStatus.status === "done") {
+      log.info("detect.skipped", { lobbyId, reason: "lobby_done" });
+      await log.flush();
       return NextResponse.json({ done: false, pending: false });
     }
 
@@ -37,7 +44,11 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    if (!recentHistory?.applied_at) return NextResponse.json({ done: false, pending: false });
+    if (!recentHistory?.applied_at) {
+      log.info("detect.skipped", { lobbyId, reason: "no_apply" });
+      await log.flush();
+      return NextResponse.json({ done: false, pending: false });
+    }
 
     const appliedAt = recentHistory.applied_at as string;
 
@@ -52,6 +63,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existingSession) {
+      log.info("detect.skipped", { lobbyId, reason: "already_detected" });
+      await log.flush();
       const stats = (existingSession.player_game_stats ?? []).map((s) => ({
         userId: s.user_id,
         displayName: s.display_name,
@@ -70,7 +83,11 @@ export async function POST(req: NextRequest) {
       .select("user_id, display_name, bungie_membership_type, bungie_membership_id, selected_character_id")
       .eq("lobby_id", lobbyId);
 
-    if (!members?.length) return NextResponse.json({ done: false });
+    if (!members?.length) {
+      log.info("detect.skipped", { lobbyId, reason: "no_apply" });
+      await log.flush();
+      return NextResponse.json({ done: false });
+    }
 
     const memberInputs = members
       .filter((m) => m.selected_character_id)
@@ -82,7 +99,11 @@ export async function POST(req: NextRequest) {
         characterId: m.selected_character_id!,
       }));
 
-    if (memberInputs.length < 2) return NextResponse.json({ done: false, pending: true });
+    if (memberInputs.length < 2) {
+      log.info("detect.skipped", { lobbyId, reason: "no_apply" });
+      await log.flush();
+      return NextResponse.json({ done: false, pending: true });
+    }
 
     // ── Step 4: Get CURRENT round's loadout slots only ────────────────────
     const { data: slots } = await adminSupabase
@@ -94,10 +115,18 @@ export async function POST(req: NextRequest) {
       (slots ?? []).map((s) => s.item_hash).filter((h) => h !== 0)
     )];
 
-    if (!rouletteHashes.length) return NextResponse.json({ done: false, pending: true });
+    if (!rouletteHashes.length) {
+      log.info("detect.skipped", { lobbyId, reason: "no_apply" });
+      await log.flush();
+      return NextResponse.json({ done: false, pending: true });
+    }
 
     const callerMember = members.find((m) => m.user_id === session.userId);
-    if (!callerMember?.selected_character_id) return NextResponse.json({ done: false, pending: true });
+    if (!callerMember?.selected_character_id) {
+      log.info("detect.skipped", { lobbyId, reason: "no_apply" });
+      await log.flush();
+      return NextResponse.json({ done: false, pending: true });
+    }
 
     // ── Step 5: Get the caller's token BEFORE claiming ───────────────────────
     // Fetch the token first so a member with a dead refresh token fails here
@@ -111,7 +140,13 @@ export async function POST(req: NextRequest) {
       p_round_id: recentHistory.round_id,
       p_ttl_seconds: DETECT_LEASE_SECONDS,
     });
-    if (!claimed) return NextResponse.json({ done: false, pending: true });
+    if (!claimed) {
+      log.info("detect.skipped", { lobbyId, reason: "lease_taken" });
+      await log.flush();
+      return NextResponse.json({ done: false, pending: true });
+    }
+
+    log.info("detect.claimed", { lobbyId, roundId: recentHistory.round_id });
 
     // ── Step 7: Scan + record via the shared pipeline ────────────────────────
     const outcome = await detectAndRecordGame({
@@ -124,11 +159,18 @@ export async function POST(req: NextRequest) {
       tokenOwnerUserId: session.userId,
     });
 
+    const found = outcome.status !== "no_game";
+    log.info("detect.done", { lobbyId, roundId: recentHistory.round_id, found, durationMs: Date.now() - t });
+    await log.flush();
+
     if (outcome.status === "no_game") return NextResponse.json({ done: false, pending: true });
     return NextResponse.json({ done: true, stats: outcome.stats });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
+    const errLog = log ?? createLogger(req);
+    errLog.error("detect.error", { error: msg, durationMs: Date.now() - t });
+    await errLog.flush();
     return NextResponse.json({ error: msg }, { status });
   }
 }

@@ -4,6 +4,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { rollLoadout } from "@/lib/roulette/intersection";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
+import { createLogger } from "@/lib/logger";
 
 const schema = z.object({
   lobbyId: z.string().uuid(),
@@ -37,12 +38,17 @@ const schema = z.object({
   }).optional(),
   wildcardSlots: z.array(z.enum(["kinetic", "energy", "power"])).optional(),
   mode: z.enum(["normal", "chaos", "meta"]).optional(),
+  nodup: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
+  const t = Date.now();
+  let log = createLogger(req);
   try {
     const session = await requireSession();
+    log = createLogger(req, session.userId);
     const body = schema.parse(await req.json());
+    log.info("roll.start", { lobbyId: body.lobbyId, roundId: body.roundId, mode: body.mode ?? "normal", rerollSlot: body.rerollSlot ?? null, wildcardSlots: body.wildcardSlots ?? [] });
 
     // Verify caller is captain
     const { data: lobby } = await adminSupabase
@@ -52,7 +58,34 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (lobby?.captain_user_id !== session.userId) {
+      log.warn("roll.forbidden", { lobbyId: body.lobbyId, captainId: lobby?.captain_user_id });
+      await log.flush();
       return NextResponse.json({ error: "Only the captain can roll" }, { status: 403 });
+    }
+
+    // No-duplicates mode: exclude every weapon rolled in a previous round.
+    // If the subtraction would empty a slot's pool, that slot's pool resets
+    // (i.e. when all weapons have been seen, the cycle starts over).
+    let filteredByHistory = { ...body.intersection };
+    if (body.nodup) {
+      const { data: prevSlots } = await adminSupabase
+        .from("lobby_loadout_slots")
+        .select("slot, item_hash, lobby_rounds!inner(lobby_id)")
+        .eq("lobby_rounds.lobby_id", body.lobbyId)
+        .neq("round_id", body.roundId)
+        .neq("item_hash", 0);
+
+      const used: Record<string, Set<number>> = { kinetic: new Set(), energy: new Set(), power: new Set() };
+      for (const row of prevSlots ?? []) {
+        used[row.slot]?.add(row.item_hash);
+      }
+
+      for (const slot of ["kinetic", "energy", "power"] as const) {
+        const original = body.intersection[slot];
+        const filtered = original.filter((h) => !used[slot].has(h));
+        // Reset if we've exhausted the pool; otherwise use the filtered list.
+        filteredByHistory[slot] = filtered.length > 0 ? filtered : original;
+      }
     }
 
     const wildcards = new Set(body.wildcardSlots ?? []);
@@ -76,9 +109,9 @@ export async function POST(req: NextRequest) {
 
     // Exclude wildcard slots from the random roll entirely
     const filteredIntersection = {
-      kinetic: wildcards.has("kinetic") ? [] : body.intersection.kinetic,
-      energy: wildcards.has("energy") ? [] : body.intersection.energy,
-      power: wildcards.has("power") ? [] : body.intersection.power,
+      kinetic: wildcards.has("kinetic") ? [] : filteredByHistory.kinetic,
+      energy: wildcards.has("energy") ? [] : filteredByHistory.energy,
+      power: wildcards.has("power") ? [] : filteredByHistory.power,
     };
 
     const exclude = body.rerollSlot
@@ -123,9 +156,13 @@ export async function POST(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await adminSupabase.from("lobbies").update({ status: "rolling", last_active_at: new Date().toISOString() } as any).eq("id", body.lobbyId);
 
+    log.info("roll.done", { lobbyId: body.lobbyId, roundId: body.roundId, roll, durationMs: Date.now() - t });
+    await log.flush();
     return NextResponse.json({ roll });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    log.error("roll.error", { error: msg, durationMs: Date.now() - t });
+    await log.flush();
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

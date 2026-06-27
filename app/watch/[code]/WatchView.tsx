@@ -371,7 +371,7 @@ export default function WatchView({
         </div>
       )}
 
-      <p className="text-center text-gray-600 text-xs mt-6">Updates live as the captain rolls.</p>
+      <p className="text-center text-gray-600 text-xs mt-6">Updates live as weapons are rolled.</p>
     </div>
   );
 }

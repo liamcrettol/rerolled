@@ -20,6 +20,8 @@ export interface LobbyMember {
   bungie_membership_type: number;
   bungie_membership_id: string;
   selected_character_id: string | null;
+  emblem_path: string | null;
+  emblem_background_path: string | null;
   is_ready: boolean;
   is_captain: boolean;
   is_spectator: boolean;

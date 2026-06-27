@@ -13,13 +13,13 @@ export async function POST(req: NextRequest) {
 
     const { data: lobby } = await adminSupabase
       .from("lobbies")
-      .select("captain_user_id")
+      .select("host_user_id")
       .eq("id", lobbyId)
       .single();
 
     if (!lobby) return NextResponse.json({ error: "Lobby not found" }, { status: 404 });
-    if (lobby.captain_user_id !== session.userId) {
-      return NextResponse.json({ error: "Only the captain can end the game" }, { status: 403 });
+    if (lobby.host_user_id !== session.userId) {
+      return NextResponse.json({ error: "Only the session creator can end the game" }, { status: 403 });
     }
 
     // Rotate captain so next session starts fresh

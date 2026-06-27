@@ -85,14 +85,28 @@ export async function POST(req: NextRequest) {
     const session = await requireSession();
     const { lobbyId, characterId } = schema.parse(await req.json());
 
-    const { data: members } = await adminSupabase
+    const { data: members, error: membersError } = await adminSupabase
       .from("lobby_members")
       .select("user_id, display_name, bungie_membership_type, bungie_membership_id")
       .eq("lobby_id", lobbyId)
       .eq("is_spectator", false);
 
+    // Surface a real DB error instead of letting it masquerade as "no members".
+    if (membersError) {
+      return NextResponse.json(
+        { error: `Couldn't load lobby members: ${membersError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // A solo lobby is valid: the shared pool is just the one member's own
+    // eligible inventory, which lets the captain browse/prep before others
+    // join. (Stats tracking warns separately that 2+ players are needed.)
     if (!members?.length) {
-      return NextResponse.json({ error: "No members found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "You're not in this lobby — try rejoining." },
+        { status: 404 }
+      );
     }
 
     const slots: WeaponSlot[] = ["kinetic", "energy", "power"];

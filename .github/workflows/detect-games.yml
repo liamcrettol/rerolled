@@ -5,7 +5,7 @@ name: Detect games
 # schedule from GitHub Actions instead and hit the existing protected endpoint.
 #
 # Requires two repository secrets:
-#   APP_URL      e.g. https://destiny-gun-roulette.vercel.app  (no trailing slash)
+#   APP_URL      e.g. https://d2roulette.app  (no trailing slash)
 #   CRON_SECRET  same value set in the Vercel project env
 
 on:

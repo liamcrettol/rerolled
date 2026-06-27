@@ -12,6 +12,7 @@ import { getWeaponDefinition } from "@/lib/bungie/definitions";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
+import { createLogger } from "@/lib/logger";
 import { z } from "zod";
 
 const schema = z.object({
@@ -50,10 +51,14 @@ function findBestInstance(
 }
 
 export async function POST(req: NextRequest) {
+  const t = Date.now();
+  let log: ReturnType<typeof createLogger> = createLogger(req);
   try {
     const session = await requireSession();
+    log = createLogger(req, session.userId);
     const body = schema.parse(await req.json());
     const preferredInstances = body.preferredInstances ?? {};
+    log.info("apply.start", { lobbyId: body.lobbyId, roundId: body.roundId, characterId: body.characterId });
 
     const { data: slots } = await adminSupabase
       .from("lobby_loadout_slots")
@@ -61,6 +66,7 @@ export async function POST(req: NextRequest) {
       .eq("round_id", body.roundId);
 
     if (!slots?.length) {
+      await log.flush();
       return NextResponse.json({ error: "No loadout rolled yet" }, { status: 400 });
     }
 
@@ -117,6 +123,10 @@ export async function POST(req: NextRequest) {
       weaponsToApply.length, // Pass actual loadout size for intelligent calculation
       loadoutInstanceIds
     );
+
+    if (clearResults.length > 0) {
+      log.info("apply.inventory_cleared", { lobbyId: body.lobbyId, count: clearResults.length, durationMs: Date.now() - t });
+    }
 
     // Update roster after vaulting to reflect space made
     const rosterAfterClearing = myWeapons.filter(
@@ -203,10 +213,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    log.info("apply.done", { lobbyId: body.lobbyId, roundId: body.roundId, total: results.length, succeeded: results.filter(r => r.success).length, failed: results.filter(r => !r.success).length, durationMs: Date.now() - t });
+    await log.flush();
     return NextResponse.json({ results });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
+    log.error("apply.error", { error: msg, durationMs: Date.now() - t }); await log.flush();
     return NextResponse.json({ error: msg }, { status });
   }
 }

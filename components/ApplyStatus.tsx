@@ -133,7 +133,7 @@ export default function ApplyStatus({
                     {r.error && <div className="text-gray-200 text-[13px]">{r.error}</div>}
                     {detailText && (
                       <div className="text-gray-400 text-xs font-mono">
-                        <span className="block uppercase tracking-wide text-[10px] text-gray-500 mb-0.5 font-sans">
+                        <span className="block uppercase tracking-wide text-[10px] text-gray-400 mb-0.5 font-sans">
                           Detail
                         </span>
                         {detailText}

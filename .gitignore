@@ -39,3 +39,7 @@ next-env.d.ts
 
 # git worktrees
 .worktrees/
+
+# IDE
+.idea/
+.env*
