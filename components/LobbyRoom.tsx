@@ -580,6 +580,16 @@ export default function LobbyRoom({
     if (lobbyData.status === "in_game") startPolling();
   }, [lobbyData.status, startPolling]);
 
+  // When the leader ends the session, the lobby status flips to "done" via
+  // realtime — redirect all remaining members back to the dashboard.
+  useEffect(() => {
+    if (lobbyData.status === "done") {
+      stopPolling();
+      router.push("/dashboard");
+      router.refresh();
+    }
+  }, [lobbyData.status, router, stopPolling]);
+
   // On mount: check if a game was in progress when everyone left the lobby.
   // If detect says pending=true, start polling so we catch up automatically.
   useEffect(() => {
