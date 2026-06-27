@@ -293,7 +293,7 @@ export default function WeaponPool({
     <>
       {tooltipNode}
 
-      <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden flex flex-col">
+      <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden flex flex-col max-h-[30rem]">
         {/* Header */}
         <div className="px-4 pt-3 pb-0">
           <div className="flex items-center justify-between mb-1">
