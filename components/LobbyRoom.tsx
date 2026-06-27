@@ -1110,7 +1110,7 @@ export default function LobbyRoom({
   const CLASS_ICONS: Record<number, string> = { 0: "🛡️", 1: "🏹", 2: "🔮" };
 
   const sidebar = (
-    <aside className="hidden xl:flex xl:flex-col w-36 shrink-0 sticky top-6 max-h-[calc(100vh-3rem)] gap-0 bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
+    <aside className="flex flex-col w-full xl:w-36 shrink-0 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] gap-0 bg-bungie-surface border border-bungie-border/40 rounded-xl xl:overflow-hidden">
       {/* Fireteam */}
       <div className="px-3 pt-3 pb-2">
         <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Fireteam</p>
@@ -1225,7 +1225,7 @@ export default function LobbyRoom({
 
   return (
     <>
-    <div className="flex gap-5 items-start">
+    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="flex-1 min-w-0 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
