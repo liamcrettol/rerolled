@@ -51,9 +51,8 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
     );
   }
 
-  // Banner-only card: the full emblem (emblem_background_path) IS the card — no
-  // separate left icon square (that was a redundant second copy of the emblem).
-  // Captain is conveyed by the yellow border, not a crown.
+  // Destiny nameplate: square emblem icon on the left, name (top) + clan (below)
+  // left-aligned beside it, over the emblem banner. Captain = yellow border, no crown.
   return (
     <div
       className={`relative flex items-center rounded-lg overflow-hidden border w-full ${compact ? "h-14" : "h-20"}
@@ -78,33 +77,45 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             className="absolute inset-0 bg-cover bg-left"
             style={{ backgroundImage: `url(${bgUrl})` }}
           />
-          {/* Center-weighted scrim: darker behind the centered name, while the
-              emblem art stays visible toward the edges. */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.62),rgba(0,0,0,0.28))]" />
+          {/* Legibility gradient over the text side (left → right). */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/45 to-black/65" />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
       )}
 
-      {/* Name + clan, centered like the in-game nameplate. */}
-      <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 w-full min-w-0">
+      {/* Emblem icon — left square, full height */}
+      <div className={`relative z-10 shrink-0 ${compact ? "w-14 h-14" : "w-20 h-20"} border-r border-black/30`}>
+        {iconUrl ? (
+          <img
+            src={iconUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={() => setIconFailed(true)}
+          />
+        ) : (
+          <div className="w-full h-full bg-bungie-border/30" />
+        )}
+      </div>
+
+      {/* Name + clan, left-aligned beside the icon. */}
+      <div className="relative z-10 flex-1 min-w-0 px-3 flex flex-col justify-center">
         <span
-          className={`${compact ? "text-sm" : "text-lg"} font-bold truncate max-w-full leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]
+          className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
         >
           {trimBungieName(member.display_name)}
         </span>
         {member.is_spectator ? (
-          <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
+          <span className="text-[11px] text-gray-300 leading-tight drop-shadow">spectating</span>
         ) : member.clan_name ? (
-          <span className="text-[11px] text-gray-200/90 truncate max-w-full leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+          <span className="text-[12px] text-gray-200/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             {member.clan_tag ? `[${member.clan_tag}] ` : ""}{member.clan_name}
           </span>
         ) : null}
       </div>
 
-      {/* Guardian-selected check, tucked in the corner so it doesn't offset the
-          centered name. */}
+      {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
         <span className="absolute top-1 right-1.5 z-10 text-green-400 text-sm drop-shadow" title="Guardian selected">
           ✓
