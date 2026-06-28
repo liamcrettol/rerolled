@@ -266,32 +266,35 @@ export default function RollDetails({
         <h2 className="text-white font-semibold text-sm">
           Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
         </h2>
-        {/* Slot tabs */}
-        <div className="flex gap-1">
-          {present.map((s) => {
-            const t = damageTheme(rolls[s]!.damageType);
-            const weaponName = rolls[s]!.weaponName || SLOT_LABELS[s];
-            const weaponIcon = rolls[s]!.weaponIcon;
-            return (
-              <button
-                key={s}
-                onClick={() => setTab(s)}
-                className={`px-2.5 py-1 rounded text-xs font-semibold border transition flex items-center gap-1 ${
-                  activeTab === s ? `${t.border} ${t.bg} text-white` : "border-transparent text-gray-400 hover:text-white"
-                }`}
-              >
-                {weaponIcon && <img src={weaponIcon} alt="" className="w-6 h-6 rounded-sm" />}
-                <span className="truncate max-w-[8rem]">{weaponName}</span>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       <div className="px-3 py-3 flex gap-3">
-        {/* Far-left rail: your rolls for this gun, scrollable. Click to pick
-            which one drives your card; star favorites it. */}
-        <div className="w-fit min-w-[13rem] max-w-[20rem] shrink-0 max-h-[24rem] overflow-y-auto pr-1 border-r border-bungie-border/50 space-y-1">
+        {/* Far-left column: weapon selector on top, then your rolls for the
+            selected gun. Click a roll to drive your card; star favorites it. */}
+        <div className="w-[15rem] shrink-0 pr-2 border-r border-bungie-border/50 flex flex-col gap-2">
+          {/* Weapon selector */}
+          <div className="flex flex-col gap-1">
+            {present.map((s) => {
+              const t = damageTheme(rolls[s]!.damageType);
+              const weaponName = rolls[s]!.weaponName || SLOT_LABELS[s];
+              const weaponIcon = rolls[s]!.weaponIcon;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setTab(s)}
+                  className={`w-full px-2 py-1.5 rounded text-xs font-semibold border transition flex items-center gap-2 ${
+                    activeTab === s ? `${t.border} ${t.bg} text-white` : "border-bungie-border/60 text-gray-400 hover:text-white hover:border-gray-500"
+                  }`}
+                >
+                  {weaponIcon && <img src={weaponIcon} alt="" className="w-7 h-7 rounded-sm shrink-0" />}
+                  <span className="truncate text-left">{weaponName}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Your rolls (scrollable) */}
+          <div className="max-h-[20rem] overflow-y-auto pr-1 space-y-1">
           <p className={`text-xs font-semibold px-1 mb-1 ${theme.text}`}>Your rolls</p>
           {myInstances.length === 0 ? (
             <p className="text-gray-500 text-[10px] px-1">{me?.failed ? "couldn't load" : "—"}</p>
@@ -331,6 +334,7 @@ export default function RollDetails({
               );
             })
           )}
+          </div>
         </div>
 
         {/* Comparison: a card per member, emblem-width, 3 per row. Members
