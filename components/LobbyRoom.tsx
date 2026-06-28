@@ -329,35 +329,6 @@ export default function LobbyRoom({
     } catch { /* ignore */ }
   }, [bannedTypes, rerollLimit]);
 
-  // Publish the captain's roll settings onto the lobby row so non-captains can
-  // view them read-only (issue #106). The existing `lobbies` realtime
-  // subscription rebroadcasts the update to every client. Debounced so a burst
-  // of toggles (e.g. banning several types) collapses into a single write.
-  useEffect(() => {
-    if (!isCaptain) return;
-    const slotModeOf = (s: WeaponSlot): SlotMode =>
-      lockedSlots.has(s) ? "lock" : wildcardSlots.has(s) ? "wildcard" : "normal";
-    const settings: LobbyRollSettings = {
-      mode: rollMode,
-      rerollLimit,
-      noDup: noDupMode,
-      banned: [...bannedTypes],
-      slots: {
-        kinetic: slotModeOf("kinetic"),
-        energy: slotModeOf("energy"),
-        power: slotModeOf("power"),
-      },
-    };
-    const t = setTimeout(() => {
-      fetch("/api/lobby/roll-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId: lobby.id, settings }),
-      }).catch(() => { /* best-effort; non-captains just won't see the latest */ });
-    }, 400);
-    return () => clearTimeout(t);
-  }, [isCaptain, lobby.id, rollMode, rerollLimit, noDupMode, bannedTypes, lockedSlots, wildcardSlots]);
-
   // Keep captainLocked in sync with real-time lobby updates
   useEffect(() => { setCaptainLocked(lobbyData.captain_locked ?? false); }, [lobbyData.captain_locked]);
 
@@ -545,6 +516,36 @@ export default function LobbyRoom({
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
   const isHost = lobbyData.host_user_id === currentUserId;
   const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
+
+  // Publish the captain's roll settings onto the lobby row so non-captains can
+  // view them read-only (issue #106). The existing `lobbies` realtime
+  // subscription rebroadcasts the update to every client. Debounced so a burst
+  // of toggles (e.g. banning several types) collapses into a single write.
+  // Declared after `isCaptain` so the dependency array isn't a TDZ reference.
+  useEffect(() => {
+    if (!isCaptain) return;
+    const slotModeOf = (s: WeaponSlot): SlotMode =>
+      lockedSlots.has(s) ? "lock" : wildcardSlots.has(s) ? "wildcard" : "normal";
+    const settings: LobbyRollSettings = {
+      mode: rollMode,
+      rerollLimit,
+      noDup: noDupMode,
+      banned: [...bannedTypes],
+      slots: {
+        kinetic: slotModeOf("kinetic"),
+        energy: slotModeOf("energy"),
+        power: slotModeOf("power"),
+      },
+    };
+    const t = setTimeout(() => {
+      fetch("/api/lobby/roll-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id, settings }),
+      }).catch(() => { /* best-effort; non-captains just won't see the latest */ });
+    }, 400);
+    return () => clearTimeout(t);
+  }, [isCaptain, lobby.id, rollMode, rerollLimit, noDupMode, bannedTypes, lockedSlots, wildcardSlots]);
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
 
