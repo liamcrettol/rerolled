@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth/helpers";
+import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { getClan } from "@/lib/bungie/clan";
 import { z } from "zod";
 
 const schema = z.object({
@@ -36,6 +37,20 @@ export async function POST(req: NextRequest) {
         })
         .eq("lobby_id", body.lobbyId)
         .eq("user_id", session.userId);
+    }
+
+    // Clan is cosmetic too — fetch from Bungie best-effort and store. Wrapped so
+    // a Bungie hiccup or unapplied migration never blocks character selection.
+    try {
+      const token = await getBungieToken(session.userId);
+      const clan = await getClan(session.bungieMembershipType, session.bungieMembershipId, token);
+      await adminSupabase
+        .from("lobby_members")
+        .update({ clan_name: clan?.name ?? null, clan_tag: clan?.tag ?? null })
+        .eq("lobby_id", body.lobbyId)
+        .eq("user_id", session.userId);
+    } catch {
+      // ignore — nameplate just won't show a clan
     }
 
     return NextResponse.json({ ok: true });

@@ -146,7 +146,7 @@ export default function RollDetails({
   // the member cards) wraps and centers; the compact variant (left rail) stays
   // on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
-    const cls = `${large ? "w-10 h-10" : "w-9 h-9"} rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition`;
+    const cls = `${large ? "w-12 h-12" : "w-9 h-9"} rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition`;
     const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} className={cls} />;
     const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} className={cls} />;
     const perks = inst.perkHashes.map((hash, i) => (
@@ -187,36 +187,36 @@ export default function RollDetails({
         {card ? (
           <PlayerCard member={card} />
         ) : (
-          <div className="h-[4.5rem] flex items-center justify-center bg-bungie-dark border-b border-bungie-border/60 px-3">
-            <span className={`text-sm font-bold truncate ${m.isMe ? theme.text : "text-gray-200"}`}>
+          <div className="h-20 flex items-center justify-center bg-bungie-dark border-b border-bungie-border/60 px-3">
+            <span className={`text-lg font-bold truncate ${m.isMe ? theme.text : "text-gray-200"}`}>
               {m.isMe ? "You" : trimBungieName(m.displayName)}
             </span>
           </div>
         )}
 
-        <div className="p-2.5 space-y-2 flex-1 flex flex-col">
+        <div className="p-3 space-y-3 flex-1 flex flex-col">
           {/* Roll perks */}
-          <div className="min-h-[2.75rem] flex flex-wrap gap-1 justify-center items-center">
+          <div className="min-h-[3.25rem] flex flex-wrap gap-1.5 justify-center items-center">
             {m.failed ? (
-              <span className="text-gray-500 text-[10px] italic">couldn&apos;t load</span>
+              <span className="text-gray-500 text-xs italic">couldn&apos;t load</span>
             ) : inst ? (
               rollPreview(inst)
             ) : (
-              <span className="text-gray-500 text-[10px]">—</span>
+              <span className="text-gray-500 text-xs">—</span>
             )}
           </div>
 
           {/* Stat rows */}
-          <div className="space-y-1.5 pt-2 border-t border-bungie-border/40">
+          <div className="space-y-2.5 pt-2.5 border-t border-bungie-border/40">
             {statRows.map((s) => {
               const v = inst ? inst.stats[s] ?? base[s] : undefined;
               if (v === undefined) {
                 return (
-                  <div key={s} className="flex items-center gap-1.5">
-                    <span className="w-14 text-gray-400 text-[10px] truncate">{s}</span>
-                    <div className="flex-1 h-1.5 bg-gray-700/40 rounded-full" />
-                    <span className="w-5 text-right text-gray-500 text-[11px]">—</span>
-                    <span className="w-6" />
+                  <div key={s} className="flex items-center gap-2">
+                    <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
+                    <div className="flex-1 h-2.5 bg-gray-700/40 rounded-full" />
+                    <span className="w-7 text-right text-gray-500 text-sm">—</span>
+                    <span className="w-7" />
                   </div>
                 );
               }
@@ -228,17 +228,17 @@ export default function RollDetails({
               const lo = Math.min(100, Math.max(0, Math.min(v, hasBase ? base[s] : v)));
               const hi = Math.min(100, Math.max(0, Math.max(v, hasBase ? base[s] : v)));
               return (
-                <div key={s} className="flex items-center gap-1.5">
-                  <span className="w-14 text-gray-400 text-[10px] truncate">{s}</span>
-                  <div className="flex-1 h-1.5 bg-gray-700/80 rounded-full overflow-hidden flex">
+                <div key={s} className="flex items-center gap-2">
+                  <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
+                  <div className="flex-1 h-2.5 bg-gray-700/80 rounded-full overflow-hidden flex">
                     <div className="h-full bg-gray-400" style={{ width: `${lo}%` }} />
                     {hi > lo && (
                       <div className={`h-full ${delta >= 0 ? "bg-green-400" : "bg-red-500/80"}`} style={{ width: `${hi - lo}%` }} />
                     )}
                   </div>
-                  <span className={`w-5 text-right tabular-nums text-[11px] ${isBest ? `${theme.text} font-semibold` : "text-gray-300"}`}>{v}</span>
+                  <span className={`w-7 text-right tabular-nums text-sm ${isBest ? `${theme.text} font-semibold` : "text-gray-300"}`}>{v}</span>
                   {/* Always reserve the delta column so every bar lines up */}
-                  <span className={`w-6 text-right text-[9px] tabular-nums ${delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-transparent"}`}>
+                  <span className={`w-7 text-right text-[11px] tabular-nums ${delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-transparent"}`}>
                     {m.isMe && delta !== 0 ? (delta > 0 ? `+${delta}` : delta) : ""}
                   </span>
                 </div>
@@ -247,11 +247,11 @@ export default function RollDetails({
 
             {/* Reserve height for the tallest slot so switching tabs doesn't resize the panel. */}
             {Array.from({ length: Math.max(0, maxStatRows - statRows.length) }).map((_, i) => (
-              <div key={`pad-${i}`} className="flex items-center gap-1.5" aria-hidden="true">
-                <span className="w-14 text-[10px] invisible">—</span>
-                <div className="flex-1 h-1.5" />
-                <span className="w-5 text-[11px] invisible">—</span>
-                <span className="w-6" />
+              <div key={`pad-${i}`} className="flex items-center gap-2" aria-hidden="true">
+                <span className="w-[4.5rem] text-xs invisible">—</span>
+                <div className="flex-1 h-2.5" />
+                <span className="w-7 text-sm invisible">—</span>
+                <span className="w-7" />
               </div>
             ))}
           </div>

@@ -56,7 +56,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
   // Captain is conveyed by the yellow border, not a crown.
   return (
     <div
-      className={`relative flex items-center rounded-lg overflow-hidden border w-full ${compact ? "h-14" : "h-[4.5rem]"}
+      className={`relative flex items-center rounded-lg overflow-hidden border w-full ${compact ? "h-14" : "h-20"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator
@@ -78,34 +78,38 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             className="absolute inset-0 bg-cover bg-left"
             style={{ backgroundImage: `url(${bgUrl})` }}
           />
-          {/* Legibility gradient: clearer over the emblem art (left), darker
-              behind the name (right). */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-black/40 to-black/85" />
+          {/* Center-weighted scrim: darker behind the centered name, while the
+              emblem art stays visible toward the edges. */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.62),rgba(0,0,0,0.28))]" />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
       )}
 
-      {/* Name + guardian-selected check, overlaid on the right (darker) side. */}
-      <div className="relative ml-auto flex items-center gap-2 px-3 max-w-[68%] min-w-0">
-        <div className="flex flex-col min-w-0 text-right">
-          <span
-            className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
-              ${member.is_spectator ? "text-gray-300" : "text-white"}`}
-          >
-            {trimBungieName(member.display_name)}
+      {/* Name + clan, centered like the in-game nameplate. */}
+      <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 w-full min-w-0">
+        <span
+          className={`${compact ? "text-sm" : "text-lg"} font-bold truncate max-w-full leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]
+            ${member.is_spectator ? "text-gray-300" : "text-white"}`}
+        >
+          {trimBungieName(member.display_name)}
+        </span>
+        {member.is_spectator ? (
+          <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
+        ) : member.clan_name ? (
+          <span className="text-[11px] text-gray-200/90 truncate max-w-full leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
+            {member.clan_tag ? `[${member.clan_tag}] ` : ""}{member.clan_name}
           </span>
-          {member.is_spectator && (
-            <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
-          )}
-        </div>
-
-        {!member.is_spectator && member.selected_character_id && (
-          <span className="shrink-0 text-green-400 text-sm drop-shadow" title="Guardian selected">
-            ✓
-          </span>
-        )}
+        ) : null}
       </div>
+
+      {/* Guardian-selected check, tucked in the corner so it doesn't offset the
+          centered name. */}
+      {!member.is_spectator && member.selected_character_id && (
+        <span className="absolute top-1 right-1.5 z-10 text-green-400 text-sm drop-shadow" title="Guardian selected">
+          ✓
+        </span>
+      )}
     </div>
   );
 }
