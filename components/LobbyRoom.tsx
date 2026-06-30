@@ -16,7 +16,7 @@ import { trimBungieName } from "@/lib/utils";
 import PlayerCard from "./PlayerCard";
 import RollSettingsPopover from "./RollSettingsPopover";
 import CaptainSettingsCard from "./CaptainSettingsCard";
-import { Shuffle, Zap, SlidersHorizontal, Crown, Check, Copy, X, MoreHorizontal, Lock, User } from "lucide-react";
+import { Shuffle, Zap, SlidersHorizontal, Crown, Check, Copy, X, MoreHorizontal, Lock, User, PanelRightOpen, PanelRightClose } from "lucide-react";
 
 interface PlayerStat {
   userId: string;
@@ -287,6 +287,7 @@ export default function LobbyRoom({
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
   const [rollSettingsOpen, setRollSettingsOpen] = useState(false);
+  const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
 
@@ -1154,6 +1155,19 @@ export default function LobbyRoom({
   // loadout column (below) occupies all the space to the left.
   const rightColumn = (
     <aside className="w-full xl:w-80 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col gap-3">
+      {/* Collapse the whole right column to give the loadout full width. */}
+      <div className="flex justify-end shrink-0">
+        <button
+          onClick={() => setRightOpen(false)}
+          title="Hide panel"
+          aria-label="Hide panel"
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-bungie-border/40 rounded-lg px-2 py-1 transition"
+        >
+          <span className="xl:hidden">Hide</span>
+          <PanelRightClose size={15} />
+        </button>
+      </div>
+
       {/* Context: Fireteam + Your Guardian + Settings */}
       <div className="shrink-0 bg-bungie-surface border border-bungie-border/40 rounded-xl">
         {/* Fireteam */}
@@ -1684,7 +1698,17 @@ export default function LobbyRoom({
         )}
       </div>
 
-      {rightColumn}
+      {rightOpen ? rightColumn : (
+        <button
+          onClick={() => setRightOpen(true)}
+          title="Show panel"
+          aria-label="Show panel"
+          className="shrink-0 xl:sticky xl:top-6 flex xl:flex-col items-center justify-center gap-2 rounded-xl border border-bungie-border/40 bg-bungie-surface text-gray-400 hover:text-gray-200 hover:border-gray-500 transition w-full xl:w-10 px-3 py-2 xl:py-4"
+        >
+          <PanelRightOpen size={16} />
+          <span className="text-xs xl:hidden">Show fireteam &amp; weapon pool</span>
+        </button>
+      )}
     </div>
   );
 }
