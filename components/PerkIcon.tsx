@@ -13,12 +13,14 @@ export default function PerkIcon({
   name,
   description,
   stats,
+  noTooltip,
   className = "w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition",
 }: {
   icon?: string;
   name?: string;
   description?: string;
   stats?: Record<string, number>;
+  noTooltip?: boolean;
   className?: string;
 }) {
   const ref = useRef<HTMLImageElement>(null);
@@ -39,7 +41,7 @@ export default function PerkIcon({
   if (!icon) return null;
 
   const statEntries = stats ? Object.entries(stats).filter(([, v]) => v !== 0) : [];
-  const hasTip = Boolean(name || description || statEntries.length > 0);
+  const hasTip = !noTooltip && Boolean(name || description || statEntries.length > 0);
   const title = !hasTip ? undefined : description ? `${name ?? ""} — ${description}` : name;
 
   return (
