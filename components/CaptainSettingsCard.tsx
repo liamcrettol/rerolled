@@ -1,12 +1,13 @@
 "use client";
 
+import { Shuffle, Lock, User } from "lucide-react";
 import type { LobbyRollSettings, SlotMode } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 
-const SLOT_MODE_LABEL: Record<SlotMode, string> = {
-  normal: "🎲 Random",
-  lock: "🔒 Locked",
-  wildcard: "👤 Your own",
+const SLOT_MODE_META: Record<SlotMode, { icon: typeof Shuffle; label: string }> = {
+  normal: { icon: Shuffle, label: "Random" },
+  lock: { icon: Lock, label: "Locked" },
+  wildcard: { icon: User, label: "Your own" },
 };
 
 const SLOT_LABEL: Record<WeaponSlot, string> = {
@@ -52,11 +53,19 @@ export default function CaptainSettingsCard({ settings }: { settings?: LobbyRoll
       <div>
         <span className="block text-[11px] uppercase tracking-wide text-gray-500 mb-1.5">Slots</span>
         <div className="flex flex-wrap gap-1.5">
-          {(["kinetic", "energy", "power"] as WeaponSlot[]).map((s) => (
-            <Chip key={s}>
-              {SLOT_LABEL[s]}: <span className="text-white font-medium">{SLOT_MODE_LABEL[slots[s]]}</span>
-            </Chip>
-          ))}
+          {(["kinetic", "energy", "power"] as WeaponSlot[]).map((s) => {
+            const meta = SLOT_MODE_META[slots[s]];
+            const Icon = meta.icon;
+            return (
+              <Chip key={s}>
+                {SLOT_LABEL[s]}:{" "}
+                <span className="inline-flex items-center gap-1 text-white font-medium align-middle">
+                  <Icon size={11} className="shrink-0" />
+                  {meta.label}
+                </span>
+              </Chip>
+            );
+          })}
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import { Shuffle, Check, Star } from "lucide-react";
 import type { WeaponSlot } from "@/types/bungie";
 import {
   type WeaponDetail,
@@ -43,9 +44,9 @@ const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
 // ── A single selectable roll row ──────────────────────────────────────────────
 
 function RollRow({
-  title, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
+  title, icon, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
-  title: string; location?: string; perks?: string[];
+  title: string; icon?: React.ReactNode; location?: string; perks?: string[];
   selected: boolean; onClick: () => void; disabled?: boolean;
   favorited?: boolean; onToggleFavorite?: () => void;
 }) {
@@ -63,7 +64,8 @@ function RollRow({
       />
       <button onClick={onClick} disabled={disabled} className="flex-1 text-left pl-3 pr-2 py-2 disabled:opacity-40">
         <div className="flex items-center justify-between gap-2">
-          <span className={`text-xs font-semibold ${selected ? "text-white" : "text-gray-300"}`}>
+          <span className={`text-xs font-semibold inline-flex items-center gap-1 ${selected ? "text-white" : "text-gray-300"}`}>
+            {icon}
             {title}
             {location && (
               <span className="ml-1.5 text-[10px] font-normal text-gray-400">
@@ -71,7 +73,7 @@ function RollRow({
               </span>
             )}
           </span>
-          {selected && <span className="text-bungie-blue text-xs shrink-0">✓</span>}
+          {selected && <Check size={13} className="text-bungie-blue shrink-0" />}
         </div>
         {perks && perks.length > 0 && (
           <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
@@ -84,9 +86,9 @@ function RollRow({
           onClick={onToggleFavorite}
           disabled={disabled}
           title={favorited ? "Unfavorite" : "Favorite this roll (auto-picked on roll)"}
-          className={`px-2 shrink-0 ${favorited ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
+          className={`px-2 shrink-0 flex items-center ${favorited ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
         >
-          {favorited ? "★" : "☆"}
+          <Star size={14} fill={favorited ? "currentColor" : "none"} />
         </button>
       )}
     </div>
@@ -142,7 +144,7 @@ function WeaponCard({
                 C
               </span>
             )}
-            {isActive && <span className="text-bungie-blue text-sm leading-none">✓</span>}
+            {isActive && <Check size={15} className="text-bungie-blue" />}
           </div>
         </div>
         <p className="text-gray-400 text-xs leading-tight truncate">{detail.weaponType}</p>
@@ -202,7 +204,8 @@ function WeaponCard({
                 : " · using best available"}
             </p>
             <RollRow
-              title="🎲 Any roll"
+              title="Any roll"
+              icon={<Shuffle size={12} className="shrink-0 text-gray-400" />}
               perks={["best available - easiest to equip"]}
               selected={!currentInstance}
               onClick={() => onSelect(hash)}
@@ -228,7 +231,7 @@ function WeaponCard({
             disabled={disabled}
             className="w-full border-t border-bungie-border/50 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/5 transition flex items-center gap-1.5 disabled:opacity-40"
           >
-            <span className="text-bungie-blue">◆</span>
+            <Star size={11} className="text-bungie-blue" />
             {rolls.length} rolls available - select to pick one
           </button>
         )

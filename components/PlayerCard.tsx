@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Crown, Check } from "lucide-react";
 import { trimBungieName } from "@/lib/utils";
 import type { LobbyMember } from "@/types/lobby";
 
@@ -35,17 +36,15 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
           {iconUrl ? (
             <img src={iconUrl} alt="" className="w-full h-full object-cover" onError={() => setIconFailed(true)} />
           ) : (
-            <div className="w-full h-full bg-bungie-border/30 flex items-center justify-center text-[10px]">
-              {member.is_captain ? "👑" : "👤"}
-            </div>
+            <div className="w-full h-full bg-bungie-border/30" />
           )}
         </div>
-        <span className="text-xs font-medium truncate flex-1 min-w-0">
-          {member.is_captain && <span className="mr-1">👑</span>}
-          {trimBungieName(member.display_name)}
+        <span className="text-xs font-medium truncate flex-1 min-w-0 flex items-center gap-1">
+          {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
+          <span className="truncate">{trimBungieName(member.display_name)}</span>
         </span>
         {!member.is_spectator && member.selected_character_id && (
-          <span className="text-green-400 text-xs shrink-0">✓</span>
+          <Check size={13} className="text-green-400 shrink-0" />
         )}
       </div>
     );
@@ -117,8 +116,8 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
 
       {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
-        <span className="absolute top-1 right-1.5 z-10 text-green-400 text-sm drop-shadow" title="Guardian selected">
-          ✓
+        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow" title="Guardian selected">
+          <Check size={15} />
         </span>
       )}
     </div>

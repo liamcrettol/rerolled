@@ -16,6 +16,7 @@ import { trimBungieName } from "@/lib/utils";
 import PlayerCard from "./PlayerCard";
 import RollSettingsPopover from "./RollSettingsPopover";
 import CaptainSettingsCard from "./CaptainSettingsCard";
+import { Shuffle, Zap, SlidersHorizontal, Crown, Check, Copy, X, MoreHorizontal, Lock, User } from "lucide-react";
 
 interface PlayerStat {
   userId: string;
@@ -76,11 +77,6 @@ const LOBBY_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 
 // Per-slot mode cycle: Random → Locked → Your own.
 type SlotMode = "normal" | "lock" | "wildcard";
-const SLOT_MODE_CONFIG: Record<SlotMode, { icon: string; label: string; cls: string }> = {
-  normal: { icon: "🎲", label: "Random", cls: "border-bungie-border text-gray-400 hover:border-gray-400" },
-  lock: { icon: "🔒", label: "Locked", cls: "border-yellow-500 bg-yellow-500/20 text-yellow-300" },
-  wildcard: { icon: "👤", label: "Your own", cls: "border-purple-500 bg-purple-500/20 text-purple-300" },
-};
 
 interface SessionTotal {
   userId: string;
@@ -111,7 +107,12 @@ function SessionTotalsTable({ totals }: { totals: SessionTotal[] }) {
         <tbody className="divide-y divide-bungie-border/40">
           {sorted.map((s, i) => (
             <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-              <td className="py-1.5 pr-4 font-medium">{i === 0 ? "👑 " : ""}{s.displayName}</td>
+              <td className="py-1.5 pr-4 font-medium">
+                <span className="inline-flex items-center gap-1.5">
+                  {i === 0 && <Crown size={13} className="shrink-0 text-yellow-400" />}
+                  {s.displayName}
+                </span>
+              </td>
               <td className="py-1.5 pr-3 text-right">{s.kills}</td>
               <td className="py-1.5 pr-3 text-right">{s.assists}</td>
               <td className="py-1.5 pr-3 text-right">{s.deaths}</td>
@@ -145,7 +146,10 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
           {sorted.map((s, i) => (
             <tr key={s.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
               <td className="px-3 py-1.5 font-medium">
-                {i === 0 ? "👑 " : ""}{trimBungieName(s.displayName)}
+                <span className="inline-flex items-center gap-1.5">
+                  {i === 0 && <Crown size={13} className="shrink-0 text-yellow-400" />}
+                  {trimBungieName(s.displayName)}
+                </span>
               </td>
               {hasWon && (
                 <td className="px-2 py-1.5 text-center">
@@ -282,13 +286,9 @@ export default function LobbyRoom({
 
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
-  const [showWeaponBrowser, setShowWeaponBrowser] = useState(true);
-  const [showRollSettingsPopover, setShowRollSettingsPopover] = useState(false);
   const [rollSettingsOpen, setRollSettingsOpen] = useState(false);
-  const [weaponPoolOpen, setWeaponPoolOpen] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
-  const gearButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
   const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta">("normal");
@@ -978,7 +978,7 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, rollMode, noDupMode]);
 
-  // Cycle a slot through Random → 🔒 Locked → 👤 Your own → Random.
+  // Cycle a slot through Random → Locked → Your own → Random.
   // Locked = keep this shared weapon on Roll All. Your own = skip slot on apply
   // (each player keeps their own equipped weapon). Toggling on/off "Your own"
   // writes the change immediately so the slot grays / repopulates right away.
@@ -1148,10 +1148,11 @@ export default function LobbyRoom({
 
   // The shared weapon pool is viewable by every player. The captain can select
   // weapons into the loadout; everyone else gets a read-only browse view.
-  const CLASS_ICONS: Record<number, string> = { 0: "🛡️", 1: "🏹", 2: "🔮" };
 
-  const sidebar = (
-    <aside className="flex flex-col w-full xl:w-36 shrink-0 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] gap-0 bg-bungie-surface border border-bungie-border/40 rounded-xl xl:overflow-hidden">
+  // Left rail: Fireteam · Your Guardian · Roll/Captain settings. Identity and
+  // configuration live here so the center can stay focused on the loadout.
+  const leftRail = (
+    <aside className="order-3 xl:order-1 flex flex-col w-full xl:w-60 shrink-0 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] gap-0 bg-bungie-surface border border-bungie-border/40 rounded-xl xl:overflow-y-auto">
       {/* Fireteam */}
       <div className="px-3 pt-3 pb-2">
         <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Fireteam</p>
@@ -1175,19 +1176,19 @@ export default function LobbyRoom({
                   <button
                     key={c.characterId}
                     onClick={() => handleSelectCharacter(c.characterId)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition ${
+                    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg border text-left transition ${
                       selectedCharId === c.characterId
                         ? "border-bungie-blue/50 bg-bungie-blue/10 text-white"
                         : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-300"
                     }`}
                   >
-                    <span className="text-sm">{CLASS_ICONS[c.classType] ?? "👤"}</span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold leading-tight">{CLASS_NAMES[c.classType] ?? "Guardian"}</p>
-                      <p className="text-[9px] text-gray-500 leading-tight">{c.light}</p>
+                    <EmblemThumbnail emblemPath={c.emblemPath} classType={c.classType} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold leading-tight">{CLASS_NAMES[c.classType] ?? "Guardian"}</p>
+                      <p className="text-[10px] text-gray-500 leading-tight">Power {c.light}</p>
                     </div>
                     {selectedCharId === c.characterId && (
-                      <span className="ml-auto text-green-400 text-[10px]">✓</span>
+                      <Check size={14} className="ml-auto shrink-0 text-green-400" />
                     )}
                   </button>
                 ))}
@@ -1195,79 +1196,117 @@ export default function LobbyRoom({
           </div>
         </>
       )}
+
+      {/* Settings: captain edits roll settings; everyone else sees them read-only. */}
+      {!isSpectator && (isCaptain ? intersection != null : true) && (
+        <>
+          <div className="mx-3 h-px bg-bungie-border/40" />
+          <div className="px-3 pt-2 pb-3">
+            <button
+              onClick={() => setRollSettingsOpen((v) => !v)}
+              className="w-full flex items-center gap-2 text-[10px] uppercase tracking-widest text-gray-600 hover:text-gray-400 transition mb-2"
+            >
+              <SlidersHorizontal size={12} className="shrink-0" />
+              <span className="flex-1 text-left">{isCaptain ? "Roll Settings" : "Captain's Settings"}</span>
+              {isCaptain && bannedTypes.size > 0 && (
+                <span className="text-yellow-500/80 normal-case tracking-normal">{bannedTypes.size} banned</span>
+              )}
+              <span className="text-[9px]">{rollSettingsOpen ? "▲" : "▼"}</span>
+            </button>
+            {rollSettingsOpen && (
+              isCaptain ? (
+                <RollSettingsPopover
+                  inline
+                  anchorRef={{ current: null }}
+                  onClose={() => {}}
+                  rollMode={rollMode}
+                  onRollModeChange={setRollMode}
+                  rerollLimit={rerollLimit}
+                  onRerollLimitChange={setRerollLimit}
+                  rerollsUsed={rerollsUsed}
+                  noDupMode={noDupMode}
+                  onNoDupChange={setNoDupMode}
+                  bannedTypes={bannedTypes}
+                  onBannedTypesChange={setBannedTypes}
+                  poolWeaponTypes={poolWeaponTypes}
+                />
+              ) : (
+                <CaptainSettingsCard settings={lobbyData.roll_settings} />
+              )
+            )}
+          </div>
+        </>
+      )}
     </aside>
   );
 
-  const weaponBrowser = intersection && showWeaponBrowser ? (
-    <WeaponPool
-      intersection={effectiveIntersection ?? intersection}
-      weaponDetails={weaponDetails}
-      instancePerks={instancePerks}
-      collectionHashes={collectionHashes}
-      currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
-      currentInstances={preferredInstances}
-      onSelectWeapon={(slot, hash, instanceId) => handleSelectWeapon(slot, hash, instanceId)}
-      favorites={favorites}
-      onToggleFavorite={toggleFavorite}
-      disabled={loadingAction !== null}
-      readOnly={!isCaptain}
-    />
-  ) : null;
-
-  // Header row for the weapon-pool panel (shared between the mobile and sidebar
-  // placements). `pad` adds the sidebar's inset padding.
-  const poolHeader = (pad: boolean) => (
-    <div className={`flex items-center justify-between mb-3 ${pad ? "px-4 pt-4" : ""}`}>
-      <div className="flex items-center gap-2">
-        <h2 className="text-white font-semibold">Shared Weapon Pool</h2>
+  // Right rail: the shared Weapon Pool browser, always open (no dropdown). For
+  // non-captains who haven't loaded their inventory yet, surface the load CTA.
+  const weaponPoolRail = !isSpectator ? (
+    <aside className="order-2 xl:order-3 w-full xl:w-80 shrink-0 xl:sticky xl:top-6 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+          Weapon Pool
+          {effectiveIntersection && (
+            <span className="text-xs font-normal text-gray-500">
+              {effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length} shared
+            </span>
+          )}
+        </h2>
         {!isCaptain && (
           <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5">
             View only
           </span>
         )}
       </div>
-      {intersection && (
-        <button
-          onClick={() => setShowWeaponBrowser((v) => !v)}
-          className="text-xs px-2.5 py-1 rounded border border-bungie-border text-gray-400 hover:border-gray-400 transition"
-        >
-          {showWeaponBrowser ? "Minimize" : "Expand"}
-        </button>
-      )}
-    </div>
-  );
 
-  // Non-captains load the pool on demand (avoids firing a Bungie inventory
-  // fetch for every viewer unless they actually want to see it).
-  const poolLoadButton = (pad: boolean) => !isCaptain ? (
-    <div className={pad ? "px-4 pb-4" : "pb-2"}>
-      <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
-        {/* Pulse ring to draw the eye */}
-        <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
-        <p className="text-white text-sm font-semibold mb-1">⚡ Load your shared weapons</p>
-        <p className="text-gray-400 text-xs mb-3 leading-snug">
-          Everyone needs to do this so the captain can roll a loadout you all own.
-        </p>
-        <button
-          onClick={() => handleLoadIntersection()}
+      {intersection ? (
+        <WeaponPool
+          intersection={effectiveIntersection ?? intersection}
+          weaponDetails={weaponDetails}
+          instancePerks={instancePerks}
+          collectionHashes={collectionHashes}
+          currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
+          currentInstances={preferredInstances}
+          onSelectWeapon={(slot, hash, instanceId) => handleSelectWeapon(slot, hash, instanceId)}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
           disabled={loadingAction !== null}
-          className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
-        >
-          {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
-        </button>
-        {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
-      </div>
-    </div>
+          readOnly={!isCaptain}
+        />
+      ) : !isCaptain ? (
+        <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
+          <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
+          <p className="text-white text-sm font-semibold mb-1 flex items-center gap-1.5">
+            <Zap size={15} className="text-bungie-blue" /> Load your shared weapons
+          </p>
+          <p className="text-gray-400 text-xs mb-3 leading-snug">
+            Everyone needs to do this so the captain can roll a loadout you all own.
+          </p>
+          <button
+            onClick={() => handleLoadIntersection()}
+            disabled={loadingAction !== null}
+            className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
+          >
+            {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
+          </button>
+          {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-bungie-border/40 bg-bungie-surface p-4">
+          <p className="text-sm text-gray-500">
+            {loadingAction === "intersection" ? "Loading shared weapons…" : "Roll to load the shared weapon pool."}
+          </p>
+          {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+        </div>
+      )}
+    </aside>
   ) : null;
 
-  // Whether to render the pool panel at all: any non-spectator, once there's
-  // either a loaded pool or (for non-captains) a load affordance to offer.
-  const showPoolPanel = !isSpectator && (intersection != null || !isCaptain);
-
   return (
-    <>
     <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
-      <div className="flex-1 min-w-0 flex flex-col gap-6">
+      {leftRail}
+      <div className="order-1 xl:order-2 flex-1 min-w-0 flex flex-col gap-6">
         {/* Header */}
         <div className="order-1 flex items-center justify-between gap-3">
           <div>
@@ -1275,21 +1314,23 @@ export default function LobbyRoom({
               <button
                 onClick={copyCode}
                 title="Copy lobby code"
-                className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero text-lg hover:opacity-75 transition"
+                className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero text-lg hover:opacity-75 transition inline-flex items-center gap-1.5"
               >
-                {copied ? "✓" : lobby.code}
+                {copied ? <Check size={18} /> : lobby.code}
               </button>
               <button
                 onClick={copyLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
               >
-                {copiedLink ? "✓" : "Invite"}
+                {copiedLink ? <Check size={12} /> : <Copy size={12} />}
+                {copiedLink ? "Copied" : "Invite"}
               </button>
               <button
                 onClick={copyWatchLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition"
+                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
               >
-                {copiedWatch ? "✓" : "Watch"}
+                {copiedWatch ? <Check size={12} /> : <Copy size={12} />}
+                {copiedWatch ? "Copied" : "Watch"}
               </button>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
@@ -1298,7 +1339,11 @@ export default function LobbyRoom({
                 return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
               })()}
               <span className="text-xs text-gray-500">Round {lobbyData.current_round}</span>
-              {isCaptain && <span className="text-xs text-yellow-400">👑 Your turn</span>}
+              {isCaptain && (
+                <span className="text-xs text-yellow-400 inline-flex items-center gap-1">
+                  <Crown size={12} /> Your turn
+                </span>
+              )}
               {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
             </div>
           </div>
@@ -1307,10 +1352,10 @@ export default function LobbyRoom({
           <div ref={overflowMenuRef} className="relative">
             <button
               onClick={() => setShowOverflowMenu((v) => !v)}
-              className="px-2.5 py-1.5 text-gray-400 border border-bungie-border/40 rounded-lg hover:border-gray-500 transition text-sm"
+              className="p-1.5 text-gray-400 border border-bungie-border/40 rounded-lg hover:border-gray-500 transition flex items-center"
               aria-label="More actions"
             >
-              ···
+              <MoreHorizontal size={16} />
             </button>
             {showOverflowMenu && (
               <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
@@ -1348,7 +1393,7 @@ export default function LobbyRoom({
         </div>
 
         {/* Stats panel: Session / History / Leaderboard tabs */}
-        <div className="order-7 bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
+        <div className="order-6 bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
           {/* Post-game dismissible banner */}
           {lastGameStats && lastGameStats.length > 0 && (() => {
             const top = [...lastGameStats].sort((a, b) => b.kills - a.kills)[0];
@@ -1358,10 +1403,11 @@ export default function LobbyRoom({
                 <span className="text-xs font-semibold text-green-400">
                   {result === true ? "W" : result === false ? "L" : "—"}
                 </span>
-                <span className="text-xs text-gray-300 flex-1 truncate">
-                  👑 {trimBungieName(top.displayName)} · {top.kills}K / {top.deaths}D
+                <span className="text-xs text-gray-300 flex-1 truncate inline-flex items-center gap-1.5">
+                  <Crown size={12} className="shrink-0 text-yellow-400" />
+                  {trimBungieName(top.displayName)} · {top.kills}K / {top.deaths}D
                 </span>
-                <button onClick={() => setLastGameStats(null)} className="text-gray-500 hover:text-gray-300 text-xs transition">✕</button>
+                <button onClick={() => setLastGameStats(null)} className="text-gray-500 hover:text-gray-300 transition flex items-center"><X size={14} /></button>
               </div>
             );
           })()}
@@ -1437,8 +1483,9 @@ export default function LobbyRoom({
                               {round.mapName ?? "Unknown map"}
                             </p>
                             {topPlayer && (
-                              <p className="text-gray-400 text-xs mt-0.5 truncate">
-                                👑 {topPlayer.displayName}
+                              <p className="text-gray-400 text-xs mt-0.5 truncate inline-flex items-center gap-1.5 max-w-full">
+                                <Crown size={12} className="shrink-0 text-yellow-400" />
+                                <span className="truncate">{topPlayer.displayName}</span>
                                 <span className="text-gray-500"> · </span>
                                 <span className="text-white tabular-nums">{topPlayer.kills}K</span>
                                 <span className="text-gray-500"> / </span>
@@ -1517,7 +1564,12 @@ export default function LobbyRoom({
                       {leaderboard.map((e, i) => (
                         <tr key={e.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
                           <td className="py-2 pr-2 text-gray-500 font-mono text-xs">{i + 1}</td>
-                          <td className="py-2 pr-4 font-medium">{i === 0 ? "👑 " : ""}{e.displayName}</td>
+                          <td className="py-2 pr-4 font-medium">
+                            <span className="inline-flex items-center gap-1.5">
+                              {i === 0 && <Crown size={13} className="shrink-0 text-yellow-400" />}
+                              {e.displayName}
+                            </span>
+                          </td>
                           <td className="py-2 pr-3 text-right">{e.gamesPlayed}</td>
                           <td className="py-2 pr-3 text-right tabular-nums">
                             {e.wins + e.losses > 0 ? (
@@ -1536,16 +1588,36 @@ export default function LobbyRoom({
         </div>
 
 
-        {/* Action row */}
+        {/* Loadout cards */}
+        {slots.length > 0 && (
+          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:rounded-xl after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
+            <LoadoutQueue
+              slots={slots}
+              weaponDetails={weaponDetails}
+              instancePerks={instancePerks}
+              collectionHashes={collectionHashes}
+              animKindRef={animKindRef}
+              isCaptain={isCaptain}
+              lockedSlots={lockedSlots}
+              wildcardSlots={wildcardSlots}
+              onCycleSlotMode={cycleSlotMode}
+              onRerollSlot={(slot) => handleRoll(slot)}
+              rerollExhausted={rerollExhausted}
+            />
+          </div>
+        )}
+
+        {/* Action bar: Roll All (captain) + Apply, directly under the loadout. */}
         {!isSpectator && roundId && (
-          <div className="order-3 relative flex items-center gap-3 flex-wrap">
+          <div className="order-3 flex items-center gap-3 flex-wrap">
             {isCaptain && (
               <button
                 onClick={() => handleRoll()}
                 disabled={loadingAction !== null || rerollExhausted || !intersection}
-                className="px-5 py-2.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-bold rounded-full transition text-sm"
+                className="px-5 py-2.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-bold rounded-full transition text-sm inline-flex items-center gap-2"
               >
-                {loadingAction === "roll" ? "Rolling…" : "🎲 Roll All"}
+                <Shuffle size={16} />
+                {loadingAction === "roll" ? "Rolling…" : "Roll All"}
               </button>
             )}
 
@@ -1553,9 +1625,10 @@ export default function LobbyRoom({
               <button
                 onClick={handleApply}
                 disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
-                className="px-5 py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold rounded-full transition text-sm"
+                className="px-5 py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold rounded-full transition text-sm inline-flex items-center gap-2"
               >
-                {loadingAction === "apply" ? "Applying…" : "⚡ Apply"}
+                <Zap size={16} />
+                {loadingAction === "apply" ? "Applying…" : "Apply"}
               </button>
             )}
 
@@ -1568,71 +1641,23 @@ export default function LobbyRoom({
               </button>
             )}
 
-            {isCaptain && intersection && (
-              <button
-                ref={gearButtonRef}
-                onClick={() => setShowRollSettingsPopover((v) => !v)}
-                className={`px-2.5 py-2.5 border rounded-full text-sm transition ${
-                  showRollSettingsPopover
-                    ? "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue"
-                    : "border-bungie-border/40 text-gray-400 hover:border-gray-500"
-                }`}
-                aria-label="Roll settings"
-              >
-                ⚙️
-              </button>
+            {!selectedCharId && loadingAction !== "apply" && slots.some((s) => s.item_hash !== 0) && (
+              <span className="text-xs text-yellow-400">Select a character first</span>
             )}
-
             {intersectionError && (
               <span className="text-xs text-red-400">{intersectionError}</span>
             )}
             {!intersection && isCaptain && loadingAction === "intersection" && (
               <span className="text-xs text-gray-500 animate-pulse">Loading shared weapons…</span>
             )}
-
-            {showRollSettingsPopover && isCaptain && (
-              <RollSettingsPopover
-                anchorRef={gearButtonRef}
-                onClose={() => setShowRollSettingsPopover(false)}
-                rollMode={rollMode}
-                onRollModeChange={setRollMode}
-                rerollLimit={rerollLimit}
-                onRerollLimitChange={setRerollLimit}
-                rerollsUsed={rerollsUsed}
-                noDupMode={noDupMode}
-                onNoDupChange={setNoDupMode}
-                bannedTypes={bannedTypes}
-                onBannedTypesChange={setBannedTypes}
-                poolWeaponTypes={poolWeaponTypes}
-              />
+            {slots.some((s) => s.item_hash !== 0) && loadingAction !== "apply" && (
+              <span className="text-xs text-gray-600">Must be in orbit or social space</span>
             )}
           </div>
         )}
 
-        {slots.length > 0 && (
-          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:rounded-xl after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
-            <LoadoutQueue
-              slots={slots}
-              weaponDetails={weaponDetails}
-              instancePerks={instancePerks}
-              collectionHashes={collectionHashes}
-              onApply={handleApply}
-              animKindRef={animKindRef}
-              onCancelApply={handleCancelApply}
-              selectedCharId={selectedCharId}
-              loading={loadingAction === "apply"}
-              isCaptain={isCaptain}
-              lockedSlots={lockedSlots}
-              wildcardSlots={wildcardSlots}
-              onCycleSlotMode={cycleSlotMode}
-              onRerollSlot={(slot) => handleRoll(slot)}
-              rerollExhausted={rerollExhausted}
-            />
-          </div>
-        )}
-
         {slots.some((s) => s.item_hash !== 0) && (
-          <div className="order-5">
+          <div className="order-4">
           <RollDetails
             rolls={rollsData}
             chosenInstances={myChosenInstances}
@@ -1648,113 +1673,13 @@ export default function LobbyRoom({
         )}
 
         {applyResults.length > 0 && (
-          <div className="order-6">
+          <div className="order-5">
           <ApplyStatus results={applyResults} onClear={() => setApplyResults([])} />
           </div>
         )}
-
-        {/* Drawers */}
-        <div className="order-4 flex flex-col gap-2">
-          {/* Roll Settings drawer (captain only) */}
-          {isCaptain && intersection && (
-            <div className="order-2 border border-bungie-border/40 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setRollSettingsOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-gray-200 transition"
-              >
-                <span>⚙️ Roll Settings{bannedTypes.size > 0 ? ` · ${bannedTypes.size} banned` : ""}</span>
-                <span className="text-xs">{rollSettingsOpen ? "▲" : "▼"}</span>
-              </button>
-              {rollSettingsOpen && (
-                <div className="px-4 pb-4 border-t border-bungie-border/40">
-                  <RollSettingsPopover
-                    inline
-                    anchorRef={{ current: null }}
-                    onClose={() => {}}
-                    rollMode={rollMode}
-                    onRollModeChange={setRollMode}
-                    rerollLimit={rerollLimit}
-                    onRerollLimitChange={setRerollLimit}
-                    rerollsUsed={rerollsUsed}
-                    noDupMode={noDupMode}
-                    onNoDupChange={setNoDupMode}
-                    bannedTypes={bannedTypes}
-                    onBannedTypesChange={setBannedTypes}
-                    poolWeaponTypes={poolWeaponTypes}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Captain's settings (read-only) — shown to non-captains so they can
-              see the active roll config without being able to edit it (#106). */}
-          {!isCaptain && !isSpectator && (
-            <div className="order-2 border border-bungie-border/40 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setRollSettingsOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-gray-200 transition"
-              >
-                <span>⚙️ Captain&apos;s Settings</span>
-                <span className="text-xs">{rollSettingsOpen ? "▲" : "▼"}</span>
-              </button>
-              {rollSettingsOpen && (
-                <div className="px-4 pb-4 pt-3 border-t border-bungie-border/40">
-                  <CaptainSettingsCard settings={lobbyData.roll_settings} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Weapon Pool drawer */}
-          {!isSpectator && (
-            <div className="order-1 border border-bungie-border/40 rounded-xl overflow-hidden">
-              <button
-                onClick={() => {
-                  if (!intersection && isCaptain) handleLoadIntersection();
-                  setWeaponPoolOpen((v) => !v);
-                }}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-400 hover:text-gray-200 transition"
-              >
-                <span>
-                  🔫 Weapon Pool
-                  {effectiveIntersection
-                    ? ` · ${effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length} shared`
-                    : !isCaptain
-                    ? ""
-                    : " · tap to load"}
-                </span>
-                <span className="text-xs">{weaponPoolOpen ? "▲" : "▼"}</span>
-              </button>
-              {weaponPoolOpen && (
-                <div className="border-t border-bungie-border/40">
-                  {intersection ? (
-                    weaponBrowser ?? <p className="p-4 text-sm text-gray-500">Browse disabled.</p>
-                  ) : (
-                    <div className="p-4">
-                      {!isCaptain ? (
-                        <button
-                          onClick={handleLoadIntersection}
-                          disabled={loadingAction !== null}
-                          className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
-                        >
-                          {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
-                        </button>
-                      ) : (
-                        <p className="text-sm text-gray-500">Loading shared weapons…</p>
-                      )}
-                      {intersectionError && <p className="mt-2 text-xs text-red-400">{intersectionError}</p>}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
-      {sidebar}
+      {weaponPoolRail}
     </div>
-    </>
   );
 }

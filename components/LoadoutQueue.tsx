@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { Shuffle, Lock, User } from "lucide-react";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { type WeaponDetail, type InstancePerk, useWeaponTooltip, damageTheme, DAMAGE_COLOR } from "./weaponShared";
@@ -18,10 +19,6 @@ interface Props {
   weaponDetails: Record<string, WeaponDetail>;
   instancePerks?: Record<string, InstancePerk[]>;
   collectionHashes?: Set<number>;
-  onApply: () => void;
-  onCancelApply: () => void;
-  selectedCharId: string | null;
-  loading: boolean;
   animKindRef?: React.MutableRefObject<Record<string, AnimKind>>;
   isCaptain?: boolean;
   lockedSlots?: Set<string>;
@@ -37,7 +34,7 @@ const REEL_PRE_COUNT = 15;
 const SLOT_STAGGER_MS: Record<string, number> = { kinetic: 0, energy: 160, power: 320 };
 
 type SlotMode = "normal" | "lock" | "wildcard";
-const SLOT_MODE_ICONS: Record<SlotMode, string> = { normal: "🎲", lock: "🔒", wildcard: "👤" };
+const SLOT_MODE_ICONS: Record<SlotMode, typeof Shuffle> = { normal: Shuffle, lock: Lock, wildcard: User };
 
 function WeaponSlotContent({
   hash, icon, watermark, name, weaponType, damageType, isCollection,
@@ -167,8 +164,7 @@ function WeaponSlotContent({
 }
 
 export default function LoadoutQueue({
-  slots, weaponDetails, instancePerks = {}, collectionHashes = new Set(),
-  onApply, onCancelApply, selectedCharId, loading, animKindRef,
+  slots, weaponDetails, instancePerks = {}, collectionHashes = new Set(), animKindRef,
   isCaptain, lockedSlots, wildcardSlots, onCycleSlotMode, onRerollSlot, rerollExhausted,
 }: Props) {
   const sorted = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s)).filter(Boolean) as LobbyLoadoutSlot[];
@@ -192,7 +188,7 @@ export default function LoadoutQueue({
   return (
     <div className="bg-bungie-surface border border-bungie-border/40 rounded-xl p-5">
       {tooltipNode}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-3 gap-4">
         {SLOT_ORDER.map((slotName) => {
           const slot = sorted.find((s) => s.slot === slotName);
           const isWildcard = slot?.item_hash === 0;
@@ -204,6 +200,7 @@ export default function LoadoutQueue({
             : wildcardSlots?.has(slotName)
             ? "wildcard"
             : "normal";
+          const ModeIcon = SLOT_MODE_ICONS[slotMode];
 
           return (
             <div key={slotName} className="flex flex-col items-center gap-2">
@@ -234,8 +231,8 @@ export default function LoadoutQueue({
                 )}
 
                 {isWildcard ? (
-                  <div className="w-full h-full flex items-center justify-center text-2xl opacity-40 grayscale animate-pulse">
-                    👤
+                  <div className="w-full h-full flex items-center justify-center opacity-40 animate-pulse">
+                    <User size={28} className="text-gray-400" />
                   </div>
                 ) : slot ? (
                   <WeaponSlotContent
@@ -266,7 +263,7 @@ export default function LoadoutQueue({
                 <button
                   onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
                   title="Click to cycle: Random → Locked → Your own"
-                  className={`text-[10px] px-2 py-0.5 rounded-full border transition ${
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1 ${
                     slotMode === "lock"
                       ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-300"
                       : slotMode === "wildcard"
@@ -274,34 +271,13 @@ export default function LoadoutQueue({
                       : "border-bungie-border/40 text-gray-500 hover:border-gray-500"
                   }`}
                 >
-                  {SLOT_MODE_ICONS[slotMode]} {slotMode === "normal" ? "Random" : slotMode === "lock" ? "Locked" : "Yours"}
+                  <ModeIcon size={11} className="shrink-0" />
+                  {slotMode === "normal" ? "Random" : slotMode === "lock" ? "Locked" : "Yours"}
                 </button>
               )}
             </div>
           );
         })}
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <button
-          onClick={onApply}
-          disabled={!selectedCharId || loading || sorted.length < 3}
-          className="px-5 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-full transition text-sm"
-        >
-          {loading ? "Applying…" : "⚡ Apply Loadout"}
-        </button>
-        {loading && (
-          <button
-            onClick={onCancelApply}
-            className="px-3 py-2.5 border border-red-800 text-red-400 hover:text-red-300 hover:border-red-600 rounded-full text-sm transition"
-          >
-            Cancel
-          </button>
-        )}
-        {!selectedCharId && !loading && (
-          <span className="text-xs text-yellow-400">Select a character first</span>
-        )}
-        {!loading && <span className="text-xs text-gray-600">Must be in orbit or social space</span>}
       </div>
     </div>
   );

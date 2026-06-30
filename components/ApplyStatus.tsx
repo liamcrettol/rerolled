@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
 
@@ -91,7 +92,11 @@ export default function ApplyStatus({
               <span className="ml-auto text-gray-400 text-[13px] whitespace-nowrap">
                 {trimBungieName(r.display_name)}
               </span>
-              <span className="flex-shrink-0 text-[15px]">{r.success ? "✅" : "❌"}</span>
+              <span className="flex-shrink-0">
+                {r.success
+                  ? <CheckCircle2 size={16} className="text-green-400" />
+                  : <XCircle size={16} className="text-red-400" />}
+              </span>
               {canExpand && (
                 <span
                   className={`flex-shrink-0 w-4 text-center text-gray-400 transition-transform motion-reduce:transition-none ${
