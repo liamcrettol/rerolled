@@ -342,8 +342,8 @@ export default function RollDetails({
         <div className="flex-1 min-w-0">
           <div className="max-h-[24rem] overflow-y-auto overflow-x-auto pr-1">
             <div
-              className="grid gap-3 content-start justify-start"
-              style={{ gridTemplateColumns: "repeat(3, 22rem)" }}
+              className="grid gap-3 content-start min-w-full"
+              style={{ gridTemplateColumns: `repeat(${Math.min(members.length, 3)}, 1fr)` }}
             >
               {members.map((m) => memberCard(m))}
             </div>
