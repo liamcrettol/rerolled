@@ -1154,9 +1154,9 @@ export default function LobbyRoom({
   // with the shared Weapon Pool filling the remaining height beneath it. The main
   // loadout column (below) occupies all the space to the left.
   const rightColumn = (
-    <aside className="w-full xl:w-80 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col gap-3">
+    <aside className="w-full xl:w-80 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col">
       {/* Collapse the whole right column to give the loadout full width. */}
-      <div className="flex justify-end shrink-0">
+      <div className="flex justify-end shrink-0 mb-3">
         <button
           onClick={() => setRightOpen(false)}
           title="Hide panel"
@@ -1167,6 +1167,9 @@ export default function LobbyRoom({
           <PanelRightClose size={15} />
         </button>
       </div>
+
+      {/* Single scrollable area covering the context card + weapon pool. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-0.5">
 
       {/* Context: Fireteam + Your Guardian + Settings */}
       <div className="shrink-0 bg-bungie-surface border border-bungie-border/40 rounded-xl">
@@ -1256,10 +1259,10 @@ export default function LobbyRoom({
         )}
       </div>
 
-      {/* Shared Weapon Pool — always open, fills the rest of the column. */}
+      {/* Shared Weapon Pool — always open, no internal scroll (parent scrolls). */}
       {!isSpectator && (
-        <div className="flex-1 min-h-0 flex flex-col gap-2">
-          <div className="flex items-center justify-between shrink-0">
+        <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between">
             <h2 className="text-white font-semibold text-sm flex items-center gap-2">
               Weapon Pool
               {effectiveIntersection && (
@@ -1276,9 +1279,8 @@ export default function LobbyRoom({
           </div>
 
           {intersection ? (
-            <div className="flex-1 min-h-0">
               <WeaponPool
-                fillHeight
+                noScroll
                 intersection={effectiveIntersection ?? intersection}
                 weaponDetails={weaponDetails}
                 instancePerks={instancePerks}
@@ -1291,7 +1293,6 @@ export default function LobbyRoom({
                 disabled={loadingAction !== null}
                 readOnly={!isCaptain}
               />
-            </div>
           ) : !isCaptain ? (
             <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
               <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
@@ -1320,6 +1321,8 @@ export default function LobbyRoom({
           )}
         </div>
       )}
+
+      </div>{/* end scrollable wrapper */}
     </aside>
   );
 
