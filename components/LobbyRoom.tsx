@@ -16,7 +16,7 @@ import { trimBungieName } from "@/lib/utils";
 import PlayerCard from "./PlayerCard";
 import RollSettingsPopover from "./RollSettingsPopover";
 import CaptainSettingsCard from "./CaptainSettingsCard";
-import { Shuffle, Zap, SlidersHorizontal, Crown, Check, Copy, X, MoreHorizontal, Lock, User, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { Shuffle, Zap, SlidersHorizontal, Crown, Check, Copy, X, MoreHorizontal, Lock, User, PanelRightOpen, PanelRightClose, Clock } from "lucide-react";
 
 interface PlayerStat {
   userId: string;
@@ -289,6 +289,7 @@ export default function LobbyRoom({
   const [rollSettingsOpen, setRollSettingsOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [minutesToClose, setMinutesToClose] = useState<number | null>(null);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
@@ -332,6 +333,23 @@ export default function LobbyRoom({
 
   // Keep captainLocked in sync with real-time lobby updates
   useEffect(() => { setCaptainLocked(lobbyData.captain_locked ?? false); }, [lobbyData.captain_locked]);
+
+  // Track time remaining until the idle auto-close (2 h without activity).
+  // Refreshes every 30 s so the countdown stays accurate.
+  useEffect(() => {
+    const IDLE_CLOSE_MS = 2 * 60 * 60 * 1000;
+    function update() {
+      if (!lobbyData.last_active_at || lobbyData.status === "done") {
+        setMinutesToClose(null);
+        return;
+      }
+      const elapsed = Date.now() - new Date(lobbyData.last_active_at).getTime();
+      setMinutesToClose(Math.max(0, Math.floor((IDLE_CLOSE_MS - elapsed) / 60_000)));
+    }
+    update();
+    const id = setInterval(update, 30_000);
+    return () => clearInterval(id);
+  }, [lobbyData.last_active_at, lobbyData.status]);
 
   // Reset the reroll budget at the start of each round.
   useEffect(() => { setRerollsUsed(0); }, [lobbyData.current_round]);
@@ -1368,6 +1386,16 @@ export default function LobbyRoom({
               )}
               {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
             </div>
+            {minutesToClose !== null && minutesToClose <= 20 && (
+              <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs px-2 py-0.5 rounded border ${
+                minutesToClose <= 5
+                  ? "border-red-600/50 bg-red-900/20 text-red-300"
+                  : "border-yellow-600/40 bg-yellow-900/10 text-yellow-300"
+              }`}>
+                <Clock size={11} className="shrink-0" />
+                {minutesToClose <= 1 ? "Closing due to inactivity…" : `Auto-closes in ${minutesToClose} min`}
+              </div>
+            )}
           </div>
 
           {/* Overflow menu */}
