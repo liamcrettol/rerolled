@@ -29,19 +29,20 @@ let memoryCache: CachedManifest | null = null;
 export async function getManifest(): Promise<CachedManifest> {
   if (memoryCache) return memoryCache;
 
-  // Check DB for cached version
-  const { data: meta } = await adminSupabase
-    .from("cached_manifest_metadata")
-    .select("version, cached_at")
-    .order("cached_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  // Fetch current manifest version from Bungie
-  const res = await fetch(MANIFEST_URL, {
-    headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
-    next: { revalidate: 3600 },
-  });
+  // Check DB for cached version and fetch the current manifest version from
+  // Bungie in parallel — neither depends on the other's result.
+  const [{ data: meta }, res] = await Promise.all([
+    adminSupabase
+      .from("cached_manifest_metadata")
+      .select("version, cached_at")
+      .order("cached_at", { ascending: false })
+      .limit(1)
+      .single(),
+    fetch(MANIFEST_URL, {
+      headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
+      next: { revalidate: 3600 },
+    }),
+  ]);
   const manifestData: { Response: ManifestResponse } = await res.json();
   const { version, jsonWorldComponentContentPaths } = manifestData.Response;
   const paths = jsonWorldComponentContentPaths.en;

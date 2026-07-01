@@ -3,7 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { adminSupabase } from "@/lib/supabase/admin";
 
-export const authConfig: NextAuthConfig = {
+const authConfig: NextAuthConfig = {
   providers: [
     Credentials({
       // Called when /auth/complete submits the one-time auth code
@@ -80,4 +80,4 @@ export const authConfig: NextAuthConfig = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);
+export const { handlers, signIn, auth } = NextAuth(authConfig);

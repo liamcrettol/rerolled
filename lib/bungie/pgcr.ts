@@ -95,12 +95,12 @@ export interface CollectedPlayerStat {
   won: boolean | null; // null when the activity has no win/loss (PvE)
 }
 
-export interface WeaponKillStat {
+interface WeaponKillStat {
   itemHash: number;
   totalKills: number;
 }
 
-export interface PostMatchResult {
+interface PostMatchResult {
   playerStats: CollectedPlayerStat[];
   weaponKills: WeaponKillStat[];
   activityHash: number;

@@ -9,8 +9,8 @@ import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
 
-export interface Perk { name: string; description: string; stats?: Record<string, number> }
-export interface RollInstance {
+interface Perk { name: string; description: string; stats?: Record<string, number> }
+interface RollInstance {
   instanceId: string;
   location: "character" | "vault";
   perkHashes: number[];
@@ -31,7 +31,7 @@ export interface RollInstance {
   stats: Record<string, number>;
   lightLevel: number;
 }
-export interface MemberRolls {
+interface MemberRolls {
   userId: string;
   displayName: string;
   isMe: boolean;

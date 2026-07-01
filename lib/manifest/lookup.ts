@@ -59,12 +59,6 @@ export function lookupWeapon(opts: LookupOptions): ResolvedWeapon | null {
   return resolveWeapon(opts, manifest);
 }
 
-// Async version for one-off resolution
-export async function lookupWeaponAsync(opts: LookupOptions): Promise<ResolvedWeapon | null> {
-  const m = await ensureManifest();
-  return resolveWeapon(opts, m);
-}
-
 function resolveWeapon(
   opts: LookupOptions,
   m: Awaited<ReturnType<typeof getManifest>>

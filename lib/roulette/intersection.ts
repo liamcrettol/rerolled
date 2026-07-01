@@ -1,27 +1,4 @@
-import type { ResolvedWeapon } from "@/types/weapon";
 import type { WeaponSlot } from "@/types/bungie";
-
-export function computeWeaponIntersection(
-  memberWeapons: Map<string, ResolvedWeapon[]>
-): Record<WeaponSlot, number[]> {
-  const result: Record<WeaponSlot, number[]> = { kinetic: [], energy: [], power: [] };
-  if (memberWeapons.size === 0) return result;
-
-  const slots: WeaponSlot[] = ["kinetic", "energy", "power"];
-  for (const slot of slots) {
-    const memberHashSets: Set<number>[] = [];
-    for (const weapons of Array.from(memberWeapons.values())) {
-      const hashes = new Set<number>(
-        (weapons as ResolvedWeapon[]).filter((w) => w.slot === slot).map((w) => w.itemHash)
-      );
-      memberHashSets.push(hashes);
-    }
-    if (memberHashSets.length === 0) continue;
-    const [first, ...rest] = memberHashSets;
-    result[slot] = Array.from(first).filter((hash) => rest.every((set) => set.has(hash)));
-  }
-  return result;
-}
 
 // Archetype pairing rules - pair a primary with a complementary special so the
 // loadout covers both ranges.
@@ -48,7 +25,7 @@ const ARCHETYPE_RULES: Record<string, string[]> = {
 
 type WeaponDetail = { weaponType: string; tierType?: number; damageType?: string; ammoType?: string; stats?: Record<string, number> };
 
-export type RollMode = "normal" | "chaos" | "meta";
+type RollMode = "normal" | "chaos" | "meta";
 
 // Crucible "meta" frames for the Meta mode, identified by archetype RPM:
 //   Hand Cannon - 120 (Aggressive) / 140 (Adaptive)

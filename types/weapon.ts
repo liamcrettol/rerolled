@@ -39,15 +39,6 @@ export interface ResolvedStat {
   displayMaximum: number;
 }
 
-// A weapon reduced to just its hash for intersection math
-export interface WeaponHashEntry {
-  itemHash: number;
-  itemInstanceId: string;
-  location: "character" | "vault" | "postmaster";
-  characterId?: string;
-  slot: "kinetic" | "energy" | "power";
-}
-
 export interface SealStatus {
   isInLoadout: boolean;
   isInYourRoll: boolean;

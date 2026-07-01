@@ -20,7 +20,7 @@ const PROFILE_COMPONENTS = [
   310, // ItemReusablePlugs
 ].join(",");
 
-export async function getProfile(
+async function getProfile(
   membershipType: number,
   membershipId: string,
   accessToken: string

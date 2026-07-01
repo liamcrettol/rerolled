@@ -7,7 +7,7 @@ import {
 } from "@/lib/bungie/pgcr";
 import { rotateCaptain } from "@/lib/lobby";
 
-export type RecordOutcome =
+type RecordOutcome =
   // Game found and persisted by this call.
   | { status: "recorded"; stats: CollectedPlayerStat[] }
   // Another worker already persisted this round (lost the unique-index race).
@@ -15,7 +15,7 @@ export type RecordOutcome =
   // PGCR not available yet — caller should keep polling.
   | { status: "no_game" };
 
-export interface RecordParams {
+interface RecordParams {
   lobbyId: string;
   roundId: string;
   appliedAt: string;

@@ -44,14 +44,6 @@ export interface LobbyMember {
   joined_at: string;
 }
 
-export interface LobbyRound {
-  id: string;
-  lobby_id: string;
-  round_number: number;
-  status: "pending" | "locked" | "applied";
-  created_at: string;
-}
-
 export interface LobbyLoadoutSlot {
   id: string;
   round_id: string;
@@ -65,20 +57,6 @@ export interface LobbyLoadoutSlot {
   created_at: string;
 }
 
-export interface RollHistoryEntry {
-  round_number: number;
-  slots: LobbyLoadoutSlot[];
-  applied_at: string | null;
-}
-
-export type LobbyRealtimeEvent =
-  | { event: "member_joined"; member: LobbyMember }
-  | { event: "member_ready"; user_id: string; is_ready: boolean }
-  | { event: "captain_changed"; new_captain_user_id: string }
-  | { event: "slot_updated"; slot: LobbyLoadoutSlot }
-  | { event: "round_locked"; round: LobbyRound }
-  | { event: "apply_result"; results: ApplyResult[] };
-
 export interface ApplyResult {
   user_id: string;
   display_name: string;
@@ -90,25 +68,4 @@ export interface ApplyResult {
   weapon_icon?: string; // Bungie icon path, rendered as https://www.bungie.net${weapon_icon}
   error_detail?: string; // raw underlying technical error (shown under "Detail" when expanded)
   kind?: "vault"; // marks a vault-clear ("made room") row, which has no real weapon slot
-}
-
-export interface GameSession {
-  id: string;
-  lobby_id: string;
-  played_at: string;
-  player_count: number;
-  roulette_hashes: number[];
-}
-
-export interface PlayerGameStat {
-  id: string;
-  game_session_id: string;
-  user_id: string;
-  display_name: string;
-  kills: number;
-  deaths: number;
-  assists: number;
-  kd: number;
-  roulette_weapon_kills: number;
-  created_at: string;
 }

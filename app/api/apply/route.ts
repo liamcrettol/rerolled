@@ -163,30 +163,27 @@ export async function POST(req: NextRequest) {
 
     const results = [...clearResultsEnriched, ...equipResults, ...missing];
 
-    // One roll_history row per round, updated on re-apply.
-    // NOTE: roll_history has no unique constraint on round_id, so we can't use
-    // upsert/onConflict here - do an explicit select-then-update/insert instead.
+    // One roll_history row per round, updated on re-apply. round_id has a
+    // unique constraint (migration 023), so concurrent applies from different
+    // fireteam members race safely through upsert instead of both inserting.
     const appliedAt = new Date().toISOString();
-    const [{ data: existingHistory }, { data: roundRow }] = await Promise.all([
-      adminSupabase.from("roll_history").select("id").eq("round_id", body.roundId).maybeSingle(),
-      adminSupabase.from("lobby_rounds").select("round_number").eq("id", body.roundId).maybeSingle(),
-    ]);
+    const { data: roundRow } = await adminSupabase
+      .from("lobby_rounds")
+      .select("round_number")
+      .eq("id", body.roundId)
+      .maybeSingle();
     const roundNumber = roundRow?.round_number ?? 0;
 
-    if (existingHistory) {
-      await adminSupabase
-        .from("roll_history")
-        .update({ applied_at: appliedAt, apply_results: results })
-        .eq("id", existingHistory.id);
-    } else {
-      await adminSupabase.from("roll_history").insert({
+    await adminSupabase.from("roll_history").upsert(
+      {
         lobby_id: body.lobbyId,
         round_id: body.roundId,
         round_number: roundNumber,
         applied_at: appliedAt,
         apply_results: results,
-      });
-    }
+      },
+      { onConflict: "round_id" }
+    );
 
     // Best-effort: update status + last_active_at (requires migration 008).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

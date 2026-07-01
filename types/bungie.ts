@@ -1,11 +1,3 @@
-export interface BungieMembership {
-  membershipType: number;
-  membershipId: string;
-  displayName: string;
-  bungieGlobalDisplayName?: string;
-  bungieGlobalDisplayNameCode?: number;
-}
-
 export interface DestinyCharacter {
   characterId: string;
   membershipType: number;
@@ -72,7 +64,7 @@ export interface BungieProfileResponse {
 }
 
 // Bucket hashes for weapon slots
-export const WEAPON_BUCKET_HASHES = {
+const WEAPON_BUCKET_HASHES = {
   KINETIC: 1498876634,
   ENERGY: 2465295065,
   POWER: 953998645,

@@ -19,7 +19,7 @@ import perkDataRaw from "./data/perk-data.json";
 import perkIconsRaw from "./data/perk-icons.json";
 import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
 
-export interface WeaponDefinition {
+interface WeaponDefinition {
   itemHash: number;
   name: string;
   icon: string;
@@ -132,7 +132,7 @@ export function getRandomWeaponSample(countPerSlot: number): Record<WeaponSlot, 
   return result;
 }
 
-export interface PerkInfo { name: string; description: string; stats?: Record<string, number> }
+interface PerkInfo { name: string; description: string; stats?: Record<string, number> }
 
 /** Resolve perk hashes to { name, description }. Unknown/cosmetic hashes are omitted. */
 export async function getPerkInfos(hashes: number[]): Promise<Map<number, PerkInfo>> {
@@ -168,10 +168,6 @@ export async function getPerkNames(hashes: number[]): Promise<Map<number, string
     if (name) result.set(hash, name);
   }
   return result;
-}
-
-export async function getPerkName(hash: number): Promise<string | null> {
-  return PERK_NAMES[hash.toString()] ?? null;
 }
 
 export async function getPerkIcons(hashes: number[]): Promise<Map<number, string>> {

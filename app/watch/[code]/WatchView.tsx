@@ -40,7 +40,7 @@ export interface WatchGame {
   stats: WatchGameStat[];
 }
 
-export interface LobbyLeaderboardEntry {
+interface LobbyLeaderboardEntry {
   userId: string;
   displayName: string;
   gamesPlayed: number;
