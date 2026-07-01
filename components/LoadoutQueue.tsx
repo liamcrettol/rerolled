@@ -5,14 +5,8 @@ import Image from "next/image";
 import { Shuffle, Lock, User } from "lucide-react";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
-import { type WeaponDetail, type InstancePerk, useWeaponTooltip, damageTheme, DAMAGE_COLOR } from "./weaponShared";
+import { type WeaponDetail, type InstancePerk, useWeaponTooltip, damageTheme } from "./weaponShared";
 type AnimKind = "roll" | "pick";
-
-const SLOT_LABELS: Record<string, string> = {
-  kinetic: "Kinetic",
-  energy: "Energy",
-  power: "Power",
-};
 
 interface Props {
   slots: LobbyLoadoutSlot[];
@@ -29,7 +23,7 @@ interface Props {
 }
 
 const SLOT_ORDER = ["kinetic", "energy", "power"];
-const REEL_ITEM_H = 80;
+const REEL_ITEM_H = 120;
 const REEL_PRE_COUNT = 15;
 const SLOT_STAGGER_MS: Record<string, number> = { kinetic: 0, energy: 160, power: 320 };
 
@@ -37,11 +31,11 @@ type SlotMode = "normal" | "lock" | "wildcard";
 const SLOT_MODE_ICONS: Record<SlotMode, typeof Shuffle> = { normal: Shuffle, lock: Lock, wildcard: User };
 
 function WeaponSlotContent({
-  hash, icon, watermark, name, weaponType, damageType, isCollection,
+  hash, icon, watermark, name, weaponType, isCollection,
   iconPool, slot, animKindRef,
 }: {
   hash: number; icon: string; watermark?: string; name: string;
-  weaponType: string; damageType: string; isCollection: boolean;
+  weaponType: string; isCollection: boolean;
   iconPool: string[]; slot: string;
   animKindRef?: React.MutableRefObject<Record<string, AnimKind>>;
 }) {
@@ -150,7 +144,6 @@ function WeaponSlotContent({
           <div className="animate-fade-in">
             <p className="text-white text-xs font-semibold leading-tight">{name}</p>
             <p className="text-gray-400 text-xs">{weaponType}</p>
-            <p className={`text-xs ${DAMAGE_COLOR[damageType] ?? "text-gray-500"}`}>{damageType}</p>
             {isCollection && (
               <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
                 Pull from Collections
@@ -207,7 +200,7 @@ export default function LoadoutQueue({
               <div
                 onMouseEnter={hasWeapon ? (e) => onHover(slot!.item_hash, e.currentTarget) : undefined}
                 onMouseLeave={hasWeapon ? onLeave : undefined}
-                className={`relative rounded-lg border transition group ${
+                className={`relative rounded-xl border transition overflow-hidden ${
                   isWildcard
                     ? "bg-bungie-dark/40 border-gray-700/40"
                     : hasWeapon && theme
@@ -216,23 +209,9 @@ export default function LoadoutQueue({
                 }`}
                 style={{ width: REEL_ITEM_H }}
               >
-                <span className="absolute top-1 left-0 right-0 text-center text-[9px] text-gray-500 uppercase tracking-wider z-10 pointer-events-none">
-                  {SLOT_LABELS[slotName]}
-                </span>
-
-                {isCaptain && hasWeapon && onRerollSlot && !rerollExhausted && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRerollSlot(slotName as WeaponSlot); }}
-                    title={`Reroll ${slotName}`}
-                    className="absolute top-1 right-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity bg-bungie-dark/80 rounded-full p-0.5 text-[11px] hover:text-bungie-blue"
-                  >
-                    ↺
-                  </button>
-                )}
-
                 {isWildcard ? (
-                  <div className="w-full h-full flex items-center justify-center opacity-40 animate-pulse">
-                    <User size={28} className="text-gray-400" />
+                  <div style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }} className="flex items-center justify-center opacity-40 animate-pulse">
+                    <User size={36} className="text-gray-400" />
                   </div>
                 ) : slot ? (
                   <WeaponSlotContent
@@ -241,14 +220,13 @@ export default function LoadoutQueue({
                     watermark={weaponDetails[slot.item_hash]?.watermark}
                     name={slot.weapon_name}
                     weaponType={slot.weapon_type}
-                    damageType={slot.damage_type}
                     isCollection={collectionHashes.has(slot.item_hash)}
                     iconPool={iconPool}
                     slot={slotName}
                     animKindRef={animKindRef}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-600 text-xl">?</div>
+                  <div style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }} className="flex items-center justify-center text-gray-600 text-2xl">?</div>
                 )}
               </div>
 
@@ -259,21 +237,34 @@ export default function LoadoutQueue({
                 </div>
               )}
 
-              {isCaptain && onCycleSlotMode && (
-                <button
-                  onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
-                  title="Click to cycle: Random → Locked → Your own"
-                  className={`text-[10px] px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1 ${
-                    slotMode === "lock"
-                      ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-300"
-                      : slotMode === "wildcard"
-                      ? "border-purple-500/60 bg-purple-500/10 text-purple-300"
-                      : "border-bungie-border/40 text-gray-500 hover:border-gray-500"
-                  }`}
-                >
-                  <ModeIcon size={11} className="shrink-0" />
-                  {slotMode === "normal" ? "Random" : slotMode === "lock" ? "Locked" : "Yours"}
-                </button>
+              {isCaptain && (onCycleSlotMode || (onRerollSlot && hasWeapon && !rerollExhausted)) && (
+                <div className="flex items-center gap-1.5">
+                  {onCycleSlotMode && (
+                    <button
+                      onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
+                      title="Click to cycle: Random → Locked → Your own"
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition inline-flex items-center gap-1 ${
+                        slotMode === "lock"
+                          ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-300"
+                          : slotMode === "wildcard"
+                          ? "border-purple-500/60 bg-purple-500/10 text-purple-300"
+                          : "border-bungie-border/40 text-gray-500 hover:border-gray-500"
+                      }`}
+                    >
+                      <ModeIcon size={11} className="shrink-0" />
+                      {slotMode === "normal" ? "Random" : slotMode === "lock" ? "Locked" : "Yours"}
+                    </button>
+                  )}
+                  {onRerollSlot && hasWeapon && !rerollExhausted && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRerollSlot(slotName as WeaponSlot); }}
+                      title={`Reroll ${slotName}`}
+                      className="text-[10px] px-1.5 py-0.5 rounded-full border border-bungie-border/40 text-gray-500 hover:border-bungie-blue hover:text-bungie-blue transition"
+                    >
+                      ↺
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           );
