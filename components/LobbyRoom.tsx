@@ -290,6 +290,16 @@ export default function LobbyRoom({
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [minutesToClose, setMinutesToClose] = useState<number | null>(null);
+  // Auto-apply: when enabled, equip the loadout automatically whenever the
+  // captain rolls. Preference persisted per-device in localStorage.
+  const [autoApply, setAutoApply] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("d2r_autoApply") === "true";
+  });
+  // Tracks what slotKey looked like right after the round was loaded from the DB.
+  // Auto-apply only fires when slotKey diverges from this — preventing spurious
+  // equips on initial page load when slots are restored from the DB.
+  const [roundLoadedSlotKey, setRoundLoadedSlotKey] = useState<string | null>(null);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
@@ -353,6 +363,19 @@ export default function LobbyRoom({
 
   // Reset the reroll budget at the start of each round.
   useEffect(() => { setRerollsUsed(0); }, [lobbyData.current_round]);
+
+  // Auto-apply: fire handleApply whenever the captain rolls a new loadout,
+  // but only if the player opted in and the slots have changed from the initial
+  // state loaded from the DB (prevents spurious equips on page load/refresh).
+  useEffect(() => {
+    if (!autoApply || isSpectator) return;
+    if (!selectedCharId || !roundId) return;
+    if (loadingAction === "apply") return;
+    if (slotKey === "0,0,0") return;
+    if (roundLoadedSlotKey === null || slotKey === roundLoadedSlotKey) return;
+    handleApply();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotKey, autoApply, roundLoadedSlotKey]);
 
   // Load/save favorited rolls.
   useEffect(() => {
@@ -850,6 +873,14 @@ export default function LobbyRoom({
           for (const s of existingSlots) {
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
           }
+          // Snapshot the current loadout state so the auto-apply effect can tell
+          // the difference between "restored from DB on load" and "captain just rolled".
+          const loadedKey = (["kinetic", "energy", "power"] as const)
+            .map((s) => existingSlots.find((x) => x.slot === s)?.item_hash ?? 0)
+            .join(",");
+          setRoundLoadedSlotKey(loadedKey);
+        } else {
+          setRoundLoadedSlotKey("0,0,0");
         }
       }
     }
@@ -1703,6 +1734,20 @@ export default function LobbyRoom({
             {slots.some((s) => s.item_hash !== 0) && loadingAction !== "apply" && (
               <span className="text-xs text-gray-600">Must be in orbit or social space</span>
             )}
+
+            {/* Auto-apply toggle — opt in to have the loadout equip automatically on each roll */}
+            <label className="ml-auto flex items-center gap-2 cursor-pointer select-none text-xs text-gray-400 hover:text-gray-200 transition">
+              <input
+                type="checkbox"
+                checked={autoApply}
+                onChange={(e) => {
+                  setAutoApply(e.target.checked);
+                  localStorage.setItem("d2r_autoApply", e.target.checked ? "true" : "false");
+                }}
+                className="accent-bungie-blue w-3.5 h-3.5 cursor-pointer"
+              />
+              Auto-apply
+            </label>
           </div>
         )}
 
