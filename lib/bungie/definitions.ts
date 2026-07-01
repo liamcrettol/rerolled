@@ -17,6 +17,7 @@ import weaponsRaw from "./data/weapons-table.json";
 import perkNamesRaw from "./data/perk-names.json";
 import perkDataRaw from "./data/perk-data.json";
 import perkIconsRaw from "./data/perk-icons.json";
+import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
 
 export interface WeaponDefinition {
   itemHash: number;
@@ -83,26 +84,52 @@ export function getWeaponGroupHashes(itemHash: number): number[] {
   return GROUP_TO_HASHES.get(key) ?? [itemHash];
 }
 
-export interface HeroWeaponSample { name: string; icon: string; damageType: string }
+export interface HeroWeaponSample { name: string; icon: string; damageType: string; tierType: number }
+
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
 /**
- * A random sample of real weapons (icon, name, damage type) from the static
- * table - purely decorative, not tied to any player's inventory. Used for the
- * signed-out landing page's spinning weapon reel. Legendary/Exotic only since
- * those read better as small icons than the plainer common/uncommon art.
+ * Random weapons (icon, name, damage type, tier) from the static table,
+ * grouped by their real slot (kinetic/energy/power - via each weapon's
+ * defaultBucketHash, the same mapping the actual roll/intersection logic
+ * uses) so the landing page's decorative reel never shows a Heavy weapon in
+ * the Kinetic slot or similar. Purely decorative, not tied to any player's
+ * inventory. Legendary/Exotic only since those read better as small icons
+ * than the plainer common/uncommon art. Guarantees a slice of Exotics in
+ * each slot's pool - Exotics are a much smaller pool than Legendaries, so a
+ * flat random sample would rarely include any at all.
  */
-export function getRandomWeaponSample(count: number): HeroWeaponSample[] {
-  const pool: HeroWeaponSample[] = [];
+export function getRandomWeaponSample(countPerSlot: number): Record<WeaponSlot, HeroWeaponSample[]> {
+  const bySlot: Record<WeaponSlot, { legendaries: HeroWeaponSample[]; exotics: HeroWeaponSample[] }> = {
+    kinetic: { legendaries: [], exotics: [] },
+    energy: { legendaries: [], exotics: [] },
+    power: { legendaries: [], exotics: [] },
+  };
   for (const def of WEAPONS.values()) {
     if (!def.icon) continue;
-    if (def.tierType < 5) continue;
-    pool.push({ name: def.name, icon: def.icon, damageType: def.damageType });
+    const slot = bucketToSlot(def.defaultBucketHash);
+    if (!slot) continue;
+    const sample: HeroWeaponSample = { name: def.name, icon: def.icon, damageType: def.damageType, tierType: def.tierType };
+    if (def.tierType === 6) bySlot[slot].exotics.push(sample);
+    else if (def.tierType === 5) bySlot[slot].legendaries.push(sample);
   }
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+
+  const result = {} as Record<WeaponSlot, HeroWeaponSample[]>;
+  for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+    const { legendaries, exotics } = bySlot[slot];
+    shuffle(legendaries);
+    shuffle(exotics);
+    const exoticCount = Math.min(exotics.length, Math.max(4, Math.round(countPerSlot * 0.25)));
+    const legendaryCount = Math.max(0, countPerSlot - exoticCount);
+    result[slot] = shuffle([...exotics.slice(0, exoticCount), ...legendaries.slice(0, legendaryCount)]);
   }
-  return pool.slice(0, count);
+  return result;
 }
 
 export interface PerkInfo { name: string; description: string; stats?: Record<string, number> }

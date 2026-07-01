@@ -14,7 +14,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
     redirect(code ? `/join/${code}` : "/dashboard");
   }
 
-  const heroWeapons = getRandomWeaponSample(30);
+  const heroWeaponsBySlot = getRandomWeaponSample(60);
 
   return (
     <main className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center gap-10 p-8">
@@ -30,7 +30,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       </div>
 
       <div className="animate-rise-in" style={{ opacity: 0, animationDelay: "120ms" }}>
-        <HeroReel weapons={heroWeapons} />
+        <HeroReel weaponsBySlot={heroWeaponsBySlot} />
       </div>
 
       <div
