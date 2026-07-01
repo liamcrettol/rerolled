@@ -1605,8 +1605,8 @@ export default function LobbyRoom({
         </div>
 
 
-        {/* Loadout cards */}
-        {slots.length > 0 && (
+        {/* Loadout panel — rows + primary actions in the header. */}
+        {(slots.length > 0 || (roundId && !isSpectator)) && (
           <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:rounded-xl after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
             <LoadoutQueue
               slots={slots}
@@ -1620,44 +1620,47 @@ export default function LobbyRoom({
               onCycleSlotMode={cycleSlotMode}
               onRerollSlot={(slot) => handleRoll(slot)}
               rerollExhausted={rerollExhausted}
+              actions={
+                !isSpectator && roundId ? (
+                  <>
+                    {isCaptain && (
+                      <button
+                        onClick={() => handleRoll()}
+                        disabled={loadingAction !== null || rerollExhausted || !intersection}
+                        className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                      >
+                        <Shuffle size={15} />
+                        {loadingAction === "roll" ? "Rolling…" : "Roll All"}
+                      </button>
+                    )}
+                    {slots.some((s) => s.item_hash !== 0) && (
+                      <button
+                        onClick={handleApply}
+                        disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
+                        className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                      >
+                        <Zap size={15} />
+                        {loadingAction === "apply" ? "Applying…" : "Apply"}
+                      </button>
+                    )}
+                    {loadingAction === "apply" && (
+                      <button
+                        onClick={handleCancelApply}
+                        className="px-3 py-1.5 border border-red-800 text-red-400 hover:border-red-600 rounded-full text-sm transition"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </>
+                ) : null
+              }
             />
           </div>
         )}
 
-        {/* Action bar: Roll All (captain) + Apply, directly under the loadout. */}
+        {/* Status line below the loadout: warnings, orbit hint, auto-apply toggle. */}
         {!isSpectator && roundId && (
-          <div className="order-3 flex items-center gap-3 flex-wrap">
-            {isCaptain && (
-              <button
-                onClick={() => handleRoll()}
-                disabled={loadingAction !== null || rerollExhausted || !intersection}
-                className="px-5 py-2.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-bold rounded-full transition text-sm inline-flex items-center gap-2"
-              >
-                <Shuffle size={16} />
-                {loadingAction === "roll" ? "Rolling…" : "Roll All"}
-              </button>
-            )}
-
-            {slots.some((s) => s.item_hash !== 0) && (
-              <button
-                onClick={handleApply}
-                disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
-                className="px-5 py-2.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold rounded-full transition text-sm inline-flex items-center gap-2"
-              >
-                <Zap size={16} />
-                {loadingAction === "apply" ? "Applying…" : "Apply"}
-              </button>
-            )}
-
-            {loadingAction === "apply" && (
-              <button
-                onClick={handleCancelApply}
-                className="px-3 py-2.5 border border-red-800 text-red-400 hover:border-red-600 rounded-full text-sm transition"
-              >
-                Cancel
-              </button>
-            )}
-
+          <div className="order-3 flex items-center gap-3 flex-wrap min-h-[1.25rem] px-1">
             {!selectedCharId && loadingAction !== "apply" && slots.some((s) => s.item_hash !== 0) && (
               <span className="text-xs text-yellow-400">Select a character first</span>
             )}
@@ -1668,7 +1671,7 @@ export default function LobbyRoom({
               <span className="text-xs text-gray-500 animate-pulse">Loading shared weapons…</span>
             )}
             {slots.some((s) => s.item_hash !== 0) && loadingAction !== "apply" && (
-              <span className="text-xs text-gray-600">Must be in orbit or social space</span>
+              <span className="text-xs text-gray-600">Must be in orbit or a social space</span>
             )}
 
             {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
