@@ -215,7 +215,7 @@ export default function LoadoutQueue({
               onMouseLeave={hasWeapon ? onLeave : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
                 idx > 0 ? "border-t border-bungie-border/30" : ""
-              } ${hasWeapon ? "cursor-help hover:bg-white/[0.02]" : ""}`}
+              } ${hasWeapon ? "hover:bg-white/[0.02]" : ""}`}
             >
               {/* Damage/slot accent rail */}
               <span

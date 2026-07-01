@@ -152,7 +152,7 @@ export default function RollDetails({
   // on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
     const cls = large
-      ? "w-12 h-12 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition"
+      ? "w-12 h-12 rounded border border-bungie-blue/40 hover:border-bungie-blue transition"
       : "w-9 h-9 rounded border border-bungie-blue/40";
     const noTip = !large;
     const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;

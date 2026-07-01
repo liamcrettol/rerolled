@@ -14,7 +14,7 @@ export default function PerkIcon({
   description,
   stats,
   noTooltip,
-  className = "w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue cursor-help transition",
+  className = "w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue transition",
 }: {
   icon?: string;
   name?: string;
