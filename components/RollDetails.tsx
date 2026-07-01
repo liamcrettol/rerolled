@@ -307,7 +307,7 @@ export default function RollDetails({
           </div>
 
           {/* Your rolls (scrollable) */}
-          <div className="max-h-[20rem] overflow-y-auto pr-1 space-y-1">
+          <div className="max-h-[20rem] overflow-y-auto pr-1 pb-1 space-y-1">
           <p className={`text-xs font-semibold px-1 mb-1 ${theme.text}`}>Your rolls</p>
           {myInstances.length === 0 ? (
             <p className="text-gray-500 text-[10px] px-1">{me?.failed ? "couldn't load" : "—"}</p>
