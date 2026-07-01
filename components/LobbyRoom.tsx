@@ -290,16 +290,14 @@ export default function LobbyRoom({
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [minutesToClose, setMinutesToClose] = useState<number | null>(null);
-  // Auto-apply: when enabled, equip the loadout automatically whenever the
-  // captain rolls. Preference persisted per-device in localStorage.
+  // Auto-apply: when enabled, equip automatically when the captain clicks Apply.
+  // Preference persisted per-device in localStorage.
   const [autoApply, setAutoApply] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("d2r_autoApply") === "true";
   });
-  // Tracks what slotKey looked like right after the round was loaded from the DB.
-  // Auto-apply only fires when slotKey diverges from this — preventing spurious
-  // equips on initial page load when slots are restored from the DB.
-  const [roundLoadedSlotKey, setRoundLoadedSlotKey] = useState<string | null>(null);
+  const autoApplyRef = useRef(autoApply);
+  useEffect(() => { autoApplyRef.current = autoApply; }, [autoApply]);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
 
   // Roll preferences (persisted in localStorage, captain-controlled)
@@ -455,18 +453,6 @@ export default function LobbyRoom({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundId, slotKey]);
 
-  // Auto-apply: fire handleApply whenever the captain rolls a new loadout,
-  // but only if the player opted in and the slots have changed from the initial
-  // state loaded from the DB (prevents spurious equips on page load/refresh).
-  useEffect(() => {
-    if (!autoApply || isSpectator) return;
-    if (!selectedCharId || !roundId) return;
-    if (loadingAction === "apply") return;
-    if (slotKey === "0,0,0") return;
-    if (roundLoadedSlotKey === null || slotKey === roundLoadedSlotKey) return;
-    handleApply();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotKey, autoApply, roundLoadedSlotKey]);
 
   const handleChooseInstance = useCallback((slot: WeaponSlot, instanceId: string) => {
     setMyChosenInstances((prev) => ({ ...prev, [slot]: instanceId }));
@@ -541,6 +527,13 @@ export default function LobbyRoom({
   const hasSeeded = useRef(false);
   const prevMemberCount = useRef<number | null>(null);
   const prevRoundIdRef = useRef<string | null>(null);
+  // Refs for values needed inside the static Supabase channel callback.
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleApplyRef = useRef<(() => Promise<void>) | null>(null);
+  const loadingActionRef = useRef<string | null>(null);
+  const isCaptainRef = useRef(false);
+  const isSpectatorRef = useRef(false);
   // Clear per-round UI state when the round actually advances (non-null → different non-null).
   useEffect(() => {
     if (roundId && prevRoundIdRef.current && roundId !== prevRoundIdRef.current) {
@@ -558,6 +551,9 @@ export default function LobbyRoom({
   const isCaptain = members.find((m) => m.user_id === currentUserId)?.is_captain ?? false;
   const isHost = lobbyData.host_user_id === currentUserId;
   const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
+  useEffect(() => { isCaptainRef.current = isCaptain; }, [isCaptain]);
+  useEffect(() => { isSpectatorRef.current = isSpectator; }, [isSpectator]);
+  useEffect(() => { loadingActionRef.current = loadingAction; }, [loadingAction]);
 
   // Publish the captain's roll settings onto the lobby row so non-captains can
   // view them read-only (issue #106). The existing `lobbies` realtime
@@ -726,9 +722,15 @@ export default function LobbyRoom({
           }
         }
       )
+      .on("broadcast", { event: "captain_apply" }, () => {
+        if (!autoApplyRef.current || isSpectatorRef.current || isCaptainRef.current) return;
+        if (loadingActionRef.current === "apply") return;
+        handleApplyRef.current?.();
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); channelRef.current = null; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobby.id, supabase]);
 
@@ -873,14 +875,8 @@ export default function LobbyRoom({
           for (const s of existingSlots) {
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
           }
-          // Snapshot the current loadout state so the auto-apply effect can tell
-          // the difference between "restored from DB on load" and "captain just rolled".
-          const loadedKey = (["kinetic", "energy", "power"] as const)
-            .map((s) => existingSlots.find((x) => x.slot === s)?.item_hash ?? 0)
-            .join(",");
-          setRoundLoadedSlotKey(loadedKey);
         } else {
-          setRoundLoadedSlotKey("0,0,0");
+          // no-op
         }
       }
     }
@@ -1097,6 +1093,10 @@ export default function LobbyRoom({
 
   const handleApply = useCallback(async () => {
     if (!selectedCharId || !roundId) return;
+    // Captain's Apply triggers auto-apply for opted-in players via broadcast.
+    if (isCaptainRef.current) {
+      channelRef.current?.send({ type: "broadcast", event: "captain_apply", payload: {} });
+    }
     const controller = new AbortController();
     applyAbortRef.current = controller;
     setLoadingAction("apply");
@@ -1120,6 +1120,8 @@ export default function LobbyRoom({
     applyAbortRef.current = null;
     setLoadingAction(null);
   }, [selectedCharId, roundId, lobby.id, preferredInstances, myChosenInstances, startPolling]);
+
+  useEffect(() => { handleApplyRef.current = handleApply; }, [handleApply]);
 
   const handleCancelApply = useCallback(() => {
     applyAbortRef.current?.abort();
@@ -1735,19 +1737,34 @@ export default function LobbyRoom({
               <span className="text-xs text-gray-600">Must be in orbit or social space</span>
             )}
 
-            {/* Auto-apply toggle — opt in to have the loadout equip automatically on each roll */}
-            <label className="ml-auto flex items-center gap-2 cursor-pointer select-none text-xs text-gray-400 hover:text-gray-200 transition">
-              <input
-                type="checkbox"
-                checked={autoApply}
-                onChange={(e) => {
-                  setAutoApply(e.target.checked);
-                  localStorage.setItem("d2r_autoApply", e.target.checked ? "true" : "false");
-                }}
-                className="accent-bungie-blue w-3.5 h-3.5 cursor-pointer"
-              />
-              Auto-apply
-            </label>
+            {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
+            {!isCaptain && (
+              <label className="ml-auto flex items-center gap-2 cursor-pointer select-none group">
+                <span className={`text-xs transition-colors ${autoApply ? "text-green-400" : "text-gray-500 group-hover:text-gray-300"}`}>
+                  Auto-apply
+                </span>
+                <button
+                  role="switch"
+                  aria-checked={autoApply}
+                  onClick={() => {
+                    const next = !autoApply;
+                    setAutoApply(next);
+                    localStorage.setItem("d2r_autoApply", next ? "true" : "false");
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors duration-200 focus:outline-none ${
+                    autoApply
+                      ? "bg-green-700 border-green-600"
+                      : "bg-bungie-surface border-bungie-border group-hover:border-gray-500"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                      autoApply ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+            )}
           </div>
         )}
 
