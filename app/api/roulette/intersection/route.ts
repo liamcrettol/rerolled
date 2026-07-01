@@ -475,6 +475,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Phase 7b: Alternate releases (#47) ───────────────────────────────────
+    // The intersection collapses each variant group (re-releases/Adept/craftable)
+    // down to one representative hash (Phase 4), so a group with multiple
+    // releases only ever shows one. Surface the sibling hashes I personally own
+    // so the captain can swap the equipped slot to a different release the same
+    // way they'd pick a different roll - restricted to hashes I own so whatever
+    // gets picked is guaranteed equippable by me.
+    const myOwnedHashes = new Set(myWeapons.map((w) => w.itemHash));
+    const weaponReleases: Record<string, number[]> = {};
+    const releaseSiblingHashes = new Set<number>();
+    for (const hash of allIntersectionHashes) {
+      const siblings = getWeaponGroupHashes(hash).filter(
+        (h) => h !== hash && myOwnedHashes.has(h)
+      );
+      if (siblings.length > 0) {
+        weaponReleases[hash.toString()] = siblings;
+        for (const s of siblings) releaseSiblingHashes.add(s);
+      }
+    }
+    const missingReleaseHashes = [...releaseSiblingHashes].filter(
+      (h) => !weaponDetails[h.toString()]
+    );
+    if (missingReleaseHashes.length > 0) {
+      const releaseDefs = await getWeaponDefinitions(missingReleaseHashes);
+      for (const [hash, def] of releaseDefs) {
+        weaponDetails[hash.toString()] = {
+          name: def.name,
+          icon: def.icon,
+          watermark: def.watermark,
+          weaponType: def.weaponType,
+          damageType: def.damageType,
+          tierType: def.tierType,
+          tierName: def.tierName,
+          ammoType: def.ammoType,
+          stats: def.stats,
+        };
+      }
+    }
+
     // ── Phase 8: Perk rolls from pre-fetched sockets (no extra API call) ─────
 
     const allIntersectionHashSet = new Set(allIntersectionHashes);
@@ -560,6 +599,7 @@ export async function POST(req: NextRequest) {
       equippedHashes,
       instancePerks,
       collectionHashes: [...collectionHashSet],
+      weaponReleases,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

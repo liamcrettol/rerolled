@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Shuffle, Check, Star } from "lucide-react";
+import { Shuffle, Check, Star, Repeat } from "lucide-react";
 import type { WeaponSlot } from "@/types/bungie";
 import {
   type WeaponDetail,
@@ -24,6 +24,10 @@ interface Props {
   currentHashes: Partial<Record<WeaponSlot, number>>;
   currentInstances: Partial<Record<WeaponSlot, string>>;
   onSelectWeapon: (slot: WeaponSlot, hash: number, instanceId?: string) => void;
+  // Sibling item hashes (other releases/Adept versions of the same gun) I own,
+  // keyed by the representative hash shown in the pool - lets the currently
+  // equipped card offer swapping to a different release (#47).
+  weaponReleases?: Record<string, number[]>;
   favorites?: Record<string, string>;
   onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   disabled?: boolean;
@@ -104,7 +108,7 @@ function RollRow({
 // ── Weapon card ─────────────────────────────────────────────────────────────
 
 function WeaponCard({
-  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, readOnly, onHover, onLeave, favoritedInstance, onToggleFavorite, seals,
+  hash, detail, isActive, isCollection, rolls, currentInstance, onSelect, disabled, readOnly, onHover, onLeave, favoritedInstance, onToggleFavorite, seals, releases,
 }: {
   hash: number; detail: WeaponDetail; isActive: boolean; isCollection: boolean;
   rolls: InstancePerk[]; currentInstance?: string;
@@ -119,6 +123,9 @@ function WeaponCard({
     isInYourRoll: boolean;
     isInFireteamRoll: boolean;
   };
+  // Other releases of this weapon I own, only offered while this card is the
+  // one currently equipped in its slot.
+  releases?: Array<{ hash: number; detail: WeaponDetail }>;
 }) {
   const tier = TIER_COLORS[detail.tierType] ?? DEFAULT_TIER;
   const theme = damageTheme(detail.damageType);
@@ -242,6 +249,27 @@ function WeaponCard({
           </button>
         )
       )}
+
+      {/* Release picker - other reissues/Adept versions of this gun I own,
+          only offered on the card currently equipped in this slot. */}
+      {!readOnly && isActive && releases && releases.length > 0 && (
+        <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
+          <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
+            Other releases
+          </p>
+          {releases.map(({ hash: relHash, detail: relDetail }) => (
+            <RollRow
+              key={relHash}
+              title={relDetail.name}
+              icon={<Repeat size={12} className="shrink-0 text-gray-400" />}
+              perks={[relDetail.tierName]}
+              selected={false}
+              onClick={() => onSelect(relHash)}
+              disabled={disabled}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -249,7 +277,7 @@ function WeaponCard({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function WeaponPool({
-  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, readOnly, weaponSeals, fillHeight, noScroll,
+  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, readOnly, weaponSeals, fillHeight, noScroll, weaponReleases,
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
@@ -395,6 +423,9 @@ export default function WeaponPool({
                 if (!detail) return null;
                 const rolls = instancePerks[hash.toString()] ?? [];
                 const isActive = activeHash === hash;
+                const releases = (weaponReleases?.[hash.toString()] ?? [])
+                  .map((relHash) => ({ hash: relHash, detail: weaponDetails[relHash.toString()] }))
+                  .filter((r): r is { hash: number; detail: WeaponDetail } => !!r.detail);
                 return (
                   <WeaponCard
                     key={hash}
@@ -412,6 +443,7 @@ export default function WeaponPool({
                     favoritedInstance={favorites?.[hash.toString()]}
                     onToggleFavorite={onToggleFavorite ? (instanceId) => onToggleFavorite(activeTab, hash, instanceId) : undefined}
                     seals={weaponSeals?.[hash] ?? { isInLoadout: false, isInYourRoll: false, isInFireteamRoll: false }}
+                    releases={releases}
                   />
                 );
               })}

@@ -247,6 +247,9 @@ export default function LobbyRoom({
   }>>({});
   const [instancePerks, setInstancePerks] = useState<Record<string, Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>>>({});
   const [collectionHashes, setCollectionHashes] = useState<Set<number>>(new Set());
+  // Sibling item hashes for other releases (re-releases/Adept) of an intersection
+  // weapon that I personally own, keyed by the representative hash (#47).
+  const [weaponReleases, setWeaponReleases] = useState<Record<string, number[]>>({});
   // The caller's currently-equipped weapon per slot, captured when the pool
   // loads — used to seed the captain's initial loadout from equipped.
   const [equippedHashes, setEquippedHashes] = useState<Partial<Record<WeaponSlot, number>>>({});
@@ -945,6 +948,7 @@ export default function LobbyRoom({
       setWeaponDetails(data.weaponDetails ?? {});
       setInstancePerks(data.instancePerks ?? {});
       setCollectionHashes(new Set<number>(data.collectionHashes ?? []));
+      setWeaponReleases(data.weaponReleases ?? {});
       const eq = data.equippedHashes as Record<string, number | null> | undefined;
       const equipped: Partial<Record<WeaponSlot, number>> = {};
       for (const slot of ["kinetic", "energy", "power"] as WeaponSlot[]) {
@@ -1270,6 +1274,7 @@ export default function LobbyRoom({
                 weaponDetails={weaponDetails}
                 instancePerks={instancePerks}
                 collectionHashes={collectionHashes}
+                weaponReleases={weaponReleases}
                 currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
                 currentInstances={preferredInstances}
                 onSelectWeapon={(slot, hash, instanceId) => handleSelectWeapon(slot, hash, instanceId)}
