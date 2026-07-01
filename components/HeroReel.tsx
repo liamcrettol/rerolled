@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import type { HeroWeaponSample } from "@/lib/bungie/definitions";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -13,8 +12,20 @@ import type { WeaponSlot } from "@/types/bungie";
 // from its own slot's pool (a Heavy weapon can never land in Kinetic, etc.),
 // and at most one of the 3 slots shows an Exotic at a time, matching
 // Destiny's real "one exotic equipped" rule.
+//
+// Perf notes: plain <img> instead of next/image (these are decorative,
+// always-blurred, and already unoptimized - next/image's lazy-load/observer
+// machinery is pure overhead here). The blurred pre-roll cycles through a
+// small fixed filler pool per slot instead of fresh random picks every spin,
+// so the browser only ever decodes those handful of images once instead of
+// fetching brand-new ones every ~3s. The reel array is never shrunk after a
+// landing - a new spin always seeds position 0 with the currently-displayed
+// weapon, so resetting the scroll offset never swaps an <img> src outside of
+// the scroll transition (that swap-without-a-transition was the cause of the
+// "gray flash" on landing).
 const REEL_ITEM_H = 64;
-const REEL_PRE_COUNT = 10;
+const REEL_PRE_COUNT = 8;
+const FILLER_POOL_SIZE = 8;
 const SPIN_MS = 900;
 // First spin starts almost immediately instead of waiting a full interval.
 const INITIAL_DELAY_MS = 250;
@@ -39,6 +50,13 @@ function pickTarget(weapons: HeroWeaponSample[], allowExotic: boolean, exclude?:
   return pool[Math.floor(Math.random() * pool.length)] ?? 0;
 }
 
+function pickFillerPool(weapons: HeroWeaponSample[]): number[] {
+  const size = Math.min(FILLER_POOL_SIZE, weapons.length);
+  const seen = new Set<number>();
+  while (seen.size < size) seen.add(pickTarget(weapons, true));
+  return [...seen];
+}
+
 function ReelSlot({
   weapons, intervalMs, staggerMs, initialTarget, canShowExotic, onLand,
 }: {
@@ -54,6 +72,8 @@ function ReelSlot({
   const [landed, setLanded] = useState(false);
   const reelRef = useRef<HTMLDivElement>(null);
   const currentIndexRef = useRef(initialTarget);
+  const fillerPoolRef = useRef<number[] | null>(null);
+  if (!fillerPoolRef.current) fillerPoolRef.current = pickFillerPool(weapons);
 
   // Self-scheduling spin loop: decide the next weapon, spin to it, land, then
   // schedule the next spin - all in one place so timers are easy to track and
@@ -61,18 +81,23 @@ function ReelSlot({
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     const schedule = (fn: () => void, delay: number) => timers.push(setTimeout(fn, delay));
+    const fillers = fillerPoolRef.current!;
 
     const spin = () => {
       const next = pickTarget(weapons, canShowExotic(), currentIndexRef.current);
       onLand(weapons[next]?.tierType === EXOTIC_TIER);
-      const randoms = Array.from({ length: REEL_PRE_COUNT }, () => pickTarget(weapons, true));
-      setReelItems([...randoms, next]);
+      const randoms = Array.from(
+        { length: REEL_PRE_COUNT },
+        () => fillers[Math.floor(Math.random() * fillers.length)]
+      );
+      // Seed position 0 with the weapon currently on screen so resetting the
+      // scroll offset to 0 below never visually jumps to a different image.
+      setReelItems([currentIndexRef.current, ...randoms, next]);
       setSpinning(true);
       setLanded(false);
 
       schedule(() => {
         setSpinning(false);
-        setReelItems([next]);
         currentIndexRef.current = next;
         setLanded(true);
         schedule(() => setLanded(false), 550);
@@ -116,9 +141,15 @@ function ReelSlot({
     >
       <div ref={reelRef} style={{ willChange: "transform", filter: "blur(3px)" }}>
         {reelItems.map((wi, i) => (
-          <div key={i} style={{ width: REEL_ITEM_H, height: REEL_ITEM_H, position: "relative" }}>
-            <Image src={weapons[wi].icon} alt="" fill className="object-cover" unoptimized />
-          </div>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={weapons[wi].icon}
+            alt=""
+            loading="eager"
+            decoding="async"
+            style={{ width: REEL_ITEM_H, height: REEL_ITEM_H, objectFit: "cover", display: "block" }}
+          />
         ))}
       </div>
     </div>
