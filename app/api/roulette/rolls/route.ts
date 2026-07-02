@@ -40,6 +40,7 @@ const STAT_NAMES: Record<number, string> = {
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
   instanceId: string;
+  itemHash: number;
   location: "character" | "vault";
   perkHashes: number[];
   perks: Perk[];
@@ -60,6 +61,7 @@ interface RollInstance {
   isBestRoll?: boolean;
   bestRollMatched?: number;
   bestRollTotal?: number;
+  baseStats?: Record<string, number>;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -115,6 +117,7 @@ export async function POST(req: NextRequest) {
     }
 
     const allPerkHashes = new Set<number>();
+    const allInstanceHashes = new Set<number>();
 
     // Fetch each member's instances of the loadout weapons in parallel.
     const perMember = await Promise.all(
@@ -142,6 +145,7 @@ export async function POST(req: NextRequest) {
             // variant of that weapon (re-release / Adept / craftable).
             const loadoutHash = variantToLoadout.get(hash);
             if (loadoutHash == null) return;
+            allInstanceHashes.add(hash);
 
             const perkHashes: number[] = [];
             const sockets = socketData[id]?.sockets ?? [];
@@ -187,6 +191,7 @@ export async function POST(req: NextRequest) {
 
             const inst: RollInstance = {
               instanceId: id,
+              itemHash: hash,
               location,
               perkHashes,
               perks: [],
@@ -235,6 +240,7 @@ export async function POST(req: NextRequest) {
       getPerkInfos([...allPerkHashes]),
       getPerkIcons([...allPerkHashes]),
     ]);
+    const instanceDefs = await getWeaponDefinitions([...allInstanceHashes]);
     const nameOf = (h: number) => perkInfoMap.get(h)?.name ?? "Unknown";
     const iconOf = (h: number) => perkIconMap.get(h) ?? "";
 
@@ -301,6 +307,7 @@ export async function POST(req: NextRequest) {
             isBestRoll: false,
             bestRollMatched: 0,
             bestRollTotal: 0,
+            baseStats: instanceDefs.get(inst.itemHash)?.stats,
           };
         });
         if (bestRoll && instances.length > 0) {

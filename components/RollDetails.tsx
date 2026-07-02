@@ -13,6 +13,7 @@ import { Star } from "lucide-react";
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
   instanceId: string;
+  itemHash?: number;
   location: "character" | "vault";
   perkHashes: number[];
   perks: Perk[];
@@ -33,6 +34,7 @@ interface RollInstance {
   isBestRoll?: boolean;
   bestRollMatched?: number;
   bestRollTotal?: number;
+  baseStats?: Record<string, number>;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -152,7 +154,7 @@ export default function RollDetails({
   const bestPerStat: Record<string, number> = {};
   for (const s of statRows) {
     const vals = members
-      .map((m) => { const inst = shownFor(m); return inst ? inst.stats[s] ?? base[s] : undefined; })
+      .map((m) => { const inst = shownFor(m); return inst ? inst.stats[s] ?? inst.baseStats?.[s] ?? base[s] : undefined; })
       .filter((v): v is number => v !== undefined);
     if (vals.length) bestPerStat[s] = Math.max(...vals);
   }
@@ -186,10 +188,6 @@ export default function RollDetails({
       .replace(/\s+/g, " ");
   const socketMatches = (actual: string | undefined, expected: string | null | undefined) =>
     Boolean(expected && normalizeSocketName(actual) === normalizeSocketName(expected));
-  const normalizeStatName = (name: string | null | undefined) =>
-    normalizeSocketName(name).replace(/\bspeed\b/g, "").trim().replace(/\s+/g, " ");
-  const masterworkAppliesToStat = (inst: RollInstance | undefined, stat: string) =>
-    Boolean(inst?.masterworkName && normalizeStatName(inst.masterworkName) === normalizeStatName(stat));
   const hurtsPreferredStat = (stats: Record<string, number> | undefined) =>
     Boolean(stats && preferredStats.some((stat) => (stats[stat] ?? 0) < 0));
   const socketClass = (baseClass: string, stats: Record<string, number> | undefined, recommended: boolean) => {
@@ -361,7 +359,8 @@ export default function RollDetails({
           {/* Stat rows */}
           <div className="space-y-2.5 pt-2.5 border-t border-bungie-border/40">
             {statRows.map((s) => {
-              const v = inst ? inst.stats[s] ?? base[s] : undefined;
+              const instBase = inst?.baseStats ?? base;
+              const v = inst ? inst.stats[s] ?? instBase[s] : undefined;
               if (v === undefined) {
                 return (
                   <div key={s} className="flex items-center gap-2">
@@ -373,16 +372,19 @@ export default function RollDetails({
                 );
               }
               const isBest = members.length > 1 && v === bestPerStat[s];
-              const hasBase = base[s] !== undefined;
-              const delta = hasBase ? v - base[s] : 0;
+              const hasBase = instBase[s] !== undefined;
+              const delta = hasBase ? v - instBase[s] : 0;
               // Segmented bar: base stat in gray, non-masterwork gains in green,
               // masterwork gain in blue, losses in red.
-              const lo = Math.min(100, Math.max(0, Math.min(v, hasBase ? base[s] : v)));
-              const hi = Math.min(100, Math.max(0, Math.max(v, hasBase ? base[s] : v)));
+              const lo = Math.min(100, Math.max(0, Math.min(v, hasBase ? instBase[s] : v)));
+              const hi = Math.min(100, Math.max(0, Math.max(v, hasBase ? instBase[s] : v)));
               const totalGain = Math.max(0, delta);
-              const rawMasterworkGain = Math.max(0, inst?.masterworkStats?.[s] ?? 0);
-              const inferredMasterworkGain = rawMasterworkGain || (masterworkAppliesToStat(inst, s) ? 10 : 0);
-              const masterworkGain = Math.min(inferredMasterworkGain, totalGain);
+              const knownSocketDelta =
+                (inst?.barrelStats?.[s] ?? 0) +
+                (inst?.magazineStats?.[s] ?? 0) +
+                (inst?.perks.reduce((sum, perk) => sum + (perk.stats?.[s] ?? 0), 0) ?? 0);
+              const inferredMasterworkGain = Math.max(0, delta - knownSocketDelta);
+              const masterworkGain = Math.min(inferredMasterworkGain, totalGain, 10);
               const otherGain = Math.max(0, totalGain - masterworkGain);
               const roomAfterBase = Math.max(0, 100 - lo);
               const otherGainWidth = Math.min(roomAfterBase, otherGain);
@@ -521,7 +523,7 @@ export default function RollDetails({
               {numRows.map((s) => (
                 <div key={s} className="flex items-center gap-1.5">
                   <span className="text-gray-500 text-[11px]">{s}</span>
-                  <span className="text-gray-300 text-[11px] tabular-nums font-medium">{myShown?.stats[s] ?? base[s]}</span>
+                  <span className="text-gray-300 text-[11px] tabular-nums font-medium">{myShown?.stats[s] ?? myShown?.baseStats?.[s] ?? base[s]}</span>
                 </div>
               ))}
             </div>
