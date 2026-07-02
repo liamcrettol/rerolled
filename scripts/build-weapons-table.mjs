@@ -74,19 +74,29 @@ async function main() {
   if (!manifestRes.ok) throw new Error(`Manifest endpoint ${manifestRes.status}`);
   const manifest = await manifestRes.json();
   const version = manifest.Response.version;
-  const itemPath = manifest.Response.jsonWorldComponentContentPaths.en.DestinyInventoryItemDefinition;
+  const paths = manifest.Response.jsonWorldComponentContentPaths.en;
+  const itemPath = paths.DestinyInventoryItemDefinition;
+  const plugSetPath = paths.DestinyPlugSetDefinition;
 
   const versionFile = `${DATA_DIR}/manifest-version.txt`;
   const current = existsSync(versionFile) ? readFileSync(versionFile, "utf8").trim() : "";
-  if (current === version) {
+  const currentWeaponsPath = `${DATA_DIR}/weapons-table.json`;
+  const currentHasSocketRoles =
+    existsSync(currentWeaponsPath) &&
+    Object.values(JSON.parse(readFileSync(currentWeaponsPath, "utf8"))).some((w) => w.socketRoleIndices);
+  if (current === version && currentHasSocketRoles) {
     console.log(`Up to date (manifest ${version}); nothing to do.`);
     return;
   }
 
   console.log(`New manifest ${version} (was ${current || "none"}); downloading item table...`);
-  const itemsRes = await fetch(`${CDN}${itemPath}`);
+  const [itemsRes, plugSetsRes] = await Promise.all([
+    fetch(`${CDN}${itemPath}`),
+    fetch(`${CDN}${plugSetPath}`),
+  ]);
   if (!itemsRes.ok) throw new Error(`Item table download ${itemsRes.status}`);
-  const all = await itemsRes.json();
+  if (!plugSetsRes.ok) throw new Error(`Plug set table download ${plugSetsRes.status}`);
+  const [all, plugSets] = await Promise.all([itemsRes.json(), plugSetsRes.json()]);
 
   // Plug categories that are cosmetic / non-perk and should never show up as a
   // weapon "perk" (shaders, ornaments, masterworks, mods, trackers, etc.).
@@ -134,6 +144,64 @@ async function main() {
     return { socketIndex: null, perkHash: null };
   }
 
+  const BARREL_ROLE_CATEGORIES = new Set([
+    "barrels",
+    "scopes",
+    "tubes",
+    "blades",
+    "bowstrings",
+    "hafts",
+    "rails",
+    "v950.new.sword0.blades",
+  ]);
+  const MAGAZINE_ROLE_CATEGORIES = new Set([
+    "magazines",
+    "magazines_gl",
+    "batteries",
+    "guards",
+    "arrows",
+    "bolts",
+    "v950.new.sword0.guards",
+  ]);
+  const MASTERWORK_STAT_CATEGORY = /^v\d+\.plugs\.weapons\.masterworks\.stat\./;
+
+  function socketPlugCategories(entry) {
+    const categories = new Set();
+    const addPlugCategory = (hash) => {
+      if (!hash) return;
+      const plugCategory = all[hash]?.plug?.plugCategoryIdentifier;
+      if (plugCategory) categories.add(plugCategory);
+    };
+
+    addPlugCategory(entry?.singleInitialItemHash);
+    for (const plug of entry?.reusablePlugItems ?? []) addPlugCategory(plug.plugItemHash);
+    for (const plug of plugSets[entry?.randomizedPlugSetHash]?.reusablePlugItems ?? []) {
+      addPlugCategory(plug.plugItemHash);
+    }
+
+    return categories;
+  }
+
+  function socketRoleIndicesOf(def) {
+    const entries = def.sockets?.socketEntries ?? [];
+    const roles = { barrel: null, magazine: null, masterwork: null };
+
+    for (let i = 0; i < entries.length; i++) {
+      const categories = socketPlugCategories(entries[i]);
+      if (roles.barrel == null && [...categories].some((c) => BARREL_ROLE_CATEGORIES.has(c))) {
+        roles.barrel = i;
+      }
+      if (roles.magazine == null && [...categories].some((c) => MAGAZINE_ROLE_CATEGORIES.has(c))) {
+        roles.magazine = i;
+      }
+      if (roles.masterwork == null && [...categories].some((c) => MASTERWORK_STAT_CATEGORY.test(c))) {
+        roles.masterwork = i;
+      }
+    }
+
+    return roles;
+  }
+
   // Pass 1: weapons + which perk hashes are actually catalyst perks (needed
   // before pass 2 decides what the cosmetic-plug filter should exclude).
   for (const key in all) {
@@ -164,6 +232,7 @@ async function main() {
       collectibleHash: def.collectibleHash ?? undefined,
       stats,
       intrinsicPerkHash: intrinsicPerkHashOf(def),
+      socketRoleIndices: socketRoleIndicesOf(def),
       catalystSocketIndex: catalyst.socketIndex,
       catalystPerkHash: catalyst.perkHash,
     };
