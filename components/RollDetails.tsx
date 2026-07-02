@@ -159,6 +159,20 @@ export default function RollDetails({
       ? "w-12 h-12 rounded border border-bungie-blue/40 hover:border-bungie-blue transition"
       : "w-9 h-9 rounded border border-bungie-blue/40";
     const noTip = !large;
+    // The weapon's fixed intrinsic frame/archetype perk (e.g. a legendary's
+    // "Rapid-Fire Frame", or an exotic's unique named mechanic like Ace of
+    // Spades' "Memento Mori") - same for every member since it's not a
+    // swappable column perk, so it comes from `slot`, not `inst`.
+    const intrinsic = (
+      <PerkIcon
+        icon={slot.intrinsicPerkIcon}
+        name={slot.intrinsicPerkName}
+        description={slot.intrinsicPerkDescription}
+        communityDescription={slot.intrinsicPerkCommunityDescription}
+        className={cls}
+        noTooltip={noTip}
+      />
+    );
     const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
     const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
     const perks = inst.perkHashes.map((hash, i) => (
@@ -169,18 +183,20 @@ export default function RollDetails({
     if (large) {
       return (
         <div className="flex flex-wrap gap-1.5 justify-center">
-          {barrel}{magazine}{perks}{masterwork}
+          {slot.intrinsicPerkIcon && intrinsic}{barrel}{magazine}{perks}{masterwork}
         </div>
       );
     }
 
-    // Compact: single row, sockets grouped (barrel/mag · perks · masterwork).
+    // Compact: single row, sockets grouped (intrinsic · barrel/mag · perks · masterwork).
     const sep = <div className="w-px self-stretch bg-bungie-border/70 mx-0.5 my-0.5" />;
-    const hasIntrinsic = Boolean(inst.barrelIcon || inst.magazineIcon);
+    const hasBarrelMag = Boolean(inst.barrelIcon || inst.magazineIcon);
     return (
       <div className="flex flex-nowrap items-center gap-1 min-w-0">
-        {hasIntrinsic && <div className="flex gap-1">{barrel}{magazine}</div>}
-        {hasIntrinsic && perks.length > 0 && sep}
+        {slot.intrinsicPerkIcon && intrinsic}
+        {slot.intrinsicPerkIcon && (hasBarrelMag || perks.length > 0) && sep}
+        {hasBarrelMag && <div className="flex gap-1">{barrel}{magazine}</div>}
+        {hasBarrelMag && perks.length > 0 && sep}
         {perks.length > 0 && <div className="flex gap-1">{perks}</div>}
         {inst.masterworkIcon && sep}
         {masterwork}
@@ -283,18 +299,6 @@ export default function RollDetails({
         <h2 className="text-white font-semibold text-sm">
           Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
         </h2>
-        {slot.intrinsicPerkName && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
-            <PerkIcon
-              icon={slot.intrinsicPerkIcon}
-              name={slot.intrinsicPerkName}
-              description={slot.intrinsicPerkDescription}
-              communityDescription={slot.intrinsicPerkCommunityDescription}
-              className="w-6 h-6 rounded border border-bungie-border shrink-0"
-            />
-            <span className="truncate">{slot.intrinsicPerkName}</span>
-          </div>
-        )}
       </div>
 
       <div className="px-3 py-3 flex gap-3">
