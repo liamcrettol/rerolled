@@ -58,6 +58,8 @@ interface RollInstance {
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
   isBestRoll?: boolean;
+  bestRollMatched?: number;
+  bestRollTotal?: number;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -297,6 +299,8 @@ export async function POST(req: NextRequest) {
             masterworkIcon: inst.masterworkHash ? iconOf(inst.masterworkHash) : undefined,
             masterworkStats: inst.masterworkHash ? perkInfoMap.get(inst.masterworkHash)?.stats : undefined,
             isBestRoll: false,
+            bestRollMatched: 0,
+            bestRollTotal: 0,
           };
         });
         if (bestRoll && instances.length > 0) {
@@ -313,7 +317,12 @@ export async function POST(req: NextRequest) {
           if (hasRecommendation) {
             scored.sort((a, b) => b.score.matched - a.score.matched || a.index - b.index);
             const bestIndex = scored[0].index;
-            instances[bestIndex] = { ...instances[bestIndex], isBestRoll: true };
+            instances[bestIndex] = {
+              ...instances[bestIndex],
+              isBestRoll: true,
+              bestRollMatched: scored[0].score.matched,
+              bestRollTotal: scored[0].score.total,
+            };
             instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
           }
         }

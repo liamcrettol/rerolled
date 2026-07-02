@@ -31,6 +31,8 @@ interface RollInstance {
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
   isBestRoll?: boolean;
+  bestRollMatched?: number;
+  bestRollTotal?: number;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -191,6 +193,8 @@ export default function RollDetails({
     if (recommended) return `${baseClass} border-amber-300 hover:border-amber-200 bg-amber-400/10`;
     return `${baseClass} border-bungie-blue/40 hover:border-bungie-blue`;
   };
+  const bestRollLabel = (inst: RollInstance | undefined) =>
+    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "GOD ROLL" : "CLOSEST GOD ROLL";
 
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
   // a hover tooltip describing exactly what it does. The large variant (used in
@@ -306,7 +310,8 @@ export default function RollDetails({
     const card = memberCards?.[m.userId];
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
-    const bestTitle = `Closest god roll${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
+    const label = bestRollLabel(inst);
+    const bestTitle = `${label === "GOD ROLL" ? "God roll" : "Closest god roll"}${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
     return (
       <div
         key={m.userId}
@@ -318,7 +323,7 @@ export default function RollDetails({
         {isBest && (
           <div className="flex items-center justify-center gap-1 bg-amber-400 text-bungie-dark text-[11px] font-bold py-0.5">
             <Star size={11} className="fill-bungie-dark" />
-            CLOSEST GOD ROLL
+            {label}
           </div>
         )}
         {/* Emblem header (fallback to name) */}
@@ -451,7 +456,7 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  title={inst.isBestRoll ? `Closest god roll${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
+                  title={inst.isBestRoll ? `${bestRollLabel(inst) === "GOD ROLL" ? "God roll" : "Closest god roll"}${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 rounded-md pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
