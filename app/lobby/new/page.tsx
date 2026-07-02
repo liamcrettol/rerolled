@@ -213,10 +213,17 @@ export default function NewLobbyPage() {
 
         {error && <p className="text-red-400 text-sm text-center mt-6">{error}</p>}
 
+        <p className="text-center text-xs text-gray-500 mt-6">
+          <span className="capitalize text-gray-300">{rollMode}</span> mode ·{" "}
+          {rerollLimit === null ? "Unlimited" : rerollLimit} reroll{rerollLimit === 1 ? "" : "s"} ·{" "}
+          {bannedTypes.size} weapon type{bannedTypes.size === 1 ? "" : "s"} banned ·{" "}
+          duplicates {noDup ? "not allowed" : "allowed"}
+        </p>
+
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="w-full mt-6 bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm"
+          className="w-full mt-3 bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm"
         >
           {loading ? "Creating..." : "Create Lobby"}
         </button>
