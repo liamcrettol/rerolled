@@ -47,9 +47,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
           </p>
         )}
         <SignInButton returnTo={code ? `/join/${code}` : undefined} />
-        <p className="text-xs text-gray-500 text-center">
-          Signing in lets us read your inventory and equip weapons. Everyone in the group needs to sign in.
-        </p>
+        <div className="text-xs text-gray-500 text-center space-y-1">
+          <p>
+            Signs in through Bungie.net&apos;s official OAuth. We read your inventory to
+            build valid rolls and equip the loadout you choose. Nothing gets deleted,
+            dismantled, or spent. Everyone in the group needs to sign in.
+          </p>
+          <Link href="/privacy" className="inline-block underline hover:text-gray-400">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
