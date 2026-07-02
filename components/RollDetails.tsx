@@ -44,6 +44,7 @@ interface MemberRolls {
 export interface SlotRolls {
   itemHash: number;
   damageType: string;
+  tierType: number;
   baseStats: Record<string, number>;
   weaponName?: string;
   weaponIcon?: string;
@@ -207,12 +208,17 @@ export default function RollDetails({
         noTooltip={noTip}
       />
     );
-    const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
-    const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
+    // Exotics only have one real "choice" socket (their trait perk) - barrel/
+    // magazine/masterwork are typically fixed or secondary on an exotic, and
+    // showing them alongside intrinsic + catalyst + trait pushed the icon
+    // count past what a card/row can hold in one line without wrapping badly.
+    const isExotic = slot.tierType === 6;
+    const barrel = isExotic ? null : <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
+    const magazine = isExotic ? null : <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
     const perks = inst.perkHashes.map((hash, i) => (
       <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} communityDescription={inst.perks[i]?.communityDescription} stats={inst.perks[i]?.stats} className={cls} noTooltip={noTip} />
     ));
-    const masterwork = <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} stats={inst.masterworkStats} className={cls} noTooltip={noTip} />;
+    const masterwork = isExotic ? null : <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} stats={inst.masterworkStats} className={cls} noTooltip={noTip} />;
 
     if (large) {
       return (
@@ -224,7 +230,7 @@ export default function RollDetails({
 
     // Compact: single row, sockets grouped (intrinsic/catalyst · barrel/mag · perks · masterwork).
     const sep = <div className="w-px self-stretch bg-bungie-border/70 mx-0.5 my-0.5" />;
-    const hasBarrelMag = Boolean(inst.barrelIcon || inst.magazineIcon);
+    const hasBarrelMag = Boolean(inst.barrelIcon || inst.magazineIcon) && !isExotic;
     return (
       <div className="flex flex-nowrap items-center gap-1 min-w-0">
         {slot.intrinsicPerkIcon && intrinsic}
@@ -233,7 +239,7 @@ export default function RollDetails({
         {hasBarrelMag && <div className="flex gap-1">{barrel}{magazine}</div>}
         {hasBarrelMag && perks.length > 0 && sep}
         {perks.length > 0 && <div className="flex gap-1">{perks}</div>}
-        {inst.masterworkIcon && sep}
+        {masterwork && sep}
         {masterwork}
       </div>
     );

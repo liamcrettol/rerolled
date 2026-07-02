@@ -238,6 +238,7 @@ export async function POST(req: NextRequest) {
       {
         itemHash: number;
         damageType: string;
+        tierType: number;
         baseStats: Record<string, number>;
         weaponName: string;
         weaponIcon: string;
@@ -302,6 +303,7 @@ export async function POST(req: NextRequest) {
       slots[slot] = {
         itemHash: hash,
         damageType: defs.get(hash)?.damageType ?? "",
+        tierType: defs.get(hash)?.tierType ?? 5,
         baseStats: defs.get(hash)?.stats ?? {},
         weaponName: defs.get(hash)?.name ?? "",
         weaponIcon: defs.get(hash)?.icon ?? "",
