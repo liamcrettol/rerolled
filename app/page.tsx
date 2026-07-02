@@ -3,9 +3,8 @@ import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 import GlowBackdrop from "@/components/GlowBackdrop";
 import HeroReel from "@/components/HeroReel";
-import LandingPreview from "@/components/LandingPreview";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
-import { Shuffle, Zap, Crown } from "lucide-react";
+import { Shuffle, Zap, GitCompare } from "lucide-react";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const session = await auth();
@@ -18,11 +17,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   const heroWeaponsBySlot = getRandomWeaponSample(60);
 
   return (
-    <main className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center gap-10 p-8">
+    <main className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center gap-12 p-8">
       <GlowBackdrop />
 
       <div className="text-center animate-rise-in" style={{ opacity: 0 }}>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white mb-3">
+        <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-white mb-4">
           Gun Roulette
         </h1>
         <p className="text-gray-400 text-lg max-w-md mx-auto">
@@ -49,21 +48,16 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         </p>
       </div>
 
-      <div className="flex flex-col items-center gap-3 animate-rise-in" style={{ opacity: 0, animationDelay: "240ms" }}>
-        <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">What your fireteam sees</p>
-        <LandingPreview weaponsBySlot={heroWeaponsBySlot} />
-      </div>
-
       <div className="grid grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
         {[
           { Icon: Shuffle, title: "Random Rolls", desc: "Only rolls weapons everyone has" },
           { Icon: Zap, title: "Auto-Equip", desc: "Equips the whole fireteam at once" },
-          { Icon: Crown, title: "Turn Rotation", desc: "Roll control rotates every game" },
+          { Icon: GitCompare, title: "Roll Comparison", desc: "See everyone's roll of the same gun" },
         ].map((f, i) => (
           <div
             key={f.title}
             className="glass-card rounded-xl p-4 transition hover:-translate-y-1 hover:border-bungie-blue/50 animate-rise-in"
-            style={{ opacity: 0, animationDelay: `${320 + i * 80}ms` }}
+            style={{ opacity: 0, animationDelay: `${280 + i * 80}ms` }}
           >
             <f.Icon size={26} className="mx-auto mb-2 text-bungie-blue" />
             <div className="font-semibold text-white text-sm">{f.title}</div>
