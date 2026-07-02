@@ -173,14 +173,34 @@ export default function RollDetails({
     onChooseInstance(activeTab, inst.instanceId);
   };
 
+  const preferredStats = [slot.bestRoll?.priorityStat1, slot.bestRoll?.priorityStat2].filter((s): s is string => Boolean(s));
+  const normalizeSocketName = (name: string | null | undefined) =>
+    (name ?? "")
+      .toLowerCase()
+      .replace(/\benhanced\b/g, "")
+      .replace(/\bmasterwork\b/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  const socketMatches = (actual: string | undefined, expected: string | null | undefined) =>
+    Boolean(expected && normalizeSocketName(actual) === normalizeSocketName(expected));
+  const hurtsPreferredStat = (stats: Record<string, number> | undefined) =>
+    Boolean(stats && preferredStats.some((stat) => (stats[stat] ?? 0) < 0));
+  const socketClass = (baseClass: string, stats: Record<string, number> | undefined, recommended: boolean) => {
+    if (hurtsPreferredStat(stats)) return `${baseClass} border-red-400 hover:border-red-300 bg-red-500/10`;
+    if (recommended) return `${baseClass} border-amber-300 hover:border-amber-200 bg-amber-400/10`;
+    return `${baseClass} border-bungie-blue/40 hover:border-bungie-blue`;
+  };
+
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
   // a hover tooltip describing exactly what it does. The large variant (used in
   // the member cards) wraps and centers; the compact variant (left rail) stays
   // on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
     const cls = large
-      ? "w-12 h-12 rounded border border-bungie-blue/40 hover:border-bungie-blue transition"
-      : "w-9 h-9 rounded border border-bungie-blue/40";
+      ? "w-12 h-12 rounded border transition"
+      : "w-9 h-9 rounded border";
+    const neutralCls = socketClass(cls, undefined, false);
     const noTip = !large;
     // The weapon's fixed intrinsic frame/archetype perk (e.g. a legendary's
     // "Rapid-Fire Frame", or an exotic's unique named mechanic like Ace of
@@ -192,7 +212,7 @@ export default function RollDetails({
         name={slot.intrinsicPerkName}
         description={slot.intrinsicPerkDescription}
         communityDescription={slot.intrinsicPerkCommunityDescription}
-        className={cls}
+        className={neutralCls}
         noTooltip={noTip}
       />
     );
@@ -205,7 +225,7 @@ export default function RollDetails({
         name={slot.catalystPerkName}
         description={slot.catalystPerkDescription}
         communityDescription={slot.catalystPerkCommunityDescription}
-        className={cls}
+        className={neutralCls}
         noTooltip={noTip}
       />
     );
@@ -214,12 +234,49 @@ export default function RollDetails({
     // showing them alongside intrinsic + catalyst + trait pushed the icon
     // count past what a card/row can hold in one line without wrapping badly.
     const isExotic = slot.tierType === 6;
-    const barrel = isExotic ? null : <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
-    const magazine = isExotic ? null : <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
+    const barrel = isExotic ? null : (
+      <PerkIcon
+        icon={inst.barrelIcon}
+        name={inst.barrelName}
+        stats={inst.barrelStats}
+        className={socketClass(cls, inst.barrelStats, socketMatches(inst.barrelName, slot.bestRoll?.barrel))}
+        noTooltip={noTip}
+      />
+    );
+    const magazine = isExotic ? null : (
+      <PerkIcon
+        icon={inst.magazineIcon}
+        name={inst.magazineName}
+        stats={inst.magazineStats}
+        className={socketClass(cls, inst.magazineStats, socketMatches(inst.magazineName, slot.bestRoll?.magazine))}
+        noTooltip={noTip}
+      />
+    );
     const perks = inst.perkHashes.map((hash, i) => (
-      <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} communityDescription={inst.perks[i]?.communityDescription} stats={inst.perks[i]?.stats} className={cls} noTooltip={noTip} />
+      <PerkIcon
+        key={hash}
+        icon={inst.perkIcons[hash]}
+        name={inst.perks[i]?.name}
+        description={inst.perks[i]?.description}
+        communityDescription={inst.perks[i]?.communityDescription}
+        stats={inst.perks[i]?.stats}
+        className={socketClass(
+          cls,
+          inst.perks[i]?.stats,
+          socketMatches(inst.perks[i]?.name, slot.bestRoll?.perk1) || socketMatches(inst.perks[i]?.name, slot.bestRoll?.perk2)
+        )}
+        noTooltip={noTip}
+      />
     ));
-    const masterwork = isExotic ? null : <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} stats={inst.masterworkStats} className={cls} noTooltip={noTip} />;
+    const masterwork = isExotic ? null : (
+      <PerkIcon
+        icon={inst.masterworkIcon}
+        name={inst.masterworkName}
+        stats={inst.masterworkStats}
+        className={socketClass(cls, inst.masterworkStats, socketMatches(inst.masterworkName, slot.bestRoll?.priorityMasterwork))}
+        noTooltip={noTip}
+      />
+    );
 
     if (large) {
       return (

@@ -14,6 +14,8 @@ NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby
 
 ## How I want you to work (the core loop)
 
+- **When you finish a requested change** → commit the completed work and push it
+  to **`main`** immediately unless I explicitly say not to.
 - **I give you a ticket number** → run the `develop-github-issue` skill end-to-end
   and land the work on **`main`**, which deploys to **STAGING** (`preview.d2roulette.app`),
   **not production**.
