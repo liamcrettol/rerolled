@@ -14,7 +14,7 @@ const WEAPON_TYPES: { label: string; types: string[] }[] = [
   },
   {
     label: "Special",
-    types: ["Shotgun · Special", "Fusion Rifle · Special", "Sniper Rifle · Special", "Grenade Launcher · Special", "Glaive · Special"],
+    types: ["Shotgun", "Fusion Rifle", "Sniper Rifle", "Grenade Launcher", "Glaive"],
   },
   {
     label: "Heavy",
@@ -142,10 +142,11 @@ export default function NewLobbyPage() {
                         : "border-bungie-border text-gray-400 hover:border-gray-400"
                     }`}
                   >
-                    {v === null ? "∞" : v}
+                    {v === null ? "Unlimited" : v}
                   </button>
                 ))}
               </div>
+              <p className="text-[11px] text-gray-600 mt-2">Rerolls are shared by the lobby for each round.</p>
             </div>
 
             {/* No duplicates */}
@@ -154,7 +155,7 @@ export default function NewLobbyPage() {
                 <div>
                   <p className="text-sm text-white font-medium">No duplicate weapon types</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">
-                    Prevents the same weapon type from appearing in multiple slots.
+                    Prevents duplicate kinetic/energy weapon types, like two Hand Cannons.
                   </p>
                 </div>
                 <PillSwitch checked={noDup} onChange={() => setNoDup((v) => !v)} />
@@ -186,12 +187,14 @@ export default function NewLobbyPage() {
                         <button
                           key={t}
                           onClick={() => toggleBan(t)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                          title={banned ? `${t} is banned from rolls` : `Ban ${t}`}
+                          className={`text-xs px-2.5 py-1 rounded-full border transition inline-flex items-center gap-1 ${
                             banned
-                              ? "border-red-500/60 bg-red-500/15 text-red-300"
+                              ? "border-red-400 bg-red-500/20 text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.18)]"
                               : "border-bungie-border text-gray-400 hover:border-gray-400 hover:text-gray-200"
                           }`}
                         >
+                          {banned && <span className="text-red-300" aria-hidden>×</span>}
                           {t}
                         </button>
                       );

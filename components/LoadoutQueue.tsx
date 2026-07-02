@@ -31,16 +31,19 @@ const SLOT_STAGGER_MS: Record<string, number> = { kinetic: 0, energy: 160, power
 
 type SlotMode = "normal" | "lock" | "wildcard";
 const SLOT_MODE_ICONS: Record<SlotMode, typeof Shuffle> = { normal: Shuffle, lock: Lock, wildcard: User };
+const SLOT_MODE_LABELS: Record<SlotMode, string> = { normal: "Reroll Slot", lock: "Locked", wildcard: "Yours" };
 
 /** The animated weapon reel (icon box) + its name/type text, laid out side by side. */
 function WeaponSlotContent({
   hash, icon, watermark, name, weaponType, damageType, isCollection,
-  theme, iconPool, slot, animKindRef,
+  theme, iconPool, slot, animKindRef, onHover, onLeave,
 }: {
   hash: number; icon: string; watermark?: string; name: string;
   weaponType: string; damageType: string; isCollection: boolean;
   theme: DamageTheme; iconPool: string[]; slot: string;
   animKindRef?: React.MutableRefObject<Record<string, AnimKind>>;
+  onHover: (hash: number, e: React.MouseEvent<HTMLElement>) => void;
+  onLeave: () => void;
 }) {
   const [reelItems, setReelItems] = useState<string[]>([icon]);
   const [spinning, setSpinning] = useState(false);
@@ -124,10 +127,12 @@ function WeaponSlotContent({
     <>
       <div
         key={popKey}
-        className={`relative rounded-lg overflow-hidden border shrink-0 transition-shadow duration-300 ${theme.bg} ${theme.border} ${
+        className={`relative rounded-lg overflow-hidden border shrink-0 cursor-help transition-shadow duration-300 ${theme.bg} ${theme.border} ${
           picked ? "animate-pick-pop ring-2 ring-bungie-blue" : ""
         } ${landed ? "animate-slot-land" : ""}`}
         style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
+        onMouseEnter={(e) => onHover(hash, e)}
+        onMouseLeave={onLeave}
       >
         <div ref={reelRef} style={{ willChange: "transform" }}>
           {reelItems.map((ic, idx) => (
@@ -196,15 +201,14 @@ export default function LoadoutQueue({
       <div>
         {SLOT_ORDER.map((slotName, idx) => {
           const slot = sorted.find((s) => s.slot === slotName);
-          const isWildcard = slot?.item_hash === 0;
-          const hasWeapon = !!slot && slot.item_hash !== 0;
-          const theme = damageTheme(hasWeapon ? slot!.damage_type : undefined);
-
           const slotMode: SlotMode = lockedSlots?.has(slotName)
             ? "lock"
             : wildcardSlots?.has(slotName)
             ? "wildcard"
             : "normal";
+          const isWildcard = slotMode === "wildcard" || slot?.item_hash === 0;
+          const hasWeapon = !!slot && slot.item_hash !== 0 && !isWildcard;
+          const theme = damageTheme(hasWeapon ? slot!.damage_type : undefined);
           const ModeIcon = SLOT_MODE_ICONS[slotMode];
           const showControls = isCaptain && (!!onCycleSlotMode || (!!onRerollSlot && hasWeapon && !rerollExhausted));
 
@@ -240,11 +244,7 @@ export default function LoadoutQueue({
                   </div>
                 </>
               ) : slot ? (
-                <div
-                  className="flex items-center gap-3 flex-1 min-w-0 cursor-help"
-                  onMouseEnter={(e) => onHover(slot.item_hash, e)}
-                  onMouseLeave={onLeave}
-                >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <WeaponSlotContent
                     hash={slot.item_hash}
                     icon={slot.weapon_icon}
@@ -257,6 +257,8 @@ export default function LoadoutQueue({
                     iconPool={iconPool}
                     slot={slotName}
                     animKindRef={animKindRef}
+                    onHover={onHover}
+                    onLeave={onLeave}
                   />
                 </div>
               ) : (
@@ -279,7 +281,7 @@ export default function LoadoutQueue({
                   {onCycleSlotMode && (
                     <button
                       onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
-                      title="Click to cycle: Random → Locked → Your own"
+                      title="Click to cycle: Reroll Slot → Locked → Yours"
                       className={`text-xs px-3 py-1.5 rounded-lg border transition inline-flex items-center gap-1.5 font-medium ${
                         slotMode === "lock"
                           ? "border-yellow-500/70 bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25"
@@ -289,13 +291,14 @@ export default function LoadoutQueue({
                       }`}
                     >
                       <ModeIcon size={13} className="shrink-0" />
-                      {slotMode === "normal" ? "Random" : slotMode === "lock" ? "Locked" : "Yours"}
+                      {SLOT_MODE_LABELS[slotMode]}
                     </button>
                   )}
                   {onRerollSlot && hasWeapon && !rerollExhausted && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onRerollSlot(slotName as WeaponSlot); }}
-                      title={`Reroll ${slotName}`}
+                      title={`Reroll only the ${slotName} slot`}
+                      aria-label={`Reroll only the ${slotName} slot`}
                       className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-lg border border-bungie-border text-gray-400 hover:border-bungie-blue hover:text-bungie-blue transition"
                     >
                       <RotateCcw size={13} />

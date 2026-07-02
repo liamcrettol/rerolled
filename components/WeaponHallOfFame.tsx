@@ -24,8 +24,11 @@ export default async function WeaponHallOfFame() {
 
   if (error || !data?.length) {
     return (
-      <div className="glass-card rounded-xl p-6 text-center">
-        <p className="text-gray-500 text-sm">No weapon data yet.</p>
+      <div className="glass-card rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-white mb-2">Weapon Hall of Fame</h2>
+        <p className="text-gray-500 text-sm">
+          No roulette weapon kills yet. Weapons appear here after completed tracked games.
+        </p>
       </div>
     );
   }

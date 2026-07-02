@@ -140,7 +140,11 @@ function WeaponCard({
 
   const cardInner = (
     <>
-      <div className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800">
+      <div
+        className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800 cursor-help"
+        onMouseEnter={(e) => onHover(hash, e)}
+        onMouseLeave={onLeave}
+      >
         {detail.icon && (
           <Image src={detail.icon} alt={detail.name} fill className="object-cover" unoptimized />
         )}
@@ -185,8 +189,6 @@ function WeaponCard({
       className={`rounded-lg border overflow-hidden transition ${
         isActive ? `${theme.border} ring-1 ${theme.ring}` : tier.border
       }`}
-      onMouseEnter={(e) => onHover(hash, e)}
-      onMouseLeave={onLeave}
     >
       {/* Main card row. Read-only viewers get a static row (still hoverable for
           the perk/stat tooltip); captains get a button that selects the weapon. */}

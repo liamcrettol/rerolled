@@ -49,7 +49,7 @@ const LOBBY_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   done: { label: "Ended", cls: "border-gray-700 text-gray-500" },
 };
 
-// Per-slot mode cycle: Random → Locked → Your own.
+// Per-slot mode cycle: Reroll Slot → Locked → Your own.
 type SlotMode = "normal" | "lock" | "wildcard";
 
 interface SessionTotal {
@@ -674,6 +674,7 @@ export default function LobbyRoom({
     const seedRoundId = roundId;
     const keep: Record<string, number> = {};
     for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
+      if (wildcardSlots.has(s)) continue;
       if (equippedHashes[s] != null) keep[s] = equippedHashes[s]!;
     }
     console.log("[d2r-seed] seeding now, keep=", keep);
@@ -686,6 +687,7 @@ export default function LobbyRoom({
             lobbyId: lobby.id, roundId: seedRoundId, intersection,
             weaponDetails,
             keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+            wildcardSlots: Array.from(wildcardSlots),
           }),
         });
         const data = await res.json();
@@ -696,6 +698,20 @@ export default function LobbyRoom({
         // the captain stayed empty while viewers already saw the comparison.
         const now = new Date().toISOString();
         const seeded: LobbyLoadoutSlot[] = [];
+        for (const s of wildcardSlots) {
+          seeded.push({
+            id: `seed-${seedRoundId}-${s}`,
+            round_id: seedRoundId,
+            slot: s,
+            item_hash: 0,
+            weapon_name: "?",
+            weapon_icon: "",
+            weapon_type: "Any",
+            damage_type: "Any",
+            locked_by_user_id: currentUserId,
+            created_at: now,
+          });
+        }
         for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
           const hash = data.roll[s];
           if (!hash) continue;
@@ -907,7 +923,7 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, [intersection, effectiveIntersection, roundId, lobby.id, slots, weaponDetails, rollMode, noDupMode]);
 
-  // Cycle a slot through Random → Locked → Your own → Random.
+  // Cycle a slot through Reroll Slot → Locked → Your own → Reroll Slot.
   // Locked = keep this shared weapon on Roll All. Your own = skip slot on apply
   // (each player keeps their own equipped weapon). Toggling on/off "Your own"
   // writes the change immediately so the slot grays / repopulates right away.
@@ -1580,9 +1596,11 @@ export default function LobbyRoom({
                         onClick={() => handleRoll()}
                         disabled={loadingAction !== null || rerollExhausted || !intersection}
                         className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                        title="Roll all non-locked, non-Yours slots"
+                        aria-label="Roll all slots"
                       >
                         <Shuffle size={15} />
-                        {loadingAction === "roll" ? "Rolling…" : "Roll All"}
+                        {loadingAction === "roll" ? "Rolling…" : "Roll Loadout"}
                       </button>
                     )}
                     {slots.some((s) => s.item_hash !== 0) && (
@@ -1590,9 +1608,11 @@ export default function LobbyRoom({
                         onClick={handleApply}
                         disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
                         className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                        title="Apply this loadout to your selected Guardian"
+                        aria-label="Apply loadout"
                       >
                         <Zap size={15} />
-                        {loadingAction === "apply" ? "Applying…" : "Apply"}
+                        {loadingAction === "apply" ? "Applying…" : "Apply Loadout"}
                       </button>
                     )}
                     {loadingAction === "apply" && (
@@ -1610,7 +1630,7 @@ export default function LobbyRoom({
           </div>
         )}
 
-        {/* Status line below the loadout: warnings, orbit hint, auto-apply toggle. */}
+        {/* Status line below the loadout: warnings and auto-apply toggle. */}
         {!isSpectator && roundId && (
           <div className="order-3 flex items-center gap-3 flex-wrap min-h-[1.25rem] px-1">
             {!selectedCharId && loadingAction !== "apply" && slots.some((s) => s.item_hash !== 0) && (
@@ -1622,10 +1642,6 @@ export default function LobbyRoom({
             {!intersection && isCaptain && loadingAction === "intersection" && (
               <span className="text-xs text-gray-500 animate-pulse">Loading shared weapons…</span>
             )}
-            {slots.some((s) => s.item_hash !== 0) && loadingAction !== "apply" && (
-              <span className="text-xs text-gray-600">Must be in orbit or a social space</span>
-            )}
-
             {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
             {!isCaptain && (
               <label className="ml-auto flex items-center gap-2 cursor-pointer select-none group">

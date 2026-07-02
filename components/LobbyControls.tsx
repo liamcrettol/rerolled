@@ -103,22 +103,25 @@ export default function LobbyControls({ activeSession }: Props) {
           <LogIn size={22} className="text-bungie-blue mb-2" />
           <h2 className="text-lg font-semibold text-white mb-1">Join Lobby</h2>
           <p className="text-gray-400 text-sm mb-4">
-            Got a code? Enter it here.
+            Enter a lobby code from your fireteam.
           </p>
           <form onSubmit={handleJoin} className="flex gap-2">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="ABC123"
-              maxLength={8}
-              className="flex-1 bg-bungie-dark border border-bungie-border rounded-lg px-3 py-2 text-white font-mono text-center uppercase tracking-widest slashed-zero focus:outline-none focus:border-bungie-blue"
-            />
+            <label className="flex-1 min-w-0">
+              <span className="sr-only">Lobby code</span>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="ABC123"
+                maxLength={8}
+                className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-2 text-white font-mono text-center uppercase tracking-widest slashed-zero focus:outline-none focus:border-bungie-blue"
+              />
+            </label>
             <button
               type="submit"
               disabled={loading !== null || !code.trim()}
               className="bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold px-4 rounded-lg transition"
             >
-              {loading === "join" ? "..." : "Join"}
+              {loading === "join" ? "Joining..." : "Join"}
             </button>
           </form>
         </div>

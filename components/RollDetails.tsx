@@ -195,6 +195,12 @@ export default function RollDetails({
     if (recommended) return `${baseClass} border-amber-300 hover:border-amber-200 bg-amber-400/10`;
     return `${baseClass} border-bungie-blue/40 hover:border-bungie-blue`;
   };
+  const masterworkStatFromName = (name: string | undefined, stat: string) => {
+    if (!name) return 0;
+    const normalizedName = normalizeSocketName(name);
+    const normalizedStat = normalizeSocketName(stat === "Reload" ? "Reload Speed" : stat);
+    return normalizedName.includes(normalizedStat) ? 10 : 0;
+  };
   const bestRollLabel = (inst: RollInstance | undefined) =>
     inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "GOD ROLL" : "CLOSEST GOD ROLL";
 
@@ -383,8 +389,12 @@ export default function RollDetails({
                 (inst?.barrelStats?.[s] ?? 0) +
                 (inst?.magazineStats?.[s] ?? 0) +
                 (inst?.perks.reduce((sum, perk) => sum + (perk.stats?.[s] ?? 0), 0) ?? 0);
+              const actualMasterworkGain = Math.max(
+                0,
+                inst?.masterworkStats?.[s] ?? masterworkStatFromName(inst?.masterworkName, s)
+              );
               const inferredMasterworkGain = Math.max(0, delta - knownSocketDelta);
-              const masterworkGain = Math.min(inferredMasterworkGain, totalGain, 10);
+              const masterworkGain = Math.min(actualMasterworkGain || inferredMasterworkGain, totalGain, 10);
               const otherGain = Math.max(0, totalGain - masterworkGain);
               const roomAfterBase = Math.max(0, 100 - lo);
               const otherGainWidth = Math.min(roomAfterBase, otherGain);

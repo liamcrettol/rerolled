@@ -19,8 +19,11 @@ export default async function Leaderboard() {
 
   if (!data?.length) {
     return (
-      <div className="glass-card rounded-xl p-6 text-center">
-        <p className="text-gray-500 text-sm">No games yet.</p>
+      <div className="glass-card rounded-xl p-6">
+        <h2 className="text-lg font-semibold text-white mb-2">Leaderboard</h2>
+        <p className="text-gray-500 text-sm">
+          No games recorded yet. Finish a roulette match and the first stats will land here.
+        </p>
       </div>
     );
   }
