@@ -261,7 +261,17 @@ export default function RollDetails({
           {/* Weapon icon + roll perks */}
           <div className="flex items-center justify-center gap-3">
             {slot.weaponIcon && (
-              <WeaponIcon icon={slot.weaponIcon} watermark={slot.weaponWatermark} name={slot.weaponName ?? ""} size="large" />
+              <div className="relative shrink-0">
+                <WeaponIcon icon={slot.weaponIcon} watermark={slot.weaponWatermark} name={slot.weaponName ?? ""} size="large" />
+                {inst?.isBestRoll && (
+                  <span
+                    className="absolute -top-1.5 -right-1.5 bg-bungie-dark rounded-full p-0.5 border border-amber-400/60"
+                    title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
+                  >
+                    <Star size={12} className="fill-amber-400 text-amber-400" />
+                  </span>
+                )}
+              </div>
             )}
             <div className="min-h-[3rem] flex flex-wrap gap-1.5 items-center">
               {m.failed ? (
@@ -275,13 +285,7 @@ export default function RollDetails({
           </div>
 
           {inst?.isBestRoll && (
-            <div
-              className="flex items-center gap-1.5 text-[11px] text-amber-400 justify-center -mt-1"
-              title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
-            >
-              <Star size={12} className="fill-amber-400" />
-              <span>Best roll pick (unverified)</span>
-            </div>
+            <p className="text-[11px] text-amber-400 text-center -mt-1">Best roll pick (unverified)</p>
           )}
 
           {/* Stat rows */}
