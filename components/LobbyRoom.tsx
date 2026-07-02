@@ -15,6 +15,7 @@ import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
 import { useGameDetection, type PlayerStat, type RoundRecord } from "@/hooks/useGameDetection";
 import PlayerCard from "./PlayerCard";
+import Spinner from "./Spinner";
 import { Shuffle, Zap, Crown, Check, Copy, X, MoreHorizontal, Lock, User, PanelRightOpen, PanelRightClose, Clock } from "lucide-react";
 
 interface LeaderboardEntry {
@@ -1310,15 +1311,17 @@ export default function LobbyRoom({
               <button
                 onClick={() => handleLoadIntersection()}
                 disabled={loadingAction !== null}
-                className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition"
+                className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-2"
               >
+                {loadingAction === "intersection" && <Spinner size={14} />}
                 {loadingAction === "intersection" ? "Loading…" : "Load Shared Weapons"}
               </button>
               {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
             </div>
           ) : (
             <div className="rounded-xl border border-bungie-border/40 bg-bungie-surface p-4">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 flex items-center gap-2">
+                {loadingAction === "intersection" && <Spinner size={13} />}
                 {loadingAction === "intersection" ? "Loading shared weapons…" : "Roll to load the shared weapon pool."}
               </p>
               {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
@@ -1608,7 +1611,10 @@ export default function LobbyRoom({
           {statsTab === "leaderboard" && (
             <div className="p-4">
               {leaderboardLoading ? (
-                <p className="text-sm text-gray-500 text-center py-4">Loading...</p>
+                <p className="text-sm text-gray-500 text-center py-4 flex items-center justify-center gap-2">
+                  <Spinner size={14} />
+                  Loading...
+                </p>
               ) : !leaderboard || leaderboard.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">No games recorded yet.</p>
               ) : (
@@ -1677,7 +1683,7 @@ export default function LobbyRoom({
                         title="Roll all non-locked, non-Your-own slots"
                         aria-label="Roll all slots"
                       >
-                        <Shuffle size={15} />
+                        {loadingAction === "roll" ? <Spinner size={15} /> : <Shuffle size={15} />}
                         {loadingAction === "roll" ? "Rolling…" : "Roll Loadout"}
                       </button>
                     )}
@@ -1689,7 +1695,7 @@ export default function LobbyRoom({
                         title="Apply this loadout to your selected Guardian"
                         aria-label="Apply loadout"
                       >
-                        <Zap size={15} />
+                        {loadingAction === "apply" ? <Spinner size={15} /> : <Zap size={15} />}
                         {loadingAction === "apply" ? "Applying…" : "Apply Loadout"}
                       </button>
                     )}
@@ -1718,7 +1724,10 @@ export default function LobbyRoom({
               <span className="text-xs text-red-400">{intersectionError}</span>
             )}
             {!intersection && isCaptain && loadingAction === "intersection" && (
-              <span className="text-xs text-gray-500 animate-pulse">Loading shared weapons…</span>
+              <span className="text-xs text-gray-500 inline-flex items-center gap-1.5">
+                <Spinner size={12} />
+                Loading shared weapons…
+              </span>
             )}
             {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
             {!isCaptain && (

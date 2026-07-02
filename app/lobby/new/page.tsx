@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import Spinner from "@/components/Spinner";
 
 type RollMode = "normal" | "chaos" | "meta";
 
@@ -223,8 +224,9 @@ export default function NewLobbyPage() {
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="w-full mt-3 bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm"
+          className="w-full mt-3 bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition text-sm inline-flex items-center justify-center gap-2"
         >
+          {loading && <Spinner size={15} />}
           {loading ? "Creating..." : "Create Lobby"}
         </button>
       </div>

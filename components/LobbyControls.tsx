@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PlusCircle, LogIn } from "lucide-react";
+import Spinner from "./Spinner";
 import type { Lobby } from "@/types/lobby";
 
 const STATUS_LABELS: Record<Lobby["status"], string> = {
@@ -119,12 +120,13 @@ export default function LobbyControls({ activeSession }: Props) {
             <button
               type="submit"
               disabled={loading !== null || !code.trim()}
-              className={`font-semibold px-4 rounded-lg transition ${
+              className={`font-semibold px-4 rounded-lg transition inline-flex items-center justify-center gap-2 ${
                 code.trim()
                   ? "bg-bungie-blue hover:opacity-90 text-white"
                   : "bg-bungie-dark border border-bungie-border text-gray-500"
               } disabled:opacity-50`}
             >
+              {loading === "join" && <Spinner size={14} />}
               {loading === "join" ? "Joining..." : "Join"}
             </button>
           </form>

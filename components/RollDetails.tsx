@@ -8,6 +8,7 @@ import type { LobbyMember } from "@/types/lobby";
 import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
+import Spinner from "./Spinner";
 import { Star } from "lucide-react";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
@@ -117,7 +118,8 @@ export default function RollDetails({
             </button>
           )}
         </div>
-        <p className="text-gray-500 text-xs mt-2">
+        <p className="text-gray-500 text-xs mt-2 flex items-center gap-1.5">
+          {loading && <Spinner size={12} />}
           {loading ? "Loading your rolls..." : error ? `Couldn't load rolls: ${error}` : "Roll a loadout to see your rolls."}
         </p>
       </div>

@@ -9,6 +9,7 @@ import DashboardStats from "@/components/DashboardStats";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
 import GlowBackdrop from "@/components/GlowBackdrop";
 import { getActiveSessionForUser } from "@/lib/lobby";
+import Spinner from "@/components/Spinner";
 
 // Always render fresh so the global leaderboard reflects the latest games.
 export const dynamic = "force-dynamic";
@@ -47,19 +48,19 @@ export default async function Dashboard() {
         <DashboardLiveRefresh />
 
         <div className="mt-8">
-          <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading stats...</div>}>
+          <Suspense fallback={<div className="text-gray-500 text-sm py-4 flex items-center gap-2"><Spinner size={14} />Loading stats...</div>}>
             <DashboardStats />
           </Suspense>
         </div>
 
         <div className="mt-8 grid lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2">
-            <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading leaderboard...</div>}>
+            <Suspense fallback={<div className="text-gray-500 text-sm py-4 flex items-center gap-2"><Spinner size={14} />Loading leaderboard...</div>}>
               <Leaderboard />
             </Suspense>
           </div>
           <div>
-            <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading hall of fame...</div>}>
+            <Suspense fallback={<div className="text-gray-500 text-sm py-4 flex items-center gap-2"><Spinner size={14} />Loading hall of fame...</div>}>
               <WeaponHallOfFame />
             </Suspense>
           </div>
