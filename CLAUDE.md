@@ -129,11 +129,24 @@ After the PR merges, the work is in **staging**. Wait for "ship it" before promo
 
 ## Database migrations
 
-- Plain SQL in `supabase/migrations/`, numbered sequentially. **Run manually** in the
-  Supabase SQL editor (no DB access from here) — write the file AND paste runnable SQL into
-  chat. Make migrations idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`). Some old
-  migrations may not be applied live — if you see `column X does not exist`, suspect an
-  unapplied migration first.
+- Plain SQL in `supabase/migrations/`, numbered sequentially. Make migrations idempotent
+  (`IF NOT EXISTS`, `CREATE OR REPLACE`). Some old migrations may not be applied live — if
+  you see `column X does not exist`, suspect an unapplied migration first.
+- **Run it** via `scripts/db-query.mjs` (needs your own `DATABASE_URL` in `.env.local` —
+  see below) or by pasting into the Supabase SQL editor, whichever's convenient. Either
+  way, actually run new migration files against the live DB — don't just leave them
+  sitting in `supabase/migrations/` unapplied.
+- `scripts/db-query.mjs` is a general SQL runner (`node scripts/db-query.mjs "SELECT ..."`
+  or `node scripts/db-query.mjs path/to/file.sql`), full read/write with RLS bypassed —
+  same privilege as the service-role key. Fine for migrations and inspection queries;
+  treat it like the SQL editor, not something to run destructive one-liners with against
+  prod without thinking twice.
+- **Get your own `DATABASE_URL`**: Supabase Dashboard → this project → Settings →
+  Database → Connection string → **Session pooler** tab → reveal the password → copy the
+  full `postgresql://...` URI → add it to your own `.env.local` as `DATABASE_URL=...`.
+  Never paste this value into chat, a committed file, or anywhere outside your own
+  `.env.local` (already gitignored). If a password ever ends up somewhere it shouldn't
+  (chat transcript, screenshare, etc.), rotate it from that same Database settings page.
 
 ---
 
