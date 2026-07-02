@@ -21,42 +21,44 @@ export default async function Dashboard() {
 
   return (
     <main className="min-h-screen p-6 w-full">
-      <div className="relative overflow-hidden glass-card rounded-xl mb-8 animate-rise-in" style={{ opacity: 0 }}>
-        <GlowBackdrop />
-        <header className="flex items-center justify-between p-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
-            <p className="text-gray-400 text-sm">
-              Signed in as{" "}
-              <span className="text-bungie-blue font-medium">
-                {session.displayName}
-              </span>
-            </p>
-          </div>
-          <SignOutButton />
-        </header>
-      </div>
+      <div className="max-w-5xl mx-auto">
+        <div className="relative overflow-hidden glass-card rounded-xl mb-8 animate-rise-in" style={{ opacity: 0 }}>
+          <GlowBackdrop />
+          <header className="flex items-center justify-between p-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
+              <p className="text-gray-400 text-sm">
+                Signed in as{" "}
+                <span className="text-bungie-blue font-medium">
+                  {session.displayName}
+                </span>
+              </p>
+            </div>
+            <SignOutButton />
+          </header>
+        </div>
 
-      <LobbyControls activeSession={activeSession} />
+        <LobbyControls activeSession={activeSession} />
 
-      <DashboardLiveRefresh />
+        <DashboardLiveRefresh />
 
-      <div className="mt-8">
-        <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading stats...</div>}>
-          <DashboardStats />
-        </Suspense>
-      </div>
-
-      <div className="mt-8 grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2">
-          <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading leaderboard...</div>}>
-            <Leaderboard />
+        <div className="mt-8">
+          <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading stats...</div>}>
+            <DashboardStats />
           </Suspense>
         </div>
-        <div>
-          <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading hall of fame...</div>}>
-            <WeaponHallOfFame />
-          </Suspense>
+
+        <div className="mt-8 grid lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2">
+            <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading leaderboard...</div>}>
+              <Leaderboard />
+            </Suspense>
+          </div>
+          <div>
+            <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading hall of fame...</div>}>
+              <WeaponHallOfFame />
+            </Suspense>
+          </div>
         </div>
       </div>
     </main>

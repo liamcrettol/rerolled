@@ -110,7 +110,7 @@ export default function LobbyControls({ activeSession }: Props) {
               <span className="sr-only">Lobby code</span>
               <input
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ""))}
                 placeholder="ABC123"
                 maxLength={8}
                 className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-2 text-white font-mono text-center uppercase tracking-widest slashed-zero focus:outline-none focus:border-bungie-blue"
@@ -119,7 +119,11 @@ export default function LobbyControls({ activeSession }: Props) {
             <button
               type="submit"
               disabled={loading !== null || !code.trim()}
-              className="bg-bungie-blue hover:opacity-90 disabled:opacity-50 text-white font-semibold px-4 rounded-lg transition"
+              className={`font-semibold px-4 rounded-lg transition ${
+                code.trim()
+                  ? "bg-bungie-blue hover:opacity-90 text-white"
+                  : "bg-bungie-dark border border-bungie-border text-gray-500"
+              } disabled:opacity-50`}
             >
               {loading === "join" ? "Joining..." : "Join"}
             </button>
