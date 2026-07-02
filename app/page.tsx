@@ -3,9 +3,17 @@ import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 import GlowBackdrop from "@/components/GlowBackdrop";
 import HeroReel from "@/components/HeroReel";
+import LobbyPreview from "@/components/LobbyPreview";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
-import { Shuffle, Zap, GitCompare } from "lucide-react";
+import { Shuffle, Zap, GitCompare, Users, LogIn } from "lucide-react";
 import Link from "next/link";
+
+const HOW_IT_WORKS = [
+  { Icon: Users, text: "Create or join a lobby" },
+  { Icon: LogIn, text: "Everyone signs in with Bungie" },
+  { Icon: Shuffle, text: "Roll weapons from the shared pool" },
+  { Icon: GitCompare, text: "Compare rolls and apply the loadout" },
+];
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const session = await auth();
@@ -16,6 +24,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   }
 
   const heroWeaponsBySlot = getRandomWeaponSample(60);
+  const previewWeapons = {
+    kinetic: heroWeaponsBySlot.kinetic[0],
+    energy: heroWeaponsBySlot.energy[0],
+    power: heroWeaponsBySlot.power[0],
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center gap-12 p-8">
@@ -75,6 +88,30 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
             <div className="text-xs text-gray-400 mt-1">{f.desc}</div>
           </div>
         ))}
+      </div>
+
+      <div
+        className="w-full max-w-4xl animate-rise-in"
+        style={{ opacity: 0, animationDelay: "440ms" }}
+      >
+        <h2 className="text-center text-white text-lg font-semibold mb-1">How it works</h2>
+        <p className="text-center text-gray-500 text-xs mb-6">The full loop, before you sign in.</p>
+        <div className="grid md:grid-cols-2 gap-6 items-center">
+          <ol className="space-y-3">
+            {HOW_IT_WORKS.map((step, i) => (
+              <li key={step.text} className="flex items-center gap-3">
+                <span className="shrink-0 w-7 h-7 rounded-full bg-bungie-blue/15 border border-bungie-blue/40 text-bungie-blue text-xs font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <step.Icon size={16} className="text-bungie-blue shrink-0" />
+                <span className="text-sm text-gray-300">{step.text}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="flex justify-center">
+            <LobbyPreview weapons={previewWeapons} />
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 text-xs text-gray-600">
