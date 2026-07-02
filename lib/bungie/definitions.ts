@@ -17,6 +17,7 @@ import weaponsRaw from "./data/weapons-table.json";
 import perkNamesRaw from "./data/perk-names.json";
 import perkDataRaw from "./data/perk-data.json";
 import perkIconsRaw from "./data/perk-icons.json";
+import perkClarityRaw from "./data/perk-clarity.json";
 import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
 
 interface WeaponDefinition {
@@ -46,6 +47,9 @@ const WEAPONS: Map<number, WeaponDefinition> = (() => {
 const PERK_NAMES = perkNamesRaw as unknown as Record<string, string>;
 const PERK_DATA = perkDataRaw as unknown as Record<string, { n: string; d: string; s?: Record<string, number> }>;
 const PERK_ICONS = perkIconsRaw as unknown as Record<string, string>;
+// Community-sourced perk numbers Bungie's manifest doesn't expose (exotic
+// percentages/durations, PvP-tuned values). See scripts/sync-clarity-data.mjs.
+const PERK_CLARITY = perkClarityRaw as unknown as Record<string, string>;
 
 // ── Weapon grouping ────────────────────────────────────────────────────────
 // The same gun is re-issued across expansions/seasons (and as Adept/craftable
@@ -132,14 +136,14 @@ export function getRandomWeaponSample(countPerSlot: number): Record<WeaponSlot, 
   return result;
 }
 
-interface PerkInfo { name: string; description: string; stats?: Record<string, number> }
+interface PerkInfo { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 
 /** Resolve perk hashes to { name, description }. Unknown/cosmetic hashes are omitted. */
 export async function getPerkInfos(hashes: number[]): Promise<Map<number, PerkInfo>> {
   const result = new Map<number, PerkInfo>();
   for (const hash of hashes) {
     const d = PERK_DATA[hash.toString()];
-    if (d) result.set(hash, { name: d.n, description: d.d, stats: d.s });
+    if (d) result.set(hash, { name: d.n, description: d.d, stats: d.s, communityDescription: PERK_CLARITY[hash.toString()] });
   }
   return result;
 }

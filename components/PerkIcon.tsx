@@ -12,6 +12,7 @@ export default function PerkIcon({
   icon,
   name,
   description,
+  communityDescription,
   stats,
   noTooltip,
   className = "w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue transition",
@@ -19,6 +20,7 @@ export default function PerkIcon({
   icon?: string;
   name?: string;
   description?: string;
+  communityDescription?: string;
   stats?: Record<string, number>;
   noTooltip?: boolean;
   className?: string;
@@ -41,7 +43,7 @@ export default function PerkIcon({
   if (!icon) return null;
 
   const statEntries = stats ? Object.entries(stats).filter(([, v]) => v !== 0) : [];
-  const hasTip = !noTooltip && Boolean(name || description || statEntries.length > 0);
+  const hasTip = !noTooltip && Boolean(name || description || communityDescription || statEntries.length > 0);
   const title = !hasTip ? undefined : description ? `${name ?? ""} — ${description}` : name;
 
   return (
@@ -74,6 +76,12 @@ export default function PerkIcon({
           >
             {name && <div className="text-white text-xs font-semibold">{name}</div>}
             {description && <div className="text-gray-300 text-[11px] mt-0.5 leading-snug">{description}</div>}
+            {communityDescription && (
+              <div className="text-gray-400 text-[11px] mt-1 pt-1 border-t border-bungie-border/50 leading-snug whitespace-pre-line">
+                {communityDescription}
+                <div className="text-gray-600 text-[10px] mt-1 italic">Perk data: Clarity</div>
+              </div>
+            )}
             {statEntries.length > 0 && (
               <div className={`flex flex-col gap-0.5 ${description ? "mt-1.5 pt-1.5 border-t border-bungie-border/50" : "mt-0.5"}`}>
                 {statEntries.map(([stat, val]) => (

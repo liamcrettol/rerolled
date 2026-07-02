@@ -9,7 +9,7 @@ import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
 
-interface Perk { name: string; description: string; stats?: Record<string, number> }
+interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
   instanceId: string;
   location: "character" | "vault";
@@ -158,7 +158,7 @@ export default function RollDetails({
     const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
     const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
     const perks = inst.perkHashes.map((hash, i) => (
-      <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} stats={inst.perks[i]?.stats} className={cls} noTooltip={noTip} />
+      <PerkIcon key={hash} icon={inst.perkIcons[hash]} name={inst.perks[i]?.name} description={inst.perks[i]?.description} communityDescription={inst.perks[i]?.communityDescription} stats={inst.perks[i]?.stats} className={cls} noTooltip={noTip} />
     ));
     const masterwork = <PerkIcon icon={inst.masterworkIcon} name={inst.masterworkName} stats={inst.masterworkStats} className={cls} noTooltip={noTip} />;
 

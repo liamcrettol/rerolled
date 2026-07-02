@@ -36,7 +36,7 @@ const STAT_NAMES: Record<number, string> = {
   2762071195: "Guard Efficiency",
 };
 
-interface Perk { name: string; description: string; stats?: Record<string, number> }
+interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
   instanceId: string;
   location: "character" | "vault";
