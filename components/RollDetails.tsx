@@ -8,6 +8,7 @@ import type { LobbyMember } from "@/types/lobby";
 import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
+import { Star } from "lucide-react";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
@@ -29,6 +30,7 @@ interface RollInstance {
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
+  isBestRoll?: boolean;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -54,6 +56,16 @@ export interface SlotRolls {
   catalystPerkIcon?: string;
   catalystPerkDescription?: string;
   catalystPerkCommunityDescription?: string;
+  bestRoll?: {
+    barrel: string | null;
+    magazine: string | null;
+    perk1: string | null;
+    perk2: string | null;
+    priorityMasterwork: string | null;
+    priorityStat1: string | null;
+    priorityStat2: string | null;
+    notes: string | null;
+  };
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
@@ -257,6 +269,16 @@ export default function RollDetails({
               )}
             </div>
           </div>
+
+          {inst?.isBestRoll && (
+            <div
+              className="flex items-center gap-1.5 text-[11px] text-amber-400 justify-center -mt-1"
+              title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
+            >
+              <Star size={12} className="fill-amber-400" />
+              <span>Best roll pick (unverified)</span>
+            </div>
+          )}
 
           {/* Stat rows */}
           <div className="space-y-2.5 pt-2.5 border-t border-bungie-border/40">

@@ -3,6 +3,7 @@ import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
 import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
+import { getBestRoll, matchesBestRoll, type BestRoll } from "@/lib/bestRolls";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -56,6 +57,7 @@ interface RollInstance {
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
+  isBestRoll?: boolean;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -248,10 +250,20 @@ export async function POST(req: NextRequest) {
         catalystPerkIcon?: string;
         catalystPerkDescription?: string;
         catalystPerkCommunityDescription?: string;
+        bestRoll?: BestRoll;
         members: MemberRolls[];
       }
     > = {};
     for (const [slot, hash] of Object.entries(slotHash) as [WeaponSlot, number][]) {
+      const intrinsicHash = defs.get(hash)?.intrinsicPerkHash;
+      const intrinsicInfo = intrinsicHash ? perkInfoMap.get(intrinsicHash) : undefined;
+      const catalystHash = defs.get(hash)?.catalystPerkHash;
+      const catalystInfo = catalystHash ? perkInfoMap.get(catalystHash) : undefined;
+      // Community-curated "ideal roll" for this weapon's archetype (unverified
+      // provisional baseline - see data/best-rolls/README.md), keyed by weapon
+      // type + the same frame name shown as the intrinsic perk above.
+      const bestRoll = getBestRoll(defs.get(hash)?.weaponType ?? "", intrinsicInfo?.name);
+
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
         const instances = (m.byHash.get(hash) ?? []).map((inst) => {
@@ -261,30 +273,32 @@ export async function POST(req: NextRequest) {
             const icon = perkIconMap.get(h);
             if (icon) perkIcons[h] = icon;
           });
+          const barrelName = inst.barrelHash ? nameOf(inst.barrelHash) : undefined;
+          const magazineName = inst.magazineHash ? nameOf(inst.magazineHash) : undefined;
+          const perks = perkHashes.map((h) => perkInfoMap.get(h) as Perk);
           return {
             ...inst,
             perkHashes,
-            perks: perkHashes.map((h) => perkInfoMap.get(h) as Perk),
+            perks,
             perkIcons,
-            barrelName: inst.barrelHash ? nameOf(inst.barrelHash) : undefined,
+            barrelName,
             barrelIcon: inst.barrelHash ? iconOf(inst.barrelHash) : undefined,
             barrelStats: inst.barrelHash ? perkInfoMap.get(inst.barrelHash)?.stats : undefined,
-            magazineName: inst.magazineHash ? nameOf(inst.magazineHash) : undefined,
+            magazineName,
             magazineIcon: inst.magazineHash ? iconOf(inst.magazineHash) : undefined,
             magazineStats: inst.magazineHash ? perkInfoMap.get(inst.magazineHash)?.stats : undefined,
             masterworkName: inst.masterworkHash ? nameOf(inst.masterworkHash) : undefined,
             masterworkIcon: inst.masterworkHash ? iconOf(inst.masterworkHash) : undefined,
             masterworkStats: inst.masterworkHash ? perkInfoMap.get(inst.masterworkHash)?.stats : undefined,
+            isBestRoll: bestRoll
+              ? matchesBestRoll(bestRoll, { barrelName, magazineName, perkNames: perks.map((p) => p.name) })
+              : false,
           };
         });
         memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
-      const intrinsicHash = defs.get(hash)?.intrinsicPerkHash;
-      const intrinsicInfo = intrinsicHash ? perkInfoMap.get(intrinsicHash) : undefined;
-      const catalystHash = defs.get(hash)?.catalystPerkHash;
-      const catalystInfo = catalystHash ? perkInfoMap.get(catalystHash) : undefined;
       slots[slot] = {
         itemHash: hash,
         damageType: defs.get(hash)?.damageType ?? "",
@@ -300,6 +314,7 @@ export async function POST(req: NextRequest) {
         catalystPerkIcon: catalystHash ? iconOf(catalystHash) : undefined,
         catalystPerkDescription: catalystInfo?.description,
         catalystPerkCommunityDescription: catalystInfo?.communityDescription,
+        bestRoll: bestRoll ?? undefined,
         members: memberRolls,
       };
     }

@@ -24,6 +24,22 @@ in-app highlight on the Roll Comparison screen.
   dropdowns and Priority Stat 1/2 validation directly in Sheets. Needed
   because Excel's `INDIRECT`-based dependent dropdowns don't survive the
   xlsx → Sheets import.
+- **`best-rolls.json`** — `best-rolls-current.xlsx`'s "Best Rolls" sheet
+  converted to JSON, keyed by `"<Weapon Type>|<Frame / Archetype>"` (e.g.
+  `"Hand Cannon|Precision Frame"`). This is what the app actually imports
+  (via `lib/bestRolls.ts`) to badge a rolled instance that matches the
+  curated roll in `components/RollDetails.tsx`. Regenerate by re-running the
+  conversion (ask Claude - it's a short one-off script, not checked in since
+  this step is still manual per the workflow below) whenever
+  `best-rolls-current.xlsx` is updated. **Don't hand-edit `best-rolls.json`.**
+
+⚠️ **Current data is a provisional v1 baseline, not verified group
+consensus.** The July 2026 import had every row filled with a suspiciously
+uniform auto-generated-looking "Notes" template and no `Submitted By` values,
+despite the Instructions tab asking for both - it wasn't produced by the
+"everyone fills out rows they have opinions on" process below. Treat the
+in-app "Best roll pick (unverified)" badge accordingly until real
+group-reviewed data replaces it.
 
 ## Regenerating the pool data
 
@@ -45,10 +61,11 @@ stay in sync. **Don't hand-edit `archetype-perk-pools.json`.**
    opinions on (no need to complete all 94 — partial is fine).
 2. Periodically, download the Sheet as `.xlsx` and drop it in here as
    `best-rolls-current.xlsx` (overwrite) so the repo has a record of it.
-3. Once there's enough real data, it gets imported into the app as a static
-   dataset keyed by (weapon type, frame), which the Roll Comparison screen
-   uses to badge a rolled instance that matches the curated "ideal" perk
-   combo.
+3. It gets converted to `best-rolls.json` (see above) and imported into the
+   app via `lib/bestRolls.ts`, which `app/api/roulette/rolls/route.ts` uses
+   to badge a rolled instance that matches the curated "ideal" perk combo in
+   `components/RollDetails.tsx`. Wired up as of #184's follow-up - currently
+   running on the provisional v1 data called out above.
 
 ## Automating the sync (not yet built)
 
