@@ -31,7 +31,7 @@ const SLOT_STAGGER_MS: Record<string, number> = { kinetic: 0, energy: 160, power
 
 type SlotMode = "normal" | "lock" | "wildcard";
 const SLOT_MODE_ICONS: Record<SlotMode, typeof Shuffle> = { normal: Shuffle, lock: Lock, wildcard: User };
-const SLOT_MODE_LABELS: Record<SlotMode, string> = { normal: "Reroll Slot", lock: "Locked", wildcard: "Yours" };
+const SLOT_MODE_LABELS: Record<SlotMode, string> = { normal: "Reroll Slot", lock: "Locked", wildcard: "Your own" };
 
 /** The animated weapon reel (icon box) + its name/type text, laid out side by side. */
 function WeaponSlotContent({
@@ -287,7 +287,7 @@ export default function LoadoutQueue({
                   {onCycleSlotMode && (
                     <button
                       onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
-                      title="Click to cycle: Reroll Slot → Locked → Yours"
+                      title="Click to cycle: Reroll Slot → Locked → Your own"
                       className={`text-xs px-3 py-1.5 rounded-lg border transition inline-flex items-center gap-1.5 font-medium ${
                         slotMode === "lock"
                           ? "border-yellow-500/70 bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25"

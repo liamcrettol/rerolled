@@ -1257,20 +1257,26 @@ export default function LobbyRoom({
         )}
       </div>
 
-      {/* Shared Weapon Pool — always open, no internal scroll (parent scrolls). */}
+      {/* Shared weapon pool — always open, no internal scroll (parent scrolls).
+          Once loaded, WeaponPool renders its own "Weapon Browser" header with
+          the same count, so this heading only needs to appear before that
+          (loading / not-yet-loaded states) to avoid two stacked titles for the
+          same section (#208). */}
       {!isSpectator && (
         <div className="flex flex-col gap-2 shrink-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-              Weapon Pool
-              {effectiveIntersection && (
-                <span className="text-xs font-normal text-gray-500">
-                  {effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length} shared
-                </span>
-              )}
-            </h2>
+            {!intersection && (
+              <h2 className="text-white font-semibold text-sm flex items-center gap-2">
+                Shared Weapon Pool
+                {effectiveIntersection && (
+                  <span className="text-xs font-normal text-gray-500">
+                    {effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length} shared
+                  </span>
+                )}
+              </h2>
+            )}
             {!isCaptain && (
-              <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5">
+              <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5 ml-auto">
                 View only
               </span>
             )}
@@ -1668,7 +1674,7 @@ export default function LobbyRoom({
                         onClick={() => handleRoll()}
                         disabled={loadingAction !== null || rerollExhausted || !intersection}
                         className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
-                        title="Roll all non-locked, non-Yours slots"
+                        title="Roll all non-locked, non-Your-own slots"
                         aria-label="Roll all slots"
                       >
                         <Shuffle size={15} />
