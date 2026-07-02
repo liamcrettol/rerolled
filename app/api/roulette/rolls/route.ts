@@ -143,10 +143,14 @@ export async function POST(req: NextRequest) {
 
             const perkHashes: number[] = [];
             const sockets = socketData[id]?.sockets ?? [];
+            // Was `break` on the first empty/invisible socket - which silently
+            // dropped every later index too (e.g. perk2 at index 5 lost
+            // whenever index 3 or 4 happened to be empty for that weapon's
+            // layout). Socket layouts vary a lot across weapon types (#193),
+            // so a gap at one index doesn't mean the rest are gone.
             for (const idx of PERK_SOCKET_INDICES) {
               const s = sockets[idx];
-              if (!s?.plugHash) break;
-              if (s.isVisible === false) continue;
+              if (!s?.plugHash || s.isVisible === false) continue;
               perkHashes.push(s.plugHash);
               allPerkHashes.add(s.plugHash);
             }

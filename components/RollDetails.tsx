@@ -350,10 +350,21 @@ export default function RollDetails({
 
   return (
     <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-bungie-border flex items-center justify-between gap-2">
-        <h2 className="text-white font-semibold text-sm">
-          Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
-        </h2>
+      <div className="px-4 py-2.5 border-b border-bungie-border">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-white font-semibold text-sm">
+            Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
+          </h2>
+        </div>
+        {/* Plain-text recommendation, shown regardless of whether anyone's
+            roll matches it, so it's something you can eyeball-check yourself
+            instead of just trusting a badge. */}
+        {slot.bestRoll && (
+          <p className="text-[11px] text-gray-500 mt-1">
+            <span className="text-amber-400/90 font-semibold">Community best roll (unverified):</span>{" "}
+            {[slot.bestRoll.barrel, slot.bestRoll.magazine, slot.bestRoll.perk1, slot.bestRoll.perk2].filter(Boolean).join(" + ")}
+          </p>
+        )}
       </div>
 
       <div className="px-3 py-3 flex gap-3">
