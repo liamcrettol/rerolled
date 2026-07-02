@@ -9,7 +9,7 @@ import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
 import Spinner from "./Spinner";
-import { Star } from "lucide-react";
+import { Star, Check } from "lucide-react";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
@@ -203,8 +203,15 @@ export default function RollDetails({
     const normalizedStat = normalizeSocketName(stat === "Reload" ? "Reload Speed" : stat);
     return normalizedName.includes(normalizedStat) ? 10 : 0;
   };
+  // Calmer than "GOD ROLL" - this is a curated but unverified reference, not a
+  // vetted community consensus pick (see best-rolls.json's provisional data
+  // note in CLAUDE.md), so the label and tooltip both say so (#203).
   const bestRollLabel = (inst: RollInstance | undefined) =>
-    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "GOD ROLL" : "CLOSEST GOD ROLL";
+    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "REFERENCE ROLL" : "CLOSEST REFERENCE";
+  const bestRollTooltip = (inst: RollInstance | undefined) =>
+    bestRollLabel(inst) === "REFERENCE ROLL"
+      ? "Reference roll: community best, unverified"
+      : "Closest match to the reference roll: community best, unverified";
 
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
   // a hover tooltip describing exactly what it does. The large variant (used in
@@ -321,13 +328,13 @@ export default function RollDetails({
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
     const label = bestRollLabel(inst);
-    const bestTitle = `${label === "GOD ROLL" ? "God roll" : "Closest god roll"}${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
+    const bestTitle = `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}`;
     return (
       <div
         key={m.userId}
         title={isBest ? bestTitle : undefined}
-        className={`rounded-lg overflow-hidden flex flex-col ${
-          isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : "border border-bungie-border/60"
+        className={`relative rounded-lg overflow-hidden flex flex-col ${
+          isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
         {isBest && (
@@ -335,6 +342,14 @@ export default function RollDetails({
             <Star size={11} className="fill-bungie-dark" />
             {label}
           </div>
+        )}
+        {/* Own-card indicator, shown regardless of whether an emblem card or the
+            plain fallback header renders below, so "which one is mine" is
+            never ambiguous (#203). */}
+        {m.isMe && (
+          <span className={`absolute top-1 left-1.5 z-10 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${theme.chip}`}>
+            You
+          </span>
         )}
         {/* Emblem header (fallback to name) */}
         {card ? (
@@ -443,6 +458,9 @@ export default function RollDetails({
             Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
           </h2>
         </div>
+        <p className="text-gray-500 text-xs mt-0.5">
+          Compare each fireteam member&apos;s owned roll for the selected weapon.
+        </p>
       </div>
 
       <div className="px-3 py-3 flex gap-3">
@@ -460,11 +478,12 @@ export default function RollDetails({
                   key={s}
                   onClick={() => setTab(s)}
                   className={`w-full px-2 py-1.5 rounded text-xs font-semibold border transition flex items-center gap-2 ${
-                    activeTab === s ? `${t.border} ${t.bg} text-white` : "border-bungie-border/60 text-gray-400 hover:text-white hover:border-gray-500"
+                    activeTab === s ? `${t.border} ${t.bg} text-white ring-1 ${t.ring}` : "border-bungie-border/60 text-gray-400 hover:text-white hover:border-gray-500"
                   }`}
                 >
                   {weaponIcon && <img src={weaponIcon} alt="" className="w-7 h-7 rounded-sm shrink-0" />}
-                  <span className="truncate text-left">{weaponName}</span>
+                  <span className="truncate text-left flex-1">{weaponName}</span>
+                  {activeTab === s && <Check size={14} className="shrink-0" />}
                 </button>
               );
             })}
@@ -483,7 +502,7 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  title={inst.isBestRoll ? `${bestRollLabel(inst) === "GOD ROLL" ? "God roll" : "Closest god roll"}${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
+                  title={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 rounded-md pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
