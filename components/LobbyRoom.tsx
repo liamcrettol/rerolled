@@ -41,13 +41,46 @@ const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlo
 const CLASS_ORDER = [2, 1, 0];
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 
-const LOBBY_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  waiting: { label: "Waiting", cls: "border-bungie-border text-gray-400" },
-  rolling: { label: "Rolling", cls: "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue" },
-  applying: { label: "Applying", cls: "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue" },
-  in_game: { label: "● In game", cls: "border-green-600/50 bg-green-900/20 text-green-400" },
-  done: { label: "Ended", cls: "border-gray-700 text-gray-500" },
+// Tone drives the status bar's visual weight: "turn" = an action is on you
+// right now (most prominent), "info" = something's happening but not on you,
+// "muted" = inert/ended.
+const STATUS_TONE_CLS: Record<"turn" | "info" | "muted", string> = {
+  turn: "border-yellow-500/60 bg-yellow-500/10 text-yellow-300",
+  info: "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue",
+  muted: "border-bungie-border text-gray-400",
 };
+
+// Collapses lobby status + captain turn + spectator state into one explicit
+// line instead of a cluster of small badges that read ambiguously together (#201).
+function getLobbyStatusText(
+  status: Lobby["status"],
+  isCaptain: boolean,
+  isSpectator: boolean
+): { text: string; tone: "turn" | "info" | "muted" } {
+  if (isSpectator) {
+    if (status === "in_game") return { text: "In game", tone: "info" };
+    if (status === "done") return { text: "Session ended", tone: "muted" };
+    return { text: "Spectating", tone: "muted" };
+  }
+  switch (status) {
+    case "waiting":
+      return isCaptain
+        ? { text: "Your turn to roll", tone: "turn" }
+        : { text: "Waiting for the captain to roll", tone: "muted" };
+    case "rolling":
+      return isCaptain
+        ? { text: "Loadout ready — apply when set", tone: "turn" }
+        : { text: "Loadout ready · waiting on the captain to apply", tone: "info" };
+    case "applying":
+      return { text: "Applying loadout…", tone: "info" };
+    case "in_game":
+      return { text: "In game", tone: "info" };
+    case "done":
+      return { text: "Session ended", tone: "muted" };
+    default:
+      return { text: "Waiting", tone: "muted" };
+  }
+}
 
 // Per-slot mode cycle: Reroll Slot → Locked → Your own.
 type SlotMode = "normal" | "lock" | "wildcard";
@@ -1321,17 +1354,16 @@ export default function LobbyRoom({
                 {copiedWatch ? "Copied" : "Watch"}
               </button>
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               {(() => {
-                const cfg = LOBBY_STATUS_BADGE[lobbyData.status] ?? LOBBY_STATUS_BADGE.waiting;
-                return <span className={`text-xs px-2 py-0.5 rounded-full border ${cfg.cls}`}>{cfg.label}</span>;
+                const { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
+                return (
+                  <span className={`text-sm font-semibold px-2.5 py-1 rounded-lg border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]}`}>
+                    {tone === "turn" && <Crown size={13} />}
+                    Round {lobbyData.current_round} · {text}
+                  </span>
+                );
               })()}
-              <span className="text-xs text-gray-500">Round {lobbyData.current_round}</span>
-              {isCaptain && (
-                <span className="text-xs text-yellow-400 inline-flex items-center gap-1">
-                  <Crown size={12} /> Your turn
-                </span>
-              )}
               {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
             </div>
             {minutesToClose !== null && minutesToClose <= 20 && (
