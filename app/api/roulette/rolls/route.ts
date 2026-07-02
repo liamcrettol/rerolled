@@ -3,7 +3,7 @@ import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
 import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
-import { getBestRoll, matchesBestRoll, type BestRoll } from "@/lib/bestRolls";
+import { getBestRoll, scoreBestRoll, type BestRoll } from "@/lib/bestRolls";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -280,6 +280,7 @@ export async function POST(req: NextRequest) {
           });
           const barrelName = inst.barrelHash ? nameOf(inst.barrelHash) : undefined;
           const magazineName = inst.magazineHash ? nameOf(inst.magazineHash) : undefined;
+          const masterworkName = inst.masterworkHash ? nameOf(inst.masterworkHash) : undefined;
           const perks = perkHashes.map((h) => perkInfoMap.get(h) as Perk);
           return {
             ...inst,
@@ -292,14 +293,30 @@ export async function POST(req: NextRequest) {
             magazineName,
             magazineIcon: inst.magazineHash ? iconOf(inst.magazineHash) : undefined,
             magazineStats: inst.magazineHash ? perkInfoMap.get(inst.magazineHash)?.stats : undefined,
-            masterworkName: inst.masterworkHash ? nameOf(inst.masterworkHash) : undefined,
+            masterworkName,
             masterworkIcon: inst.masterworkHash ? iconOf(inst.masterworkHash) : undefined,
             masterworkStats: inst.masterworkHash ? perkInfoMap.get(inst.masterworkHash)?.stats : undefined,
-            isBestRoll: bestRoll
-              ? matchesBestRoll(bestRoll, { barrelName, magazineName, perkNames: perks.map((p) => p.name) })
-              : false,
+            isBestRoll: false,
           };
         });
+        if (bestRoll && instances.length > 0) {
+          const scored = instances.map((inst, index) => ({
+            index,
+            score: scoreBestRoll(bestRoll, {
+              barrelName: inst.barrelName,
+              magazineName: inst.magazineName,
+              perkNames: inst.perks.map((p) => p.name),
+              masterworkName: inst.masterworkName,
+            }),
+          }));
+          const hasRecommendation = scored.some((s) => s.score.total > 0);
+          if (hasRecommendation) {
+            scored.sort((a, b) => b.score.matched - a.score.matched || a.index - b.index);
+            const bestIndex = scored[0].index;
+            instances[bestIndex] = { ...instances[bestIndex], isBestRoll: true };
+            instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
+          }
+        }
         memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
       }
       // Put the caller first.

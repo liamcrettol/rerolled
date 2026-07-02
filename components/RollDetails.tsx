@@ -251,7 +251,7 @@ export default function RollDetails({
     const card = memberCards?.[m.userId];
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
-    const bestTitle = `Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
+    const bestTitle = `Closest community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
     return (
       <div
         key={m.userId}
@@ -263,7 +263,7 @@ export default function RollDetails({
         {isBest && (
           <div className="flex items-center justify-center gap-1 bg-amber-400 text-bungie-dark text-[11px] font-bold py-0.5">
             <Star size={11} className="fill-bungie-dark" />
-            BEST ROLL (unverified)
+            CLOSEST ROLL (unverified)
           </div>
         )}
         {/* Emblem header (fallback to name) */}
@@ -362,7 +362,7 @@ export default function RollDetails({
         {slot.bestRoll && (
           <p className="text-[11px] text-gray-500 mt-1">
             <span className="text-amber-400/90 font-semibold">Community best roll (unverified):</span>{" "}
-            {[slot.bestRoll.barrel, slot.bestRoll.magazine, slot.bestRoll.perk1, slot.bestRoll.perk2].filter(Boolean).join(" + ")}
+            {[slot.bestRoll.barrel, slot.bestRoll.magazine, slot.bestRoll.perk1, slot.bestRoll.perk2, slot.bestRoll.priorityMasterwork].filter(Boolean).join(" + ")}
           </p>
         )}
       </div>
@@ -405,7 +405,7 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  title={inst.isBestRoll ? `Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
+                  title={inst.isBestRoll ? `Closest community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative flex items-center justify-between gap-2 rounded pl-2.5 pr-1.5 py-1.5 cursor-pointer select-none border transition-all duration-150 ease-out active:scale-[0.98] ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 scale-[1.02] shadow-sm" : "hover:bg-amber-400/15"}`
