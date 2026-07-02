@@ -391,7 +391,7 @@ describe("applyWeapons result enrichment", () => {
             flavorText: "",
             defaultBucketHash: 0,
             stats: {},
-            intrinsicPerk: null,
+            intrinsicPerkHash: null,
           },
         ],
       ])

@@ -96,6 +96,18 @@ async function main() {
   const perkNames = {};
   const perkData = {};
   const perkIcons = {};
+
+  // A weapon's first socket is always its intrinsic frame/archetype plug
+  // (plugCategoryIdentifier "intrinsics") - "Rapid-Fire Frame" for a
+  // legendary, or the exotic's unique named mechanic (e.g. "Vexadecimal" on
+  // Deterministic Chaos). Verified 100% coverage across the current table.
+  function intrinsicPerkHashOf(def) {
+    const h = def.sockets?.socketEntries?.[0]?.singleInitialItemHash;
+    if (!h) return null;
+    const plug = all[h];
+    return plug?.plug?.plugCategoryIdentifier === "intrinsics" ? h : null;
+  }
+
   for (const key in all) {
     const def = all[key];
 
@@ -121,7 +133,7 @@ async function main() {
         defaultBucketHash: def.inventory?.bucketTypeHash ?? 0,
         collectibleHash: def.collectibleHash ?? undefined,
         stats,
-        intrinsicPerk: def.itemTypeDisplayName ?? null,
+        intrinsicPerkHash: intrinsicPerkHashOf(def),
       };
     }
 

@@ -34,7 +34,7 @@ interface WeaponDefinition {
   defaultBucketHash: number;
   collectibleHash?: number;
   stats: Record<string, number>;
-  intrinsicPerk: string | null;
+  intrinsicPerkHash: number | null;
 }
 
 const WEAPONS: Map<number, WeaponDefinition> = (() => {

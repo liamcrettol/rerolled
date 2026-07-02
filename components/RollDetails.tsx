@@ -45,6 +45,10 @@ export interface SlotRolls {
   weaponName?: string;
   weaponIcon?: string;
   weaponWatermark?: string;
+  intrinsicPerkName?: string;
+  intrinsicPerkIcon?: string;
+  intrinsicPerkDescription?: string;
+  intrinsicPerkCommunityDescription?: string;
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
@@ -279,6 +283,18 @@ export default function RollDetails({
         <h2 className="text-white font-semibold text-sm">
           Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
         </h2>
+        {slot.intrinsicPerkName && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
+            <PerkIcon
+              icon={slot.intrinsicPerkIcon}
+              name={slot.intrinsicPerkName}
+              description={slot.intrinsicPerkDescription}
+              communityDescription={slot.intrinsicPerkCommunityDescription}
+              className="w-6 h-6 rounded border border-bungie-border shrink-0"
+            />
+            <span className="truncate">{slot.intrinsicPerkName}</span>
+          </div>
+        )}
       </div>
 
       <div className="px-3 py-3 flex gap-3">

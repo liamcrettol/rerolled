@@ -192,19 +192,41 @@ export async function POST(req: NextRequest) {
       })
     );
 
+    // Each weapon's intrinsic frame/archetype plug (e.g. "Rapid-Fire Frame",
+    // or an exotic's unique named mechanic) - not per-instance, so resolve it
+    // from the definition and fold it into the same perk-info batch below.
+    const defs = await getWeaponDefinitions([...loadoutHashes]);
+    for (const def of defs.values()) {
+      if (def.intrinsicPerkHash) allPerkHashes.add(def.intrinsicPerkHash);
+    }
+
     // Resolve all perk plug hashes to { name, description } in one pass; base
     // stats per weapon. Cosmetic plugs (shaders/ornaments) aren't in the perk
     // map, so they're dropped here.
-    const [perkInfoMap, perkIconMap, defs] = await Promise.all([
+    const [perkInfoMap, perkIconMap] = await Promise.all([
       getPerkInfos([...allPerkHashes]),
       getPerkIcons([...allPerkHashes]),
-      getWeaponDefinitions([...loadoutHashes]),
     ]);
     const nameOf = (h: number) => perkInfoMap.get(h)?.name ?? "Unknown";
     const iconOf = (h: number) => perkIconMap.get(h) ?? "";
 
     // Build the response: per slot -> { itemHash, damageType, baseStats, members: [...] }
-    const slots: Record<string, { itemHash: number; damageType: string; baseStats: Record<string, number>; weaponName: string; weaponIcon: string; weaponWatermark?: string; members: MemberRolls[] }> = {};
+    const slots: Record<
+      string,
+      {
+        itemHash: number;
+        damageType: string;
+        baseStats: Record<string, number>;
+        weaponName: string;
+        weaponIcon: string;
+        weaponWatermark?: string;
+        intrinsicPerkName?: string;
+        intrinsicPerkIcon?: string;
+        intrinsicPerkDescription?: string;
+        intrinsicPerkCommunityDescription?: string;
+        members: MemberRolls[];
+      }
+    > = {};
     for (const [slot, hash] of Object.entries(slotHash) as [WeaponSlot, number][]) {
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
@@ -235,7 +257,21 @@ export async function POST(req: NextRequest) {
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
-      slots[slot] = { itemHash: hash, damageType: defs.get(hash)?.damageType ?? "", baseStats: defs.get(hash)?.stats ?? {}, weaponName: defs.get(hash)?.name ?? "", weaponIcon: defs.get(hash)?.icon ?? "", weaponWatermark: defs.get(hash)?.watermark, members: memberRolls };
+      const intrinsicHash = defs.get(hash)?.intrinsicPerkHash;
+      const intrinsicInfo = intrinsicHash ? perkInfoMap.get(intrinsicHash) : undefined;
+      slots[slot] = {
+        itemHash: hash,
+        damageType: defs.get(hash)?.damageType ?? "",
+        baseStats: defs.get(hash)?.stats ?? {},
+        weaponName: defs.get(hash)?.name ?? "",
+        weaponIcon: defs.get(hash)?.icon ?? "",
+        weaponWatermark: defs.get(hash)?.watermark,
+        intrinsicPerkName: intrinsicInfo?.name,
+        intrinsicPerkIcon: intrinsicHash ? iconOf(intrinsicHash) : undefined,
+        intrinsicPerkDescription: intrinsicInfo?.description,
+        intrinsicPerkCommunityDescription: intrinsicInfo?.communityDescription,
+        members: memberRolls,
+      };
     }
 
     return NextResponse.json({ slots });
