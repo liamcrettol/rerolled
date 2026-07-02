@@ -126,7 +126,11 @@ export default function RollDetails({
 
   const members = slot.members;
   const me = members.find((m) => m.isMe);
-  const myInstances = me?.instances ?? [];
+  // Best-roll matches float to the top so, with several rolls of the same
+  // gun, the one matching the curated archetype pick is the obvious choice
+  // instead of something you have to hunt for. Stable sort - order is
+  // otherwise unchanged.
+  const myInstances = [...(me?.instances ?? [])].sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
   const chosenId = chosenInstances[activeTab];
   const myChosen = myInstances.find((i) => i.instanceId === chosenId) ?? myInstances[0];
   // Which of your rolls drives your card — picked from the left rail.
@@ -392,6 +396,14 @@ export default function RollDetails({
                       isSel ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50 group-hover:opacity-40 group-hover:scale-y-75"
                     }`}
                   />
+                  {inst.isBestRoll && (
+                    <span
+                      className="shrink-0"
+                      title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
+                    >
+                      <Star size={12} className="fill-amber-400 text-amber-400" />
+                    </span>
+                  )}
                   <div className="transition-transform duration-150 group-hover:scale-[1.03]">
                     {rollPreview(inst, false)}
                   </div>
