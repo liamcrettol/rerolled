@@ -166,10 +166,24 @@ compact prebuilt set of tables, read at import time as instant in-memory maps vi
     named mechanic (e.g. Deterministic Chaos's "Vexadecimal"). Extracted from the
     weapon's **first socket**, where the plug's `plugCategoryIdentifier === "intrinsics"`
     (verified 100% match across the full weapon table — every weapon has this).
-  - `COSMETIC_PLUG` in the script deliberately excludes shaders/ornaments/masterworks/
-    mods/catalysts/etc. from `perk-data.json` so they never render as a weapon "perk".
-    This means **catalyst effects aren't in the static tables at all** right now (see
-    issue #192) — don't assume a catalyst hash will resolve.
+  - `COSMETIC_PLUG` in the script excludes shaders/ornaments/masterworks/mods/etc. from
+    `perk-data.json` so they never render as a weapon "perk" — **except** catalyst perks,
+    which get special-cased back in even though their own `plugCategoryIdentifier` matches
+    the `masterwork` keyword (built in a two-pass loop so catalyst hashes are known before
+    the exclusion filter runs). `WeaponDefinition.catalystSocketIndex`/`catalystPerkHash`
+    are derived from the socket whose *default* plug is "Empty Catalyst Socket"
+    (`plugCategoryIdentifier === "v400.empty.exotic.masterwork"`); unlock state is
+    per-instance, read live in `rolls/route.ts` by comparing that socket's current
+    `plugHash` against `catalystPerkHash`. 99/146 exotics have one — the rest legitimately
+    never got a catalyst (MIDA, Sweet Business, Telesto, etc.), not a detection miss.
+  - ⚠️ `barrelHash`/`magazineHash`/`masterworkHash` in `rolls/route.ts` are still read from
+    **hardcoded socket indices** (1, 2, 6), which do NOT hold across all weapon types —
+    confirmed via a full audit (186 distinct socket layouts across the current table, and
+    a large fraction of weapons have no default plug at those indices at the definition
+    level at all, since randomized perks only resolve from live instance data). Tracked in
+    issue #193; deliberately not fixed yet — a wrong fix here is worse than the current bug
+    and needs testing against a real account's live inventory, which isn't possible from
+    this environment.
 - `scripts/sync-clarity-data.mjs` — fills in perk numbers Bungie's manifest doesn't
   expose (exotic percentages/durations, PvP-tuned values — only present as tooltip
   flavor text otherwise), sourced from the community-run
@@ -181,6 +195,12 @@ compact prebuilt set of tables, read at import time as instant in-memory maps vi
   **"Perk data: Clarity" attribution credit — don't strip it.**
   [Usage terms](https://www.d2clarity.com/partnerships): free under ~150 users
   provided the data is credited; past that, Clarity wants a licensing conversation.
+- `lib/bestRolls.ts` — matches a rolled instance's barrel/magazine/perks against the
+  group's curated "ideal roll" per archetype (`data/best-rolls/best-rolls.json`, keyed by
+  `"<Weapon Type>|<Frame name>"` — same frame name as `intrinsicPerkHash` above), badged
+  in `RollDetails.tsx`. **Current data is an unverified provisional baseline**, not the
+  real multi-person reviewed data the workflow in `data/best-rolls/README.md` describes —
+  don't present it as vetted community consensus.
 - `.github/workflows/refresh-weapons.yml` — runs both scripts every Tuesday (after
   weekly reset) plus on manual dispatch, and auto-commits + pushes
   `lib/bungie/data/*.json` only if something actually changed (so quiet weeks don't

@@ -50,14 +50,35 @@ the same community-maintained source D2Foundry, DIM, and light.gg use.
   projects under ~150 users provided the data is credited; past that, they
   want a licensing conversation). **Don't strip this credit.** (#190)
 
-## What's excluded (and why)
+## Exotic catalysts (#192)
 
 `COSMETIC_PLUG` in `build-weapons-table.mjs` filters shaders, ornaments,
-masterworks, trackers, mods, and **catalysts** out of `perk-data.json` so they
-never render as a weapon "perk". This is mostly right (nobody wants a shader
-showing up as a "perk"), but it also means **catalyst bonus effects aren't in
-the static tables at all**, even though Clarity has the numbers for them (153
-"Weapon Catalyst Exotic" entries). Catalyst state also isn't read anywhere in
-the live inventory/equip pipeline (`app/api/roulette/rolls/route.ts`'s
-`PERK_SOCKET_INDICES` doesn't include a catalyst socket). Surfacing catalysts
-is tracked as a separate, bigger piece of work — see #192.
+masterworks, trackers, and mods out of `perk-data.json` so they never render
+as a weapon "perk" — this is mostly right (nobody wants a shader showing up
+as a "perk"), except a catalyst's actual perk plug gets swept up by the same
+`masterwork` keyword match (Bungie categorizes it as a masterwork-upgrade
+plug). The build script runs in two passes to work around this: pass one
+builds weapons and, for each exotic, finds the socket whose *default* plug is
+"Empty Catalyst Socket" (`plugCategoryIdentifier ===
+"v400.empty.exotic.masterwork"`) — a reliable marker verified across all 146
+exotics (99 have one; the other 47, like MIDA and Telesto, never got a
+catalyst). That socket's first reusable plug is the real catalyst perk hash,
+collected into a set; pass two exempts those specific hashes from the
+cosmetic-plug exclusion.
+
+Catalyst **unlock state** is per-instance (each player's own copy), so it
+can't live in the static table — `rolls/route.ts` reads it live by comparing
+the specific socket's current `plugHash` against the known catalyst hash for
+that weapon. Shown in `RollDetails.tsx`'s icon row next to the intrinsic
+frame perk, only when that instance has it unlocked.
+
+## Known-fragile: hardcoded socket indices (#193)
+
+`rolls/route.ts` reads `barrelHash`/`magazineHash`/`masterworkHash` from
+fixed socket indices (1, 2, 6) for every weapon, which doesn't hold across
+all weapon types. A full audit found 186 distinct socket layouts across the
+current table, and a large fraction of weapons have no default plug at those
+positions at the definition level at all (randomized perks only resolve from
+live instance data, not the static manifest) — so a "just compute the right
+fixed index per weapon" fix isn't sufficient either. Left open rather than
+risking a fix that can't be tested against real inventory data.
