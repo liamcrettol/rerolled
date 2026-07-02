@@ -26,7 +26,7 @@ export type InstancePerk = {
 // ── Shared style maps ─────────────────────────────────────────────────────────
 
 export const TIER_COLORS: Record<number, { border: string; bg: string; label: string; accent: string }> = {
-  6: { border: "border-yellow-500", bg: "bg-yellow-500/10", label: "text-yellow-400", accent: "bg-yellow-500" },
+  6: { border: "border-yellow-500/50", bg: "bg-yellow-500/10", label: "text-yellow-400", accent: "bg-yellow-500" },
   5: { border: "border-purple-500/50", bg: "bg-purple-900/10", label: "text-purple-400", accent: "bg-purple-500" },
   4: { border: "border-blue-500/40", bg: "bg-blue-900/10", label: "text-blue-400", accent: "bg-blue-500" },
 };

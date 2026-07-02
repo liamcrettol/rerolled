@@ -214,6 +214,15 @@ export default function LobbyRoom({
   const [selectedCharId, setSelectedCharId] = useState<string | null>(
     initialMembers.find((m) => m.user_id === currentUserId)?.selected_character_id ?? null
   );
+  // The fireteam/guardian context card auto-compacts the first time a guardian
+  // gets selected, so it doesn't keep competing with the Weapon Browser for
+  // space once setup is done (#204). Users can still expand it back manually.
+  const [contextExpanded, setContextExpanded] = useState(!selectedCharId);
+  const hadSelectedCharRef = useRef(!!selectedCharId);
+  useEffect(() => {
+    if (selectedCharId && !hadSelectedCharRef.current) setContextExpanded(false);
+    hadSelectedCharRef.current = !!selectedCharId;
+  }, [selectedCharId]);
   const [slots, setSlots] = useState<LobbyLoadoutSlot[]>([]);
   const [roundId, setRoundId] = useState<string | null>(null);
   const [intersection, setIntersection] = useState<Record<WeaponSlot, number[]> | null>(null);
@@ -1136,52 +1145,83 @@ export default function LobbyRoom({
       {/* Single scrollable area covering the context card + weapon pool. */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-0.5">
 
-      {/* Context: Fireteam + Your Guardian + Settings */}
+      {/* Context: Fireteam + Your Guardian + Settings. Auto-compacts into a
+          single summary row once a guardian's picked, so it stops competing
+          with the Weapon Browser for space (#204); expandable back on click. */}
       <div className="shrink-0 bg-bungie-surface border border-bungie-border/40 rounded-xl">
-        {/* Fireteam */}
-        <div className="px-3 pt-3 pb-2">
-          <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Fireteam</p>
-          <div className="space-y-0.5">
-            {members.map((m) => (
-              <PlayerCard key={m.id} member={m} variant="sidebar" />
-            ))}
-          </div>
-        </div>
-
-        {/* Guardian picker */}
-        {characters.length > 0 && !isSpectator && (
+        {!contextExpanded ? (
+          <button
+            onClick={() => setContextExpanded(true)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition rounded-xl"
+          >
+            <span className="text-xs text-gray-400 truncate">
+              {members.length} in fireteam
+              {(() => {
+                const selectedChar = characters.find((c) => c.characterId === selectedCharId);
+                return selectedChar
+                  ? ` · Your Guardian: ${CLASS_NAMES[selectedChar.classType] ?? "Guardian"}`
+                  : "";
+              })()}
+            </span>
+            <span className="text-[10px] text-gray-500 shrink-0 uppercase tracking-wide">Change</span>
+          </button>
+        ) : (
           <>
-            <div className="mx-3 h-px bg-bungie-border/40" />
-            <div className="px-3 pt-2 pb-3">
-              <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Your Guardian</p>
-              <div className="space-y-1">
-                {[...characters]
-                  .sort((a, b) => CLASS_ORDER.indexOf(a.classType) - CLASS_ORDER.indexOf(b.classType))
-                  .map((c) => (
-                    <button
-                      key={c.characterId}
-                      onClick={() => handleSelectCharacter(c.characterId)}
-                      className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg border text-left transition ${
-                        selectedCharId === c.characterId
-                          ? "border-bungie-blue/50 bg-bungie-blue/10 text-white"
-                          : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-300"
-                      }`}
-                    >
-                      <EmblemThumbnail emblemPath={c.emblemPath} classType={c.classType} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold leading-tight">{CLASS_NAMES[c.classType] ?? "Guardian"}</p>
-                        <p className="text-[10px] text-gray-500 leading-tight">Power {c.light}</p>
-                      </div>
-                      {selectedCharId === c.characterId && (
-                        <Check size={14} className="ml-auto shrink-0 text-green-400" />
-                      )}
-                    </button>
-                  ))}
+            {/* Fireteam */}
+            <div className="px-3 pt-3 pb-2">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-widest text-gray-600">Fireteam</p>
+                {selectedCharId && (
+                  <button
+                    onClick={() => setContextExpanded(false)}
+                    className="text-[10px] text-gray-500 hover:text-gray-300 transition"
+                  >
+                    Collapse
+                  </button>
+                )}
+              </div>
+              <div className="space-y-0.5">
+                {members.map((m) => (
+                  <PlayerCard key={m.id} member={m} variant="sidebar" />
+                ))}
               </div>
             </div>
+
+            {/* Guardian picker */}
+            {characters.length > 0 && !isSpectator && (
+              <>
+                <div className="mx-3 h-px bg-bungie-border/40" />
+                <div className="px-3 pt-2 pb-3">
+                  <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Your Guardian</p>
+                  <div className="space-y-1">
+                    {[...characters]
+                      .sort((a, b) => CLASS_ORDER.indexOf(a.classType) - CLASS_ORDER.indexOf(b.classType))
+                      .map((c) => (
+                        <button
+                          key={c.characterId}
+                          onClick={() => handleSelectCharacter(c.characterId)}
+                          className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg border text-left transition ${
+                            selectedCharId === c.characterId
+                              ? "border-bungie-blue/50 bg-bungie-blue/10 text-white"
+                              : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-300"
+                          }`}
+                        >
+                          <EmblemThumbnail emblemPath={c.emblemPath} classType={c.classType} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold leading-tight">{CLASS_NAMES[c.classType] ?? "Guardian"}</p>
+                            <p className="text-[10px] text-gray-500 leading-tight">Power {c.light}</p>
+                          </div>
+                          {selectedCharId === c.characterId && (
+                            <Check size={14} className="ml-auto shrink-0 text-green-400" />
+                          )}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
-
       </div>
 
       {/* Shared Weapon Pool — always open, no internal scroll (parent scrolls). */}
