@@ -69,7 +69,7 @@ function getLobbyStatusText(
         : { text: "Waiting for the captain to roll", tone: "muted" };
     case "rolling":
       return isCaptain
-        ? { text: "Loadout ready — apply when set", tone: "turn" }
+        ? { text: "Loadout ready, apply when set", tone: "turn" }
         : { text: "Loadout ready · waiting on the captain to apply", tone: "info" };
     case "applying":
       return { text: "Applying loadout…", tone: "info" };
@@ -1257,7 +1257,7 @@ export default function LobbyRoom({
         )}
       </div>
 
-      {/* Shared weapon pool — always open, no internal scroll (parent scrolls).
+      {/* Shared weapon pool, always open, no internal scroll (parent scrolls).
           Once loaded, WeaponPool renders its own "Weapon Browser" header with
           the same count, so this heading only needs to appear before that
           (loading / not-yet-loaded states) to avoid two stacked titles for the

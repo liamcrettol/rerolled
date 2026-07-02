@@ -123,8 +123,8 @@ export default function NewLobbyPage() {
               </div>
               <p className="text-[11px] text-gray-600 mt-2">
                 {rollMode === "normal" && "Each player gets the same 3-slot loadout."}
-                {rollMode === "chaos" && "Each player rolls independently — everyone gets different weapons."}
-                {rollMode === "meta" && "Rolls are weighted toward higher-usage weapons — not the same as the Meta only filter in the weapon browser."}
+                {rollMode === "chaos" && "Each player rolls independently, everyone gets different weapons."}
+                {rollMode === "meta" && "Rolls are weighted toward higher-usage weapons. Not the same as the Meta only filter in the weapon browser."}
               </p>
             </div>
 
