@@ -215,65 +215,71 @@ export default function LoadoutQueue({
           return (
             <div
               key={slotName}
-              className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+              className={`flex flex-wrap items-center gap-3 px-3 py-2.5 transition-colors ${
                 idx > 0 ? "border-t border-bungie-border/30" : ""
               } ${hasWeapon ? "hover:bg-white/[0.02]" : ""}`}
             >
-              {/* Damage/slot accent rail */}
-              <span
-                className={`w-1 self-stretch rounded-full shrink-0 ${hasWeapon ? theme.fill : "bg-gray-700/60"}`}
-                aria-hidden
-              />
+              {/* Rail + slot label + weapon content grouped together so this whole
+                  cluster has a size floor - on narrow screens the captain controls
+                  below wrap to their own line instead of crushing the weapon name
+                  down to nothing (#194). */}
+              <div className="flex items-center gap-3 flex-1 min-w-[180px]">
+                {/* Damage/slot accent rail */}
+                <span
+                  className={`w-1 self-stretch rounded-full shrink-0 ${hasWeapon ? theme.fill : "bg-gray-700/60"}`}
+                  aria-hidden
+                />
 
-              {/* Slot name */}
-              <span className="w-12 shrink-0 text-[10px] uppercase tracking-wider text-gray-500">{slotName}</span>
+                {/* Slot name */}
+                <span className="w-12 shrink-0 text-[10px] uppercase tracking-wider text-gray-500">{slotName}</span>
 
-              {/* Icon + weapon text - hover/tooltip trigger is scoped to just this,
-                  not the whole row, so it only fires over the gun itself. */}
-              {isWildcard ? (
-                <>
-                  <div
-                    style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
-                    className="shrink-0 rounded-lg border border-gray-700/40 bg-bungie-dark/40 flex items-center justify-center opacity-40 animate-pulse"
-                  >
-                    <User size={26} className="text-gray-400" />
+                {/* Icon + weapon text - hover/tooltip trigger is scoped to just this,
+                    not the whole row, so it only fires over the gun itself. */}
+                {isWildcard ? (
+                  <>
+                    <div
+                      style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
+                      className="shrink-0 rounded-lg border border-gray-700/40 bg-bungie-dark/40 flex items-center justify-center opacity-40 animate-pulse"
+                    >
+                      <User size={26} className="text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-300 text-sm font-semibold">Your own</p>
+                      <p className="text-gray-500 text-[11px]">Skipped on apply</p>
+                    </div>
+                  </>
+                ) : slot ? (
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <WeaponSlotContent
+                      hash={slot.item_hash}
+                      icon={slot.weapon_icon}
+                      watermark={weaponDetails[slot.item_hash]?.watermark}
+                      name={slot.weapon_name}
+                      weaponType={slot.weapon_type}
+                      damageType={slot.damage_type}
+                      isCollection={collectionHashes.has(slot.item_hash)}
+                      theme={theme}
+                      iconPool={iconPool}
+                      slot={slotName}
+                      animKindRef={animKindRef}
+                      onHover={onHover}
+                      onLeave={onLeave}
+                    />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-300 text-sm font-semibold">Your own</p>
-                    <p className="text-gray-500 text-[11px]">Skipped on apply</p>
-                  </div>
-                </>
-              ) : slot ? (
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <WeaponSlotContent
-                    hash={slot.item_hash}
-                    icon={slot.weapon_icon}
-                    watermark={weaponDetails[slot.item_hash]?.watermark}
-                    name={slot.weapon_name}
-                    weaponType={slot.weapon_type}
-                    damageType={slot.damage_type}
-                    isCollection={collectionHashes.has(slot.item_hash)}
-                    theme={theme}
-                    iconPool={iconPool}
-                    slot={slotName}
-                    animKindRef={animKindRef}
-                    onHover={onHover}
-                    onLeave={onLeave}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div
-                    style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
-                    className="shrink-0 rounded-lg border border-bungie-border/40 bg-bungie-dark flex items-center justify-center text-gray-600 text-xl"
-                  >
-                    ?
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-gray-600 text-sm">Not rolled yet</p>
-                  </div>
-                </>
-              )}
+                ) : (
+                  <>
+                    <div
+                      style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
+                      className="shrink-0 rounded-lg border border-bungie-border/40 bg-bungie-dark flex items-center justify-center text-gray-600 text-xl"
+                    >
+                      ?
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-600 text-sm">Not rolled yet</p>
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Captain controls */}
               {showControls && (
