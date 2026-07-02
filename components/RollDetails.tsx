@@ -244,8 +244,22 @@ export default function RollDetails({
   const memberCard = (m: MemberRolls) => {
     const card = memberCards?.[m.userId];
     const inst = shownFor(m);
+    const isBest = Boolean(inst?.isBestRoll);
+    const bestTitle = `Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
     return (
-      <div key={m.userId} className="rounded-lg border border-bungie-border/60 bg-bungie-dark/30 overflow-hidden flex flex-col">
+      <div
+        key={m.userId}
+        title={isBest ? bestTitle : undefined}
+        className={`rounded-lg overflow-hidden flex flex-col ${
+          isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : "border border-bungie-border/60"
+        } bg-bungie-dark/30`}
+      >
+        {isBest && (
+          <div className="flex items-center justify-center gap-1 bg-amber-400 text-bungie-dark text-[11px] font-bold py-0.5">
+            <Star size={11} className="fill-bungie-dark" />
+            BEST ROLL (unverified)
+          </div>
+        )}
         {/* Emblem header (fallback to name) */}
         {card ? (
           <PlayerCard member={card} />
@@ -261,17 +275,7 @@ export default function RollDetails({
           {/* Weapon icon + roll perks */}
           <div className="flex items-center justify-center gap-3">
             {slot.weaponIcon && (
-              <div className="relative shrink-0">
-                <WeaponIcon icon={slot.weaponIcon} watermark={slot.weaponWatermark} name={slot.weaponName ?? ""} size="large" />
-                {inst?.isBestRoll && (
-                  <span
-                    className="absolute -top-1.5 -right-1.5 bg-bungie-dark rounded-full p-0.5 border border-amber-400/60"
-                    title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
-                  >
-                    <Star size={12} className="fill-amber-400 text-amber-400" />
-                  </span>
-                )}
-              </div>
+              <WeaponIcon icon={slot.weaponIcon} watermark={slot.weaponWatermark} name={slot.weaponName ?? ""} size="large" />
             )}
             <div className="min-h-[3rem] flex flex-wrap gap-1.5 items-center">
               {m.failed ? (
@@ -283,10 +287,6 @@ export default function RollDetails({
               )}
             </div>
           </div>
-
-          {inst?.isBestRoll && (
-            <p className="text-[11px] text-amber-400 text-center -mt-1">Best roll pick (unverified)</p>
-          )}
 
           {/* Stat rows */}
           <div className="space-y-2.5 pt-2.5 border-t border-bungie-border/40">
@@ -388,10 +388,13 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
+                  title={inst.isBestRoll ? `Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative flex items-center justify-between gap-2 rounded pl-2.5 pr-1.5 py-1.5 cursor-pointer select-none border transition-all duration-150 ease-out active:scale-[0.98] ${
-                    isSel
-                      ? `${theme.border} ${theme.bg} scale-[1.02] shadow-sm`
-                      : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25 hover:translate-x-0.5"
+                    inst.isBestRoll
+                      ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 scale-[1.02] shadow-sm" : "hover:bg-amber-400/15"}`
+                      : isSel
+                        ? `${theme.border} ${theme.bg} scale-[1.02] shadow-sm`
+                        : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25 hover:translate-x-0.5"
                   }`}
                 >
                   {/* Accent bar that grows in on selection */}
@@ -400,17 +403,6 @@ export default function RollDetails({
                       isSel ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50 group-hover:opacity-40 group-hover:scale-y-75"
                     }`}
                   />
-                  {/* Corner badge, not a flex child - the icon row already
-                      fills the row width, so a flex sibling gets squeezed
-                      into overlapping it instead of getting its own space. */}
-                  {inst.isBestRoll && (
-                    <span
-                      className="absolute -top-1 left-1 z-10 bg-bungie-dark rounded-full p-px"
-                      title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
-                    >
-                      <Star size={10} className="fill-amber-400 text-amber-400" />
-                    </span>
-                  )}
                   <div className="transition-transform duration-150 group-hover:scale-[1.03]">
                     {rollPreview(inst, false)}
                   </div>
