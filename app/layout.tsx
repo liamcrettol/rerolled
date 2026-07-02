@@ -5,8 +5,8 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
-  title: "Gun Roulette",
-  description: "Destiny 2 random loadout generator for you and your fireteam",
+  title: "Destiny 2 Gun Roulette",
+  description: "Roll random Destiny 2 weapon loadouts from a shared fireteam pool, then equip and compare rolls together.",
 };
 
 export default function RootLayout({

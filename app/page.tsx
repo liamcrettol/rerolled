@@ -22,6 +22,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       <GlowBackdrop />
 
       <div className="text-center animate-rise-in" style={{ opacity: 0 }}>
+        <p className="text-bungie-blue text-sm font-semibold uppercase tracking-[0.2em] mb-2">
+          Destiny 2
+        </p>
         <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-white mb-4">
           Gun Roulette
         </h1>
