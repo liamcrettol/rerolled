@@ -54,9 +54,9 @@ const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
 // ── A single selectable roll row ──────────────────────────────────────────────
 
 function RollRow({
-  title, icon, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
+  label, icon, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
-  title: string; icon?: React.ReactNode; location?: string; perks?: string[];
+  label: string; icon?: React.ReactNode; location?: string; perks?: string[];
   selected: boolean; onClick: () => void; disabled?: boolean;
   favorited?: boolean; onToggleFavorite?: () => void;
 }) {
@@ -76,7 +76,7 @@ function RollRow({
         <div className="flex items-center justify-between gap-2">
           <span className={`text-xs font-semibold inline-flex items-center gap-1 ${selected ? "text-white" : "text-gray-300"}`}>
             {icon}
-            {title}
+            {label}
             {location && (
               <span className="ml-1.5 text-[10px] font-normal text-gray-400">
                 {location === "vault" ? "in vault" : "on character"}
@@ -95,7 +95,7 @@ function RollRow({
         <button
           onClick={onToggleFavorite}
           disabled={disabled}
-          title={favorited ? "Unfavorite" : "Favorite this roll (auto-picked on roll)"}
+          aria-label={favorited ? "Unfavorite" : "Favorite this roll"}
           className={`px-2 shrink-0 flex items-center ${favorited ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
         >
           <Star size={14} fill={favorited ? "currentColor" : "none"} />
@@ -219,7 +219,7 @@ function WeaponCard({
                 : " · using best available"}
             </p>
             <RollRow
-              title="Any roll"
+              label="Any roll"
               icon={<Shuffle size={12} className="shrink-0 text-gray-400" />}
               perks={["best available - easiest to equip"]}
               selected={!currentInstance}
@@ -229,7 +229,7 @@ function WeaponCard({
             {rolls.map((inst, i) => (
               <RollRow
                 key={inst.instanceId}
-                title={`Roll ${i + 1}`}
+                label={`Roll ${i + 1}`}
                 location={inst.location}
                 perks={inst.perks}
                 selected={currentInstance === inst.instanceId}
@@ -262,7 +262,7 @@ function WeaponCard({
           {releases.map(({ hash: relHash, detail: relDetail }) => (
             <RollRow
               key={relHash}
-              title={relDetail.name}
+              label={relDetail.name}
               icon={<Repeat size={12} className="shrink-0 text-gray-400" />}
               perks={[relDetail.tierName]}
               selected={false}
@@ -397,7 +397,7 @@ export default function WeaponPool({
             </select>
             <button
               onClick={() => setMetaOnly((v) => !v)}
-              title="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
+              aria-label="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
               className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
                 metaOnly
                   ? "border-bungie-blue bg-bungie-blue/20 text-white"

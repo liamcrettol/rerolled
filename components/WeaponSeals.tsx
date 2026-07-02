@@ -37,7 +37,7 @@ export default function WeaponSeals({ seals }: Props) {
           <span
             key={key}
             className={`text-[10px] rounded px-1.5 py-0.5 leading-none font-semibold ${config.className}`}
-            title={config.title}
+            aria-label={config.title}
           >
             {config.label}
           </span>

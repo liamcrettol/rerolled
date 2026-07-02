@@ -188,7 +188,7 @@ export default function NewLobbyPage() {
                         <button
                           key={t}
                           onClick={() => toggleBan(t)}
-                          title={banned ? `${t} is banned from rolls` : `Ban ${t}`}
+                          aria-label={banned ? `${t} is banned from rolls` : `Ban ${t}`}
                           className={`text-xs px-2.5 py-1 rounded-full border transition inline-flex items-center gap-1 ${
                             banned
                               ? "border-red-400 bg-red-500/20 text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.18)]"

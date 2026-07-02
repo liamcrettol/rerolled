@@ -6,8 +6,7 @@ import { createPortal } from "react-dom";
 // A weapon socket icon (barrel, magazine, perk, masterwork) with a styled
 // hover tooltip showing the socket's name and exact description. The tooltip is
 // rendered through a portal to document.body so it escapes the RollDetails
-// panel's `overflow-hidden` / `overflow-y-auto` clipping. A native `title` is
-// kept as a no-JS fallback.
+// panel's `overflow-hidden` / `overflow-y-auto` clipping.
 export default function PerkIcon({
   icon,
   name,
@@ -44,7 +43,6 @@ export default function PerkIcon({
 
   const statEntries = stats ? Object.entries(stats).filter(([, v]) => v !== 0) : [];
   const hasTip = !noTooltip && Boolean(name || description || communityDescription || statEntries.length > 0);
-  const title = !hasTip ? undefined : description ? `${name ?? ""} — ${description}` : name;
 
   return (
     <>
@@ -52,7 +50,7 @@ export default function PerkIcon({
         ref={ref}
         src={icon}
         alt={name ?? ""}
-        title={title}
+        aria-label={hasTip ? name : undefined}
         onMouseEnter={hasTip ? show : undefined}
         onMouseLeave={hasTip ? hide : undefined}
         onFocus={hasTip ? show : undefined}

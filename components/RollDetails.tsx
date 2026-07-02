@@ -15,6 +15,9 @@ interface Perk { name: string; description: string; stats?: Record<string, numbe
 interface RollInstance {
   instanceId: string;
   itemHash?: number;
+  weaponName?: string;
+  weaponIcon?: string;
+  weaponWatermark?: string;
   location: "character" | "vault";
   perkHashes: number[];
   perks: Perk[];
@@ -212,6 +215,11 @@ export default function RollDetails({
     bestRollLabel(inst) === "REFERENCE ROLL"
       ? "Reference roll: community best, unverified"
       : "Closest match to the reference roll: community best, unverified";
+  const weaponDisplayFor = (inst: RollInstance | undefined) => ({
+    icon: inst?.weaponIcon ?? slot.weaponIcon,
+    watermark: inst?.weaponWatermark ?? slot.weaponWatermark,
+    name: inst?.weaponName ?? slot.weaponName ?? "",
+  });
 
   // A roll's socket icons (barrel, magazine, all perks, masterwork), each with
   // a hover tooltip describing exactly what it does. The large variant (used in
@@ -328,11 +336,11 @@ export default function RollDetails({
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
     const label = bestRollLabel(inst);
-    const bestTitle = `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}`;
+    const weaponDisplay = weaponDisplayFor(inst);
     return (
       <div
         key={m.userId}
-        title={isBest ? bestTitle : undefined}
+        aria-label={isBest ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
         className={`relative rounded-lg overflow-hidden flex flex-col ${
           isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
@@ -365,8 +373,8 @@ export default function RollDetails({
         <div className="p-3 space-y-3 flex-1 flex flex-col">
           {/* Weapon icon + roll perks */}
           <div className="flex items-center justify-center gap-3">
-            {slot.weaponIcon && (
-              <WeaponIcon icon={slot.weaponIcon} watermark={slot.weaponWatermark} name={slot.weaponName ?? ""} size="large" />
+            {weaponDisplay.icon && (
+              <WeaponIcon icon={weaponDisplay.icon} watermark={weaponDisplay.watermark} name={weaponDisplay.name} size="large" />
             )}
             <div className="min-h-[3rem] flex flex-wrap gap-1.5 items-center">
               {m.failed ? (
@@ -502,7 +510,7 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  title={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
+                  aria-label={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 rounded-md pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
@@ -523,7 +531,7 @@ export default function RollDetails({
                   {onToggleFavorite && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleFavorite(activeTab, slot.itemHash, inst.instanceId); }}
-                      title={fav ? "Unfavorite" : "Favorite (auto-picked on roll)"}
+                      aria-label={fav ? "Unfavorite" : "Favorite auto-picked on roll"}
                       className={`h-8 w-4 justify-self-end text-sm leading-none transition-colors duration-150 ${fav ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}`}
                     >
                       {fav ? "★" : "☆"}

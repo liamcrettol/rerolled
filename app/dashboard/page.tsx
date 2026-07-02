@@ -34,10 +34,6 @@ export default async function Dashboard() {
                   {session.displayName}
                 </span>
               </p>
-              <p className="text-gray-500 text-xs mt-1 flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                Destiny account connected · weapon data loads when you join a lobby
-              </p>
             </div>
             <SignOutButton />
           </header>

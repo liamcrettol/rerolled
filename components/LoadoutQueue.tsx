@@ -287,7 +287,7 @@ export default function LoadoutQueue({
                   {onCycleSlotMode && (
                     <button
                       onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
-                      title="Click to cycle: Reroll Slot → Locked → Your own"
+                      aria-label="Cycle slot mode"
                       className={`text-xs px-3 py-1.5 rounded-lg border transition inline-flex items-center gap-1.5 font-medium ${
                         slotMode === "lock"
                           ? "border-yellow-500/70 bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25"
@@ -303,7 +303,6 @@ export default function LoadoutQueue({
                   {onRerollSlot && hasWeapon && !rerollExhausted && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onRerollSlot(slotName as WeaponSlot); }}
-                      title={`Reroll only the ${slotName} slot`}
                       aria-label={`Reroll only the ${slotName} slot`}
                       className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-lg border border-bungie-border text-gray-400 hover:border-bungie-blue hover:text-bungie-blue transition"
                     >

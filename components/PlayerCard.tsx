@@ -116,7 +116,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
 
       {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
-        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow" title="Guardian selected">
+        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow" aria-label="Guardian selected">
           <Check size={15} />
         </span>
       )}

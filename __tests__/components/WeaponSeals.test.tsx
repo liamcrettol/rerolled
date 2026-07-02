@@ -25,7 +25,7 @@ describe("WeaponSeals", () => {
         }}
       />
     );
-    expect(screen.getByTitle("Currently equipped in your loadout")).toBeInTheDocument();
+    expect(screen.getByLabelText("Currently equipped in your loadout")).toBeInTheDocument();
   });
 
   it("renders your roll seal when isInYourRoll is true", () => {
@@ -38,7 +38,7 @@ describe("WeaponSeals", () => {
         }}
       />
     );
-    expect(screen.getByTitle("In your current roulette roll")).toBeInTheDocument();
+    expect(screen.getByLabelText("In your current roulette roll")).toBeInTheDocument();
   });
 
   it("renders team seal when isInFireteamRoll is true", () => {
@@ -51,7 +51,7 @@ describe("WeaponSeals", () => {
         }}
       />
     );
-    expect(screen.getByTitle("In a fireteam member's roll")).toBeInTheDocument();
+    expect(screen.getByLabelText("In a fireteam member's roll")).toBeInTheDocument();
   });
 
   it("renders all seals when all are true", () => {
@@ -64,9 +64,9 @@ describe("WeaponSeals", () => {
         }}
       />
     );
-    expect(screen.getByTitle("Currently equipped in your loadout")).toBeInTheDocument();
-    expect(screen.getByTitle("In your current roulette roll")).toBeInTheDocument();
-    expect(screen.getByTitle("In a fireteam member's roll")).toBeInTheDocument();
+    expect(screen.getByLabelText("Currently equipped in your loadout")).toBeInTheDocument();
+    expect(screen.getByLabelText("In your current roulette roll")).toBeInTheDocument();
+    expect(screen.getByLabelText("In a fireteam member's roll")).toBeInTheDocument();
   });
 
   it("renders seals in a flex container with proper spacing", () => {
@@ -79,7 +79,7 @@ describe("WeaponSeals", () => {
         }}
       />
     );
-    const container = screen.getByTitle("Currently equipped in your loadout").parentElement;
+    const container = screen.getByLabelText("Currently equipped in your loadout").parentElement;
     expect(container).toHaveClass("flex", "gap-1");
   });
 

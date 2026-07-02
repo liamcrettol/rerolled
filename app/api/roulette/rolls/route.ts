@@ -42,6 +42,9 @@ interface Perk { name: string; description: string; stats?: Record<string, numbe
 interface RollInstance {
   instanceId: string;
   itemHash: number;
+  weaponName?: string;
+  weaponIcon?: string;
+  weaponWatermark?: string;
   location: "character" | "vault";
   perkHashes: number[];
   perks: Perk[];
@@ -290,8 +293,12 @@ export async function POST(req: NextRequest) {
           const magazineName = inst.magazineHash ? nameOf(inst.magazineHash) : undefined;
           const masterworkName = inst.masterworkHash ? nameOf(inst.masterworkHash) : undefined;
           const perks = perkHashes.map((h) => perkInfoMap.get(h) as Perk);
+          const instanceDef = instanceDefs.get(inst.itemHash);
           return {
             ...inst,
+            weaponName: instanceDef?.name,
+            weaponIcon: instanceDef?.icon,
+            weaponWatermark: instanceDef?.watermark,
             perkHashes,
             perks,
             perkIcons,
@@ -307,7 +314,7 @@ export async function POST(req: NextRequest) {
             isBestRoll: false,
             bestRollMatched: 0,
             bestRollTotal: 0,
-            baseStats: instanceDefs.get(inst.itemHash)?.stats,
+            baseStats: instanceDef?.stats,
           };
         });
         if (bestRoll && instances.length > 0) {

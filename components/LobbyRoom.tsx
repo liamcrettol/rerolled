@@ -1178,7 +1178,6 @@ export default function LobbyRoom({
       <div className="flex justify-end shrink-0 mb-3">
         <button
           onClick={() => setRightOpen(false)}
-          title="Hide panel"
           aria-label="Hide panel"
           className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-bungie-border/40 rounded-lg px-2 py-1 transition"
         >
@@ -1354,7 +1353,7 @@ export default function LobbyRoom({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyCode}
-                title="Copy lobby code"
+                aria-label="Copy lobby code"
                 className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero text-lg hover:opacity-75 transition inline-flex items-center gap-1.5"
               >
                 {copied ? <Check size={18} /> : lobby.code}
@@ -1723,7 +1722,6 @@ export default function LobbyRoom({
                         onClick={() => handleRoll()}
                         disabled={loadingAction !== null || rerollExhausted || !intersection}
                         className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
-                        title="Roll all non-locked, non-Your-own slots"
                         aria-label="Roll all slots"
                       >
                         {loadingAction === "roll" ? <Spinner size={15} /> : <Shuffle size={15} />}
@@ -1735,7 +1733,6 @@ export default function LobbyRoom({
                         onClick={handleApply}
                         disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
                         className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
-                        title="Apply this loadout to your selected Guardian"
                         aria-label="Apply loadout"
                       >
                         {loadingAction === "apply" ? <Spinner size={15} /> : <Zap size={15} />}
@@ -1829,7 +1826,6 @@ export default function LobbyRoom({
       {rightOpen ? rightColumn : (
         <button
           onClick={() => setRightOpen(true)}
-          title="Show panel"
           aria-label="Show panel"
           className="shrink-0 xl:sticky xl:top-6 flex xl:flex-col items-center justify-center gap-2 rounded-xl border border-bungie-border/40 bg-bungie-surface text-gray-400 hover:text-gray-200 hover:border-gray-500 transition w-full xl:w-10 px-3 py-2 xl:py-4"
         >

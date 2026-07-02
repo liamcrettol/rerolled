@@ -10,14 +10,14 @@ export default function SignOutButton() {
       <a
         href="/api/auth/bungie/login?reauth=true"
         className="text-xs text-gray-500 hover:text-bungie-blue transition"
-        title="Sign in with a different Bungie account"
+        aria-label="Sign in with a different Bungie account"
       >
         Switch account
       </a>
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
         className="text-sm text-gray-400 hover:text-white transition"
-        title="Fully sign out — you'll need to sign back in to use the app"
+        aria-label="Fully sign out"
       >
         Sign out completely
       </button>

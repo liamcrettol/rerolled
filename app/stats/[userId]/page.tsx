@@ -240,7 +240,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 {orderedSlots.length > 0 && (
                   <div className="flex items-center gap-1 shrink-0">
                     {orderedSlots.map((s) => (
-                      <div key={s.slot} className="relative w-8 h-8 rounded overflow-hidden bg-bungie-dark" title={s.weapon_name}>
+                      <div key={s.slot} className="relative w-8 h-8 rounded overflow-hidden bg-bungie-dark">
                         <Image src={s.weapon_icon} alt={s.weapon_name} fill className="object-cover" unoptimized />
                       </div>
                     ))}
