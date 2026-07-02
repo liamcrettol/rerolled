@@ -186,6 +186,10 @@ export default function RollDetails({
       .replace(/\s+/g, " ");
   const socketMatches = (actual: string | undefined, expected: string | null | undefined) =>
     Boolean(expected && normalizeSocketName(actual) === normalizeSocketName(expected));
+  const normalizeStatName = (name: string | null | undefined) =>
+    normalizeSocketName(name).replace(/\bspeed\b/g, "").trim().replace(/\s+/g, " ");
+  const masterworkAppliesToStat = (inst: RollInstance | undefined, stat: string) =>
+    Boolean(inst?.masterworkName && normalizeStatName(inst.masterworkName) === normalizeStatName(stat));
   const hurtsPreferredStat = (stats: Record<string, number> | undefined) =>
     Boolean(stats && preferredStats.some((stat) => (stats[stat] ?? 0) < 0));
   const socketClass = (baseClass: string, stats: Record<string, number> | undefined, recommended: boolean) => {
@@ -376,7 +380,9 @@ export default function RollDetails({
               const lo = Math.min(100, Math.max(0, Math.min(v, hasBase ? base[s] : v)));
               const hi = Math.min(100, Math.max(0, Math.max(v, hasBase ? base[s] : v)));
               const totalGain = Math.max(0, delta);
-              const masterworkGain = Math.min(Math.max(0, inst?.masterworkStats?.[s] ?? 0), totalGain);
+              const rawMasterworkGain = Math.max(0, inst?.masterworkStats?.[s] ?? 0);
+              const inferredMasterworkGain = rawMasterworkGain || (masterworkAppliesToStat(inst, s) ? 10 : 0);
+              const masterworkGain = Math.min(inferredMasterworkGain, totalGain);
               const otherGain = Math.max(0, totalGain - masterworkGain);
               const roomAfterBase = Math.max(0, 100 - lo);
               const otherGainWidth = Math.min(roomAfterBase, otherGain);
