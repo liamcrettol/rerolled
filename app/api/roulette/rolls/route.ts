@@ -323,14 +323,23 @@ export async function POST(req: NextRequest) {
           const hasRecommendation = scored.some((s) => s.score.total > 0);
           if (hasRecommendation) {
             scored.sort((a, b) => b.score.matched - a.score.matched || a.index - b.index);
-            const bestIndex = scored[0].index;
-            instances[bestIndex] = {
-              ...instances[bestIndex],
-              isBestRoll: true,
-              bestRollMatched: scored[0].score.matched,
-              bestRollTotal: scored[0].score.total,
-            };
-            instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
+            const top = scored[0];
+            // An exact match (every populated field hit) is always worth
+            // flagging. A partial "closest" match is only worth flagging once
+            // it's hit at least 2 of the curated fields - 0-1 matches is too
+            // weak a signal to call out as "closest" (issue #216).
+            const isExactMatch = top.score.total > 0 && top.score.matched === top.score.total;
+            const meetsClosestThreshold = top.score.matched >= 2;
+            if (isExactMatch || meetsClosestThreshold) {
+              const bestIndex = top.index;
+              instances[bestIndex] = {
+                ...instances[bestIndex],
+                isBestRoll: true,
+                bestRollMatched: top.score.matched,
+                bestRollTotal: top.score.total,
+              };
+              instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
+            }
           }
         }
         memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
