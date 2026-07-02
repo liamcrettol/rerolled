@@ -8,6 +8,7 @@ import {
   flushDefinitionCache,
   getWeaponGroupHashes,
 } from "@/lib/bungie/definitions";
+import { getSocketRolePlugHash } from "@/lib/bungie/socketRoles";
 import { bungieGet } from "@/lib/bungie/client";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest) {
 
           const weapons: RawWeapon[] = [];
           const vaultItems: MemberData["vaultItems"] = [];
+          const itemHashByInstanceId = new Map<string, number>();
 
           const charEquipData: Record<string, { items: unknown[] }> =
             profile?.characterEquipment?.data ?? {};
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
                 isEquipped: true,
                 lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
               });
+              itemHashByInstanceId.set(item.itemInstanceId as string, item.itemHash as number);
             }
 
             const bagItems = asAnyArray(profile?.characterInventories?.data?.[charId]?.items);
@@ -167,6 +170,7 @@ export async function POST(req: NextRequest) {
                 isEquipped: equippedIds.has(item.itemInstanceId as string),
                 lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
               });
+              itemHashByInstanceId.set(item.itemInstanceId as string, item.itemHash as number);
             }
           }
 
@@ -178,6 +182,7 @@ export async function POST(req: NextRequest) {
               itemInstanceId: item.itemInstanceId as string,
               lightLevel: instances[item.itemInstanceId]?.primaryStat?.value ?? 0,
             });
+            itemHashByInstanceId.set(item.itemInstanceId as string, item.itemHash as number);
           }
 
           const collectibles = new Set<number>();
@@ -193,19 +198,28 @@ export async function POST(req: NextRequest) {
           const masterworkHashes = new Map<string, number>();
           const socketsData: Record<string, { sockets: Array<{ plugHash?: number; isVisible?: boolean }> }> =
             profile?.itemComponents?.sockets?.data ?? {};
+          const socketItemHashes = [
+            ...new Set(
+              Object.keys(socketsData)
+                .map((instanceId) => itemHashByInstanceId.get(instanceId))
+                .filter((hash): hash is number => hash != null)
+            ),
+          ];
+          const socketDefMap = socketItemHashes.length > 0 ? await getWeaponDefinitions(socketItemHashes) : new Map();
           for (const [instanceId, sockData] of Object.entries(socketsData)) {
             const perks: number[] = [];
             for (const idx of PERK_SOCKET_INDICES) {
               const socket = sockData.sockets[idx];
-              if (!socket?.plugHash) break;
+              if (!socket?.plugHash) continue;
               if (socket.isVisible === false) continue;
               perks.push(socket.plugHash);
             }
             if (perks.length > 0) sockets.set(instanceId, perks);
 
-            const barrelHash = sockData.sockets[1]?.plugHash;
-            const magazineHash = sockData.sockets[2]?.plugHash;
-            const masterworkHash = sockData.sockets[6]?.plugHash;
+            const def = socketDefMap.get(itemHashByInstanceId.get(instanceId) ?? 0);
+            const barrelHash = getSocketRolePlugHash(sockData.sockets, def, "barrel");
+            const magazineHash = getSocketRolePlugHash(sockData.sockets, def, "magazine");
+            const masterworkHash = getSocketRolePlugHash(sockData.sockets, def, "masterwork");
 
             if (barrelHash) barrelHashes.set(instanceId, barrelHash);
             if (magazineHash) magazineHashes.set(instanceId, magazineHash);

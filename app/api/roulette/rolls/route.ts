@@ -3,6 +3,7 @@ import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
 import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
+import { getSocketRolePlugHash } from "@/lib/bungie/socketRoles";
 import { getBestRoll, scoreBestRoll, type BestRoll } from "@/lib/bestRolls";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
@@ -103,11 +104,6 @@ export async function POST(req: NextRequest) {
     const loadoutHashes = new Set(Object.values(slotHash));
     if (loadoutHashes.size === 0) return NextResponse.json({ slots: {} });
 
-    // Resolved early (it's an instant in-memory lookup, not a network call) so
-    // `consider()` below can read each weapon's catalyst socket index/hash
-    // while walking a member's live inventory.
-    const defs = await getWeaponDefinitions([...loadoutHashes]);
-
     // Map every re-released/Adept/craftable variant of each loadout weapon back
     // to that loadout hash, so a player's instances of ALL versions of the gun
     // show up under the slot (#68), not just the exact hash the captain rolled.
@@ -115,6 +111,10 @@ export async function POST(req: NextRequest) {
     for (const lh of loadoutHashes) {
       for (const vh of getWeaponGroupHashes(lh)) variantToLoadout.set(vh, lh);
     }
+    // Resolved early (it's an instant in-memory lookup, not a network call) so
+    // `consider()` below can read each actual variant's socket role/catalyst
+    // metadata while walking a member's live inventory.
+    const defs = await getWeaponDefinitions([...new Set([...loadoutHashes, ...variantToLoadout.keys()])]);
 
     const allPerkHashes = new Set<number>();
     const allInstanceHashes = new Set<number>();
@@ -161,9 +161,10 @@ export async function POST(req: NextRequest) {
               allPerkHashes.add(s.plugHash);
             }
 
-            const barrelHash = socketData[id]?.sockets?.[1]?.plugHash;
-            const magazineHash = socketData[id]?.sockets?.[2]?.plugHash;
-            const masterworkHash = socketData[id]?.sockets?.[6]?.plugHash;
+            const def = defs.get(hash) ?? defs.get(loadoutHash);
+            const barrelHash = getSocketRolePlugHash(sockets, def, "barrel");
+            const magazineHash = getSocketRolePlugHash(sockets, def, "magazine");
+            const masterworkHash = getSocketRolePlugHash(sockets, def, "masterwork");
 
             if (barrelHash) allPerkHashes.add(barrelHash);
             if (magazineHash) allPerkHashes.add(magazineHash);
@@ -175,7 +176,6 @@ export async function POST(req: NextRequest) {
             // below. Compare the live socket's plug against the known
             // catalyst hash - it reads back as the "Empty Catalyst Socket"
             // placeholder until unlocked.
-            const def = defs.get(loadoutHash);
             const catalystUnlocked = Boolean(
               def?.catalystSocketIndex != null &&
                 def.catalystPerkHash != null &&

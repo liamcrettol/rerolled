@@ -178,14 +178,11 @@ compact prebuilt set of tables, read at import time as instant in-memory maps vi
     per-instance, read live in `rolls/route.ts` by comparing that socket's current
     `plugHash` against `catalystPerkHash`. 99/146 exotics have one — the rest legitimately
     never got a catalyst (MIDA, Sweet Business, Telesto, etc.), not a detection miss.
-  - ⚠️ `barrelHash`/`magazineHash`/`masterworkHash` in `rolls/route.ts` are still read from
-    **hardcoded socket indices** (1, 2, 6), which do NOT hold across all weapon types —
-    confirmed via a full audit (186 distinct socket layouts across the current table, and
-    a large fraction of weapons have no default plug at those indices at the definition
-    level at all, since randomized perks only resolve from live instance data). Tracked in
-    issue #193; deliberately not fixed yet — a wrong fix here is worse than the current bug
-    and needs testing against a real account's live inventory, which isn't possible from
-    this environment.
+  - `WeaponDefinition.socketRoleIndices` identifies each weapon's barrel-like,
+    magazine-like, and stat-masterwork socket by plug category, including randomized
+    plug sets where `singleInitialItemHash` is 0. `rolls/route.ts` and
+    `intersection/route.ts` read live per-instance socket data at those role indices
+    instead of assuming hardcoded indices (1, 2, 6). (#193)
 - `scripts/sync-clarity-data.mjs` — fills in perk numbers Bungie's manifest doesn't
   expose (exotic percentages/durations, PvP-tuned values — only present as tooltip
   flavor text otherwise), sourced from the community-run
