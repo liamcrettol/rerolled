@@ -5,6 +5,7 @@ import GlowBackdrop from "@/components/GlowBackdrop";
 import HeroReel from "@/components/HeroReel";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { Shuffle, Zap, GitCompare } from "lucide-react";
+import Link from "next/link";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const session = await auth();
@@ -65,6 +66,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
           </div>
         ))}
       </div>
+
+      <Link href="/privacy" className="text-xs text-gray-600 hover:text-gray-400">
+        Privacy Policy
+      </Link>
     </main>
   );
 }
