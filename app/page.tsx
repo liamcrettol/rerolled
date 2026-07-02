@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 import GlowBackdrop from "@/components/GlowBackdrop";
 import HeroReel from "@/components/HeroReel";
+import LandingPreview from "@/components/LandingPreview";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { Shuffle, Zap, Crown } from "lucide-react";
 
@@ -48,6 +49,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         </p>
       </div>
 
+      <div className="flex flex-col items-center gap-3 animate-rise-in" style={{ opacity: 0, animationDelay: "240ms" }}>
+        <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">What your fireteam sees</p>
+        <LandingPreview weaponsBySlot={heroWeaponsBySlot} />
+      </div>
+
       <div className="grid grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
         {[
           { Icon: Shuffle, title: "Random Rolls", desc: "Only rolls weapons everyone has" },
@@ -57,7 +63,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
           <div
             key={f.title}
             className="glass-card rounded-xl p-4 transition hover:-translate-y-1 hover:border-bungie-blue/50 animate-rise-in"
-            style={{ opacity: 0, animationDelay: `${280 + i * 80}ms` }}
+            style={{ opacity: 0, animationDelay: `${320 + i * 80}ms` }}
           >
             <f.Icon size={26} className="mx-auto mb-2 text-bungie-blue" />
             <div className="font-semibold text-white text-sm">{f.title}</div>

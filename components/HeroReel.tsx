@@ -139,7 +139,7 @@ function ReelSlot({
       className={`relative rounded-xl overflow-hidden shrink-0 bg-gray-800 ${landed ? "animate-weapon-land" : ""}`}
       style={{ width: REEL_ITEM_H, height: REEL_ITEM_H, "--land-glow": landGlow } as React.CSSProperties}
     >
-      <div ref={reelRef} style={{ willChange: "transform", filter: "blur(3px)" }}>
+      <div ref={reelRef} style={{ willChange: "transform" }}>
         {reelItems.map((wi, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -148,7 +148,13 @@ function ReelSlot({
             alt=""
             loading="eager"
             decoding="async"
-            style={{ width: REEL_ITEM_H, height: REEL_ITEM_H, objectFit: "cover", display: "block" }}
+            style={{
+              width: REEL_ITEM_H,
+              height: REEL_ITEM_H,
+              objectFit: "cover",
+              display: "block",
+              filter: "blur(3px)",
+            }}
           />
         ))}
       </div>

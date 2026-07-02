@@ -84,7 +84,7 @@ export function getWeaponGroupHashes(itemHash: number): number[] {
   return GROUP_TO_HASHES.get(key) ?? [itemHash];
 }
 
-export interface HeroWeaponSample { name: string; icon: string; damageType: string; tierType: number }
+export interface HeroWeaponSample { name: string; icon: string; weaponType: string; damageType: string; tierType: number }
 
 function shuffle<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -115,7 +115,7 @@ export function getRandomWeaponSample(countPerSlot: number): Record<WeaponSlot, 
     if (!def.icon) continue;
     const slot = bucketToSlot(def.defaultBucketHash);
     if (!slot) continue;
-    const sample: HeroWeaponSample = { name: def.name, icon: def.icon, damageType: def.damageType, tierType: def.tierType };
+    const sample: HeroWeaponSample = { name: def.name, icon: def.icon, weaponType: def.weaponType, damageType: def.damageType, tierType: def.tierType };
     if (def.tierType === 6) bySlot[slot].exotics.push(sample);
     else if (def.tierType === 5) bySlot[slot].legendaries.push(sample);
   }
