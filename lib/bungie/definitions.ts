@@ -35,6 +35,8 @@ interface WeaponDefinition {
   collectibleHash?: number;
   stats: Record<string, number>;
   intrinsicPerkHash: number | null;
+  catalystSocketIndex: number | null;
+  catalystPerkHash: number | null;
 }
 
 const WEAPONS: Map<number, WeaponDefinition> = (() => {

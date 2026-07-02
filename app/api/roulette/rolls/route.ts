@@ -55,6 +55,7 @@ interface RollInstance {
   masterworkName?: string;
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
+  catalystUnlocked?: boolean;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -95,6 +96,11 @@ export async function POST(req: NextRequest) {
     }
     const loadoutHashes = new Set(Object.values(slotHash));
     if (loadoutHashes.size === 0) return NextResponse.json({ slots: {} });
+
+    // Resolved early (it's an instant in-memory lookup, not a network call) so
+    // `consider()` below can read each weapon's catalyst socket index/hash
+    // while walking a member's live inventory.
+    const defs = await getWeaponDefinitions([...loadoutHashes]);
 
     // Map every re-released/Adept/craftable variant of each loadout weapon back
     // to that loadout hash, so a player's instances of ALL versions of the gun
@@ -151,6 +157,19 @@ export async function POST(req: NextRequest) {
             if (magazineHash) allPerkHashes.add(magazineHash);
             if (masterworkHash) allPerkHashes.add(masterworkHash);
 
+            // Catalyst unlock is per-instance (this specific copy of the
+            // weapon), unlike the catalyst perk's name/description which is
+            // the same for every copy and resolved once at the slot level
+            // below. Compare the live socket's plug against the known
+            // catalyst hash - it reads back as the "Empty Catalyst Socket"
+            // placeholder until unlocked.
+            const def = defs.get(loadoutHash);
+            const catalystUnlocked = Boolean(
+              def?.catalystSocketIndex != null &&
+                def.catalystPerkHash != null &&
+                sockets[def.catalystSocketIndex]?.plugHash === def.catalystPerkHash
+            );
+
             const stats: Record<string, number> = {};
             const rawStats = statData[id]?.stats ?? {};
             for (const [statHash, val] of Object.entries(rawStats)) {
@@ -167,6 +186,7 @@ export async function POST(req: NextRequest) {
               barrelHash,
               magazineHash,
               masterworkHash,
+              catalystUnlocked,
               stats,
               lightLevel: instanceData[id]?.primaryStat?.value ?? 0,
             };
@@ -193,11 +213,11 @@ export async function POST(req: NextRequest) {
     );
 
     // Each weapon's intrinsic frame/archetype plug (e.g. "Rapid-Fire Frame",
-    // or an exotic's unique named mechanic) - not per-instance, so resolve it
-    // from the definition and fold it into the same perk-info batch below.
-    const defs = await getWeaponDefinitions([...loadoutHashes]);
+    // or an exotic's unique named mechanic) and catalyst perk - neither is
+    // per-instance, so fold both into the same perk-info batch below.
     for (const def of defs.values()) {
       if (def.intrinsicPerkHash) allPerkHashes.add(def.intrinsicPerkHash);
+      if (def.catalystPerkHash) allPerkHashes.add(def.catalystPerkHash);
     }
 
     // Resolve all perk plug hashes to { name, description } in one pass; base
@@ -224,6 +244,10 @@ export async function POST(req: NextRequest) {
         intrinsicPerkIcon?: string;
         intrinsicPerkDescription?: string;
         intrinsicPerkCommunityDescription?: string;
+        catalystPerkName?: string;
+        catalystPerkIcon?: string;
+        catalystPerkDescription?: string;
+        catalystPerkCommunityDescription?: string;
         members: MemberRolls[];
       }
     > = {};
@@ -259,6 +283,8 @@ export async function POST(req: NextRequest) {
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
       const intrinsicHash = defs.get(hash)?.intrinsicPerkHash;
       const intrinsicInfo = intrinsicHash ? perkInfoMap.get(intrinsicHash) : undefined;
+      const catalystHash = defs.get(hash)?.catalystPerkHash;
+      const catalystInfo = catalystHash ? perkInfoMap.get(catalystHash) : undefined;
       slots[slot] = {
         itemHash: hash,
         damageType: defs.get(hash)?.damageType ?? "",
@@ -270,6 +296,10 @@ export async function POST(req: NextRequest) {
         intrinsicPerkIcon: intrinsicHash ? iconOf(intrinsicHash) : undefined,
         intrinsicPerkDescription: intrinsicInfo?.description,
         intrinsicPerkCommunityDescription: intrinsicInfo?.communityDescription,
+        catalystPerkName: catalystInfo?.name,
+        catalystPerkIcon: catalystHash ? iconOf(catalystHash) : undefined,
+        catalystPerkDescription: catalystInfo?.description,
+        catalystPerkCommunityDescription: catalystInfo?.communityDescription,
         members: memberRolls,
       };
     }

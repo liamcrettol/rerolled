@@ -28,6 +28,7 @@ interface RollInstance {
   masterworkName?: string;
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
+  catalystUnlocked?: boolean;
   stats: Record<string, number>;
   lightLevel: number;
 }
@@ -49,6 +50,10 @@ export interface SlotRolls {
   intrinsicPerkIcon?: string;
   intrinsicPerkDescription?: string;
   intrinsicPerkCommunityDescription?: string;
+  catalystPerkName?: string;
+  catalystPerkIcon?: string;
+  catalystPerkDescription?: string;
+  catalystPerkCommunityDescription?: string;
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
@@ -173,6 +178,19 @@ export default function RollDetails({
         noTooltip={noTip}
       />
     );
+    // The catalyst perk, only shown when THIS specific instance has it
+    // unlocked (unlike the intrinsic frame, catalyst unlock is per-copy).
+    const catalystShown = Boolean(slot.catalystPerkIcon && inst.catalystUnlocked);
+    const catalyst = (
+      <PerkIcon
+        icon={slot.catalystPerkIcon}
+        name={slot.catalystPerkName}
+        description={slot.catalystPerkDescription}
+        communityDescription={slot.catalystPerkCommunityDescription}
+        className={cls}
+        noTooltip={noTip}
+      />
+    );
     const barrel = <PerkIcon icon={inst.barrelIcon} name={inst.barrelName} stats={inst.barrelStats} className={cls} noTooltip={noTip} />;
     const magazine = <PerkIcon icon={inst.magazineIcon} name={inst.magazineName} stats={inst.magazineStats} className={cls} noTooltip={noTip} />;
     const perks = inst.perkHashes.map((hash, i) => (
@@ -183,18 +201,19 @@ export default function RollDetails({
     if (large) {
       return (
         <div className="flex flex-wrap gap-1.5 justify-center">
-          {slot.intrinsicPerkIcon && intrinsic}{barrel}{magazine}{perks}{masterwork}
+          {slot.intrinsicPerkIcon && intrinsic}{catalystShown && catalyst}{barrel}{magazine}{perks}{masterwork}
         </div>
       );
     }
 
-    // Compact: single row, sockets grouped (intrinsic · barrel/mag · perks · masterwork).
+    // Compact: single row, sockets grouped (intrinsic/catalyst · barrel/mag · perks · masterwork).
     const sep = <div className="w-px self-stretch bg-bungie-border/70 mx-0.5 my-0.5" />;
     const hasBarrelMag = Boolean(inst.barrelIcon || inst.magazineIcon);
     return (
       <div className="flex flex-nowrap items-center gap-1 min-w-0">
         {slot.intrinsicPerkIcon && intrinsic}
-        {slot.intrinsicPerkIcon && (hasBarrelMag || perks.length > 0) && sep}
+        {catalystShown && catalyst}
+        {(slot.intrinsicPerkIcon || catalystShown) && (hasBarrelMag || perks.length > 0) && sep}
         {hasBarrelMag && <div className="flex gap-1">{barrel}{magazine}</div>}
         {hasBarrelMag && perks.length > 0 && sep}
         {perks.length > 0 && <div className="flex gap-1">{perks}</div>}
