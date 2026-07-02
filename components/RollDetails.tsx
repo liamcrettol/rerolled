@@ -126,6 +126,7 @@ export default function RollDetails({
   const base = slot.baseStats;
 
   const members = slot.members;
+  const scrollMemberCards = members.length > 3;
   const me = members.find((m) => m.isMe);
   // Best-roll matches float to the top so, with several rolls of the same
   // gun, the one matching the curated archetype pick is the obvious choice
@@ -251,7 +252,7 @@ export default function RollDetails({
     const card = memberCards?.[m.userId];
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
-    const bestTitle = `Closest community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
+    const bestTitle = `Closest god roll${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`;
     return (
       <div
         key={m.userId}
@@ -263,7 +264,7 @@ export default function RollDetails({
         {isBest && (
           <div className="flex items-center justify-center gap-1 bg-amber-400 text-bungie-dark text-[11px] font-bold py-0.5">
             <Star size={11} className="fill-bungie-dark" />
-            CLOSEST ROLL (unverified)
+            CLOSEST GOD ROLL
           </div>
         )}
         {/* Emblem header (fallback to name) */}
@@ -356,15 +357,6 @@ export default function RollDetails({
             Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
           </h2>
         </div>
-        {/* Plain-text recommendation, shown regardless of whether anyone's
-            roll matches it, so it's something you can eyeball-check yourself
-            instead of just trusting a badge. */}
-        {slot.bestRoll && (
-          <p className="text-[11px] text-gray-500 mt-1">
-            <span className="text-amber-400/90 font-semibold">Community best roll (unverified):</span>{" "}
-            {[slot.bestRoll.barrel, slot.bestRoll.magazine, slot.bestRoll.perk1, slot.bestRoll.perk2, slot.bestRoll.priorityMasterwork].filter(Boolean).join(" + ")}
-          </p>
-        )}
       </div>
 
       <div className="px-3 py-3 flex gap-3">
@@ -405,7 +397,7 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  title={inst.isBestRoll ? `Closest community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
+                  title={inst.isBestRoll ? `Closest god roll${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative flex items-center justify-between gap-2 rounded pl-2.5 pr-1.5 py-1.5 cursor-pointer select-none border transition-all duration-150 ease-out active:scale-[0.98] ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 scale-[1.02] shadow-sm" : "hover:bg-amber-400/15"}`
@@ -439,10 +431,10 @@ export default function RollDetails({
           </div>
         </div>
 
-        {/* Comparison: a card per member, emblem-width, 3 per row. Members
-            beyond the first row scroll inside this fixed-height compartment. */}
+        {/* Comparison: a card per member, emblem-width, 3 per row. Full height for
+            one row; scrolls only once the lobby spills into another row. */}
         <div className="flex-1 min-w-0">
-          <div className="max-h-[24rem] overflow-y-auto overflow-x-auto pr-1">
+          <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} overflow-x-auto pr-1`}>
             <div
               className="grid gap-3 content-start min-w-full"
               style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
