@@ -199,7 +199,7 @@ export default function RollDetails({
   const rollPreview = (inst: RollInstance, large = true) => {
     const cls = large
       ? "w-12 h-12 rounded border transition"
-      : "w-9 h-9 rounded border";
+      : "w-8 h-8 rounded border";
     const neutralCls = socketClass(cls, undefined, false);
     const noTip = !large;
     // The weapon's fixed intrinsic frame/archetype perk (e.g. a legendary's
@@ -286,18 +286,15 @@ export default function RollDetails({
       );
     }
 
-    // Compact: single row, sockets grouped (intrinsic/catalyst · barrel/mag · perks · masterwork).
-    const sep = <div className="w-px self-stretch bg-bungie-border/70 mx-0.5 my-0.5" />;
+    // Compact: a tight grid that can wrap instead of clipping when a weapon has
+    // an extra visible socket.
     const hasBarrelMag = Boolean(inst.barrelIcon || inst.magazineIcon) && !isExotic;
     return (
-      <div className="flex flex-nowrap items-center gap-1 min-w-0">
+      <div className="grid grid-cols-5 gap-1 min-w-0">
         {slot.intrinsicPerkIcon && intrinsic}
         {catalystShown && catalyst}
-        {(slot.intrinsicPerkIcon || catalystShown) && (hasBarrelMag || perks.length > 0) && sep}
-        {hasBarrelMag && <div className="flex gap-1">{barrel}{magazine}</div>}
-        {hasBarrelMag && perks.length > 0 && sep}
-        {perks.length > 0 && <div className="flex gap-1">{perks}</div>}
-        {masterwork && sep}
+        {hasBarrelMag && <>{barrel}{magazine}</>}
+        {perks}
         {masterwork}
       </div>
     );
@@ -455,12 +452,12 @@ export default function RollDetails({
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
                   title={inst.isBestRoll ? `Closest god roll${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}` : undefined}
-                  className={`group relative flex items-center justify-between gap-2 rounded pl-2.5 pr-1.5 py-1.5 cursor-pointer select-none border transition-all duration-150 ease-out active:scale-[0.98] ${
+                  className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 rounded-md pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
-                      ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 scale-[1.02] shadow-sm" : "hover:bg-amber-400/15"}`
+                      ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
                       : isSel
-                        ? `${theme.border} ${theme.bg} scale-[1.02] shadow-sm`
-                        : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25 hover:translate-x-0.5"
+                        ? `${theme.border} ${theme.bg} shadow-sm`
+                        : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25"
                   }`}
                 >
                   {/* Accent bar that grows in on selection */}
@@ -469,14 +466,14 @@ export default function RollDetails({
                       isSel ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50 group-hover:opacity-40 group-hover:scale-y-75"
                     }`}
                   />
-                  <div className="transition-transform duration-150 group-hover:scale-[1.03]">
+                  <div className="min-w-0">
                     {rollPreview(inst, false)}
                   </div>
                   {onToggleFavorite && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleFavorite(activeTab, slot.itemHash, inst.instanceId); }}
                       title={fav ? "Unfavorite" : "Favorite (auto-picked on roll)"}
-                      className={`shrink-0 text-sm leading-none transition-transform duration-150 hover:scale-125 active:scale-90 ${fav ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}`}
+                      className={`h-8 w-4 justify-self-end text-sm leading-none transition-colors duration-150 ${fav ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}`}
                     >
                       {fav ? "★" : "☆"}
                     </button>
