@@ -20,6 +20,7 @@ Users can sign in with their Bungie account, view their Destiny 2 weapons, join 
 This app uses the Bungie API to read Destiny 2 profile, inventory, vault, and equipment data. With user authorization, it may also move or equip Destiny 2 items.
 
 The app does not store Bungie passwords. Authentication is handled through Bungie OAuth.
+See `/privacy` (`app/privacy/page.tsx`) for the full privacy policy — what's stored, why, and how to request deletion.
 
 ## Local Development Setup
 
@@ -116,6 +117,10 @@ Early development / personal project.
   the stats pipeline).
 - [Weapon variant pooling](docs/weapon-pooling.md) — how re-released / Adept /
   craftable versions of the same gun are grouped (and what's still exact-hash).
+- [Weapon/perk data pipeline](docs/weapon-perk-data.md) — how the static
+  weapon/perk tables are built and refreshed, the intrinsic frame/archetype
+  perk, and the Clarity community data integration (with its attribution
+  requirement).
 - [Database migrations](supabase/migrations/README.md) — migrations are applied
   **by hand**, not automatically. Check the status table before assuming a
   migration is live.

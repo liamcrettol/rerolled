@@ -150,6 +150,47 @@ After the PR merges, the work is in **staging**. Wait for "ship it" before promo
 
 ---
 
+## Static weapon/perk data pipeline
+
+The app never talks to the Bungie manifest at runtime (it's ~190 MB — a serverless
+function would time out/OOM parsing it). Instead `lib/bungie/data/*.json` is a
+compact prebuilt set of tables, read at import time as instant in-memory maps via
+`lib/bungie/definitions.ts`.
+
+- `scripts/build-weapons-table.mjs` — downloads Bungie's current manifest, extracts
+  weapons (`weapons-table.json`) and perk plugs (`perk-names.json`, `perk-data.json`,
+  `perk-icons.json`). Skips the download entirely if `manifest-version.txt` already
+  matches Bungie's current version, so scheduled runs are cheap.
+  - `WeaponDefinition.intrinsicPerkHash` is each weapon's intrinsic frame/archetype
+    plug hash — a legendary's frame (e.g. "Rapid-Fire Frame") or an exotic's unique
+    named mechanic (e.g. Deterministic Chaos's "Vexadecimal"). Extracted from the
+    weapon's **first socket**, where the plug's `plugCategoryIdentifier === "intrinsics"`
+    (verified 100% match across the full weapon table — every weapon has this).
+  - `COSMETIC_PLUG` in the script deliberately excludes shaders/ornaments/masterworks/
+    mods/catalysts/etc. from `perk-data.json` so they never render as a weapon "perk".
+    This means **catalyst effects aren't in the static tables at all** right now (see
+    issue #192) — don't assume a catalyst hash will resolve.
+- `scripts/sync-clarity-data.mjs` — fills in perk numbers Bungie's manifest doesn't
+  expose (exotic percentages/durations, PvP-tuned values — only present as tooltip
+  flavor text otherwise), sourced from the community-run
+  [Clarity database](https://github.com/Database-Clarity/Live-Clarity-Database) (same
+  source D2Foundry/DIM/light.gg use). Downloads `descriptions/lightGG.json`, keeps
+  only entries whose hash is already in `perk-data.json`, writes
+  `lib/bungie/data/perk-clarity.json`. Surfaced as `PerkInfo.communityDescription` in
+  `definitions.ts`, rendered in `components/PerkIcon.tsx` with a required
+  **"Perk data: Clarity" attribution credit — don't strip it.**
+  [Usage terms](https://www.d2clarity.com/partnerships): free under ~150 users
+  provided the data is credited; past that, Clarity wants a licensing conversation.
+- `.github/workflows/refresh-weapons.yml` — runs both scripts every Tuesday (after
+  weekly reset) plus on manual dispatch, and auto-commits + pushes
+  `lib/bungie/data/*.json` only if something actually changed (so quiet weeks don't
+  spam the Vercel deployment list). No new secrets required; picks up
+  `BUNGIE_API_KEY` if the repo secret exists, but works without it.
+- To refresh by hand: `node scripts/build-weapons-table.mjs && node scripts/sync-clarity-data.mjs`
+  (run in that order — the Clarity sync filters against the freshly written `perk-data.json`).
+
+---
+
 ## Local bootstrap (fresh device)
 
 ```bash
