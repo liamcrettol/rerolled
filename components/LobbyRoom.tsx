@@ -317,6 +317,12 @@ export default function LobbyRoom({
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false);
+  // Confirmation for picking a second Special-ammo weapon into kinetic+energy
+  // (leaves no Primary in the loadout) - styled like the End Session dialog
+  // instead of a native browser confirm() (#187).
+  const [pendingSpecialSelect, setPendingSpecialSelect] = useState<{
+    slot: WeaponSlot; hash: number; instanceId?: string; otherName: string;
+  } | null>(null);
   const [minutesToClose, setMinutesToClose] = useState<number | null>(null);
   // Auto-apply: when enabled, equip automatically when the captain clicks Apply.
   // Preference persisted per-device in localStorage.
@@ -1071,23 +1077,8 @@ export default function LobbyRoom({
     setLoadingAction(null);
   }, []);
 
-  const handleSelectWeapon = useCallback(async (slot: WeaponSlot, hash: number, instanceId?: string) => {
+  const commitWeaponSelect = useCallback(async (slot: WeaponSlot, hash: number, instanceId?: string) => {
     if (!intersection || !roundId) return;
-    // Warn (don't block) if this pick would put a Special ammo weapon in both
-    // kinetic and energy, since only one of those two would actually get used.
-    // Skip the check when the weapon in this slot isn't actually changing (the
-    // captain is just choosing a different roll/release of the same gun).
-    const currentHashInSlot = slots.find((s) => s.slot === slot)?.item_hash;
-    if ((slot === "kinetic" || slot === "energy") && hash !== currentHashInSlot) {
-      const isSpecial = (h?: number) => h !== undefined && h !== 0 && weaponDetails[h.toString()]?.ammoType === "Special";
-      const otherSlot: WeaponSlot = slot === "kinetic" ? "energy" : "kinetic";
-      const otherHash = slots.find((s) => s.slot === otherSlot)?.item_hash;
-      if (isSpecial(hash) && isSpecial(otherHash)) {
-        const otherName = weaponDetails[otherHash!.toString()]?.name ?? "your other weapon";
-        const ok = confirm(`You already have ${otherName} equipped as a Special weapon in the other slot. Picking this one too means no Primary in the loadout. Select it anyway?`);
-        if (!ok) return;
-      }
-    }
     animKindRef.current[slot] = "pick"; // animate as a manual pick, not a spin
     setLoadingAction("roll");
     setLastGameStats(null);
@@ -1117,6 +1108,26 @@ export default function LobbyRoom({
     });
     setLoadingAction(null);
   }, [intersection, roundId, lobby.id, slots, weaponDetails, setLastGameStats]);
+
+  const handleSelectWeapon = useCallback((slot: WeaponSlot, hash: number, instanceId?: string) => {
+    if (!intersection || !roundId) return;
+    // Warn (don't block) if this pick would put a Special ammo weapon in both
+    // kinetic and energy, since only one of those two would actually get used.
+    // Skip the check when the weapon in this slot isn't actually changing (the
+    // captain is just choosing a different roll/release of the same gun).
+    const currentHashInSlot = slots.find((s) => s.slot === slot)?.item_hash;
+    if ((slot === "kinetic" || slot === "energy") && hash !== currentHashInSlot) {
+      const isSpecial = (h?: number) => h !== undefined && h !== 0 && weaponDetails[h.toString()]?.ammoType === "Special";
+      const otherSlot: WeaponSlot = slot === "kinetic" ? "energy" : "kinetic";
+      const otherHash = slots.find((s) => s.slot === otherSlot)?.item_hash;
+      if (isSpecial(hash) && isSpecial(otherHash)) {
+        const otherName = weaponDetails[otherHash!.toString()]?.name ?? "your other weapon";
+        setPendingSpecialSelect({ slot, hash, instanceId, otherName });
+        return;
+      }
+    }
+    commitWeaponSelect(slot, hash, instanceId);
+  }, [intersection, roundId, slots, weaponDetails, commitWeaponSelect]);
 
   void bungieMembershipType;
   void bungieMembershipId;
@@ -1451,6 +1462,38 @@ export default function LobbyRoom({
                     className="flex-1 px-4 py-2 rounded-full bg-red-700 hover:bg-red-600 text-white transition text-sm font-semibold"
                   >
                     End Session
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pendingSpecialSelect && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+              <div className="w-full max-w-sm bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden">
+                <div className="p-5">
+                  <p className="text-white text-base font-semibold mb-1.5">Select this weapon anyway?</p>
+                  <p className="text-gray-400 text-sm leading-snug">
+                    You already have {pendingSpecialSelect.otherName} equipped as a Special weapon in the
+                    other slot. Picking this one too means no Primary in the loadout.
+                  </p>
+                </div>
+                <div className="flex gap-2 px-5 pb-5">
+                  <button
+                    onClick={() => setPendingSpecialSelect(null)}
+                    className="flex-1 px-4 py-2 rounded-full border border-bungie-border text-gray-300 hover:border-gray-400 transition text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      const { slot, hash, instanceId } = pendingSpecialSelect;
+                      setPendingSpecialSelect(null);
+                      commitWeaponSelect(slot, hash, instanceId);
+                    }}
+                    className="flex-1 px-4 py-2 rounded-full bg-bungie-blue hover:opacity-90 text-white transition text-sm font-semibold"
+                  >
+                    Select Anyway
                   </button>
                 </div>
               </div>
