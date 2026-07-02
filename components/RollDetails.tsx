@@ -371,18 +371,25 @@ export default function RollDetails({
               const isBest = members.length > 1 && v === bestPerStat[s];
               const hasBase = base[s] !== undefined;
               const delta = hasBase ? v - base[s] : 0;
-              // Segmented bar: element fill up to the lower of base/value, then
-              // the perk difference in green (gain) or red (loss).
+              // Segmented bar: base stat in gray, non-masterwork gains in green,
+              // masterwork gain in blue, losses in red.
               const lo = Math.min(100, Math.max(0, Math.min(v, hasBase ? base[s] : v)));
               const hi = Math.min(100, Math.max(0, Math.max(v, hasBase ? base[s] : v)));
+              const totalGain = Math.max(0, delta);
+              const masterworkGain = Math.min(Math.max(0, inst?.masterworkStats?.[s] ?? 0), totalGain);
+              const otherGain = Math.max(0, totalGain - masterworkGain);
+              const roomAfterBase = Math.max(0, 100 - lo);
+              const otherGainWidth = Math.min(roomAfterBase, otherGain);
+              const masterworkGainWidth = Math.min(Math.max(0, roomAfterBase - otherGainWidth), masterworkGain);
+              const lossWidth = delta < 0 ? hi - lo : 0;
               return (
                 <div key={s} className="flex items-center gap-2">
                   <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
                   <div className="flex-1 h-2.5 bg-gray-700/80 rounded-full overflow-hidden flex">
                     <div className="h-full bg-gray-400" style={{ width: `${lo}%` }} />
-                    {hi > lo && (
-                      <div className={`h-full ${delta >= 0 ? "bg-green-400" : "bg-red-500/80"}`} style={{ width: `${hi - lo}%` }} />
-                    )}
+                    {otherGainWidth > 0 && <div className="h-full bg-green-400" style={{ width: `${otherGainWidth}%` }} />}
+                    {masterworkGainWidth > 0 && <div className="h-full bg-sky-400" style={{ width: `${masterworkGainWidth}%` }} />}
+                    {lossWidth > 0 && <div className="h-full bg-red-500/80" style={{ width: `${lossWidth}%` }} />}
                   </div>
                   <span className={`w-7 text-right tabular-nums text-sm ${isBest ? `${theme.text} font-semibold` : "text-gray-300"}`}>{v}</span>
                   {/* Always reserve the delta column so every bar lines up */}
