@@ -400,12 +400,15 @@ export default function RollDetails({
                       isSel ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50 group-hover:opacity-40 group-hover:scale-y-75"
                     }`}
                   />
+                  {/* Corner badge, not a flex child - the icon row already
+                      fills the row width, so a flex sibling gets squeezed
+                      into overlapping it instead of getting its own space. */}
                   {inst.isBestRoll && (
                     <span
-                      className="shrink-0"
+                      className="absolute -top-1 left-1 z-10 bg-bungie-dark rounded-full p-px"
                       title={`Community pick for this archetype (unverified baseline)${slot.bestRoll?.notes ? ` — ${slot.bestRoll.notes}` : ""}`}
                     >
-                      <Star size={12} className="fill-amber-400 text-amber-400" />
+                      <Star size={10} className="fill-amber-400 text-amber-400" />
                     </span>
                   )}
                   <div className="transition-transform duration-150 group-hover:scale-[1.03]">
