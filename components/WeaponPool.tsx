@@ -397,14 +397,14 @@ export default function WeaponPool({
             </select>
             <button
               onClick={() => setMetaOnly((v) => !v)}
-              title="Show only Hand Cannons, Shotguns, and Snipers"
+              title="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
               className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
                 metaOnly
                   ? "border-bungie-blue bg-bungie-blue/20 text-white"
                   : "border-bungie-border text-gray-300 hover:border-gray-400"
               }`}
             >
-              Meta
+              Meta only
             </button>
           </div>
         </div>
