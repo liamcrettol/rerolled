@@ -1239,9 +1239,6 @@ export default function LobbyRoom({
                     <span
                       key={member.id}
                       className="flex items-center gap-1"
-                      title={`${trimBungieName(member.display_name)} has equipped: ${details
-                        .map((d) => d?.name ?? "—")
-                        .join(" · ")}`}
                     >
                       {details.map((d, i) =>
                         d?.icon ? (
@@ -1294,7 +1291,6 @@ export default function LobbyRoom({
                                 key={i}
                                 src={d.icon}
                                 alt={d.name}
-                                title={`Equipped: ${d.name}`}
                                 className="w-5 h-5 rounded-sm border border-white/10"
                               />
                             ) : (
