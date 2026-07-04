@@ -466,9 +466,6 @@ export default function RollDetails({
             Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
           </h2>
         </div>
-        <p className="text-gray-500 text-xs mt-0.5">
-          Compare each fireteam member&apos;s owned roll for the selected weapon.
-        </p>
       </div>
 
       <div className="px-3 py-3 flex flex-col md:flex-row gap-3">
