@@ -541,16 +541,13 @@ export default function RollDetails({
         </div>
 
         {/* Comparison: a card per member. Columns adapt to the space available
-            (min ~15rem per card) instead of a fixed 3-up, so a solo lobby on a
-            laptop gets one well-proportioned card instead of a squished third-
-            width one next to a wall of empty space. Full height for one row;
-            scrolls only once the lobby spills into another row. */}
+            at their natural card width instead of stretching tracks across the
+            whole panel, which keeps two-player lobbies from leaving a giant
+            empty gap between cards. Full height for one row; scrolls only once
+            the lobby spills into another row. */}
         <div className="flex-1 min-w-0">
           <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} pr-1`}>
-            <div
-              className="grid gap-3 content-start"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))" }}
-            >
+            <div className="flex flex-wrap gap-3 content-start">
               {members.map((m) => memberCard(m))}
             </div>
           </div>
