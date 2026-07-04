@@ -317,39 +317,41 @@ export async function POST(req: NextRequest) {
             baseStats: instanceDef?.stats,
           };
         });
-        if (bestRoll && instances.length > 0) {
-          const scored = instances.map((inst, index) => ({
-            index,
+        memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
+      }
+      if (bestRoll) {
+        const scored = memberRolls.flatMap((member, memberIndex) =>
+          member.instances.map((inst, instanceIndex) => ({
+            memberIndex,
+            instanceIndex,
             score: scoreBestRoll(bestRoll, {
               barrelName: inst.barrelName,
               magazineName: inst.magazineName,
               perkNames: inst.perks.map((p) => p.name),
               masterworkName: inst.masterworkName,
             }),
-          }));
-          const hasRecommendation = scored.some((s) => s.score.total > 0);
-          if (hasRecommendation) {
-            scored.sort((a, b) => b.score.matched - a.score.matched || a.index - b.index);
-            const top = scored[0];
-            // An exact match (every populated field hit) is always worth
-            // flagging. A partial "closest" match is only worth flagging once
-            // it's hit at least 2 of the curated fields - 0-1 matches is too
-            // weak a signal to call out as "closest" (issue #216).
-            const isExactMatch = top.score.total > 0 && top.score.matched === top.score.total;
-            const meetsClosestThreshold = top.score.matched >= 2;
-            if (isExactMatch || meetsClosestThreshold) {
-              const bestIndex = top.index;
-              instances[bestIndex] = {
-                ...instances[bestIndex],
-                isBestRoll: true,
-                bestRollMatched: top.score.matched,
-                bestRollTotal: top.score.total,
-              };
-              instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
-            }
-          }
+          }))
+        );
+        // An exact match (every populated field hit) is always worth flagging.
+        // A partial "closest" match is only worth flagging once it's hit at
+        // least 2 curated fields; 0-1 matches is too weak a signal (#216).
+        // Only one roll per slot gets the badge across the whole lobby (#222).
+        const eligible = scored.filter(({ score }) =>
+          score.total > 0 && (score.matched === score.total || score.matched >= 2)
+        );
+        if (eligible.length > 0) {
+          const bestMatched = Math.max(...eligible.map(({ score }) => score.matched));
+          const tied = eligible.filter(({ score }) => score.matched === bestMatched);
+          const chosen = tied[Math.floor(Math.random() * tied.length)];
+          const member = memberRolls[chosen.memberIndex];
+          member.instances[chosen.instanceIndex] = {
+            ...member.instances[chosen.instanceIndex],
+            isBestRoll: true,
+            bestRollMatched: chosen.score.matched,
+            bestRollTotal: chosen.score.total,
+          };
+          member.instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
         }
-        memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));

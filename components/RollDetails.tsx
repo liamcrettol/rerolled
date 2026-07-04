@@ -206,15 +206,12 @@ export default function RollDetails({
     const normalizedStat = normalizeSocketName(stat === "Reload" ? "Reload Speed" : stat);
     return normalizedName.includes(normalizedStat) ? 10 : 0;
   };
-  // Calmer than "GOD ROLL" - this is a curated but unverified reference, not a
-  // vetted community consensus pick (see best-rolls.json's provisional data
-  // note in CLAUDE.md), so the label and tooltip both say so (#203).
   const bestRollLabel = (inst: RollInstance | undefined) =>
-    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "REFERENCE ROLL" : "CLOSEST REFERENCE";
+    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "GOD ROLL" : "CLOSEST GOD ROLL";
   const bestRollTooltip = (inst: RollInstance | undefined) =>
-    bestRollLabel(inst) === "REFERENCE ROLL"
-      ? "Reference roll: community best, unverified"
-      : "Closest match to the reference roll: community best, unverified";
+    bestRollLabel(inst) === "GOD ROLL"
+      ? "God roll match"
+      : "Closest match to the god roll";
   const weaponDisplayFor = (inst: RollInstance | undefined) => ({
     icon: inst?.weaponIcon ?? slot.weaponIcon,
     watermark: inst?.weaponWatermark ?? slot.weaponWatermark,
