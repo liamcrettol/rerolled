@@ -49,6 +49,10 @@ interface MemberData {
   barrelHashes: Map<string, number>;
   magazineHashes: Map<string, number>;
   masterworkHashes: Map<string, number>;
+  // Whichever character Bungie's `dateLastPlayed` says this member played most
+  // recently - the "currently equipped" fallback when no character has been
+  // explicitly selected/pinned yet (matches the client's own auto-select).
+  mostRecentCharacterId?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +142,13 @@ export async function POST(req: NextRequest) {
           const charEquipData: Record<string, { items: unknown[] }> =
             profile?.characterEquipment?.data ?? {};
 
+          const charactersData: Record<string, { dateLastPlayed?: string }> =
+            profile?.characters?.data ?? {};
+          const mostRecentCharacterId = Object.entries(charactersData).sort(
+            ([, a], [, b]) =>
+              new Date(b.dateLastPlayed ?? 0).getTime() - new Date(a.dateLastPlayed ?? 0).getTime()
+          )[0]?.[0];
+
           for (const [charId, charEquip] of Object.entries(charEquipData)) {
             const charItems = asAnyArray(charEquip.items);
             const equippedIds = new Set(charItems.map((i) => i.itemInstanceId as string));
@@ -226,7 +237,7 @@ export async function POST(req: NextRequest) {
             if (masterworkHash) masterworkHashes.set(instanceId, masterworkHash);
           }
 
-          memberDataMap.set(member.user_id, { weapons, vaultItems, collectibles, sockets, barrelHashes, magazineHashes, masterworkHashes });
+          memberDataMap.set(member.user_id, { weapons, vaultItems, collectibles, sockets, barrelHashes, magazineHashes, masterworkHashes, mostRecentCharacterId });
         } catch (e) {
           console.warn(
             `Skipping member ${member.user_id}:`,
@@ -446,7 +457,14 @@ export async function POST(req: NextRequest) {
 
     // ── Phase 7: Equipped hashes for seeding initial roll ────────────────────
 
-    const myWeapons = memberDataMap.get(session.userId)?.weapons ?? [];
+    const myEquipData = memberDataMap.get(session.userId);
+    const myWeapons = myEquipData?.weapons ?? [];
+    // Prefer the explicitly selected character; otherwise fall back to
+    // whichever character was played most recently (matches the client's own
+    // auto-select) instead of an arbitrary one - the intersection load runs
+    // as soon as the round is ready, often before the client's character
+    // auto-select has persisted its pick server-side.
+    const myPreferredCharacterId = characterId ?? myEquipData?.mostRecentCharacterId;
     const equippedHashes: Record<WeaponSlot, number | null> = {
       kinetic: null,
       energy: null,
@@ -458,7 +476,7 @@ export async function POST(req: NextRequest) {
           (w) =>
             w.slot === slot &&
             w.isEquipped &&
-            (!characterId || w.characterId === characterId)
+            (!myPreferredCharacterId || w.characterId === myPreferredCharacterId)
         ) ?? myWeapons.find((w) => w.slot === slot && w.isEquipped);
       if (equipped) equippedHashes[slot] = equipped.itemHash;
     }
@@ -471,6 +489,9 @@ export async function POST(req: NextRequest) {
     for (const member of members) {
       const data = memberDataMap.get(member.user_id);
       if (!data) continue;
+      // Same preference order as the caller: explicit selection first, then
+      // most-recently-played, then any equipped as a last resort.
+      const preferredCharacterId = member.selected_character_id ?? data.mostRecentCharacterId;
       const eq: Partial<Record<WeaponSlot, number>> = {};
       for (const slot of slots) {
         const w =
@@ -478,7 +499,7 @@ export async function POST(req: NextRequest) {
             (x) =>
               x.slot === slot &&
               x.isEquipped &&
-              (!member.selected_character_id || x.characterId === member.selected_character_id)
+              (!preferredCharacterId || x.characterId === preferredCharacterId)
           ) ?? data.weapons.find((x) => x.slot === slot && x.isEquipped);
         if (w) eq[slot] = w.itemHash;
       }
