@@ -52,6 +52,17 @@ const config: Config = {
           "0%":   { transform: "translateY(6px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        // Revolver cylinder: six discrete 60° clicks per revolution - move
+        // fast, then hold, like thumbing a cylinder round by round.
+        "cyl-spin": {
+          "0%":             { transform: "rotate(0deg)" },
+          "9%, 16.66%":     { transform: "rotate(60deg)" },
+          "25.66%, 33.33%": { transform: "rotate(120deg)" },
+          "42.33%, 50%":    { transform: "rotate(180deg)" },
+          "59%, 66.66%":    { transform: "rotate(240deg)" },
+          "75.66%, 83.33%": { transform: "rotate(300deg)" },
+          "92.33%, 100%":   { transform: "rotate(360deg)" },
+        },
         "weapon-land": {
           "0%":   { transform: "scale(0.92)", boxShadow: "0 0 0 0 var(--land-glow, rgba(0,174,239,0))" },
           "45%":  { transform: "scale(1.1)",  boxShadow: "0 0 20px 4px var(--land-glow, rgba(0,174,239,0.65))" },
@@ -66,6 +77,7 @@ const config: Config = {
         "glow-drift": "glow-drift 9s ease-in-out infinite",
         "rise-in":   "rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
         "page-in":   "page-in 0.26s ease-out",
+        "cyl-spin":  "cyl-spin 1.9s cubic-bezier(0.34, 1.4, 0.64, 1) infinite",
         "weapon-land": "weapon-land 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },
