@@ -72,7 +72,12 @@ export default async function Leaderboard() {
           </thead>
           <tbody className="divide-y divide-bungie-border/40">
             {entries.map((e, i) => (
-              <tr key={e.user_id} className={i === 0 ? "text-yellow-400 bg-yellow-400/5" : "text-gray-300"}>
+              <tr
+                key={e.user_id}
+                className={`transition-colors hover:bg-white/[0.03] ${
+                  i === 0 ? "text-yellow-400 bg-yellow-400/5" : "text-gray-300"
+                }`}
+              >
                 <td className="py-2 pr-4 text-gray-500 font-mono">{i + 1}</td>
                 <td className="py-2 pr-4 font-medium">
                   <Link href={`/stats/${e.user_id}`} className="hover:text-bungie-blue transition">

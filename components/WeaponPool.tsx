@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Shuffle, Check, Star, Repeat } from "lucide-react";
 import type { WeaponSlot } from "@/types/bungie";
@@ -68,7 +68,7 @@ function RollRow({
     >
       {/* left accent bar */}
       <span
-        className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full ${
+        className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full transition-colors duration-200 ${
           selected ? "bg-bungie-blue" : "bg-transparent"
         }`}
       />
@@ -83,7 +83,7 @@ function RollRow({
               </span>
             )}
           </span>
-          {selected && <Check size={13} className="text-bungie-blue shrink-0" />}
+          {selected && <Check size={13} className="text-bungie-blue shrink-0 animate-bounce-in" />}
         </div>
         {perks && perks.length > 0 && (
           <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
@@ -132,6 +132,20 @@ function WeaponCard({
   const inlineStat = CARD_INLINE_STATS.find((s) => detail.stats[s] !== undefined);
   const hasMultiple = rolls.length > 1;
 
+  // Fire a one-shot ring pulse when this card becomes the selected weapon -
+  // the same land pulse the loadout reel uses, so picking feels connected.
+  const [justPicked, setJustPicked] = useState(false);
+  const prevActive = useRef(isActive);
+  useEffect(() => {
+    if (isActive && !prevActive.current) {
+      setJustPicked(true);
+      const t = setTimeout(() => setJustPicked(false), 650);
+      prevActive.current = isActive;
+      return () => clearTimeout(t);
+    }
+    prevActive.current = isActive;
+  }, [isActive]);
+
   const selectedRoll = isActive && currentInstance
     ? rolls.find((r) => r.instanceId === currentInstance)
     : undefined;
@@ -161,7 +175,7 @@ function WeaponCard({
                 C
               </span>
             )}
-            {isActive && <Check size={15} className="text-bungie-blue" />}
+            {isActive && <Check size={15} className="text-bungie-blue animate-bounce-in" />}
           </div>
         </div>
         <p className="text-gray-400 text-xs leading-tight truncate">{detail.weaponType}</p>
@@ -188,6 +202,8 @@ function WeaponCard({
     <div
       className={`rounded-lg border overflow-hidden transition ${
         isActive ? `${theme.border} ring-1 ${theme.ring}` : tier.border
+      } ${justPicked ? "animate-slot-land" : ""} ${
+        !readOnly && !isActive ? "hover:-translate-y-0.5" : ""
       }`}
     >
       {/* Main card row. Read-only viewers get a static row (still hoverable for

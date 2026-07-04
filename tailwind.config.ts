@@ -48,6 +48,10 @@ const config: Config = {
           "0%":   { transform: "translateY(12px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
+        "page-in": {
+          "0%":   { transform: "translateY(6px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
         "weapon-land": {
           "0%":   { transform: "scale(0.92)", boxShadow: "0 0 0 0 var(--land-glow, rgba(0,174,239,0))" },
           "45%":  { transform: "scale(1.1)",  boxShadow: "0 0 20px 4px var(--land-glow, rgba(0,174,239,0.65))" },
@@ -61,6 +65,7 @@ const config: Config = {
         "fade-in":   "fade-in 0.15s ease-out forwards",
         "glow-drift": "glow-drift 9s ease-in-out infinite",
         "rise-in":   "rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "page-in":   "page-in 0.26s ease-out",
         "weapon-land": "weapon-land 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
       },
     },

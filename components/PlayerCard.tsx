@@ -44,7 +44,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
           <span className="truncate">{trimBungieName(member.display_name)}</span>
         </span>
         {!member.is_spectator && member.selected_character_id && (
-          <Check size={13} className="text-green-400 shrink-0" />
+          <Check size={13} className="text-green-400 shrink-0 animate-bounce-in" />
         )}
       </div>
     );
@@ -116,7 +116,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
 
       {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
-        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow" aria-label="Guardian selected">
+        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-bounce-in" aria-label="Guardian selected">
           <Check size={15} />
         </span>
       )}

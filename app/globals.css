@@ -52,6 +52,16 @@ body {
   border-radius: 4px;
 }
 
+/* Tactile press feedback on every button. Element-level transition so buttons
+   without a Tailwind `transition` class still ease instead of snapping. */
+button {
+  transition: transform 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
 @layer utilities {
   .exotic-border {
     border-color: #c7a64a;
