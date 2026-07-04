@@ -43,10 +43,10 @@ const REEL_MASK = "linear-gradient(to bottom, transparent 0%, black 24%, black 7
 // translateY that vertically centers reel item `i` in the window.
 const offsetFor = (i: number) => (REEL_WINDOW_H - REEL_ITEM_H) / 2 - i * REEL_ITEM_H;
 
-const SLOTS: Array<{ slot: WeaponSlot; label: string; intervalMs: number; staggerMs: number }> = [
-  { slot: "kinetic", label: "Kinetic", intervalMs: 2800, staggerMs: 0 },
-  { slot: "energy", label: "Energy", intervalMs: 2800, staggerMs: 220 },
-  { slot: "power", label: "Power", intervalMs: 2800, staggerMs: 440 },
+const SLOTS: Array<{ slot: WeaponSlot; intervalMs: number; staggerMs: number }> = [
+  { slot: "kinetic", intervalMs: 2800, staggerMs: 0 },
+  { slot: "energy", intervalMs: 2800, staggerMs: 220 },
+  { slot: "power", intervalMs: 2800, staggerMs: 440 },
 ];
 
 function pickTarget(weapons: HeroWeaponSample[], allowExotic: boolean, exclude?: number): number {
@@ -214,24 +214,20 @@ function HeroReelActive({ weaponsBySlot }: { weaponsBySlot: Record<WeaponSlot, H
   const exoticSlotRef = useRef<number | null>(initialExoticSlot === -1 ? null : initialExoticSlot);
 
   return (
-    <div className="flex items-start gap-5" aria-hidden="true">
-      {SLOTS.map(({ slot, label, intervalMs, staggerMs }, i) => (
-        <div key={i} className="flex flex-col items-center gap-2.5">
-          <ReelSlot
-            weapons={weaponsBySlot[slot]}
-            intervalMs={intervalMs}
-            staggerMs={staggerMs}
-            initialTarget={initialTargets[i]}
-            canShowExotic={() => exoticSlotRef.current === null || exoticSlotRef.current === i}
-            onLand={(isExotic) => {
-              if (isExotic) exoticSlotRef.current = i;
-              else if (exoticSlotRef.current === i) exoticSlotRef.current = null;
-            }}
-          />
-          <span className="text-[10px] uppercase tracking-[0.25em] text-gray-500 select-none">
-            {label}
-          </span>
-        </div>
+    <div className="flex items-center gap-5" aria-hidden="true">
+      {SLOTS.map(({ slot, intervalMs, staggerMs }, i) => (
+        <ReelSlot
+          key={i}
+          weapons={weaponsBySlot[slot]}
+          intervalMs={intervalMs}
+          staggerMs={staggerMs}
+          initialTarget={initialTargets[i]}
+          canShowExotic={() => exoticSlotRef.current === null || exoticSlotRef.current === i}
+          onLand={(isExotic) => {
+            if (isExotic) exoticSlotRef.current = i;
+            else if (exoticSlotRef.current === i) exoticSlotRef.current = null;
+          }}
+        />
       ))}
     </div>
   );
@@ -249,17 +245,13 @@ export default function HeroReel({ weaponsBySlot }: { weaponsBySlot: Record<Weap
 
   if (!mounted) {
     return (
-      <div className="flex items-start gap-5" aria-hidden="true">
+      <div className="flex items-center gap-5" aria-hidden="true">
         {SLOTS.map((s) => (
-          <div key={s.slot} className="flex flex-col items-center gap-2.5">
-            <div
-              className="rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-gray-900/80"
-              style={{ width: REEL_ITEM_H, height: REEL_WINDOW_H, boxShadow: INSET_HIGHLIGHT }}
-            />
-            <span className="text-[10px] uppercase tracking-[0.25em] text-gray-500 select-none">
-              {s.label}
-            </span>
-          </div>
+          <div
+            key={s.slot}
+            className="rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-gray-900/80"
+            style={{ width: REEL_ITEM_H, height: REEL_WINDOW_H, boxShadow: INSET_HIGHLIGHT }}
+          />
         ))}
       </div>
     );
