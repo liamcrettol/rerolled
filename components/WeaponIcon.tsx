@@ -17,8 +17,8 @@ export default function WeaponIcon({ icon, watermark, name, size = "medium", cou
 
   return (
     <div className={`relative ${sizeMap[size]} shrink-0 rounded overflow-hidden bg-bungie-dark`}>
-      <Image src={icon} alt={name} fill className="object-cover" unoptimized />
-      {watermark && <Image src={watermark} alt="" fill className="object-cover absolute inset-0" unoptimized />}
+      <Image key={icon} src={icon} alt={name} fill className="object-cover" unoptimized />
+      {watermark && <Image key={watermark} src={watermark} alt="" fill className="object-cover absolute inset-0" unoptimized />}
       {count !== undefined && count > 1 && (
         <div className="absolute bottom-0 right-0 bg-bungie-blue text-white text-xs font-bold px-1.5 py-0.5 rounded-tl">
           {count}×
