@@ -272,6 +272,9 @@ export default function LobbyRoom({
   // The caller's currently-equipped weapon per slot, captured when the pool
   // loads — used to seed the captain's initial loadout from equipped.
   const [equippedHashes, setEquippedHashes] = useState<Partial<Record<WeaponSlot, number>>>({});
+  // Everyone's currently-equipped weapons (live from Bungie on every pool
+  // load), keyed by user id - shown under each fireteam member as a reference.
+  const [memberEquipped, setMemberEquipped] = useState<Record<string, Partial<Record<WeaponSlot, number>>>>({});
   const [preferredInstances, setPreferredInstances] = useState<Partial<Record<WeaponSlot, string>>>({});
   // Per-player roll data (everyone's instances of the current loadout) and the
   // instance THIS player has chosen to equip for each slot.
@@ -719,13 +722,18 @@ export default function LobbyRoom({
     if (hasSeeded.current) return;
     if (!isCaptain || !roundId || !intersection) { console.log("[d2r-seed] blocked: missing captain/round/intersection"); return; }
     if (slots.some((s) => s.item_hash !== 0)) { console.log("[d2r-seed] blocked: slots already populated"); hasSeeded.current = true; return; }
-    hasSeeded.current = true;
     const seedRoundId = roundId;
     const keep: Record<string, number> = {};
     for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
       if (wildcardSlots.has(s)) continue;
       if (equippedHashes[s] != null) keep[s] = equippedHashes[s]!;
     }
+    // The whole point of the seed is showing the captain's EQUIPPED loadout.
+    // If the equipped hashes haven't arrived (or came back empty), don't fall
+    // through to a random roll - leave the round unseeded and let a later
+    // effect run (equippedHashes is a dep) seed it properly.
+    if (Object.keys(keep).length === 0) { console.log("[d2r-seed] blocked: no equipped hashes yet"); return; }
+    hasSeeded.current = true;
     console.log("[d2r-seed] seeding now, keep=", keep);
     (async () => {
       try {
@@ -925,6 +933,7 @@ export default function LobbyRoom({
         if (eq?.[slot] != null) equipped[slot] = eq[slot]!;
       }
       setEquippedHashes(equipped);
+      setMemberEquipped(data.memberEquipped ?? {});
     } catch (e) {
       setIntersectionError(e instanceof Error ? e.message : "Network error");
     }
@@ -1196,18 +1205,57 @@ export default function LobbyRoom({
         {!contextExpanded ? (
           <button
             onClick={() => setContextExpanded(true)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition rounded-xl"
+            className="w-full px-3 py-2.5 text-left hover:bg-white/5 transition rounded-xl"
           >
-            <span className="text-xs text-gray-400 truncate">
-              {members.length} in fireteam
-              {(() => {
-                const selectedChar = characters.find((c) => c.characterId === selectedCharId);
-                return selectedChar
-                  ? ` · Your Guardian: ${CLASS_NAMES[selectedChar.classType] ?? "Guardian"}`
-                  : "";
-              })()}
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-400 truncate">
+                {members.length} in fireteam
+                {(() => {
+                  const selectedChar = characters.find((c) => c.characterId === selectedCharId);
+                  return selectedChar
+                    ? ` · Your Guardian: ${CLASS_NAMES[selectedChar.classType] ?? "Guardian"}`
+                    : "";
+                })()}
+              </span>
+              <span className="text-[10px] text-gray-500 shrink-0 uppercase tracking-wide">Change</span>
             </span>
-            <span className="text-[10px] text-gray-500 shrink-0 uppercase tracking-wide">Change</span>
+            {/* Everyone's currently-equipped weapons, one icon-trio per member,
+                so the reference stays visible even with the card collapsed. */}
+            {(() => {
+              const groups = members
+                .filter((m) => !m.is_spectator && memberEquipped[m.user_id])
+                .map((m) => ({
+                  member: m,
+                  details: (["kinetic", "energy", "power"] as WeaponSlot[]).map((s) => {
+                    const h = memberEquipped[m.user_id]?.[s];
+                    return h != null ? weaponDetails[h.toString()] : undefined;
+                  }),
+                }))
+                .filter((g) => g.details.some((d) => d?.icon));
+              if (groups.length === 0) return null;
+              return (
+                <span className="mt-1.5 flex items-center gap-2.5 flex-wrap">
+                  {groups.map(({ member, details }) => (
+                    <span
+                      key={member.id}
+                      className="flex items-center gap-1"
+                      title={`${trimBungieName(member.display_name)} has equipped: ${details
+                        .map((d) => d?.name ?? "—")
+                        .join(" · ")}`}
+                    >
+                      {details.map((d, i) =>
+                        d?.icon ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={d.icon} alt={d.name} className="w-5 h-5 rounded-sm border border-white/10" />
+                        ) : (
+                          <span key={i} className="w-5 h-5 rounded-sm border border-white/5 bg-white/5" />
+                        )
+                      )}
+                    </span>
+                  ))}
+                </span>
+              );
+            })()}
           </button>
         ) : (
           <>
@@ -1225,9 +1273,39 @@ export default function LobbyRoom({
                 )}
               </div>
               <div className="space-y-0.5">
-                {members.map((m) => (
-                  <PlayerCard key={m.id} member={m} variant="sidebar" />
-                ))}
+                {members.map((m) => {
+                  // What this member is running right now (live from Bungie on
+                  // every pool load) - a reference, not the rolled loadout.
+                  const eq = memberEquipped[m.user_id];
+                  const equippedDetails = !m.is_spectator && eq
+                    ? (["kinetic", "energy", "power"] as WeaponSlot[])
+                        .map((s) => (eq[s] != null ? weaponDetails[eq[s]!.toString()] : undefined))
+                    : [];
+                  const hasEquipped = equippedDetails.some((d) => d?.icon);
+                  return (
+                    <div key={m.id}>
+                      <PlayerCard member={m} variant="sidebar" />
+                      {hasEquipped && (
+                        <div className="flex items-center gap-1 pl-[38px] pb-1.5 -mt-0.5">
+                          {equippedDetails.map((d, i) =>
+                            d?.icon ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i}
+                                src={d.icon}
+                                alt={d.name}
+                                title={`Equipped: ${d.name}`}
+                                className="w-5 h-5 rounded-sm border border-white/10"
+                              />
+                            ) : (
+                              <span key={i} className="w-5 h-5 rounded-sm border border-white/5 bg-white/5" />
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

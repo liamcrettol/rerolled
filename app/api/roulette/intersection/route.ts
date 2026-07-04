@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     const { data: members, error: membersError } = await adminSupabase
       .from("lobby_members")
-      .select("user_id, display_name, bungie_membership_type, bungie_membership_id")
+      .select("user_id, display_name, bungie_membership_type, bungie_membership_id, selected_character_id")
       .eq("lobby_id", lobbyId)
       .eq("is_spectator", false);
 
@@ -463,12 +463,38 @@ export async function POST(req: NextRequest) {
       if (equipped) equippedHashes[slot] = equipped.itemHash;
     }
 
+    // ── Phase 7a: Everyone's currently-equipped loadout ─────────────────────
+    // Live per member (the profile fetch above always includes component 205),
+    // keyed by user id and preferring their selected guardian - surfaced in
+    // the lobby fireteam list as a reference of what each player is running.
+    const memberEquipped: Record<string, Partial<Record<WeaponSlot, number>>> = {};
+    for (const member of members) {
+      const data = memberDataMap.get(member.user_id);
+      if (!data) continue;
+      const eq: Partial<Record<WeaponSlot, number>> = {};
+      for (const slot of slots) {
+        const w =
+          data.weapons.find(
+            (x) =>
+              x.slot === slot &&
+              x.isEquipped &&
+              (!member.selected_character_id || x.characterId === member.selected_character_id)
+          ) ?? data.weapons.find((x) => x.slot === slot && x.isEquipped);
+        if (w) eq[slot] = w.itemHash;
+      }
+      memberEquipped[member.user_id] = eq;
+    }
+
     // The round starts on the captain's currently-equipped loadout. Make sure
-    // those weapons have details to render even if they aren't in the shared
-    // pool (otherwise the seeded slot would come back empty).
-    const equippedHashList = Object.values(equippedHashes).filter(
-      (h): h is number => h !== null
-    );
+    // those weapons (and every member's equipped reference) have details to
+    // render even if they aren't in the shared pool (otherwise the seeded
+    // slot/reference would come back empty).
+    const equippedHashList = [
+      ...Object.values(equippedHashes).filter((h): h is number => h !== null),
+      ...Object.values(memberEquipped).flatMap((eq) =>
+        Object.values(eq).filter((h): h is number => h != null)
+      ),
+    ];
     const missingEquipped = equippedHashList.filter(
       (h) => !weaponDetails[h.toString()]
     );
@@ -611,6 +637,7 @@ export async function POST(req: NextRequest) {
       weaponDetails,
       memberCount: memberDataMap.size,
       equippedHashes,
+      memberEquipped,
       instancePerks,
       collectionHashes: [...collectionHashSet],
       weaponReleases,
