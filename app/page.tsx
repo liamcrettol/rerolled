@@ -25,7 +25,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         <p className="text-bungie-blue text-sm font-semibold uppercase tracking-[0.2em] mb-2">
           Destiny 2
         </p>
-        <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-white mb-4">
+        <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-4 bg-gradient-to-b from-white via-white to-gray-400 bg-clip-text text-transparent">
           Gun Roulette
         </h1>
         <p className="text-gray-400 text-lg max-w-md mx-auto">
@@ -56,7 +56,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
         {[
           { Icon: Shuffle, title: "Random Rolls", desc: "Only rolls weapons everyone has" },
           { Icon: Zap, title: "Auto-Equip", desc: "Equips the whole fireteam at once" },
@@ -67,7 +67,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
             className="glass-card rounded-xl p-4 transition hover:-translate-y-1 hover:border-bungie-blue/50 animate-rise-in"
             style={{ opacity: 0, animationDelay: `${280 + i * 80}ms` }}
           >
-            <f.Icon size={26} className="mx-auto mb-2 text-bungie-blue" />
+            <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-bungie-blue/10 ring-1 ring-bungie-blue/30 mb-3">
+              <f.Icon size={20} className="text-bungie-blue" />
+            </span>
             <div className="font-semibold text-white text-sm">{f.title}</div>
             <div className="text-xs text-gray-400 mt-1">{f.desc}</div>
           </div>
