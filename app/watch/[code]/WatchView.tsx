@@ -273,7 +273,7 @@ export default function WatchView({
 
       {/* Current loadout */}
       <h2 className="text-white font-semibold text-sm mb-2">This round&apos;s loadout</h2>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {SLOT_ORDER.map((slotName, i) => {
           const slot = ordered[i];
           const isWildcard = slot?.item_hash === 0;

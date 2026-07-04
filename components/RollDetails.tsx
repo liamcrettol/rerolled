@@ -227,7 +227,7 @@ export default function RollDetails({
   // on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
     const cls = large
-      ? "w-12 h-12 rounded border transition"
+      ? "w-10 h-10 rounded border transition"
       : "w-8 h-8 rounded border";
     const neutralCls = socketClass(cls, undefined, false);
     const noTip = !large;
@@ -341,7 +341,7 @@ export default function RollDetails({
       <div
         key={m.userId}
         aria-label={isBest ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
-        className={`relative rounded-lg overflow-hidden flex flex-col ${
+        className={`relative rounded-lg overflow-hidden flex flex-col w-full max-w-[26rem] ${
           isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
@@ -471,10 +471,12 @@ export default function RollDetails({
         </p>
       </div>
 
-      <div className="px-3 py-3 flex gap-3">
+      <div className="px-3 py-3 flex flex-col md:flex-row gap-3">
         {/* Far-left column: weapon selector on top, then your rolls for the
-            selected gun. Click a roll to drive your card; star favorites it. */}
-        <div className="w-[15rem] shrink-0 pr-2 border-r border-bungie-border/50 flex flex-col gap-2">
+            selected gun. Click a roll to drive your card; star favorites it.
+            Stacks above the cards below md - side-by-side there crushes the
+            member cards to nothing on phones. */}
+        <div className="w-full md:w-[15rem] shrink-0 md:pr-2 border-bungie-border/50 border-b pb-3 md:border-b-0 md:pb-0 md:border-r flex flex-col gap-2">
           {/* Weapon selector */}
           <div className="flex flex-col gap-1">
             {present.map((s) => {
@@ -544,13 +546,16 @@ export default function RollDetails({
           </div>
         </div>
 
-        {/* Comparison: a card per member, emblem-width, 3 per row. Full height for
-            one row; scrolls only once the lobby spills into another row. */}
+        {/* Comparison: a card per member. Columns adapt to the space available
+            (min ~15rem per card) instead of a fixed 3-up, so a solo lobby on a
+            laptop gets one well-proportioned card instead of a squished third-
+            width one next to a wall of empty space. Full height for one row;
+            scrolls only once the lobby spills into another row. */}
         <div className="flex-1 min-w-0">
-          <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} overflow-x-auto pr-1`}>
+          <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} pr-1`}>
             <div
-              className="grid gap-3 content-start min-w-full"
-              style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+              className="grid gap-3 content-start"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 15rem), 1fr))" }}
             >
               {members.map((m) => memberCard(m))}
             </div>
