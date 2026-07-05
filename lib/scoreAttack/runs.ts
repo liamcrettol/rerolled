@@ -127,7 +127,7 @@ export async function transitionRun(
 ): Promise<RunResult> {
   const { data: run } = await db
     .from("challenge_runs")
-    .select("id, status, created_by")
+    .select("id, status, created_by, activity_hash")
     .eq("id", args.runId)
     .maybeSingle();
 
@@ -153,6 +153,34 @@ export async function transitionRun(
 
   const { error } = await db.from("challenge_runs").update(patch).eq("id", args.runId);
   if (error) return { ok: false, error: error.message, httpStatus: 500 };
+
+  // Once the loadout is applied, start watching the activity: kick off the first
+  // equipment snapshot + activity-history poll (both self-reschedule). Best
+  // effort — a queue hiccup must not fail the transition.
+  if (args.next === "applied") {
+    try {
+      const { data: owner } = await db
+        .from("challenge_run_participants")
+        .select("bungie_membership_id, bungie_membership_type, character_id")
+        .eq("run_id", args.runId)
+        .eq("user_id", args.userId)
+        .maybeSingle();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const o = owner as any;
+      if (o?.bungie_membership_id && o?.character_id) {
+        const base = {
+          runId: args.runId,
+          membershipId: o.bungie_membership_id,
+          membershipType: o.bungie_membership_type ?? 3,
+          characterId: o.character_id,
+        };
+        await enqueueJob({ jobType: "capture_equipment_snapshot", runId: args.runId, payload: base }, db);
+        await enqueueJob({ jobType: "poll_activity_history", runId: args.runId, payload: { ...base, appliedAt: new Date().toISOString() } }, db);
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
 
   // Best-effort audit trail; failure here must not fail the transition.
   try {

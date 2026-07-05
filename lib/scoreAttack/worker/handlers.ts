@@ -13,6 +13,14 @@
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { evaluateBadges, buildPlayerBadgeInsert } from "@/lib/badges/evaluators";
+import {
+  captureEquipmentSnapshotHandler,
+  pollActivityHistoryHandler,
+  fetchPgcrHandler,
+  parsePgcrHandler,
+  computeScoreHandler,
+  computeComplianceHandler,
+} from "./detection";
 import type { WorkerJobRow } from "./store";
 import type { ScoreAttackJobType } from "./jobs";
 
@@ -143,6 +151,14 @@ export const expireRunHandler: JobHandler = async (job, db) => {
 
 /** Registered handlers. Unregistered job types are a logged no-op in the runner. */
 export const JOB_HANDLERS: Partial<Record<ScoreAttackJobType, JobHandler>> = {
+  // Bungie-detection half — pass the runner's db through to the detection deps.
+  capture_equipment_snapshot: (job, db) => captureEquipmentSnapshotHandler(job, { db }),
+  poll_activity_history: (job, db) => pollActivityHistoryHandler(job, { db }),
+  fetch_pgcr: (job, db) => fetchPgcrHandler(job, { db }),
+  parse_pgcr: (job, db) => parsePgcrHandler(job, { db }),
+  compute_score: (job, db) => computeScoreHandler(job, { db }),
+  compute_compliance: (job, db) => computeComplianceHandler(job, { db }),
+  // Finalize half.
   update_leaderboard: updateLeaderboardHandler,
   award_badges: awardBadgesHandler,
   expire_run: expireRunHandler,

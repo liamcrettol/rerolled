@@ -1,4 +1,8 @@
 /** @jest-environment node */
+// handlers.ts transitively imports getBungieToken (→ next-auth ESM); stub it so
+// the suite loads. The finalize handlers under test never call it.
+jest.mock("@/lib/auth/helpers", () => ({ getBungieToken: jest.fn() }));
+
 import { enqueueJob, claimNextJob, completeJob, failJob } from "@/lib/scoreAttack/worker/store";
 import { updateLeaderboardHandler, expireRunHandler, awardBadgesHandler } from "@/lib/scoreAttack/worker/handlers";
 import { processWorkerJobs } from "@/lib/scoreAttack/worker/process";
@@ -126,7 +130,9 @@ describe("processWorkerJobs", () => {
   });
 
   it("completes an unregistered job type as a no-op without retrying", async () => {
-    const db = makeDb({ rpc: { claim_next_worker_job: [{ id: "j1", job_type: "fetch_pgcr", run_id: "r1" }, null] } });
+    // All real job types are registered now; use a bogus type to exercise the
+    // defensive no-op path (forward-compat for new/unknown job types).
+    const db = makeDb({ rpc: { claim_next_worker_job: [{ id: "j1", job_type: "unknown_future_type", run_id: "r1" }, null] } });
     const result = await processWorkerJobs({ maxJobs: 5, db });
     expect(result).toMatchObject({ processed: 1, noHandler: 1, completed: 0, failed: 0 });
   });
