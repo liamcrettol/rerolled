@@ -3,9 +3,11 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import PlatformShell from "@/components/platform/PlatformShell";
 import SeasonPanel from "@/components/platform/SeasonPanel";
+import BadgeShelf from "@/components/platform/BadgeShelf";
 import DashboardStats from "@/components/DashboardStats";
 import Spinner from "@/components/Spinner";
 import { getSeasonStats } from "@/lib/stats/season";
+import { getUserBadges } from "@/lib/badges/data";
 
 // Stats page (#250). Your Season summary panel plus the existing roulette
 // aggregate stats. The panel data is mock for this pass; the durable
@@ -16,13 +18,17 @@ export default async function StatsPage() {
   const session = await auth();
   if (!session?.userId) redirect("/");
 
-  const season = await getSeasonStats(session.userId);
+  const [season, badges] = await Promise.all([
+    getSeasonStats(session.userId),
+    getUserBadges(session.userId),
+  ]);
 
   return (
     <PlatformShell displayName={session.displayName}>
       <div className="space-y-8">
-        <div className="max-w-md">
+        <div className="grid md:grid-cols-2 gap-6 items-start max-w-3xl">
           <SeasonPanel stats={season} />
+          <BadgeShelf badges={badges} />
         </div>
 
         <div>
