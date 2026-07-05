@@ -8,11 +8,13 @@ const BUNGIE_REDIRECT_URI =
   process.env.BUNGIE_REDIRECT_URI ||
   `${BASE_URL}/api/auth/bungie/callback`;
 
+// Redirect the user with a STABLE, generic error code only (#239). Raw upstream
+// response bodies / exception strings are kept server-side in logs — they must
+// not leak into browser history, screenshots, analytics, or copied URLs.
 function errRedirect(step: string, detail?: string) {
-  const msg = detail ? `${step}: ${detail}` : step;
-  console.error("[bungie/callback] failed at:", msg);
+  console.error("[bungie/callback] failed at:", detail ? `${step}: ${detail}` : step);
   return NextResponse.redirect(
-    `${BASE_URL}/auth/error?error=${encodeURIComponent(msg)}`
+    `${BASE_URL}/auth/error?error=${encodeURIComponent(step)}`
   );
 }
 
