@@ -1,6 +1,6 @@
 // Full-screen route loading state: a revolver cylinder with one loaded round
 // in Bungie blue, rotating in stepped 60° clicks (see cyl-spin in the
-// Tailwind config) - the "gun roulette" made literal. Used by the per-route
+// Tailwind config) - the loadout roulette theme made literal. Used by the per-route
 // loading.tsx files; the tiny inline Spinner stays for in-panel fetches.
 export default function RouletteLoader({ label }: { label?: string }) {
   const chambers = [0, 1, 2, 3, 4, 5].map((i) => {

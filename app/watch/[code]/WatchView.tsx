@@ -257,7 +257,7 @@ export default function WatchView({
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
+          <h1 className="text-2xl font-bold text-white">Destiny Roulette</h1>
           <p className="text-gray-400 text-sm">
             Watching <span className="font-mono text-bungie-blue font-bold slashed-zero">{code}</span> · Round {roundNumber}
           </p>

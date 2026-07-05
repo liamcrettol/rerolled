@@ -40,10 +40,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       <div className="text-center">
         <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
         <h1 className="text-5xl md:text-6xl font-bold uppercase tracking-tight text-white">
-          Gun Roulette
+          Destiny Roulette
         </h1>
         <p className="text-gray-400 mt-3">
-          Random loadouts, scored solo runs, and weekly challenges for your fireteam.
+          PvP loadout chaos, scored PvE runs, and weekly challenges for your fireteam.
         </p>
       </div>
 

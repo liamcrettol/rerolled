@@ -5,7 +5,7 @@
 // mode later means extending a record here, not rewriting the homepage.
 //
 // Roadmap status per #237:
-//   - gun_roulette   → live, routes into the existing lobby flow
+//   - gun_roulette   → live PvP loadout roulette, routes into the existing lobby flow
 //   - score_attack   → new, live solo run flow (roll → equip → auto-score)
 //   - weekly_challenge → surfaced via the hero, not the grid; run flow on /weekly
 //   - draft / ironman → disabled roadmap cards until Weekly v1 ships (#253)
@@ -18,8 +18,8 @@ import type { ModeDefinition, ModeId } from "@/types/platform";
 export const MODES: Record<ModeId, ModeDefinition> = {
   gun_roulette: {
     id: "gun_roulette",
-    title: "Gun Roulette",
-    description: "Roll a random loadout for your fireteam, then equip it together.",
+    title: "PvP Loadout Roulette",
+    description: "Roll a random Crucible loadout for your fireteam, then equip it together.",
     status: "live",
     enabled: true,
     // Reuses the existing, working lobby-creation flow.

@@ -1,6 +1,6 @@
-# Destiny 2 Gun Roulette
+# Destiny Roulette
 
-Destiny 2 Gun Roulette is a web app for creating random weapon loadouts with friends using the Bungie API.
+Destiny Roulette is a web app for creating random weapon loadouts and challenge runs with friends using the Bungie API.
 
 Users can sign in with their Bungie account, view their Destiny 2 weapons, join a shared lobby, and generate or queue roulette-style weapon loadouts. The app is intended for private group use between matches while players are in orbit.
 

@@ -2,15 +2,13 @@
 
 // Platform top nav (#243).
 //
-// Placeholder wordmark + primary section links + signed-in Bungie display name.
-// WORDMARK is deliberately a working placeholder ("REROLL") — the final public
-// product name is undecided (#237/#243), so nothing here is presented as final.
+// Product wordmark + primary section links + signed-in Bungie display name.
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 
-const WORDMARK = "REROLL"; // placeholder working name — not final branding
+const WORDMARK = "Destiny Roulette";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },

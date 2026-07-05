@@ -1,6 +1,6 @@
 # Security Policy
 
-Destiny 2 Gun Roulette is an early-development, personal/community project for
+Destiny Roulette is an early-development, personal/community project for
 Destiny 2 friend groups. It handles user-linked Bungie account data, so this
 document explains what is stored, how it is protected, and how to report a
 problem. It is meant to be read alongside the [privacy policy](app/privacy/page.tsx)

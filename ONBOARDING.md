@@ -1,6 +1,6 @@
-# Destiny Gun Roulette - Developer Onboarding
+# Destiny Roulette - Developer Onboarding
 
-Welcome to the Destiny Gun Roulette project! This guide will help you set up your local development environment.
+Welcome to the Destiny Roulette project! This guide will help you set up your local development environment.
 
 ## Prerequisites
 
