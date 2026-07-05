@@ -40,7 +40,9 @@ export default function SeasonPanel({ stats }: { stats: SeasonStats }) {
                 stats.bestWeapon ? (
                   <span className="text-bungie-blue">
                     {stats.bestWeapon.name}
-                    <span className="text-gray-500 ml-2">{stats.bestWeapon.kills}</span>
+                    {stats.bestWeapon.kills > 0 && (
+                      <span className="text-gray-500 ml-2">{stats.bestWeapon.kills}</span>
+                    )}
                   </span>
                 ) : (
                   "—"

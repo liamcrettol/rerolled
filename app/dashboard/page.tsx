@@ -25,7 +25,7 @@ export default async function Dashboard() {
   const challenge = await getActiveWeeklyChallenge();
   const [activeSession, placement, standings, season] = await Promise.all([
     getActiveSessionForUser(session.userId),
-    getUserWeeklyPlacement(session.userId),
+    getUserWeeklyPlacement(session.userId, challenge?.id ?? null),
     challenge ? getStandingsPreview(challenge.id, session.userId) : Promise.resolve([]),
     getSeasonStats(session.userId),
   ]);
