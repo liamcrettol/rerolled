@@ -1,5 +1,20 @@
 "use client";
 
+// #226 considered folding this into LobbyRoom behind a readOnly/spectator
+// prop, since the two render largely overlapping information (fireteam,
+// current loadout, match history). Deliberately NOT doing that: this view is
+// reached from app/watch/[code]/page.tsx, which has no `auth()`/session
+// check at all — the "Watch" link in LobbyRoom's header is a public,
+// unauthenticated spectator URL meant to be shared with people who don't
+// have (or haven't signed into) a Bungie account. LobbyRoom's entire data
+// layer — useLobbySession's isCaptain/isSpectator/isHost, the Bungie
+// inventory/weapon-pool fetch, character selection — assumes a real
+// `currentUserId` tied to a Bungie session. Unifying the two would mean
+// either bolting an "anonymous" mode onto that hook stack (undoing the
+// #224 cleanup by reintroducing conditional complexity for a fundamentally
+// different auth context) or routing anonymous viewers through the
+// authenticated page and breaking the no-login spectator link outright.
+// Keep this component intentionally small, read-only, and independent.
 import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
