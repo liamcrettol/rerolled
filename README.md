@@ -22,6 +22,12 @@ This app uses the Bungie API to read Destiny 2 profile, inventory, vault, and eq
 The app does not store Bungie passwords. Authentication is handled through Bungie OAuth.
 See `/privacy` (`app/privacy/page.tsx`) for the full privacy policy — what's stored, why, and how to request deletion.
 
+## Security
+
+See [`SECURITY.md`](SECURITY.md) for how tokens are encrypted, what account/game
+data is stored, secret-handling expectations for collaborators, and how to
+report a vulnerability.
+
 ## Local Development Setup
 
 ### Prerequisites
