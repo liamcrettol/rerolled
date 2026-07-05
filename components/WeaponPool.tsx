@@ -336,6 +336,13 @@ export default function WeaponPool({
   const [hideCollections, setHideCollections] = useState(false);
 
   const { onHover, onLeave, node: tooltipNode } = useWeaponTooltip(weaponDetails, instancePerks, collectionHashes);
+  const clearFilters = () => {
+    setSearch("");
+    setTypeFilter("all");
+    setRarityFilter("all");
+    setMetaOnly(false);
+    setHideCollections(false);
+  };
 
   // Reset search + filters when the slot tab changes (types differ per slot)
   useEffect(() => {
@@ -377,6 +384,7 @@ export default function WeaponPool({
     if (hideCollections && collectionHashes.has(h)) return false;
     return true;
   });
+  const visibleCollectionCount = sorted.filter((h) => collectionHashes.has(h)).length;
   const activeHash = currentHashes[activeTab];
   const activeInstance = currentInstances[activeTab];
 
@@ -461,10 +469,13 @@ export default function WeaponPool({
             <button
               onClick={() => setHideCollections((v) => !v)}
               aria-pressed={hideCollections}
+              disabled={visibleCollectionCount === 0}
               className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
                 hideCollections
                   ? "border-amber-400 bg-amber-500/15 text-amber-200"
-                  : "border-bungie-border text-gray-300 hover:border-gray-400"
+                  : visibleCollectionCount === 0
+                    ? "border-bungie-border/50 text-gray-600 cursor-not-allowed"
+                    : "border-bungie-border text-gray-300 hover:border-gray-400"
               }`}
             >
               Hide Collections
@@ -475,9 +486,26 @@ export default function WeaponPool({
         {/* Weapon list */}
         <div className={`px-3 pb-3 space-y-2 flex-1 ${noScroll ? "" : "overflow-y-auto"}`}>
           {filtered.length === 0 ? (
-            <p className="text-gray-500 text-xs py-4 text-center">
-              {filtersActive ? "No matches" : "No shared weapons"}
-            </p>
+            <div className="rounded-lg border border-bungie-border/60 bg-bungie-dark/60 px-3 py-4 mt-3 text-center">
+              <p className="text-sm font-semibold text-gray-300">
+                {filtersActive ? "No weapons match these filters" : "No shared weapons in this slot"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                {filtersActive
+                  ? hideCollections && sorted.length > 0 && sorted.every((h) => collectionHashes.has(h))
+                    ? "This slot is only showing collection pulls right now."
+                    : "Search, type, rarity, meta, or collection filters may be narrowing the list."
+                  : "Try another slot or reload the shared pool once everyone is ready."}
+              </p>
+              {filtersActive && (
+                <button
+                  onClick={clearFilters}
+                  className="mt-3 rounded-lg border border-bungie-border px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-gray-400 hover:text-white"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
           ) : (
             <>
               {filtersActive && filtered.length !== sorted.length && (

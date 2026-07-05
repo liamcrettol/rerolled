@@ -134,6 +134,7 @@ export default function RollDetails({
   const slot = rolls[activeTab]!;
   const theme = damageTheme(slot.damageType);
   const base = slot.baseStats;
+  const activeWeaponName = slot.weaponName ?? SLOT_LABELS[activeTab];
 
   const members = slot.members;
   const scrollMemberCards = members.length > 3;
@@ -460,9 +461,19 @@ export default function RollDetails({
     <Card className="overflow-hidden">
       <div className="px-4 py-2.5 border-b border-bungie-border">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-white font-semibold text-sm">
-            Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="text-white font-semibold text-sm">
+              Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
+            </h2>
+            <p className="mt-0.5 text-xs text-gray-500 truncate">
+              {activeWeaponName} · {members.length} fireteam {members.length === 1 ? "roll" : "rolls"}
+            </p>
+          </div>
+          {myShown && (
+            <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold ${myShown.isBestRoll ? "border-amber-400/50 bg-amber-400/10 text-amber-200" : `${theme.border} ${theme.bg} ${theme.text}`}`}>
+              {myShown.isBestRoll ? bestRollLabel(myShown) : "Selected roll"}
+            </span>
+          )}
         </div>
       </div>
 
@@ -474,6 +485,7 @@ export default function RollDetails({
         <div className="w-full md:w-[15rem] shrink-0 md:pr-2 border-bungie-border/50 border-b pb-3 md:border-b-0 md:pb-0 md:border-r flex flex-col gap-2">
           {/* Weapon selector */}
           <div className="flex flex-col gap-1">
+            <p className="text-[10px] uppercase tracking-widest text-gray-600 px-1">Loadout weapons</p>
             {present.map((s) => {
               const t = damageTheme(rolls[s]!.damageType);
               const weaponName = rolls[s]!.weaponName || SLOT_LABELS[s];
@@ -496,9 +508,17 @@ export default function RollDetails({
 
           {/* Your rolls (scrollable) */}
           <div className="max-h-[20rem] overflow-y-auto pr-1 pb-1 space-y-1">
-          <p className={`text-xs font-semibold px-1 mb-1 ${theme.text}`}>Your rolls</p>
+          <div className="flex items-center justify-between gap-2 px-1 mb-1">
+            <p className={`text-xs font-semibold ${theme.text}`}>Your rolls</p>
+            <span className="text-[10px] text-gray-500">
+              {myInstances.length} {myInstances.length === 1 ? "roll" : "rolls"}
+              {myInstances.some((inst) => inst.isBestRoll) ? " · best first" : ""}
+            </span>
+          </div>
           {myInstances.length === 0 ? (
-            <p className="text-gray-500 text-[10px] px-1">{me?.failed ? "couldn't load" : "—"}</p>
+            <p className="rounded-lg border border-bungie-border/60 bg-bungie-dark/60 px-2 py-2 text-gray-500 text-[11px]">
+              {me?.failed ? "Your rolls could not load for this weapon." : "No owned rolls for this weapon."}
+            </p>
           ) : (
             myInstances.map((inst) => {
               const isSel = inst.instanceId === myShown?.instanceId;

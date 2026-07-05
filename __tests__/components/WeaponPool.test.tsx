@@ -64,4 +64,19 @@ describe("WeaponPool", () => {
     expect(screen.getByText("Legendary Shared")).toBeInTheDocument();
     expect(screen.getByText("Favorite Pick")).toBeInTheDocument();
   });
+
+  it("shows a useful empty state and clears filters", () => {
+    renderPool();
+
+    fireEvent.change(screen.getByPlaceholderText("Search kinetic…"), {
+      target: { value: "not a real gun" },
+    });
+
+    expect(screen.getByText("No weapons match these filters")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear Filters" }));
+
+    expect(screen.getByText("Favorite Pick")).toBeInTheDocument();
+    expect(screen.queryByText("No weapons match these filters")).not.toBeInTheDocument();
+  });
 });

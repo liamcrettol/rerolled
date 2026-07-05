@@ -120,9 +120,15 @@ export default function LobbySidebar({
   onLoadIntersection,
   onHide,
 }: Props) {
+  const [mobileSection, setMobileSection] = useState<"fireteam" | "weapons">("weapons");
   const currentUserNeedsReauth =
     intersectionAuthIssue?.failedUserIds.includes(currentUserId) ?? false;
   const failedNames = intersectionAuthIssue?.failedDisplayNames ?? [];
+  const selectedChar = characters.find((c) => c.characterId === selectedCharId);
+  const activeMembers = members.filter((m) => !m.is_spectator);
+  const selectedMembers = activeMembers.filter((m) => m.selected_character_id);
+  const fireteamReady = activeMembers.length > 0 && selectedMembers.length === activeMembers.length;
+  const poolReady = Boolean(intersection || effectiveIntersection) && !intersectionAuthIssue && !poolLoading;
 
   return (
     <aside className="w-full xl:w-96 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col">
@@ -138,12 +144,28 @@ export default function LobbySidebar({
         </button>
       </div>
 
+      <div className="xl:hidden grid grid-cols-2 gap-1 mb-3 rounded-lg border border-bungie-border bg-bungie-surface p-1">
+        {(["fireteam", "weapons"] as const).map((section) => (
+          <button
+            key={section}
+            onClick={() => setMobileSection(section)}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+              mobileSection === section
+                ? "bg-bungie-blue/20 text-white"
+                : "text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            {section === "fireteam" ? "Fireteam" : "Weapons"}
+          </button>
+        ))}
+      </div>
+
       {/* Single scrollable area covering the context card + weapon pool. */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-0.5">
 
       {/* Context: Fireteam + Your Guardian. Expandable by hand, but never
           auto-collapsed after guardian selection. */}
-      <Card border="subtle" className="shrink-0">
+      <Card border="subtle" className={`shrink-0 ${mobileSection === "weapons" ? "hidden xl:block" : ""}`}>
         {!contextExpanded ? (
           <button
             onClick={() => onSetContextExpanded(true)}
@@ -182,6 +204,16 @@ export default function LobbySidebar({
                   <PlayerCard key={m.id} member={m} variant="sidebar" />
                 ))}
               </div>
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                <ReadinessPill ready={Boolean(selectedCharId)} label="Guardian" detail={selectedChar ? CLASS_NAMES[selectedChar.classType] ?? "Selected" : "Needed"} />
+                <ReadinessPill ready={fireteamReady} label="Fireteam" detail={`${selectedMembers.length}/${activeMembers.length || members.length}`} />
+                <ReadinessPill ready={poolReady} loading={poolLoading} label="Weapons" detail={poolLoading ? "Loading" : poolReady ? "Ready" : failedNames.length > 0 ? "Auth" : "Pending"} />
+              </div>
+              {failedNames.length > 0 && (
+                <p className="mt-2 rounded-lg border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-[11px] leading-4 text-red-200">
+                  Waiting on {failedNames.join(", ")} to sign in again. The lobby retries automatically.
+                </p>
+              )}
             </div>
 
             {/* Guardian picker */}
@@ -227,7 +259,7 @@ export default function LobbySidebar({
           (loading / not-yet-loaded states) to avoid two stacked titles for the
           same section (#208). */}
       {!isSpectator && (
-        <div className="flex flex-col gap-2 shrink-0">
+        <div className={`flex flex-col gap-2 shrink-0 ${mobileSection === "fireteam" ? "hidden xl:flex" : ""}`}>
           <div className="flex items-center justify-between">
             {!intersection && (
               <h2 className="text-white font-semibold text-sm flex items-center gap-2">
@@ -325,7 +357,14 @@ function InventoryAuthNotice({
 }) {
   return (
     <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-      <p className="text-xs leading-5 text-red-200">{error}</p>
+      <p className="text-[10px] uppercase tracking-widest text-red-300/80">Inventory needs attention</p>
+      <p className="mt-1 text-xs leading-5 text-red-100">
+        {currentUserNeedsReauth
+          ? "Your Bungie session needs a quick refresh before this fireteam can roll shared weapons."
+          : failedNames.length > 0
+            ? `${failedNames.join(", ")} needs to refresh Bungie sign-in before shared weapons can load.`
+            : error}
+      </p>
       {currentUserNeedsReauth ? (
         <a
           href={reauthHref}
@@ -338,6 +377,35 @@ function InventoryAuthNotice({
           Waiting for {failedNames.join(", ")} to sign in again. This will retry automatically.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function ReadinessPill({
+  ready,
+  loading,
+  label,
+  detail,
+}: {
+  ready: boolean;
+  loading?: boolean;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <div className={`rounded-lg border px-2 py-1.5 ${
+      ready
+        ? "border-green-500/25 bg-green-500/10"
+        : loading
+          ? "border-bungie-blue/30 bg-bungie-blue/10"
+          : "border-bungie-border bg-bungie-dark/60"
+    }`}>
+      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`mt-0.5 text-[11px] font-semibold truncate ${
+        ready ? "text-green-300" : loading ? "text-bungie-blue" : "text-gray-400"
+      }`}>
+        {detail}
+      </p>
     </div>
   );
 }

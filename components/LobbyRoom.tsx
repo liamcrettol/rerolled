@@ -239,6 +239,21 @@ export default function LobbyRoom({
   const loadingAction: string | null = rolling ? "roll" : applying ? "apply" : poolLoading ? "intersection" : null;
   const currentUserNeedsReauth = intersectionAuthIssue?.failedUserIds.includes(currentUserId) ?? false;
   const reauthHref = `/api/auth/bungie/login?reauth=1&returnTo=${encodeURIComponent(`/lobby/${lobby.code}`)}`;
+  const hasRolledLoadout = slots.some((s) => s.item_hash !== 0);
+  const rollDisabledReason =
+    loadingAction === "roll" ? "Rolling now"
+    : loadingAction === "apply" ? "Applying loadout"
+    : loadingAction === "intersection" ? "Loading shared weapons"
+    : rerollExhausted ? "No rerolls left this round"
+    : !intersection ? "Load shared weapons first"
+    : null;
+  const applyDisabledReason =
+    loadingAction === "apply" ? "Applying now"
+    : loadingAction === "roll" ? "Wait for the roll to finish"
+    : loadingAction === "intersection" ? "Loading shared weapons"
+    : !selectedCharId ? "Select a Guardian first"
+    : slots.length < 3 ? "Roll all three slots first"
+    : null;
 
   // Keep captainLocked in sync with real-time lobby updates
   useEffect(() => { setCaptainLocked(lobbyData.captain_locked ?? false); }, [lobbyData.captain_locked]);
@@ -726,7 +741,8 @@ export default function LobbyRoom({
                     {isCaptain && (
                       <button
                         onClick={() => handleRoll()}
-                        disabled={loadingAction !== null || rerollExhausted || !intersection}
+                        disabled={Boolean(rollDisabledReason)}
+                        title={rollDisabledReason ?? "Roll all slots"}
                         className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
                         aria-label="Roll all slots"
                       >
@@ -734,10 +750,11 @@ export default function LobbyRoom({
                         {loadingAction === "roll" ? "Rolling…" : "Roll Loadout"}
                       </button>
                     )}
-                    {slots.some((s) => s.item_hash !== 0) && (
+                    {hasRolledLoadout && (
                       <button
                         onClick={handleApply}
-                        disabled={!selectedCharId || loadingAction === "apply" || slots.length < 3}
+                        disabled={Boolean(applyDisabledReason)}
+                        title={applyDisabledReason ?? "Apply this loadout"}
                         className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
                         aria-label="Apply loadout"
                       >
@@ -763,12 +780,23 @@ export default function LobbyRoom({
         {/* Status line below the loadout: warnings and auto-apply toggle. */}
         {!isSpectator && roundId && (
           <div className="order-3 flex items-center gap-3 flex-wrap min-h-[1.25rem] px-1">
-            {!selectedCharId && loadingAction !== "apply" && slots.some((s) => s.item_hash !== 0) && (
-              <span className="text-xs text-yellow-400">Select a character first</span>
+            {hasRolledLoadout && applyDisabledReason && loadingAction !== "apply" && (
+              <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-300">
+                {applyDisabledReason}
+              </span>
+            )}
+            {isCaptain && rollDisabledReason && !hasRolledLoadout && loadingAction !== "roll" && (
+              <span className="rounded-full border border-bungie-border bg-bungie-surface px-2 py-1 text-xs text-gray-400">
+                {rollDisabledReason}
+              </span>
             )}
             {intersectionError && (
-              <span className="text-xs text-red-400">
-                {intersectionError}
+              <span className="rounded-lg border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-xs leading-5 text-red-200">
+                {currentUserNeedsReauth
+                  ? "Your Bungie sign-in needs a refresh before shared weapons can load."
+                  : intersectionAuthIssue?.failedDisplayNames?.length
+                    ? `${intersectionAuthIssue.failedDisplayNames.join(", ")} needs to refresh Bungie sign-in.`
+                    : intersectionError}
                 {currentUserNeedsReauth && (
                   <a href={reauthHref} className="ml-2 font-semibold text-bungie-blue hover:text-sky-300">
                     Sign in again
@@ -809,7 +837,7 @@ export default function LobbyRoom({
           </div>
         )}
 
-        {slots.some((s) => s.item_hash !== 0) && (
+        {hasRolledLoadout && (
           <div className="order-4">
           <RollDetails
             rolls={rollsData}
