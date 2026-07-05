@@ -184,7 +184,7 @@ export default function LobbyRoom({
 
   const {
     intersection, effectiveIntersection, weaponDetails, instancePerks, collectionHashes,
-    weaponReleases, equippedHashes, memberEquipped, intersectionError, intersectionAuthIssue, loading: poolLoading,
+    weaponReleases, equippedHashes, intersectionError, intersectionAuthIssue, loading: poolLoading,
     loadIntersection, weaponDisplayType,
   } = useWeaponPool(lobby.id, bannedTypes);
   void weaponDisplayType;
@@ -551,7 +551,6 @@ export default function LobbyRoom({
       instancePerks={instancePerks}
       collectionHashes={collectionHashes}
       weaponReleases={weaponReleases}
-      memberEquipped={memberEquipped}
       intersectionError={intersectionError}
       intersectionAuthIssue={intersectionAuthIssue}
       currentUserId={currentUserId}

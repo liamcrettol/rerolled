@@ -76,7 +76,6 @@ interface Props {
   instancePerks: InstancePerks;
   collectionHashes: Set<number>;
   weaponReleases: Record<string, number[]>;
-  memberEquipped: Record<string, Partial<Record<WeaponSlot, number>>>;
   intersectionError: string | null;
   intersectionAuthIssue: IntersectionAuthIssue | null;
   currentUserId: string;
@@ -107,7 +106,6 @@ export default function LobbySidebar({
   instancePerks,
   collectionHashes,
   weaponReleases,
-  memberEquipped,
   intersectionError,
   intersectionAuthIssue,
   currentUserId,
@@ -180,38 +178,9 @@ export default function LobbySidebar({
                 )}
               </div>
               <div className="space-y-0.5">
-                {members.map((m) => {
-                  // What this member is running right now (live from Bungie on
-                  // every pool load) - a reference, not the rolled loadout.
-                  const eq = memberEquipped[m.user_id];
-                  const equippedDetails = !m.is_spectator && eq
-                    ? (["kinetic", "energy", "power"] as WeaponSlot[])
-                        .map((s) => (eq[s] != null ? weaponDetails[eq[s]!.toString()] : undefined))
-                    : [];
-                  const hasEquipped = equippedDetails.some((d) => d?.icon);
-                  return (
-                    <div key={m.id}>
-                      <PlayerCard member={m} variant="sidebar" />
-                      {hasEquipped && (
-                        <div className="flex items-center gap-1 pl-[38px] pb-1.5 -mt-0.5">
-                          {equippedDetails.map((d, i) =>
-                            d?.icon ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                key={i}
-                                src={d.icon}
-                                alt={d.name}
-                                className="w-5 h-5 rounded-sm border border-white/10"
-                              />
-                            ) : (
-                              <span key={i} className="w-5 h-5 rounded-sm border border-white/5 bg-white/5" />
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {members.map((m) => (
+                  <PlayerCard key={m.id} member={m} variant="sidebar" />
+                ))}
               </div>
             </div>
 
