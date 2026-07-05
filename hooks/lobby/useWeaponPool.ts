@@ -25,6 +25,12 @@ export type InstancePerks = Record<
   Array<{ instanceId: string; perks: string[]; location: string; characterId?: string }>
 >;
 
+export interface IntersectionAuthIssue {
+  failedUserIds: string[];
+  failedDisplayNames: string[];
+  reauthRequired: boolean;
+}
+
 export function useWeaponPool(lobbyId: string, bannedTypes: Set<string>) {
   const [intersection, setIntersection] = useState<Record<WeaponSlot, number[]> | null>(null);
   const [weaponDetails, setWeaponDetails] = useState<Record<string, WeaponDetail>>({});
@@ -42,12 +48,14 @@ export function useWeaponPool(lobbyId: string, bannedTypes: Set<string>) {
     Record<string, Partial<Record<WeaponSlot, number>>>
   >({});
   const [intersectionError, setIntersectionError] = useState<string | null>(null);
+  const [intersectionAuthIssue, setIntersectionAuthIssue] = useState<IntersectionAuthIssue | null>(null);
   const [loading, setLoading] = useState(false);
 
   const loadIntersection = useCallback(
     async (selectedCharId: string | null) => {
       setLoading(true);
       setIntersectionError(null);
+      setIntersectionAuthIssue(null);
       try {
         const res = await fetch("/api/roulette/intersection", {
           method: "POST",
@@ -57,6 +65,13 @@ export function useWeaponPool(lobbyId: string, bannedTypes: Set<string>) {
         const data = await res.json();
         if (!data.intersection) {
           setIntersectionError(data.error ?? "Failed to load shared weapons");
+          if (data.reauthRequired || Array.isArray(data.failedUserIds)) {
+            setIntersectionAuthIssue({
+              failedUserIds: Array.isArray(data.failedUserIds) ? data.failedUserIds : [],
+              failedDisplayNames: Array.isArray(data.failedDisplayNames) ? data.failedDisplayNames : [],
+              reauthRequired: Boolean(data.reauthRequired),
+            });
+          }
           setLoading(false);
           return;
         }
@@ -74,6 +89,7 @@ export function useWeaponPool(lobbyId: string, bannedTypes: Set<string>) {
         setMemberEquipped(data.memberEquipped ?? {});
       } catch (e) {
         setIntersectionError(e instanceof Error ? e.message : "Network error");
+        setIntersectionAuthIssue(null);
       }
       setLoading(false);
     },
@@ -113,6 +129,7 @@ export function useWeaponPool(lobbyId: string, bannedTypes: Set<string>) {
     equippedHashes,
     memberEquipped,
     intersectionError,
+    intersectionAuthIssue,
     loading,
     loadIntersection,
     weaponDisplayType,

@@ -221,7 +221,11 @@ describe("POST /api/roulette/intersection — member guards", () => {
     });
     const res = await POST(makeRequest());
     expect(res.status).toBe(409);
-    expect((await res.json()).error).toContain("Player user-2");
+    const body = await res.json();
+    expect(body.error).toContain("Player user-2");
+    expect(body.failedUserIds).toEqual(["user-2"]);
+    expect(body.failedDisplayNames).toEqual(["Player user-2"]);
+    expect(body.reauthRequired).toBe(true);
   });
 });
 

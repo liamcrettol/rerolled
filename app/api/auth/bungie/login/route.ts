@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 
-const SAFE_RETURN_TO_RE = /^\/join\/[A-Z0-9]{4,8}$/;
+const SAFE_RETURN_TO_RE = /^\/(join|lobby)\/[A-Z0-9]{4,8}$/;
 
 export async function GET(req: NextRequest) {
   const state = crypto.randomUUID();

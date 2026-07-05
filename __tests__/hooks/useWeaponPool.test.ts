@@ -63,6 +63,25 @@ describe("useWeaponPool", () => {
     expect(result.current.intersection).toEqual({ kinetic: [100], energy: [], power: [] });
   });
 
+  it("captures auth issue metadata when inventory loading requires reauth", async () => {
+    ok({
+      error: "Couldn't load inventory for: Memo#5527. The affected player should sign in with Bungie again.",
+      failedUserIds: ["user-2"],
+      failedDisplayNames: ["Memo#5527"],
+      reauthRequired: true,
+    });
+    const { result } = renderHook(() => useWeaponPool("lobby-1", new Set()));
+
+    await act(async () => result.current.loadIntersection(null));
+
+    expect(result.current.intersectionError).toContain("Memo#5527");
+    expect(result.current.intersectionAuthIssue).toEqual({
+      failedUserIds: ["user-2"],
+      failedDisplayNames: ["Memo#5527"],
+      reauthRequired: true,
+    });
+  });
+
   it("sets a thrown network error message and stops loading", async () => {
     fetchMock.mockRejectedValueOnce(new Error("offline"));
     const { result } = renderHook(() => useWeaponPool("lobby-1", new Set()));

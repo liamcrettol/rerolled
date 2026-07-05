@@ -8,7 +8,7 @@ import Spinner from "@/components/Spinner";
 import Card from "@/components/ui/Card";
 import type { LobbyMember } from "@/types/lobby";
 import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
-import type { InstancePerks, WeaponDetail } from "@/hooks/lobby/useWeaponPool";
+import type { InstancePerks, IntersectionAuthIssue, WeaponDetail } from "@/hooks/lobby/useWeaponPool";
 
 // The lobby's right column (#224): the auto-compacting fireteam/guardian
 // context card and the shared Weapon Browser, extracted verbatim from
@@ -78,6 +78,9 @@ interface Props {
   weaponReleases: Record<string, number[]>;
   memberEquipped: Record<string, Partial<Record<WeaponSlot, number>>>;
   intersectionError: string | null;
+  intersectionAuthIssue: IntersectionAuthIssue | null;
+  currentUserId: string;
+  reauthHref: string;
   poolLoading: boolean;
   actionDisabled: boolean;
   currentHashes: Record<string, number>;
@@ -106,6 +109,9 @@ export default function LobbySidebar({
   weaponReleases,
   memberEquipped,
   intersectionError,
+  intersectionAuthIssue,
+  currentUserId,
+  reauthHref,
   poolLoading,
   actionDisabled,
   currentHashes,
@@ -116,6 +122,10 @@ export default function LobbySidebar({
   onLoadIntersection,
   onHide,
 }: Props) {
+  const currentUserNeedsReauth =
+    intersectionAuthIssue?.failedUserIds.includes(currentUserId) ?? false;
+  const failedNames = intersectionAuthIssue?.failedDisplayNames ?? [];
+
   return (
     <aside className="w-full xl:w-96 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col">
       {/* Collapse the whole right column to give the loadout full width. */}
@@ -335,7 +345,14 @@ export default function LobbySidebar({
                 {poolLoading && <Spinner size={14} />}
                 {poolLoading ? "Loading…" : "Load Shared Weapons"}
               </button>
-              {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+              {intersectionError && (
+                <InventoryAuthNotice
+                  error={intersectionError}
+                  currentUserNeedsReauth={currentUserNeedsReauth}
+                  failedNames={failedNames}
+                  reauthHref={reauthHref}
+                />
+              )}
             </div>
           ) : (
             <div className="rounded-xl border border-bungie-border/40 bg-bungie-surface p-4">
@@ -343,7 +360,14 @@ export default function LobbySidebar({
                 {poolLoading && <Spinner size={13} />}
                 {poolLoading ? "Loading shared weapons…" : "Roll to load the shared weapon pool."}
               </p>
-              {intersectionError && <p className="mt-2 text-xs text-red-400 break-all">{intersectionError}</p>}
+              {intersectionError && (
+                <InventoryAuthNotice
+                  error={intersectionError}
+                  currentUserNeedsReauth={currentUserNeedsReauth}
+                  failedNames={failedNames}
+                  reauthHref={reauthHref}
+                />
+              )}
             </div>
           )}
         </div>
@@ -351,5 +375,35 @@ export default function LobbySidebar({
 
       </div>{/* end scrollable wrapper */}
     </aside>
+  );
+}
+
+function InventoryAuthNotice({
+  error,
+  currentUserNeedsReauth,
+  failedNames,
+  reauthHref,
+}: {
+  error: string;
+  currentUserNeedsReauth: boolean;
+  failedNames: string[];
+  reauthHref: string;
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+      <p className="text-xs leading-5 text-red-200">{error}</p>
+      {currentUserNeedsReauth ? (
+        <a
+          href={reauthHref}
+          className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-bungie-blue px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+        >
+          Sign in with Bungie again
+        </a>
+      ) : failedNames.length > 0 ? (
+        <p className="mt-2 text-[11px] leading-4 text-gray-400">
+          Waiting for {failedNames.join(", ")} to sign in again. This will retry automatically.
+        </p>
+      ) : null}
+    </div>
   );
 }

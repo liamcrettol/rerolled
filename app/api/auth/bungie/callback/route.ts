@@ -145,6 +145,18 @@ export async function GET(req: NextRequest) {
   );
   if (accountErr) return errRedirect("account_upsert_failed", accountErr.message);
 
+  // Touch this user's lobby member rows after a successful sign-in/reauth.
+  // Lobby clients subscribe to lobby_members UPDATE events, so this lets every
+  // open lobby retry inventory loading without asking the fireteam to refresh.
+  await adminSupabase
+    .from("lobby_members")
+    .update({
+      display_name: displayName,
+      bungie_membership_id: membershipId,
+      bungie_membership_type: membershipType,
+    })
+    .eq("user_id", userId);
+
   const isProd = process.env.NODE_ENV === "production";
   const cookieName = isProd
     ? "__Secure-authjs.session-token"

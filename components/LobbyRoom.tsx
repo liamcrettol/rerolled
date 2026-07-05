@@ -192,7 +192,7 @@ export default function LobbyRoom({
 
   const {
     intersection, effectiveIntersection, weaponDetails, instancePerks, collectionHashes,
-    weaponReleases, equippedHashes, memberEquipped, intersectionError, loading: poolLoading,
+    weaponReleases, equippedHashes, memberEquipped, intersectionError, intersectionAuthIssue, loading: poolLoading,
     loadIntersection, weaponDisplayType,
   } = useWeaponPool(lobby.id, bannedTypes);
   void weaponDisplayType;
@@ -245,6 +245,8 @@ export default function LobbyRoom({
   });
 
   const loadingAction: string | null = rolling ? "roll" : applying ? "apply" : poolLoading ? "intersection" : null;
+  const currentUserNeedsReauth = intersectionAuthIssue?.failedUserIds.includes(currentUserId) ?? false;
+  const reauthHref = `/api/auth/bungie/login?reauth=1&returnTo=${encodeURIComponent(`/lobby/${lobby.code}`)}`;
 
   // Keep captainLocked in sync with real-time lobby updates
   useEffect(() => { setCaptainLocked(lobbyData.captain_locked ?? false); }, [lobbyData.captain_locked]);
@@ -347,6 +349,17 @@ export default function LobbyRoom({
     if (slots.some((s) => s.item_hash !== 0)) fetchRolls();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, lobbyData.status]);
+
+  // If an inventory load failed because someone's Bungie auth needs refreshing,
+  // a successful reauth touches that member row and arrives here as realtime.
+  // Retry for everyone automatically instead of requiring browser refreshes.
+  useEffect(() => {
+    if (!intersectionAuthIssue || poolLoading || isSpectator) return;
+    if (!hasAutoLoaded.current) return;
+    if (lobbyData.status === "in_game") return;
+    handleLoadIntersection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members]);
 
   // Seed the captain's loadout from their equipped weapons once the pool is
   // loaded and the round has no loadout yet, so the Roll Comparison reflects
@@ -548,6 +561,9 @@ export default function LobbyRoom({
       weaponReleases={weaponReleases}
       memberEquipped={memberEquipped}
       intersectionError={intersectionError}
+      intersectionAuthIssue={intersectionAuthIssue}
+      currentUserId={currentUserId}
+      reauthHref={reauthHref}
       poolLoading={poolLoading}
       actionDisabled={loadingAction !== null}
       currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
@@ -760,7 +776,14 @@ export default function LobbyRoom({
               <span className="text-xs text-yellow-400">Select a character first</span>
             )}
             {intersectionError && (
-              <span className="text-xs text-red-400">{intersectionError}</span>
+              <span className="text-xs text-red-400">
+                {intersectionError}
+                {currentUserNeedsReauth && (
+                  <a href={reauthHref} className="ml-2 font-semibold text-bungie-blue hover:text-sky-300">
+                    Sign in again
+                  </a>
+                )}
+              </span>
             )}
             {!intersection && isCaptain && loadingAction === "intersection" && (
               <span className="text-xs text-gray-500 inline-flex items-center gap-1.5">

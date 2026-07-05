@@ -8,8 +8,8 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   const upper = code.toUpperCase();
 
   if (!session?.userId) {
-    // Not signed in - send to home, they can sign in and then enter the code manually
-    redirect(`/?code=${upper}`);
+    // Not signed in: start Bungie OAuth immediately and preserve the invite.
+    redirect(`/api/auth/bungie/login?returnTo=${encodeURIComponent(`/join/${upper}`)}`);
   }
 
   try {

@@ -256,7 +256,10 @@ export async function POST(req: NextRequest) {
       const names = failedMembers.map((m) => m.display_name).join(", ");
       return NextResponse.json(
         {
-          error: `Couldn't load inventory for: ${names}. They may need to sign out and back in. Try again once everyone is loaded.`,
+          error: `Couldn't load inventory for: ${names}. The affected player should sign in with Bungie again.`,
+          failedUserIds: failedMembers.map((m) => m.user_id),
+          failedDisplayNames: failedMembers.map((m) => m.display_name),
+          reauthRequired: true,
         },
         { status: 409 }
       );
