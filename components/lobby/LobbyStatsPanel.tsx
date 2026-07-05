@@ -2,6 +2,8 @@
 
 import { Crown, X } from "lucide-react";
 import Spinner from "@/components/Spinner";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
 import { trimBungieName } from "@/lib/utils";
 import type { PlayerStat, RoundRecord } from "@/hooks/useGameDetection";
 
@@ -97,9 +99,9 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
               {hasWon && (
                 <td className="px-2 py-1.5 text-center">
                   {s.won === true
-                    ? <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1.5 py-0.5">W</span>
+                    ? <Badge tone="win" size="roomy">W</Badge>
                     : s.won === false
-                    ? <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1.5 py-0.5">L</span>
+                    ? <Badge tone="loss" size="roomy">L</Badge>
                     : <span className="text-gray-500 text-xs">—</span>}
                 </td>
               )}
@@ -141,7 +143,7 @@ export default function LobbyStatsPanel({
   onDismissLastGame,
 }: Props) {
   return (
-    <div className="bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
+    <Card border="subtle" className="overflow-hidden">
       {/* Post-game dismissible banner */}
       {lastGameStats && lastGameStats.length > 0 && (() => {
         const top = [...lastGameStats].sort((a, b) => b.kills - a.kills)[0];
@@ -217,12 +219,8 @@ export default function LobbyStatsPanel({
                         <span className="text-[11px] font-bold text-gray-300 bg-bungie-border/60 rounded px-1.5 py-0.5 leading-none tabular-nums">
                           R{round.roundNum}
                         </span>
-                        {teamResult === true && (
-                          <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1 leading-tight">W</span>
-                        )}
-                        {teamResult === false && (
-                          <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1 leading-tight">L</span>
-                        )}
+                        {teamResult === true && <Badge tone="win">W</Badge>}
+                        {teamResult === false && <Badge tone="loss">L</Badge>}
                       </div>
 
                       {/* Main content */}
@@ -337,6 +335,6 @@ export default function LobbyStatsPanel({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

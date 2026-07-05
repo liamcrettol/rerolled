@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
+import Card from "./ui/Card";
 
 const SLOT_LABELS: Record<string, string> = {
   kinetic: "Kinetic",
@@ -39,7 +40,7 @@ export default function ApplyStatus({
   };
 
   return (
-    <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
+    <Card className="p-4">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="text-white font-semibold flex items-center gap-2">
           Transaction Logs
@@ -151,6 +152,6 @@ export default function ApplyStatus({
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

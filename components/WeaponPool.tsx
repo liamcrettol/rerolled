@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Shuffle, Check, Star, Repeat } from "lucide-react";
+import Card from "./ui/Card";
 import type { WeaponSlot } from "@/types/bungie";
 import {
   type WeaponDetail,
@@ -348,7 +349,7 @@ export default function WeaponPool({
     <>
       {tooltipNode}
 
-      <div className={`bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden flex flex-col ${noScroll ? "" : fillHeight ? "max-h-[30rem] xl:max-h-none xl:h-full" : "max-h-[30rem]"}`}>
+      <Card className={`overflow-hidden flex flex-col ${noScroll ? "" : fillHeight ? "max-h-[30rem] xl:max-h-none xl:h-full" : "max-h-[30rem]"}`}>
         {/* Header */}
         <div className="px-4 pt-3 pb-0">
           <div className="flex items-center justify-between mb-1">
@@ -468,7 +469,7 @@ export default function WeaponPool({
             </>
           )}
         </div>
-      </div>
+      </Card>
     </>
   );
 }

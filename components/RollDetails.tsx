@@ -9,6 +9,7 @@ import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
 import Spinner from "./Spinner";
+import Card from "./ui/Card";
 import { Star, Check } from "lucide-react";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
@@ -112,7 +113,7 @@ export default function RollDetails({
 
   if (present.length === 0) {
     return (
-      <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
+      <Card className="p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-white font-semibold text-sm">Roll Comparison</h2>
           {onRetry && !loading && (
@@ -125,7 +126,7 @@ export default function RollDetails({
           {loading && <Spinner size={12} />}
           {loading ? "Loading your rolls..." : error ? `Couldn't load rolls: ${error}` : "Roll a loadout to see your rolls."}
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -456,7 +457,7 @@ export default function RollDetails({
   };
 
   return (
-    <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="px-4 py-2.5 border-b border-bungie-border">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-white font-semibold text-sm">
@@ -565,6 +566,6 @@ export default function RollDetails({
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

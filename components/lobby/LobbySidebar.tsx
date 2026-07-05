@@ -5,6 +5,7 @@ import { Check, PanelRightClose, Zap } from "lucide-react";
 import WeaponPool from "@/components/WeaponPool";
 import PlayerCard from "@/components/PlayerCard";
 import Spinner from "@/components/Spinner";
+import Card from "@/components/ui/Card";
 import type { LobbyMember } from "@/types/lobby";
 import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import type { InstancePerks, WeaponDetail } from "@/hooks/lobby/useWeaponPool";
@@ -135,7 +136,7 @@ export default function LobbySidebar({
       {/* Context: Fireteam + Your Guardian + Settings. Auto-compacts into a
           single summary row once a guardian's picked, so it stops competing
           with the Weapon Browser for space (#204); expandable back on click. */}
-      <div className="shrink-0 bg-bungie-surface border border-bungie-border/40 rounded-xl">
+      <Card border="subtle" className="shrink-0">
         {!contextExpanded ? (
           <button
             onClick={() => onSetContextExpanded(true)}
@@ -274,7 +275,7 @@ export default function LobbySidebar({
             )}
           </>
         )}
-      </div>
+      </Card>
 
       {/* Shared weapon pool, always open, no internal scroll (parent scrolls).
           Once loaded, WeaponPool renders its own "Weapon Browser" header with
