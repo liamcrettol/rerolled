@@ -12,7 +12,6 @@ import {
   DEFAULT_TIER,
   DAMAGE_COLOR,
   CARD_INLINE_STATS,
-  sortWeapons,
   useWeaponTooltip,
   damageTheme,
 } from "./weaponShared";
@@ -51,6 +50,37 @@ interface Props {
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 // Meta filter: limit the browser to the staple Crucible archetypes.
 const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
+
+function stableBrowserRank(hash: number, slot: WeaponSlot): number {
+  const slotSeed = slot === "kinetic" ? 0x9e3779b1 : slot === "energy" ? 0x85ebca6b : 0xc2b2ae35;
+  let x = (hash ^ slotSeed) >>> 0;
+  x ^= x >>> 16;
+  x = Math.imul(x, 0x7feb352d) >>> 0;
+  x ^= x >>> 15;
+  x = Math.imul(x, 0x846ca68b) >>> 0;
+  x ^= x >>> 16;
+  return x >>> 0;
+}
+
+function sortForBrowser(
+  hashes: number[],
+  details: Record<string, WeaponDetail>,
+  favorites: Record<string, string> | undefined,
+  slot: WeaponSlot
+): number[] {
+  return [...hashes].sort((a, b) => {
+    const aFavorite = Boolean(favorites?.[a.toString()]);
+    const bFavorite = Boolean(favorites?.[b.toString()]);
+    if (aFavorite !== bFavorite) return aFavorite ? -1 : 1;
+
+    const rankDiff = stableBrowserRank(a, slot) - stableBrowserRank(b, slot);
+    if (rankDiff !== 0) return rankDiff;
+
+    const da = details[a.toString()];
+    const db = details[b.toString()];
+    return (da?.name ?? "").localeCompare(db?.name ?? "");
+  });
+}
 
 // ── A single selectable roll row ──────────────────────────────────────────────
 
@@ -303,6 +333,7 @@ export default function WeaponPool({
   const [typeFilter, setTypeFilter] = useState("all");
   const [rarityFilter, setRarityFilter] = useState<"all" | "exotic" | "nonexotic">("all");
   const [metaOnly, setMetaOnly] = useState(false);
+  const [hideCollections, setHideCollections] = useState(false);
 
   const { onHover, onLeave, node: tooltipNode } = useWeaponTooltip(weaponDetails, instancePerks, collectionHashes);
 
@@ -329,9 +360,12 @@ export default function WeaponPool({
     return [...set].sort();
   }, [intersection, activeTab, weaponDetails]);
 
-  const filtersActive = query !== "" || typeFilter !== "all" || rarityFilter !== "all" || metaOnly;
+  const filtersActive = query !== "" || typeFilter !== "all" || rarityFilter !== "all" || metaOnly || hideCollections;
 
-  const sorted = sortWeapons(intersection[activeTab], weaponDetails);
+  const sorted = useMemo(
+    () => sortForBrowser(intersection[activeTab], weaponDetails, favorites, activeTab),
+    [intersection, activeTab, weaponDetails, favorites]
+  );
   const filtered = sorted.filter((h) => {
     const d = weaponDetails[h.toString()];
     if (!d) return false;
@@ -340,6 +374,7 @@ export default function WeaponPool({
     if (rarityFilter === "exotic" && d.tierType !== 6) return false;
     if (rarityFilter === "nonexotic" && d.tierType === 6) return false;
     if (metaOnly && !META_BROWSER_TYPES.has(d.weaponType)) return false;
+    if (hideCollections && collectionHashes.has(h)) return false;
     return true;
   });
   const activeHash = currentHashes[activeTab];
@@ -392,11 +427,11 @@ export default function WeaponPool({
             placeholder={`Search ${SLOT_LABELS[activeTab].toLowerCase()}…`}
             className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-bungie-blue transition"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="flex-1 min-w-0 bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+              className="flex-1 min-w-[7rem] bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
             >
               <option value="all">All types</option>
               {availableTypes.map((t) => (
@@ -422,6 +457,17 @@ export default function WeaponPool({
               }`}
             >
               Meta only
+            </button>
+            <button
+              onClick={() => setHideCollections((v) => !v)}
+              aria-pressed={hideCollections}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
+                hideCollections
+                  ? "border-amber-400 bg-amber-500/15 text-amber-200"
+                  : "border-bungie-border text-gray-300 hover:border-gray-400"
+              }`}
+            >
+              Hide Collections
             </button>
           </div>
         </div>
