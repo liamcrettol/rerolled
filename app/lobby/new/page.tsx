@@ -126,7 +126,7 @@ export default function NewLobbyPage() {
   const rerollLabel = rerollLimit === null ? "Unlimited" : `${rerollLimit} per round`;
 
   return (
-    <div className="min-h-screen bg-bungie-dark">
+    <div className="armory-shell min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <Link
           href="/dashboard"
@@ -136,21 +136,22 @@ export default function NewLobbyPage() {
           Back to Dashboard
         </Link>
 
-        <header className="mb-6 flex flex-col gap-5 border-b border-bungie-border/70 pb-6 lg:flex-row lg:items-end lg:justify-between">
+        <header className="armory-panel mb-6 flex flex-col gap-5 p-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.28em] text-bungie-blue/80">Fireteam setup</p>
-            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Create Lobby</h1>
+            <p className="armory-kicker mb-2">Fireteam setup</p>
+            <h1 className="font-mono text-3xl font-black uppercase tracking-[-0.02em] text-white sm:text-4xl">Create Lobby</h1>
+            <div className="armory-rule mt-3 w-44" />
           </div>
           <div className="hidden grid-cols-3 gap-2 text-xs text-gray-400 sm:grid sm:min-w-[430px]">
-            <div className="border border-bungie-border bg-bungie-surface/70 p-3">
+            <div className="armory-card p-3">
               <p className="mb-1 uppercase tracking-[0.2em] text-gray-600">Mode</p>
               <p className="capitalize text-white">{rollMode}</p>
             </div>
-            <div className="border border-bungie-border bg-bungie-surface/70 p-3">
+            <div className="armory-card p-3">
               <p className="mb-1 uppercase tracking-[0.2em] text-gray-600">Rerolls</p>
               <p className="text-white">{rerollLabel}</p>
             </div>
-            <div className="border border-bungie-border bg-bungie-surface/70 p-3">
+            <div className="armory-card p-3">
               <p className="mb-1 uppercase tracking-[0.2em] text-gray-600">Bans</p>
               <p className="text-white">{bannedTypes.size}</p>
             </div>
@@ -159,7 +160,7 @@ export default function NewLobbyPage() {
 
         <div className="grid flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
           <main className="space-y-5">
-            <section className="border border-bungie-border bg-bungie-surface/80 p-4 sm:p-5">
+            <section className="armory-panel p-4 sm:p-5">
               <div className="mb-4 flex items-center gap-2">
                 <Dices size={18} className="text-bungie-blue" />
                 <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-300">Roll mode</h2>
@@ -172,7 +173,7 @@ export default function NewLobbyPage() {
             </section>
 
             <section className="grid gap-5 md:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="border border-bungie-border bg-bungie-surface/80 p-4 sm:p-5">
+              <div className="armory-panel p-4 sm:p-5">
                 <div className="mb-4 flex items-center gap-2">
                   <ListRestart size={18} className="text-bungie-blue" />
                   <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-gray-300">Rerolls per round</h2>
@@ -185,7 +186,7 @@ export default function NewLobbyPage() {
                       className={`min-h-16 border px-2 py-3 text-sm font-semibold transition ${
                         rerollLimit === v
                           ? "border-bungie-blue bg-bungie-blue/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                          : "border-bungie-border bg-slate-950/30 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                          : "border-bungie-border bg-black/20 text-gray-400 hover:border-gray-500 hover:text-gray-200"
                       }`}
                     >
                       {v === null ? <Infinity size={20} className="mx-auto" /> : v}
@@ -197,7 +198,7 @@ export default function NewLobbyPage() {
                 </div>
               </div>
 
-              <div className="border border-bungie-border bg-bungie-surface/80 p-4 sm:p-5">
+              <div className="armory-panel p-4 sm:p-5">
                 <div className="flex h-full flex-col justify-between gap-5">
                   <div>
                     <div className="mb-3 flex items-center justify-between gap-3">
@@ -213,7 +214,7 @@ export default function NewLobbyPage() {
               </div>
             </section>
 
-            <section className="border border-bungie-border bg-bungie-surface/80 p-4 sm:p-5">
+            <section className="armory-panel p-4 sm:p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Ban size={18} className="text-bungie-blue" />
@@ -243,7 +244,7 @@ export default function NewLobbyPage() {
                             className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition ${
                               banned
                                 ? "border-red-400/80 bg-red-500/15 text-red-100 shadow-[0_0_0_1px_rgba(248,113,113,0.16)]"
-                                : "border-bungie-border bg-slate-950/20 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+                                : "border-bungie-border bg-black/20 text-gray-400 hover:border-gray-500 hover:text-gray-200"
                             }`}
                           >
                             {banned && <span className="text-red-300" aria-hidden>×</span>}
@@ -259,8 +260,8 @@ export default function NewLobbyPage() {
           </main>
 
           <aside className="lg:sticky lg:top-6 lg:self-start">
-            <div className="border border-bungie-border bg-slate-950/70 p-5 shadow-2xl shadow-black/20">
-              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-gray-500">Lobby rules</p>
+            <div className="armory-panel p-5">
+              <p className="armory-kicker mb-4">Lobby rules</p>
               <div className="space-y-4">
                 <SummaryRow label="Roll mode" value={MODE_COPY[rollMode].title} />
                 <SummaryRow label="Rerolls" value={rerollLabel} />
@@ -287,7 +288,7 @@ export default function NewLobbyPage() {
               <button
                 onClick={handleCreate}
                 disabled={loading}
-                className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 bg-bungie-blue px-4 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50"
+                className="armory-button mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 px-4 text-sm font-black uppercase tracking-wide transition disabled:opacity-50"
               >
                 {loading && <Spinner size={15} />}
                 {loading ? "Creating..." : "Create Lobby"}
@@ -316,7 +317,7 @@ function ModeButton({
       className={`min-h-32 border p-4 text-left transition ${
         selected
           ? "border-bungie-blue bg-bungie-blue/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-          : "border-bungie-border bg-slate-950/30 text-gray-400 hover:border-gray-500 hover:text-gray-200"
+          : "border-bungie-border bg-black/20 text-gray-400 hover:border-gray-500 hover:text-gray-200"
       }`}
     >
       <div className="mb-4 flex items-center justify-between gap-3">

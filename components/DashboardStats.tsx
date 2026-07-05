@@ -35,18 +35,18 @@ export default async function DashboardStats() {
       {cards.map((c, i) => (
         <div
           key={c.label}
-          className="glass-card rounded-xl p-4 animate-rise-in"
+          className="armory-card p-4 animate-rise-in"
           style={{ animationDelay: `${i * 80}ms`, opacity: 0 }}
         >
-          <p className="text-gray-400 text-xs mb-1">{c.label}</p>
-          <p className="text-2xl font-bold text-white tabular-nums">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">{c.label}</p>
+          <p className="font-mono text-2xl font-black text-white tabular-nums">
             <AnimatedNumber value={c.value} />
           </p>
         </div>
       ))}
       {topWeapon && (
         <div
-          className="glass-card rounded-xl p-4 flex items-center gap-3 animate-rise-in"
+          className="armory-card p-4 flex items-center gap-3 animate-rise-in"
           style={{ animationDelay: `${cards.length * 80}ms`, opacity: 0 }}
         >
           <div className="relative w-9 h-9 shrink-0 rounded overflow-hidden bg-bungie-dark">

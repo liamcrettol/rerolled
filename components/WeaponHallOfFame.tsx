@@ -24,8 +24,9 @@ export default async function WeaponHallOfFame() {
 
   if (error || !data?.length) {
     return (
-      <div className="glass-card rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-2">Weapon Hall of Fame</h2>
+      <div className="armory-panel p-6">
+        <p className="armory-kicker mb-2">Kill archive</p>
+        <h2 className="font-mono text-lg font-black uppercase text-white mb-2">Weapon Hall of Fame</h2>
         <p className="text-gray-500 text-sm">
           No roulette weapon kills yet. Weapons appear here after completed tracked games.
         </p>
@@ -34,9 +35,10 @@ export default async function WeaponHallOfFame() {
   }
 
   return (
-    <div className="glass-card rounded-xl overflow-hidden animate-rise-in" style={{ opacity: 0, animationDelay: "80ms" }}>
+    <div className="armory-panel overflow-hidden animate-rise-in" style={{ opacity: 0, animationDelay: "80ms" }}>
       <div className="px-4 py-3 border-b border-bungie-border/60">
-        <h2 className="text-lg font-semibold text-white">Weapon Hall of Fame</h2>
+        <p className="armory-kicker mb-2">Kill archive</p>
+        <h2 className="font-mono text-lg font-black uppercase text-white">Weapon Hall of Fame</h2>
         <p className="text-xs text-gray-500 mt-0.5">Top roulette weapons by total kills</p>
       </div>
       <div className="divide-y divide-bungie-border/40">

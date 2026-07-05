@@ -19,8 +19,9 @@ export default async function Leaderboard() {
 
   if (!data?.length) {
     return (
-      <div className="glass-card rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-white mb-2">Leaderboard</h2>
+      <div className="armory-panel p-6">
+        <p className="armory-kicker mb-2">Crucible record</p>
+        <h2 className="font-mono text-lg font-black uppercase text-white mb-2">Leaderboard</h2>
         <p className="text-gray-500 text-sm">
           No games recorded yet. Finish a roulette match and the first stats will land here.
         </p>
@@ -56,8 +57,9 @@ export default async function Leaderboard() {
   );
 
   return (
-    <div className="glass-card rounded-xl p-6 animate-rise-in" style={{ opacity: 0 }}>
-      <h2 className="text-lg font-semibold text-white mb-4">Leaderboard</h2>
+    <div className="armory-panel p-6 animate-rise-in" style={{ opacity: 0 }}>
+      <p className="armory-kicker mb-2">Crucible record</p>
+      <h2 className="font-mono text-lg font-black uppercase text-white mb-4">Leaderboard</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

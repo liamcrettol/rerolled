@@ -13,6 +13,6 @@ interface Props {
 }
 
 export default function Card({ children, className = "", border = "default" }: Props) {
-  const borderCls = border === "subtle" ? "border-bungie-border/40" : "border-bungie-border";
-  return <div className={`bg-bungie-surface border ${borderCls} rounded-xl ${className}`}>{children}</div>;
+  const borderCls = border === "subtle" ? "border-bungie-border/55" : "border-bungie-border";
+  return <div className={`armory-panel border ${borderCls} ${className}`}>{children}</div>;
 }

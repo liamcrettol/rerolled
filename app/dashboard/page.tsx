@@ -21,16 +21,20 @@ export default async function Dashboard() {
   const activeSession = await getActiveSessionForUser(session.userId);
 
   return (
-    <main className="min-h-screen p-6 w-full">
+    <main className="armory-shell min-h-screen p-4 sm:p-6 w-full">
       <div className="max-w-5xl mx-auto">
-        <div className="relative overflow-hidden glass-card rounded-xl mb-8 animate-rise-in" style={{ opacity: 0 }}>
+        <div className="relative overflow-hidden armory-panel mb-7 animate-rise-in" style={{ opacity: 0 }}>
           <GlowBackdrop />
-          <header className="flex items-center justify-between p-6">
+          <header className="relative flex items-start justify-between gap-5 p-5 sm:p-6">
             <div>
-              <h1 className="text-2xl font-bold text-white">Gun Roulette</h1>
-              <p className="text-gray-400 text-sm">
+              <p className="armory-kicker mb-2">D2 Roulette Armory</p>
+              <h1 className="font-mono text-3xl font-black uppercase tracking-[-0.02em] text-white sm:text-4xl">
+                Gun Roulette
+              </h1>
+              <div className="armory-rule mt-3 w-48" />
+              <p className="mt-3 text-gray-400 text-sm">
                 Signed in as{" "}
-                <span className="text-bungie-blue font-medium">
+                <span className="font-mono text-bungie-blue font-semibold">
                   {session.displayName}
                 </span>
               </p>

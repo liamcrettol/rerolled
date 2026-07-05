@@ -583,16 +583,17 @@ export default function LobbyRoom({
   );
 
   return (
-    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
+    <div className="armory-shell flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="flex-1 min-w-0 flex flex-col gap-6">
         {/* Header */}
-        <div className="order-1 flex items-center justify-between gap-3">
+        <div className="armory-panel order-1 flex items-start justify-between gap-3 p-4">
           <div>
+            <p className="armory-kicker mb-2">Active fireteam session</p>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyCode}
                 aria-label="Copy lobby code"
-                className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero text-lg hover:opacity-75 transition inline-flex items-center gap-1.5"
+                className="font-mono text-bungie-blue font-black tracking-widest slashed-zero text-2xl hover:opacity-75 transition inline-flex items-center gap-1.5"
               >
                 {copied ? <Check size={18} /> : lobby.code}
               </button>
@@ -611,6 +612,7 @@ export default function LobbyRoom({
                 {copiedWatch ? "Copied" : "Watch"}
               </button>
             </div>
+            <div className="armory-rule mt-3 w-56" />
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {(() => {
                 const { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);

@@ -49,7 +49,7 @@ export default function LobbyControls({ activeSession }: Props) {
     <div className="space-y-4">
       {activeSession && (
         <div
-          className="glass-card ring-1 ring-bungie-blue/40 rounded-xl p-4 flex items-center justify-between gap-4 animate-rise-in"
+          className="armory-panel p-4 flex items-center justify-between gap-4 animate-rise-in"
           style={{ opacity: 0 }}
         >
           <div className="flex items-center gap-3">
@@ -68,7 +68,7 @@ export default function LobbyControls({ activeSession }: Props) {
           </div>
           <button
             onClick={() => router.push(`/lobby/${activeSession.code}`)}
-            className="shrink-0 bg-bungie-blue hover:opacity-90 text-white font-semibold text-sm px-4 py-2 rounded-lg transition"
+            className="armory-button shrink-0 px-4 py-2 text-sm font-black uppercase tracking-wide transition"
           >
             Rejoin
           </button>
@@ -78,19 +78,20 @@ export default function LobbyControls({ activeSession }: Props) {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Create */}
         <div
-          className="glass-card rounded-xl p-6 flex flex-col gap-4 transition hover:-translate-y-1 hover:ring-1 hover:ring-bungie-blue/40 animate-rise-in"
+          className="armory-panel p-6 flex flex-col gap-4 transition hover:-translate-y-1 hover:border-bungie-blue/60 animate-rise-in"
           style={{ opacity: 0, animationDelay: "80ms" }}
         >
           <div>
             <PlusCircle size={22} className="text-bungie-blue mb-2" />
-            <h2 className="text-lg font-semibold text-white mb-1">Create Lobby</h2>
+            <p className="armory-kicker mb-2">Command</p>
+            <h2 className="font-mono text-lg font-black uppercase text-white mb-1">Create Lobby</h2>
             <p className="text-gray-400 text-sm">
               Configure roll settings and share the code with your fireteam.
             </p>
           </div>
           <Link
             href="/lobby/new"
-            className="mt-auto w-full bg-bungie-blue hover:opacity-90 text-white font-semibold py-2.5 rounded-lg transition text-center text-sm"
+            className="armory-button mt-auto w-full py-2.5 text-center text-sm font-black uppercase tracking-wide transition"
           >
             Create Lobby
           </Link>
@@ -98,11 +99,12 @@ export default function LobbyControls({ activeSession }: Props) {
 
         {/* Join */}
         <div
-          className="glass-card rounded-xl p-6 transition hover:-translate-y-1 hover:ring-1 hover:ring-bungie-blue/40 animate-rise-in"
+          className="armory-panel p-6 transition hover:-translate-y-1 hover:border-bungie-blue/60 animate-rise-in"
           style={{ opacity: 0, animationDelay: "160ms" }}
         >
           <LogIn size={22} className="text-bungie-blue mb-2" />
-          <h2 className="text-lg font-semibold text-white mb-1">Join Lobby</h2>
+          <p className="armory-kicker mb-2">Join Code</p>
+          <h2 className="font-mono text-lg font-black uppercase text-white mb-1">Join Lobby</h2>
           <p className="text-gray-400 text-sm mb-4">
             Enter a lobby code from your fireteam.
           </p>
@@ -114,15 +116,15 @@ export default function LobbyControls({ activeSession }: Props) {
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ""))}
                 placeholder="ABC123"
                 maxLength={8}
-                className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-2 text-white font-mono text-center uppercase tracking-widest slashed-zero focus:outline-none focus:border-bungie-blue"
+                className="armory-input w-full px-3 py-2 text-white font-mono text-center uppercase tracking-widest slashed-zero focus:outline-none focus:border-bungie-blue"
               />
             </label>
             <button
               type="submit"
               disabled={loading !== null || !code.trim()}
-              className={`font-semibold px-4 rounded-lg transition inline-flex items-center justify-center gap-2 ${
+              className={`font-black uppercase tracking-wide px-4 transition inline-flex items-center justify-center gap-2 ${
                 code.trim()
-                  ? "bg-bungie-blue hover:opacity-90 text-white"
+                  ? "armory-button"
                   : "bg-bungie-dark border border-bungie-border text-gray-500"
               } disabled:opacity-50`}
             >
