@@ -470,7 +470,14 @@ function LoadoutRow({ loadout, accent }: { loadout: LoadoutSlot[]; accent: Accen
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {loadout.map((w) => (
         <div key={w.slot} className={`panel border-l-2 ${a.borderL} p-3 flex items-center gap-3`}>
-          <WeaponIcon icon={w.icon} name={w.name} size="large" />
+          {w.icon ? (
+            <WeaponIcon icon={w.icon} name={w.name} size="large" />
+          ) : (
+            // Wildcard slot — the ruleset lets the player bring their own weapon.
+            <div className="w-12 h-12 shrink-0 bg-bungie-dark border border-bungie-border flex items-center justify-center text-lg font-bold text-gray-500">
+              ?
+            </div>
+          )}
           <div className="min-w-0">
             <p className="section-label">{w.slot}</p>
             <p className="text-sm font-bold text-white truncate">{w.name}</p>

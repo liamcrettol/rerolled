@@ -79,6 +79,14 @@ async function main() {
     return;
   }
 
+  if (command === "rotate") {
+    const { rotateWeeklyChallenges } = await import("../lib/challenges/rotate");
+    const { adminSupabase } = await import("../lib/supabase/admin");
+    const result = await rotateWeeklyChallenges(adminSupabase);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (command === "publish") {
     const { publishWeeklyChallenge } = await import("../lib/challenges/publish");
     const { adminSupabase } = await import("../lib/supabase/admin");
@@ -94,7 +102,7 @@ async function main() {
     return;
   }
 
-  console.error("Usage: weekly-challenge.ts <generate|preview|publish> [--week N] [--season key] [--slug s] [--starts iso] [--ends iso]");
+  console.error("Usage: weekly-challenge.ts <generate|preview|publish|rotate> [--week N] [--season key] [--slug s] [--starts iso] [--ends iso]");
   process.exit(1);
 }
 

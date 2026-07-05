@@ -5,9 +5,13 @@ import { requireSession } from "@/lib/auth/helpers";
 const LOBBY_ID = "00000000-0000-0000-0000-000000000001";
 const LOBBY_CODE = "TEST01";
 
-// This endpoint writes/wipes test data, so require a logged-in session - it must
-// not be callable anonymously in production.
+// This endpoint writes/wipes test data. It is disabled entirely on production
+// deployments (any signed-in user could otherwise reset the shared test lobby
+// and its fake stats) and requires a logged-in session everywhere else.
 async function requireAuth(): Promise<NextResponse | null> {
+  if (process.env.VERCEL_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     await requireSession();
     return null;

@@ -1,0 +1,30 @@
+name: Rotate weekly challenge
+
+# Expires the finished week, activates a scheduled one, or generates + publishes
+# the next week when nothing is live. Runs right after Destiny's Tuesday
+# 17:00 UTC reset, with a one-hour-later retry (the pass is idempotent, so the
+# retry no-ops when the first run succeeded). Same protected-endpoint pattern
+# as process-jobs / detect-games.
+#
+# Requires the same two repository secrets those workflows use:
+#   APP_URL      e.g. https://preview.d2roulette.app  (no trailing slash)
+#   CRON_SECRET  same value set in the Vercel project env
+
+on:
+  schedule:
+    - cron: "5 17 * * 2" # Tuesday 17:05 UTC — just after weekly reset
+    - cron: "5 18 * * 2" # Tuesday 18:05 UTC — retry in case GitHub delayed/failed
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger rotate-weekly
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/rotate-weekly" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body

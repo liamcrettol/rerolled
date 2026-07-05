@@ -3,7 +3,27 @@ import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 import HeroReel from "@/components/HeroReel";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
+import { MODES } from "@/lib/modes/modes";
+import type { ModeAccent } from "@/types/platform";
 import Link from "next/link";
+
+// Signed-out landing. Pitches the whole activity hub (mode strip below the
+// sign-in), not just roulette — each mode wears its accent from the registry.
+const MODE_ACCENT_TEXT: Record<ModeAccent, string> = {
+  green: "text-green-400",
+  amber: "text-amber-400",
+  blue: "text-bungie-blue",
+  purple: "text-purple-400",
+  red: "text-red-400",
+};
+
+const LANDING_MODES = [
+  MODES.gun_roulette,
+  MODES.score_attack,
+  MODES.weekly_challenge,
+  MODES.draft,
+  MODES.ironman,
+];
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const session = await auth();
@@ -22,10 +42,23 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         <h1 className="text-5xl md:text-6xl font-bold uppercase tracking-tight text-white">
           Gun Roulette
         </h1>
-        <p className="text-gray-400 mt-3">Random loadouts for your fireteam.</p>
+        <p className="text-gray-400 mt-3">
+          Random loadouts, scored solo runs, and weekly challenges for your fireteam.
+        </p>
       </div>
 
       <HeroReel weaponsBySlot={heroWeaponsBySlot} />
+
+      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 max-w-2xl">
+        {LANDING_MODES.map((mode) => (
+          <span key={mode.id} className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest">
+            <span className={mode.enabled ? MODE_ACCENT_TEXT[mode.accent] : "text-gray-600"}>
+              {mode.title}
+            </span>
+            {!mode.enabled && <span className="text-[9px] text-gray-700">soon</span>}
+          </span>
+        ))}
+      </div>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         {code && (

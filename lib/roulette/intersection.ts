@@ -55,8 +55,8 @@ function applyPairingRule(
   return filtered.length > 0 ? filtered : pool;
 }
 
-function pick(pool: number[]): number | null {
-  return pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+function pick(pool: number[], rng: () => number = Math.random): number | null {
+  return pool.length > 0 ? pool[Math.floor(rng() * pool.length)] : null;
 }
 
 /**
@@ -73,7 +73,9 @@ export function rollLoadout(
   // avoiding the whole window would empty the pool, it relaxes to exclude as
   // many of the most-recent picks as the pool allows (always leaves ≥1).
   avoid?: Partial<Record<WeaponSlot, number[]>>,
-  mode: RollMode = "normal"
+  mode: RollMode = "normal",
+  // Injectable RNG so seeded flows (weekly challenges) roll deterministically.
+  rng: () => number = Math.random
 ): Record<WeaponSlot, number | null> {
   const dropAvoided = (pool: number[], slot: WeaponSlot): number[] => {
     const recent = avoid?.[slot];
@@ -141,7 +143,7 @@ export function rollLoadout(
     kPool = dropSpecialsIf(kPool, isSpecial(energyHash));
     kPool = dropExoticsIf(kPool, keptExotic || isExotic(energyHash));
     kPool = dropAvoided(kPool, "kinetic");
-    kineticHash = pick(kPool);
+    kineticHash = pick(kPool, rng);
   }
 
   // Roll energy (if not locked), constrained by whatever kinetic ended up as
@@ -152,7 +154,7 @@ export function rollLoadout(
     ePool = dropSpecialsIf(ePool, isSpecial(kineticHash));
     ePool = dropExoticsIf(ePool, keptExotic || isExotic(kineticHash));
     ePool = dropAvoided(ePool, "energy");
-    energyHash = pick(ePool);
+    energyHash = pick(ePool, rng);
   }
 
   // Power is always independent, and never exotic (tierType 6)
@@ -161,7 +163,7 @@ export function rollLoadout(
   );
   if (powerPool.length === 0) powerPool = intersection.power; // fallback if all exotics
   powerPool = applyMeta(powerPool);
-  const powerHash = keep.power ?? pick(dropAvoided(powerPool, "power"));
+  const powerHash = keep.power ?? pick(dropAvoided(powerPool, "power"), rng);
 
   // Post-roll: guarantee at most one exotic across kinetic+energy.
   // dropExoticsIf falls back to the full pool when all weapons are exotic,
@@ -169,19 +171,19 @@ export function rollLoadout(
   if (!kineticKept && !energyKept && isExotic(kineticHash) && isExotic(energyHash)) {
     const nonExoticE = intersection.energy.filter((h) => !isExotic(h));
     if (nonExoticE.length > 0) {
-      energyHash = pick(dropAvoided(nonExoticE, "energy")) ?? energyHash;
+      energyHash = pick(dropAvoided(nonExoticE, "energy"), rng) ?? energyHash;
     } else {
       const nonExoticK = intersection.kinetic.filter((h) => !isExotic(h));
       if (nonExoticK.length > 0) {
-        kineticHash = pick(dropAvoided(nonExoticK, "kinetic")) ?? kineticHash;
+        kineticHash = pick(dropAvoided(nonExoticK, "kinetic"), rng) ?? kineticHash;
       }
     }
   } else if (!energyKept && isExotic(kineticHash) && isExotic(energyHash)) {
     const nonExoticE = intersection.energy.filter((h) => !isExotic(h));
-    if (nonExoticE.length > 0) energyHash = pick(nonExoticE) ?? energyHash;
+    if (nonExoticE.length > 0) energyHash = pick(nonExoticE, rng) ?? energyHash;
   } else if (!kineticKept && isExotic(kineticHash) && isExotic(energyHash)) {
     const nonExoticK = intersection.kinetic.filter((h) => !isExotic(h));
-    if (nonExoticK.length > 0) kineticHash = pick(nonExoticK) ?? kineticHash;
+    if (nonExoticK.length > 0) kineticHash = pick(nonExoticK, rng) ?? kineticHash;
   }
 
   return { kinetic: kineticHash, energy: energyHash, power: powerHash };
