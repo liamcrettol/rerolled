@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { trimBungieName } from "@/lib/utils";
 import { mergeSlot, upsertMember, updateMember, removeMemberById } from "@/lib/lobby/realtimeState";
+import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyLoadoutSlot, LobbyMember } from "@/types/lobby";
 
 const SLOT_ORDER = ["kinetic", "energy", "power"] as const;
@@ -143,90 +144,91 @@ export default function WatchView({
     setLobbyLeaderboard(updated);
   }, [supabase, lobbyId]);
 
-  useEffect(() => {
-    async function loadRound(roundNum: number) {
-      const { data: round } = await supabase
-        .from("lobby_rounds")
-        .select("id")
-        .eq("lobby_id", lobbyId)
-        .eq("round_number", roundNum)
-        .maybeSingle();
-      roundIdRef.current = round?.id ?? null;
-      if (round) {
-        const { data } = await supabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id);
-        setSlots(data ?? []);
-      } else {
-        setSlots([]);
+  const configureChannel = useCallback(
+    (channel: SupabaseChannel, channelSupabase: ReturnType<typeof createClient>) => {
+      async function loadRound(roundNum: number) {
+        const { data: round } = await channelSupabase
+          .from("lobby_rounds")
+          .select("id")
+          .eq("lobby_id", lobbyId)
+          .eq("round_number", roundNum)
+          .maybeSingle();
+        roundIdRef.current = round?.id ?? null;
+        if (round) {
+          const { data } = await channelSupabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id);
+          setSlots(data ?? []);
+        } else {
+          setSlots([]);
+        }
       }
-    }
 
-    const toWatchMember = (m: LobbyMember): WatchMember => ({
-      id: m.id,
-      userId: m.user_id,
-      displayName: m.display_name,
-      isCaptain: m.is_captain,
-      hasCharacter: !!m.selected_character_id,
-    });
+      const toWatchMember = (m: LobbyMember): WatchMember => ({
+        id: m.id,
+        userId: m.user_id,
+        displayName: m.display_name,
+        isCaptain: m.is_captain,
+        hasCharacter: !!m.selected_character_id,
+      });
 
-    const channel = supabase
-      .channel(`watch:${lobbyId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "lobbies", filter: `id=eq.${lobbyId}` },
-        (payload) => {
-          const next = payload.new as Lobby;
-          setRoundNumber(next.current_round);
-          setStatus(next.status);
-          loadRound(next.current_round);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "lobby_loadout_slots" },
-        (payload) => {
-          if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
-            const s = payload.new as LobbyLoadoutSlot;
-            if (roundIdRef.current && s.round_id !== roundIdRef.current) return;
-            setSlots((prev) => mergeSlot(prev, s));
+      channel
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "lobbies", filter: `id=eq.${lobbyId}` },
+          (payload) => {
+            const next = payload.new as Lobby;
+            setRoundNumber(next.current_round);
+            setStatus(next.status);
+            loadRound(next.current_round);
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
-        (payload) => {
-          const m = toWatchMember(payload.new as LobbyMember);
-          setMembers((prev) => upsertMember(prev, m));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
-        (payload) => {
-          const m = toWatchMember(payload.new as LobbyMember);
-          setMembers((prev) => updateMember(prev, m));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "lobby_members" },
-        (payload) => {
-          const deletedId = (payload.old as { id?: string }).id;
-          if (deletedId) setMembers((prev) => removeMemberById(prev, deletedId));
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "game_sessions", filter: `lobby_id=eq.${lobbyId}` },
-        () => {
-          fetchLastGame();
-          fetchLobbyLeaderboard();
-        }
-      )
-      .subscribe();
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "lobby_loadout_slots" },
+          (payload) => {
+            if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
+              const s = payload.new as LobbyLoadoutSlot;
+              if (roundIdRef.current && s.round_id !== roundIdRef.current) return;
+              setSlots((prev) => mergeSlot(prev, s));
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
+          (payload) => {
+            const m = toWatchMember(payload.new as LobbyMember);
+            setMembers((prev) => upsertMember(prev, m));
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
+          (payload) => {
+            const m = toWatchMember(payload.new as LobbyMember);
+            setMembers((prev) => updateMember(prev, m));
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "DELETE", schema: "public", table: "lobby_members" },
+          (payload) => {
+            const deletedId = (payload.old as { id?: string }).id;
+            if (deletedId) setMembers((prev) => removeMemberById(prev, deletedId));
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "game_sessions", filter: `lobby_id=eq.${lobbyId}` },
+          () => {
+            fetchLastGame();
+            fetchLobbyLeaderboard();
+          }
+        );
+    },
+    [lobbyId, fetchLastGame, fetchLobbyLeaderboard]
+  );
 
-    return () => { supabase.removeChannel(channel); };
-  }, [lobbyId, supabase, fetchLastGame, fetchLobbyLeaderboard]);
+  useSupabaseChannel(`watch:${lobbyId}`, configureChannel);
 
   const ordered = SLOT_ORDER.map((s) => slots.find((x) => x.slot === s));
   const badge = STATUS_BADGE[status] ?? STATUS_BADGE.waiting;
