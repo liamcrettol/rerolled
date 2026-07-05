@@ -656,6 +656,24 @@ export async function POST(req: NextRequest) {
 
     void flushDefinitionCache();
 
+    // Cache the computed pool server-side so /api/roulette/roll can validate
+    // submitted hashes against a server-owned source of truth (#238). Best
+    // effort: a failure here (e.g. migration 032 not yet applied) must not
+    // block browsing the pool.
+    try {
+      await adminSupabase.from("lobby_pools").upsert(
+        {
+          lobby_id: lobbyId,
+          pool: intersectionArrays,
+          weapon_details: weaponDetails,
+          computed_at: new Date().toISOString(),
+        },
+        { onConflict: "lobby_id" }
+      );
+    } catch (e) {
+      console.warn("[intersection] failed to cache lobby pool:", e instanceof Error ? e.message : e);
+    }
+
     return NextResponse.json({
       intersection: intersectionArrays,
       weaponDetails,

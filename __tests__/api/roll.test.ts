@@ -88,11 +88,13 @@ describe("POST /api/roulette/roll logging", () => {
   });
 
   it("logs roll.forbidden and flushes when caller is not captain", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     jest.mocked(adminSupabase.from).mockReturnValueOnce({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: { captain_user_id: "other-user" }, error: null }),
-    });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     const res = await POST(makeRollRequest());
     expect(res.status).toBe(403);
     const { warn } = mockLogger;
@@ -100,5 +102,44 @@ describe("POST /api/roulette/roll logging", () => {
       lobbyId: "00000000-0000-0000-0000-000000000001",
     }));
     expect(mockFlush).toHaveBeenCalled();
+  });
+
+  it("rejects a tampered pool whose hashes are outside the server-owned intersection (#238)", async () => {
+    const original = jest.mocked(adminSupabase.from).getMockImplementation();
+    // Captain check passes; the cached pool only contains different hashes, so
+    // makeRollRequest's submitted intersection (1111/2222/3333) is tampering.
+    jest.mocked(adminSupabase.from).mockImplementation(((table: string) => {
+      if (table === "lobby_pools") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { pool: { kinetic: [9999], energy: [9999], power: [9999] }, weapon_details: {} },
+            error: null,
+          }),
+        };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
+        upsert: jest.fn().mockResolvedValue({ error: null }),
+        update: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { captain_user_id: "user-1" }, error: null }),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any);
+
+    try {
+      const res = await POST(makeRollRequest());
+      expect(res.status).toBe(400);
+      expect(mockLogger.warn).toHaveBeenCalledWith("roll.tampered_pool", expect.objectContaining({
+        lobbyId: "00000000-0000-0000-0000-000000000001",
+      }));
+    } finally {
+      // Restore the module-level implementation so later tests are unaffected.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      jest.mocked(adminSupabase.from).mockImplementation(original as any);
+    }
   });
 });

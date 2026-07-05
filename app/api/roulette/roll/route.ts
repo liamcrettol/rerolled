@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { rollLoadout } from "@/lib/roulette/intersection";
+import { findInvalidPoolHashes } from "@/lib/roulette/validatePool";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { createLogger } from "@/lib/logger";
@@ -63,6 +64,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only the captain can roll" }, { status: 403 });
     }
 
+    // Validate the client-submitted pool against the server-owned cache (#238).
+    // The intersection route caches the computed pool per lobby; a tampered
+    // request that adds hashes nobody owns is rejected here rather than trusted.
+    // Cache miss (migration 032 not applied yet, or intersection not computed)
+    // falls back to prior behavior so nothing breaks in the meantime.
+    let serverDetails: Record<string, { name: string; icon: string; weaponType: string; damageType: string }> | null = null;
+    const { data: poolRow } = await adminSupabase
+      .from("lobby_pools")
+      .select("pool, weapon_details")
+      .eq("lobby_id", body.lobbyId)
+      .single();
+
+    if (poolRow?.pool) {
+      const invalid = findInvalidPoolHashes(body.intersection, poolRow.pool);
+      if (invalid.length > 0) {
+        log.warn("roll.tampered_pool", { lobbyId: body.lobbyId, invalidCount: invalid.length, sample: invalid.slice(0, 5) });
+        await log.flush();
+        return NextResponse.json({ error: "Roll pool does not match the shared lobby inventory." }, { status: 400 });
+      }
+      serverDetails = poolRow.weapon_details ?? null;
+    } else {
+      log.warn("roll.pool_uncached", { lobbyId: body.lobbyId });
+    }
+
+    // Server-owned display metadata wins over anything the client submitted,
+    // so slot rows are written from the trusted pool where available.
+    const details = { ...body.weaponDetails, ...(serverDetails ?? {}) };
+
     // No-duplicates mode: exclude every weapon rolled in a previous round.
     // If the subtraction would empty a slot's pool, that slot's pool resets
     // (i.e. when all weapons have been seen, the cycle starts over).
@@ -122,7 +151,7 @@ export async function POST(req: NextRequest) {
 
     const roll = rollLoadout(
       filteredIntersection,
-      body.weaponDetails,
+      details,
       exclude as Partial<Record<WeaponSlot, number>>,
       body.avoid as Partial<Record<WeaponSlot, number[]>> | undefined,
       body.mode
@@ -134,7 +163,7 @@ export async function POST(req: NextRequest) {
       if (wildcards.has(slot)) continue; // already written above
       const hash = roll[slot];
       if (!hash) continue;
-      const detail = body.weaponDetails[hash.toString()];
+      const detail = details[hash.toString()];
       if (!detail) continue;
 
       await adminSupabase.from("lobby_loadout_slots").upsert(
