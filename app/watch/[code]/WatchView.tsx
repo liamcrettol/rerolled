@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { trimBungieName } from "@/lib/utils";
+import { mergeSlot, upsertMember, updateMember, removeMemberById } from "@/lib/lobby/realtimeState";
 import type { Lobby, LobbyLoadoutSlot, LobbyMember } from "@/types/lobby";
 
 const SLOT_ORDER = ["kinetic", "energy", "power"] as const;
@@ -186,7 +187,7 @@ export default function WatchView({
           if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
             const s = payload.new as LobbyLoadoutSlot;
             if (roundIdRef.current && s.round_id !== roundIdRef.current) return;
-            setSlots((prev) => [...prev.filter((x) => x.slot !== s.slot), s]);
+            setSlots((prev) => mergeSlot(prev, s));
           }
         }
       )
@@ -195,7 +196,7 @@ export default function WatchView({
         { event: "INSERT", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
         (payload) => {
           const m = toWatchMember(payload.new as LobbyMember);
-          setMembers((prev) => [...prev.filter((x) => x.id !== m.id), m]);
+          setMembers((prev) => upsertMember(prev, m));
         }
       )
       .on(
@@ -203,7 +204,7 @@ export default function WatchView({
         { event: "UPDATE", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobbyId}` },
         (payload) => {
           const m = toWatchMember(payload.new as LobbyMember);
-          setMembers((prev) => prev.map((x) => (x.id === m.id ? m : x)));
+          setMembers((prev) => updateMember(prev, m));
         }
       )
       .on(
@@ -211,7 +212,7 @@ export default function WatchView({
         { event: "DELETE", schema: "public", table: "lobby_members" },
         (payload) => {
           const deletedId = (payload.old as { id?: string }).id;
-          if (deletedId) setMembers((prev) => prev.filter((x) => x.id !== deletedId));
+          if (deletedId) setMembers((prev) => removeMemberById(prev, deletedId));
         }
       )
       .on(

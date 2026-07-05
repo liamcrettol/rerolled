@@ -13,6 +13,7 @@ import WeaponPool from "./WeaponPool";
 import RollDetails, { type RollsData } from "./RollDetails";
 import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
+import { mergeSlot, upsertMember, updateMember, removeMemberById, wildcardsFromSlots } from "@/lib/lobby/realtimeState";
 import { useGameDetection, type PlayerStat, type RoundRecord } from "@/hooks/useGameDetection";
 import PlayerCard from "./PlayerCard";
 import Spinner from "./Spinner";
@@ -623,14 +624,14 @@ export default function LobbyRoom({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobby.id}` },
         (payload) => {
-          setMembers((prev) => [...prev.filter((m) => m.id !== (payload.new as LobbyMember).id), payload.new as LobbyMember]);
+          setMembers((prev) => upsertMember(prev, payload.new as LobbyMember));
         }
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "lobby_members", filter: `lobby_id=eq.${lobby.id}` },
         (payload) => {
-          setMembers((prev) => prev.map((m) => m.id === (payload.new as LobbyMember).id ? payload.new as LobbyMember : m));
+          setMembers((prev) => updateMember(prev, payload.new as LobbyMember));
         }
       )
       .on(
@@ -641,7 +642,7 @@ export default function LobbyRoom({
         { event: "DELETE", schema: "public", table: "lobby_members" },
         (payload) => {
           const deletedId = (payload.old as { id?: string }).id;
-          if (deletedId) setMembers((prev) => prev.filter((m) => m.id !== deletedId));
+          if (deletedId) setMembers((prev) => removeMemberById(prev, deletedId));
         }
       )
       .on(
@@ -652,7 +653,7 @@ export default function LobbyRoom({
             const s = payload.new as LobbyLoadoutSlot;
             if (!roundIdRef.current || s.round_id !== roundIdRef.current) return;
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
-            setSlots((prev) => [...prev.filter((x) => x.slot !== s.slot), s]);
+            setSlots((prev) => mergeSlot(prev, s));
           }
         }
       )
@@ -819,14 +820,9 @@ export default function LobbyRoom({
           .eq("round_id", round.id);
         if (existingSlots) {
           setSlots(existingSlots);
-          // Reconstruct wildcard state: slots stored with item_hash=0 are wildcards ("Your own").
-          const wc = new Set<WeaponSlot>(
-            existingSlots.filter((s) => s.item_hash === 0).map((s) => s.slot as WeaponSlot)
-          );
-          // Default power to wildcard unless the captain explicitly rolled a real heavy
-          const hasPowerRoll = existingSlots.some((s) => s.slot === "power" && s.item_hash !== 0);
-          if (!hasPowerRoll) wc.add("power");
-          setWildcardSlots(wc);
+          // Reconstruct wildcard state: slots stored with item_hash=0 are wildcards
+          // ("Your own"); power defaults to wildcard unless a real heavy was rolled.
+          setWildcardSlots(wildcardsFromSlots(existingSlots));
           for (const s of existingSlots) {
             if (s.item_hash !== 0) recordRoll(s.slot as WeaponSlot, s.item_hash);
           }
