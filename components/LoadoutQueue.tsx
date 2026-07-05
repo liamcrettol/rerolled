@@ -127,8 +127,8 @@ function WeaponSlotContent({
     <>
       <div
         key={popKey}
-        className={`relative rounded-lg overflow-hidden border shrink-0 cursor-help transition-shadow duration-300 ${theme.bg} ${theme.border} ${
-          picked ? "animate-pick-pop ring-2 ring-bungie-blue" : ""
+        className={`relative overflow-hidden border shrink-0 cursor-help transition-shadow duration-300 ${theme.bg} ${theme.border} ${
+          picked ? "animate-pick-pop ring-1 ring-bungie-blue" : ""
         } ${landed ? "animate-slot-land" : ""}`}
         style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
         onMouseEnter={(e) => onHover(hash, e)}
@@ -156,7 +156,7 @@ function WeaponSlotContent({
               {damageType && <span className={theme.text}> · {damageType}</span>}
             </p>
             {isCollection && (
-              <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded px-1.5 py-0.5 leading-none">
+              <span className="mt-1 inline-block text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 leading-none">
                 Pull from Collections
               </span>
             )}
@@ -190,11 +190,11 @@ export default function LoadoutQueue({
   }, [iconPool]);
 
   return (
-    <div className="bg-bungie-surface border border-bungie-border/40 rounded-xl overflow-hidden">
+    <div className="panel overflow-hidden">
       {tooltipNode}
 
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-bungie-border/40">
-        <h3 className="text-white text-sm font-semibold">Loadout</h3>
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-bungie-border">
+        <h3 className="section-label">Loadout</h3>
         {actions && <div className="flex items-center gap-2 flex-wrap justify-end">{actions}</div>}
       </div>
 
@@ -226,7 +226,7 @@ export default function LoadoutQueue({
               <div className="flex items-center gap-3 flex-1 min-w-[180px]">
                 {/* Damage/slot accent rail */}
                 <span
-                  className={`w-1 self-stretch rounded-full shrink-0 ${hasWeapon ? theme.fill : "bg-gray-700/60"}`}
+                  className={`w-0.5 self-stretch shrink-0 ${hasWeapon ? theme.fill : "bg-gray-700/60"}`}
                   aria-hidden
                 />
 
@@ -239,7 +239,7 @@ export default function LoadoutQueue({
                   <>
                     <div
                       style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
-                      className="shrink-0 rounded-lg border border-gray-700/40 bg-bungie-dark/40 flex items-center justify-center opacity-40 animate-pulse"
+                      className="shrink-0 border border-gray-700/40 bg-bungie-dark/40 flex items-center justify-center opacity-40"
                     >
                       <User size={26} className="text-gray-400" />
                     </div>
@@ -270,7 +270,7 @@ export default function LoadoutQueue({
                   <>
                     <div
                       style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}
-                      className="shrink-0 rounded-lg border border-bungie-border/40 bg-bungie-dark flex items-center justify-center text-gray-600 text-xl"
+                      className="shrink-0 border border-bungie-border/40 bg-bungie-dark flex items-center justify-center text-gray-600 text-xl"
                     >
                       ?
                     </div>
@@ -288,7 +288,7 @@ export default function LoadoutQueue({
                     <button
                       onClick={() => onCycleSlotMode(slotName as WeaponSlot)}
                       aria-label="Cycle slot mode"
-                      className={`text-xs px-3 py-1.5 rounded-lg border transition inline-flex items-center gap-1.5 font-medium ${
+                      className={`text-xs px-3 py-1.5 border transition inline-flex items-center gap-1.5 font-medium ${
                         slotMode === "lock"
                           ? "border-yellow-500/70 bg-yellow-500/15 text-yellow-300 hover:bg-yellow-500/25"
                           : slotMode === "wildcard"
@@ -304,7 +304,7 @@ export default function LoadoutQueue({
                     <button
                       onClick={(e) => { e.stopPropagation(); onRerollSlot(slotName as WeaponSlot); }}
                       aria-label={`Reroll only the ${slotName} slot`}
-                      className="h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-lg border border-bungie-border text-gray-400 hover:border-bungie-blue hover:text-bungie-blue transition"
+                      className="h-7 w-7 shrink-0 inline-flex items-center justify-center border border-bungie-border text-gray-400 hover:border-bungie-blue hover:text-bungie-blue transition"
                     >
                       <RotateCcw size={13} />
                     </button>

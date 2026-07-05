@@ -75,7 +75,7 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
   const sorted = [...stats].sort((a, b) => b.kills - a.kills);
   const hasWon = stats.some((s) => s.won != null);
   return (
-    <div className="overflow-x-auto rounded-lg border border-bungie-border/60 bg-bungie-dark/40">
+    <div className="overflow-x-auto border border-bungie-border/60 bg-bungie-dark/40">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-gray-500 text-xs border-b border-bungie-border/60">
@@ -183,10 +183,7 @@ export default function LobbyStatsPanel({
       {statsTab === "session" && (
         <div className="p-4">
           {sessionTotals.length > 0 ? (
-            <>
-              <p className="text-xs text-gray-500 mb-3">Running K / A / D across all games this lobby</p>
-              <SessionTotalsTable totals={sessionTotals} />
-            </>
+            <SessionTotalsTable totals={sessionTotals} />
           ) : (
             <p className="text-sm text-gray-500 text-center py-4">No games recorded yet.</p>
           )}
@@ -216,7 +213,7 @@ export default function LobbyStatsPanel({
                     >
                       {/* Round badge + W/L */}
                       <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-                        <span className="text-[11px] font-bold text-gray-300 bg-bungie-border/60 rounded px-1.5 py-0.5 leading-none tabular-nums">
+                        <span className="text-[11px] font-bold text-gray-300 bg-bungie-border/60 px-1.5 py-0.5 leading-none tabular-nums">
                           R{round.roundNum}
                         </span>
                         {teamResult === true && <Badge tone="win">W</Badge>}
@@ -259,13 +256,13 @@ export default function LobbyStatsPanel({
                               if (!w) return null;
                               const slotColor = slot === "kinetic" ? "text-gray-300 border-gray-500/40" : slot === "energy" ? "text-bungie-blue border-bungie-blue/40" : "text-purple-300 border-purple-500/40";
                               return (
-                                <div key={slot} className={`flex items-center gap-2 bg-bungie-dark border rounded-lg px-2.5 py-2 ${slotColor.split(" ")[1]}`}>
+                                <div key={slot} className={`flex items-center gap-2 bg-bungie-dark border px-2.5 py-2 ${slotColor.split(" ")[1]}`}>
                                   {w.icon && (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                       src={`https://www.bungie.net${w.icon}`}
                                       alt=""
-                                      className="w-8 h-8 rounded shrink-0"
+                                      className="w-8 h-8 shrink-0"
                                     />
                                   )}
                                   <div>

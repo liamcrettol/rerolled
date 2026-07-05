@@ -24,7 +24,7 @@ interface Props {
 export default function Badge({ children, tone, size = "compact", className = "" }: Props) {
   const sizeCls = size === "roomy" ? "text-[10px] px-1.5 py-0.5" : "text-[10px] px-1 leading-tight";
   return (
-    <span className={`font-bold border rounded ${TONE_CLS[tone]} ${sizeCls} ${className}`}>
+    <span className={`font-bold border ${TONE_CLS[tone]} ${sizeCls} ${className}`}>
       {children}
     </span>
   );

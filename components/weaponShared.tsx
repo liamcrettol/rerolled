@@ -126,7 +126,7 @@ function FloatingTooltip({
   return (
     <div
       ref={ref}
-      className="fixed z-[60] w-72 bg-gray-950/95 backdrop-blur border border-bungie-border rounded-xl shadow-2xl pointer-events-none overflow-hidden"
+      className="fixed z-[60] w-72 bg-[#0c0e11] border border-bungie-border shadow-2xl pointer-events-none overflow-hidden"
       style={{ left: pos?.left ?? state.point.x, top: pos?.top ?? state.point.y, opacity: pos ? 1 : 0 }}
     >
       {/* Rarity accent bar */}
@@ -136,7 +136,7 @@ function FloatingTooltip({
         <div className="flex items-start justify-between gap-2">
           <p className="text-white text-sm font-semibold leading-tight">{detail.name}</p>
           {isCollection && (
-            <span className="shrink-0 text-[10px] bg-amber-500/20 border border-amber-500/50 text-amber-300 rounded px-1.5 py-0.5">
+            <span className="shrink-0 text-[10px] bg-amber-500/20 border border-amber-500/50 text-amber-300 px-1.5 py-0.5">
               Collection
             </span>
           )}
@@ -144,7 +144,7 @@ function FloatingTooltip({
 
         {isCollection && (
           <p className="mt-2 text-[11px] text-amber-300/90 leading-snug">
-            Not everyone owns this - each player pulls it from Collections in-game before applying.
+            Not owned by everyone — pull from Collections before applying.
           </p>
         )}
 
@@ -171,8 +171,8 @@ function FloatingTooltip({
             {barStats.map((s) => (
               <div key={s} className="flex items-center gap-2">
                 <span className="text-gray-400 text-[11px] w-20 shrink-0">{s}</span>
-                <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${theme.fill}`} style={{ width: `${Math.min(100, detail.stats[s])}%` }} />
+                <div className="flex-1 h-1.5 bg-gray-700 overflow-hidden">
+                  <div className={`h-full ${theme.fill}`} style={{ width: `${Math.min(100, detail.stats[s])}%` }} />
                 </div>
                 <span className="text-gray-300 text-[11px] w-6 text-right tabular-nums">{detail.stats[s]}</span>
               </div>

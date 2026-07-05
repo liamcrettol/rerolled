@@ -42,19 +42,17 @@ export default function ApplyStatus({
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between mb-3 gap-2">
-        <h2 className="text-white font-semibold flex items-center gap-2">
-          Transaction Logs
-          <span className="text-xs font-medium text-gray-400 bg-bungie-dark border border-bungie-border px-2 py-0.5 rounded-full">
-            {results.length} {results.length === 1 ? "transaction" : "transactions"}
-          </span>
+        <h2 className="section-label flex items-center gap-2">
+          Apply Log
+          <span className="text-gray-500 tracking-normal">({results.length})</span>
         </h2>
         {onClear && (
           <button
             type="button"
             onClick={onClear}
-            className="text-xs text-gray-400 hover:text-white border border-bungie-border hover:border-gray-500 rounded-md px-2.5 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
+            className="text-xs text-gray-400 hover:text-white border border-bungie-border hover:border-gray-500 px-2.5 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-bungie-blue"
           >
-            Clear all logs
+            Clear
           </button>
         )}
       </div>
@@ -75,7 +73,7 @@ export default function ApplyStatus({
           const rowInner = (
             <>
               <span
-                className={`flex-shrink-0 uppercase tracking-wide text-[11px] font-bold px-2.5 py-1 rounded-md min-w-[76px] text-center border ${badgeClass}`}
+                className={`flex-shrink-0 uppercase tracking-wide text-[11px] font-bold px-2.5 py-1 min-w-[76px] text-center border ${badgeClass}`}
               >
                 {badgeLabel}
               </span>
@@ -85,7 +83,7 @@ export default function ApplyStatus({
                   <img
                     src={r.weapon_icon}
                     alt=""
-                    className="w-[30px] h-[30px] rounded border border-bungie-border flex-shrink-0"
+                    className="w-[30px] h-[30px] border border-bungie-border flex-shrink-0"
                   />
                 )}
                 <span className="font-semibold text-white truncate">{weaponName}</span>
@@ -114,7 +112,7 @@ export default function ApplyStatus({
           return (
             <div
               key={i}
-              className={`rounded-lg overflow-hidden text-sm ${
+              className={`overflow-hidden text-sm ${
                 r.success
                   ? "bg-green-900/30 border border-green-700/40"
                   : "bg-red-900/30 border border-red-700/40"

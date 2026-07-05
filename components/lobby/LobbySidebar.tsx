@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, PanelRightClose, Zap } from "lucide-react";
+import { Check, PanelRightClose } from "lucide-react";
 import WeaponPool from "@/components/WeaponPool";
 import PlayerCard from "@/components/PlayerCard";
 import Spinner from "@/components/Spinner";
@@ -35,7 +35,7 @@ function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classT
         <img
           src="/icons/destiny-default.svg"
           alt=""
-          className="w-8 h-8 rounded border border-white/10"
+          className="w-8 h-8 border border-white/10"
         />
       );
     }
@@ -44,7 +44,7 @@ function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classT
       <img
         src={CLASS_ICON_PATHS[classType] ?? CLASS_ICON_PATHS[0]}
         alt=""
-        className="w-8 h-8 rounded border border-white/10"
+        className="w-8 h-8 border border-white/10"
         onError={() => setClassIconFailed(true)}
       />
     );
@@ -55,7 +55,7 @@ function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classT
     <img
       src={`https://www.bungie.net${emblemPath}`}
       alt=""
-      className="w-8 h-8 rounded border border-white/10 object-cover"
+      className="w-8 h-8 border border-white/10 object-cover"
       onError={() => setEmblemFailed(true)}
     />
   );
@@ -137,19 +137,19 @@ export default function LobbySidebar({
         <button
           onClick={onHide}
           aria-label="Hide panel"
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-bungie-border/40 rounded-lg px-2 py-1 transition"
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 border border-bungie-border/40 px-2 py-1 transition"
         >
           <span className="xl:hidden">Hide</span>
           <PanelRightClose size={15} />
         </button>
       </div>
 
-      <div className="xl:hidden grid grid-cols-2 gap-1 mb-3 rounded-lg border border-bungie-border bg-bungie-surface p-1">
+      <div className="xl:hidden grid grid-cols-2 gap-1 mb-3 border border-bungie-border bg-bungie-surface p-1">
         {(["fireteam", "weapons"] as const).map((section) => (
           <button
             key={section}
             onClick={() => setMobileSection(section)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+            className={`px-3 py-1.5 text-xs font-semibold transition ${
               mobileSection === section
                 ? "bg-bungie-blue/20 text-white"
                 : "text-gray-400 hover:text-gray-200"
@@ -169,7 +169,7 @@ export default function LobbySidebar({
         {!contextExpanded ? (
           <button
             onClick={() => onSetContextExpanded(true)}
-            className="w-full px-3 py-2.5 text-left hover:bg-white/5 transition rounded-xl"
+            className="w-full px-3 py-2.5 text-left hover:bg-white/5 transition"
           >
             <span className="flex items-center justify-between gap-2">
               <span className="text-xs text-gray-400 truncate">
@@ -210,8 +210,8 @@ export default function LobbySidebar({
                 <ReadinessPill ready={poolReady} loading={poolLoading} label="Weapons" detail={poolLoading ? "Loading" : poolReady ? "Ready" : failedNames.length > 0 ? "Auth" : "Pending"} />
               </div>
               {failedNames.length > 0 && (
-                <p className="mt-2 rounded-lg border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-[11px] leading-4 text-red-200">
-                  Waiting on {failedNames.join(", ")} to sign in again. The lobby retries automatically.
+                <p className="mt-2 border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-[11px] leading-4 text-red-200">
+                  Waiting on {failedNames.join(", ")} to sign in again.
                 </p>
               )}
             </div>
@@ -229,7 +229,7 @@ export default function LobbySidebar({
                         <button
                           key={c.characterId}
                           onClick={() => onSelectCharacter(c.characterId)}
-                          className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg border text-left transition ${
+                          className={`w-full flex items-center gap-2.5 px-2 py-1.5 border text-left transition ${
                             selectedCharId === c.characterId
                               ? "border-bungie-blue/50 bg-bungie-blue/10 text-white"
                               : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-300"
@@ -272,7 +272,7 @@ export default function LobbySidebar({
               </h2>
             )}
             {!isCaptain && (
-              <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border rounded px-1.5 py-0.5 ml-auto">
+              <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border px-1.5 py-0.5 ml-auto">
                 View only
               </span>
             )}
@@ -295,18 +295,14 @@ export default function LobbySidebar({
                 readOnly={!isCaptain}
               />
           ) : !isCaptain ? (
-            <div className="relative rounded-xl border-2 border-bungie-blue/60 bg-bungie-blue/10 p-4">
-              <span className="absolute -inset-px rounded-xl border border-bungie-blue/40 animate-pulse pointer-events-none" />
-              <p className="text-white text-sm font-semibold mb-1 flex items-center gap-1.5">
-                <Zap size={15} className="text-bungie-blue" /> Load your shared weapons
-              </p>
+            <div className="border border-bungie-blue/60 bg-bungie-blue/10 p-4">
               <p className="text-gray-400 text-xs mb-3 leading-snug">
-                Everyone needs to do this so the captain can roll a loadout you all own.
+                Load your weapons so rolls only include guns everyone owns.
               </p>
               <button
                 onClick={onLoadIntersection}
                 disabled={actionDisabled}
-                className="w-full px-4 py-2.5 bg-bungie-blue rounded-lg text-sm text-white font-semibold hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 bg-bungie-blue text-xs font-bold uppercase tracking-wider text-white hover:bg-[#26bcf3] disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
               >
                 {poolLoading && <Spinner size={14} />}
                 {poolLoading ? "Loading…" : "Load Shared Weapons"}
@@ -321,7 +317,7 @@ export default function LobbySidebar({
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-bungie-border/40 bg-bungie-surface p-4">
+            <div className="panel p-4">
               <p className="text-sm text-gray-500 flex items-center gap-2">
                 {poolLoading && <Spinner size={13} />}
                 {poolLoading ? "Loading shared weapons…" : "Roll to load the shared weapon pool."}
@@ -356,26 +352,24 @@ function InventoryAuthNotice({
   reauthHref: string;
 }) {
   return (
-    <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-      <p className="text-[10px] uppercase tracking-widest text-red-300/80">Inventory needs attention</p>
+    <div className="mt-3 border border-red-500/30 bg-red-500/10 p-3">
+      <p className="text-[10px] uppercase tracking-widest text-red-300/80">Sign-in required</p>
       <p className="mt-1 text-xs leading-5 text-red-100">
         {currentUserNeedsReauth
-          ? "Your Bungie session needs a quick refresh before this fireteam can roll shared weapons."
+          ? "Your Bungie sign-in expired."
           : failedNames.length > 0
-            ? `${failedNames.join(", ")} needs to refresh Bungie sign-in before shared weapons can load.`
+            ? `Waiting on ${failedNames.join(", ")} to sign in again.`
             : error}
       </p>
       {currentUserNeedsReauth ? (
         <a
           href={reauthHref}
-          className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-bungie-blue px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+          className="mt-3 inline-flex w-full items-center justify-center bg-bungie-blue px-3 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#26bcf3]"
         >
           Sign in with Bungie again
         </a>
       ) : failedNames.length > 0 ? (
-        <p className="mt-2 text-[11px] leading-4 text-gray-400">
-          Waiting for {failedNames.join(", ")} to sign in again. This will retry automatically.
-        </p>
+        <p className="mt-2 text-[11px] leading-4 text-gray-400">Retries automatically.</p>
       ) : null}
     </div>
   );
@@ -393,7 +387,7 @@ function ReadinessPill({
   detail: string;
 }) {
   return (
-    <div className={`rounded-lg border px-2 py-1.5 ${
+    <div className={`border px-2 py-1.5 ${
       ready
         ? "border-green-500/25 bg-green-500/10"
         : loading

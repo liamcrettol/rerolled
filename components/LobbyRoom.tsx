@@ -583,12 +583,11 @@ export default function LobbyRoom({
   );
 
   return (
-    <div className="armory-shell flex flex-col xl:flex-row gap-5 xl:items-start">
+    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="flex-1 min-w-0 flex flex-col gap-6">
         {/* Header */}
-        <div className="armory-panel order-1 flex items-start justify-between gap-3 p-4">
+        <div className="panel order-1 flex items-start justify-between gap-3 p-4">
           <div>
-            <p className="armory-kicker mb-2">Active fireteam session</p>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={copyCode}
@@ -599,25 +598,24 @@ export default function LobbyRoom({
               </button>
               <button
                 onClick={copyLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
+                className="text-xs px-2 py-0.5 border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
               >
                 {copiedLink ? <Check size={12} /> : <Copy size={12} />}
                 {copiedLink ? "Copied" : "Invite"}
               </button>
               <button
                 onClick={copyWatchLink}
-                className="text-xs px-2 py-0.5 rounded border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
+                className="text-xs px-2 py-0.5 border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
               >
                 {copiedWatch ? <Check size={12} /> : <Copy size={12} />}
                 {copiedWatch ? "Copied" : "Watch"}
               </button>
             </div>
-            <div className="armory-rule mt-3 w-56" />
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {(() => {
                 const { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
                 return (
-                  <span className={`text-sm font-semibold px-2.5 py-1 rounded-lg border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]}`}>
+                  <span className={`text-sm font-semibold px-2.5 py-1 border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]}`}>
                     {tone === "turn" && <Crown size={13} />}
                     Round {lobbyData.current_round} · {text}
                   </span>
@@ -626,7 +624,7 @@ export default function LobbyRoom({
               {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
             </div>
             {minutesToClose !== null && minutesToClose <= 20 && (
-              <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs px-2 py-0.5 rounded border ${
+              <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs px-2 py-0.5 border ${
                 minutesToClose <= 5
                   ? "border-red-600/50 bg-red-900/20 text-red-300"
                   : "border-yellow-600/40 bg-yellow-900/10 text-yellow-300"
@@ -641,13 +639,13 @@ export default function LobbyRoom({
           <div ref={overflowMenuRef} className="relative">
             <button
               onClick={() => setShowOverflowMenu((v) => !v)}
-              className="p-1.5 text-gray-400 border border-bungie-border/40 rounded-lg hover:border-gray-500 transition flex items-center"
+              className="p-1.5 text-gray-400 border border-bungie-border/40 hover:border-gray-500 transition flex items-center"
               aria-label="More actions"
             >
               <MoreHorizontal size={16} />
             </button>
             {showOverflowMenu && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+              <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border shadow-2xl overflow-hidden min-w-[160px]">
                 {!isCaptain && (
                   <button
                     onClick={() => { handleToggleSpectate(); setShowOverflowMenu(false); }}
@@ -683,7 +681,7 @@ export default function LobbyRoom({
           {showEndSessionConfirm && (
             <ConfirmDialog
               title="End this session?"
-              body="This closes the lobby for everyone in the fireteam. Anyone still in it gets sent back to their dashboard."
+              body="Closes the lobby for everyone."
               confirmLabel="End Session"
               tone="danger"
               onCancel={() => setShowEndSessionConfirm(false)}
@@ -694,7 +692,7 @@ export default function LobbyRoom({
           {pendingSpecialSelect && (
             <ConfirmDialog
               title="Select this weapon anyway?"
-              body={`You already have ${pendingSpecialSelect.otherName} equipped as a Special weapon in the other slot. Picking this one too means no Primary in the loadout.`}
+              body={`${pendingSpecialSelect.otherName} is already Special — this leaves no Primary in the loadout.`}
               confirmLabel="Select Anyway"
               onCancel={() => setPendingSpecialSelect(null)}
               onConfirm={() => {
@@ -724,7 +722,7 @@ export default function LobbyRoom({
 
         {/* Loadout panel — rows + primary actions in the header. */}
         {(slots.length > 0 || (roundId && !isSpectator)) && (
-          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:rounded-xl after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
+          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
             <LoadoutQueue
               slots={slots}
               weaponDetails={weaponDetails}
@@ -745,7 +743,7 @@ export default function LobbyRoom({
                         onClick={() => handleRoll()}
                         disabled={Boolean(rollDisabledReason)}
                         title={rollDisabledReason ?? "Roll all slots"}
-                        className="px-4 py-1.5 bg-bungie-blue hover:opacity-90 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                        className="px-4 py-2 bg-bungie-blue hover:bg-[#26bcf3] disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2"
                         aria-label="Roll all slots"
                       >
                         {loadingAction === "roll" ? <Spinner size={15} /> : <Shuffle size={15} />}
@@ -757,7 +755,7 @@ export default function LobbyRoom({
                         onClick={handleApply}
                         disabled={Boolean(applyDisabledReason)}
                         title={applyDisabledReason ?? "Apply this loadout"}
-                        className="px-4 py-1.5 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-semibold rounded-full transition text-sm inline-flex items-center gap-2"
+                        className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2"
                         aria-label="Apply loadout"
                       >
                         {loadingAction === "apply" ? <Spinner size={15} /> : <Zap size={15} />}
@@ -767,7 +765,7 @@ export default function LobbyRoom({
                     {loadingAction === "apply" && (
                       <button
                         onClick={handleCancelApply}
-                        className="px-3 py-1.5 border border-red-800 text-red-400 hover:border-red-600 rounded-full text-sm transition"
+                        className="px-3 py-2 border border-red-800 text-red-400 hover:border-red-600 text-xs font-bold uppercase tracking-wider transition"
                       >
                         Cancel
                       </button>
@@ -783,21 +781,21 @@ export default function LobbyRoom({
         {!isSpectator && roundId && (
           <div className="order-3 flex items-center gap-3 flex-wrap min-h-[1.25rem] px-1">
             {hasRolledLoadout && applyDisabledReason && loadingAction !== "apply" && (
-              <span className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-300">
+              <span className="border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-300">
                 {applyDisabledReason}
               </span>
             )}
             {isCaptain && rollDisabledReason && !hasRolledLoadout && loadingAction !== "roll" && (
-              <span className="rounded-full border border-bungie-border bg-bungie-surface px-2 py-1 text-xs text-gray-400">
+              <span className="border border-bungie-border bg-bungie-surface px-2 py-1 text-xs text-gray-400">
                 {rollDisabledReason}
               </span>
             )}
             {intersectionError && (
-              <span className="rounded-lg border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-xs leading-5 text-red-200">
+              <span className="border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-xs leading-5 text-red-200">
                 {currentUserNeedsReauth
-                  ? "Your Bungie sign-in needs a refresh before shared weapons can load."
+                  ? "Your Bungie sign-in expired."
                   : intersectionAuthIssue?.failedDisplayNames?.length
-                    ? `${intersectionAuthIssue.failedDisplayNames.join(", ")} needs to refresh Bungie sign-in.`
+                    ? `Waiting on ${intersectionAuthIssue.failedDisplayNames.join(", ")} to sign in again.`
                     : intersectionError}
                 {currentUserNeedsReauth && (
                   <a href={reauthHref} className="ml-2 font-semibold text-bungie-blue hover:text-sky-300">
@@ -814,27 +812,26 @@ export default function LobbyRoom({
             )}
             {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
             {!isCaptain && (
-              <label className="ml-auto flex items-center gap-2 cursor-pointer select-none group">
-                <span className={`text-xs transition-colors ${autoApply ? "text-green-400" : "text-gray-500 group-hover:text-gray-300"}`}>
-                  Auto-apply
-                </span>
-                <button
-                  role="switch"
-                  aria-checked={autoApply}
-                  onClick={toggleAutoApply}
-                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors duration-200 focus:outline-none ${
-                    autoApply
-                      ? "bg-green-700 border-green-600"
-                      : "bg-bungie-surface border-bungie-border group-hover:border-gray-500"
+              <button
+                role="switch"
+                aria-checked={autoApply}
+                onClick={toggleAutoApply}
+                className={`ml-auto inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
+                  autoApply
+                    ? "border-green-600 bg-green-600/15 text-green-400"
+                    : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-flex h-3 w-3 items-center justify-center border ${
+                    autoApply ? "border-green-500 bg-green-500" : "border-gray-500"
                   }`}
+                  aria-hidden
                 >
-                  <span
-                    className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                      autoApply ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
-              </label>
+                  {autoApply && <Check size={9} className="text-black" strokeWidth={4} />}
+                </span>
+                Auto-apply
+              </button>
             )}
           </div>
         )}
@@ -866,7 +863,7 @@ export default function LobbyRoom({
         <button
           onClick={() => setRightOpen(true)}
           aria-label="Show panel"
-          className="shrink-0 xl:sticky xl:top-6 flex xl:flex-col items-center justify-center gap-2 rounded-xl border border-bungie-border/40 bg-bungie-surface text-gray-400 hover:text-gray-200 hover:border-gray-500 transition w-full xl:w-10 px-3 py-2 xl:py-4"
+          className="shrink-0 xl:sticky xl:top-6 flex xl:flex-col items-center justify-center gap-2 border border-bungie-border/40 bg-bungie-surface text-gray-400 hover:text-gray-200 hover:border-gray-500 transition w-full xl:w-10 px-3 py-2 xl:py-4"
         >
           <PanelRightOpen size={16} />
           <span className="text-xs xl:hidden">Show fireteam &amp; weapon pool</span>

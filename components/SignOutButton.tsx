@@ -19,7 +19,7 @@ export default function SignOutButton() {
         className="text-sm text-gray-400 hover:text-white transition"
         aria-label="Fully sign out"
       >
-        Sign out completely
+        Sign out
       </button>
     </div>
   );

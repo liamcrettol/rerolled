@@ -24,7 +24,6 @@ export default function RouletteLoader({ label }: { label?: string }) {
         viewBox="0 0 96 96"
         fill="none"
         aria-hidden="true"
-        className="drop-shadow-[0_0_24px_rgba(0,174,239,0.2)]"
       >
         {/* Top notch: the fixed "hammer" position each chamber clicks into */}
         <path d="M44 2 L52 2 L48 8 Z" className="fill-gray-500" />
@@ -41,7 +40,7 @@ export default function RouletteLoader({ label }: { label?: string }) {
               strokeWidth="2"
               className={
                 c.loaded
-                  ? "fill-bungie-blue stroke-bungie-blue [filter:drop-shadow(0_0_6px_rgba(0,174,239,0.8))]"
+                  ? "fill-bungie-blue stroke-bungie-blue"
                   : "fill-bungie-dark stroke-gray-600"
               }
             />

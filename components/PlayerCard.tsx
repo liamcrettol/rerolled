@@ -28,11 +28,11 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
   if (variant === "sidebar") {
     return (
       <div
-        className={`flex items-center gap-2 px-1 py-1.5 rounded-lg ${
+        className={`flex items-center gap-2 px-1 py-1.5 ${
           member.is_captain ? "text-yellow-400" : member.is_spectator ? "text-gray-600 opacity-60" : "text-gray-300"
         }`}
       >
-        <div className="relative shrink-0 w-[26px] h-[26px] rounded overflow-hidden border border-white/10">
+        <div className="relative shrink-0 w-[26px] h-[26px] overflow-hidden border border-white/10">
           {iconUrl ? (
             <img src={iconUrl} alt="" className="w-full h-full object-cover" onError={() => setIconFailed(true)} />
           ) : (
@@ -44,7 +44,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
           <span className="truncate">{trimBungieName(member.display_name)}</span>
         </span>
         {!member.is_spectator && member.selected_character_id && (
-          <Check size={13} className="text-green-400 shrink-0 animate-bounce-in" />
+          <Check size={13} className="text-green-400 shrink-0 animate-fade-in" />
         )}
       </div>
     );
@@ -54,7 +54,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
   // left-aligned beside it, over the emblem banner. Captain = yellow border, no crown.
   return (
     <div
-      className={`relative flex items-center rounded-lg overflow-hidden border w-full ${compact ? "h-14" : "h-20"}
+      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-14" : "h-20"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator
@@ -116,7 +116,7 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
 
       {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
-        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-bounce-in" aria-label="Guardian selected">
+        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
           <Check size={15} />
         </span>
       )}

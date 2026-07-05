@@ -117,7 +117,7 @@ export default function LobbyMockup() {
 
       {/* Last Game card */}
       {showLastGame && (
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
+        <div className="panel p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-white font-semibold">Last Game</h2>
             <button
@@ -140,13 +140,13 @@ export default function LobbyMockup() {
       )}
 
       {/* Fireteam */}
-      <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
+      <div className="panel p-4">
         <h2 className="text-white font-semibold mb-3">Fireteam ({fireteam.length})</h2>
         <div className="flex flex-wrap gap-3">
           {fireteam.map((m) => (
             <div
               key={m.name}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border ${
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm border ${
                 m.captain
                   ? "border-yellow-500 bg-yellow-500/10"
                   : "border-bungie-border bg-bungie-dark"
@@ -161,7 +161,7 @@ export default function LobbyMockup() {
       </div>
 
       {/* Round History */}
-      <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
+      <div className="panel overflow-hidden">
         <div className="px-4 py-3 border-b border-bungie-border">
           <h2 className="text-white font-semibold text-sm">Round History</h2>
         </div>

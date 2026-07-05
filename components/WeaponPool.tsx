@@ -93,13 +93,13 @@ function RollRow({
 }) {
   return (
     <div
-      className={`relative w-full rounded-lg transition flex items-stretch ${
+      className={`relative w-full transition flex items-stretch ${
         selected ? "bg-bungie-blue/15" : "hover:bg-white/5"
       }`}
     >
       {/* left accent bar */}
       <span
-        className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full transition-colors duration-200 ${
+        className={`absolute left-0 top-1.5 bottom-1.5 w-[3px] transition-colors duration-200 ${
           selected ? "bg-bungie-blue" : "bg-transparent"
         }`}
       />
@@ -114,7 +114,7 @@ function RollRow({
               </span>
             )}
           </span>
-          {selected && <Check size={13} className="text-bungie-blue shrink-0 animate-bounce-in" />}
+          {selected && <Check size={13} className="text-bungie-blue shrink-0 animate-fade-in" />}
         </div>
         {perks && perks.length > 0 && (
           <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
@@ -186,7 +186,7 @@ function WeaponCard({
   const cardInner = (
     <>
       <div
-        className="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-gray-800 cursor-help"
+        className="relative w-12 h-12 shrink-0 overflow-hidden bg-gray-800 cursor-help"
         onMouseEnter={(e) => onHover(hash, e)}
         onMouseLeave={onLeave}
       >
@@ -202,11 +202,11 @@ function WeaponCard({
           <p className="text-white text-xs font-semibold leading-tight">{detail.name}</p>
           <div className="flex items-center gap-1 shrink-0">
             {isCollection && (
-              <span className="text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 leading-none">
+              <span className="text-[10px] bg-amber-500/20 border border-amber-500/40 text-amber-400 px-1 py-0.5 leading-none">
                 C
               </span>
             )}
-            {isActive && <Check size={15} className="text-bungie-blue animate-bounce-in" />}
+            {isActive && <Check size={15} className="text-bungie-blue animate-fade-in" />}
           </div>
         </div>
         <p className="text-gray-400 text-xs leading-tight truncate">{detail.weaponType}</p>
@@ -231,10 +231,10 @@ function WeaponCard({
 
   return (
     <div
-      className={`rounded-lg border overflow-hidden transition ${
+      className={`border overflow-hidden transition ${
         isActive ? `${theme.border} ring-1 ${theme.ring}` : tier.border
       } ${justPicked ? "animate-slot-land" : ""} ${
-        !readOnly && !isActive ? "hover:-translate-y-0.5" : ""
+        ""
       }`}
     >
       {/* Main card row. Read-only viewers get a static row (still hoverable for
@@ -268,7 +268,7 @@ function WeaponCard({
             <RollRow
               label="Any roll"
               icon={<Shuffle size={12} className="shrink-0 text-gray-400" />}
-              perks={["best available - easiest to equip"]}
+              perks={["best available"]}
               selected={!currentInstance}
               onClick={() => onSelect(hash)}
               disabled={disabled}
@@ -294,7 +294,7 @@ function WeaponCard({
             className="w-full border-t border-bungie-border/50 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/5 transition flex items-center gap-1.5 disabled:opacity-40"
           >
             <Star size={11} className="text-bungie-blue" />
-            {rolls.length} rolls available - select to pick one
+            {rolls.length} rolls — select to choose
           </button>
         )
       )}
@@ -396,7 +396,7 @@ export default function WeaponPool({
         {/* Header */}
         <div className="px-4 pt-3 pb-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-white font-semibold text-sm">Weapon Browser</span>
+            <span className="section-label">Weapon Browser</span>
             <span className="text-gray-500 text-xs">
               {totalWeapons} weapons
               {collectionCount > 0 && (
@@ -411,7 +411,7 @@ export default function WeaponPool({
               <button
                 key={slot}
                 onClick={() => setActiveTab(slot)}
-                className={`flex-1 py-1.5 rounded-t-lg text-xs font-semibold border-b-2 transition ${
+                className={`flex-1 py-1.5 text-xs font-semibold border-b-2 transition ${
                   activeTab === slot
                     ? "border-bungie-blue text-white bg-bungie-blue/10"
                     : "border-transparent text-gray-400 hover:text-white"
@@ -433,13 +433,13 @@ export default function WeaponPool({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${SLOT_LABELS[activeTab].toLowerCase()}…`}
-            className="w-full bg-bungie-dark border border-bungie-border rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-bungie-blue transition"
+            className="w-full bg-bungie-dark border border-bungie-border px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-bungie-blue transition"
           />
           <div className="flex flex-wrap gap-2">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="flex-1 min-w-[7rem] bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+              className="flex-1 min-w-[7rem] bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
             >
               <option value="all">All types</option>
               {availableTypes.map((t) => (
@@ -449,7 +449,7 @@ export default function WeaponPool({
             <select
               value={rarityFilter}
               onChange={(e) => setRarityFilter(e.target.value as "all" | "exotic" | "nonexotic")}
-              className="bg-bungie-dark border border-bungie-border rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+              className="bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
             >
               <option value="all">All rarities</option>
               <option value="exotic">Exotic</option>
@@ -458,7 +458,7 @@ export default function WeaponPool({
             <button
               onClick={() => setMetaOnly((v) => !v)}
               aria-label="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
+              className={`shrink-0 px-2.5 py-1.5 text-xs font-medium border transition ${
                 metaOnly
                   ? "border-bungie-blue bg-bungie-blue/20 text-white"
                   : "border-bungie-border text-gray-300 hover:border-gray-400"
@@ -470,7 +470,7 @@ export default function WeaponPool({
               onClick={() => setHideCollections((v) => !v)}
               aria-pressed={hideCollections}
               disabled={visibleCollectionCount === 0}
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium border transition ${
+              className={`shrink-0 px-2.5 py-1.5 text-xs font-medium border transition ${
                 hideCollections
                   ? "border-amber-400 bg-amber-500/15 text-amber-200"
                   : visibleCollectionCount === 0
@@ -486,7 +486,7 @@ export default function WeaponPool({
         {/* Weapon list */}
         <div className={`px-3 pb-3 space-y-2 flex-1 ${noScroll ? "" : "overflow-y-auto"}`}>
           {filtered.length === 0 ? (
-            <div className="rounded-lg border border-bungie-border/60 bg-bungie-dark/60 px-3 py-4 mt-3 text-center">
+            <div className="border border-bungie-border/60 bg-bungie-dark/60 px-3 py-4 mt-3 text-center">
               <p className="text-sm font-semibold text-gray-300">
                 {filtersActive ? "No weapons match these filters" : "No shared weapons in this slot"}
               </p>
@@ -500,7 +500,7 @@ export default function WeaponPool({
               {filtersActive && (
                 <button
                   onClick={clearFilters}
-                  className="mt-3 rounded-lg border border-bungie-border px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-gray-400 hover:text-white"
+                  className="mt-3 border border-bungie-border px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-gray-400 hover:text-white"
                 >
                   Clear Filters
                 </button>

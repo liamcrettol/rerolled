@@ -33,11 +33,11 @@ const SPIN_MS = 950;
 // First spin starts almost immediately instead of waiting a full interval.
 const INITIAL_DELAY_MS = 250;
 const EXOTIC_TIER = 6;
-const GLOW = {
-  exotic:    { edge: "rgba(255, 191, 74, 0.4)",  bloom: "rgba(255, 191, 74, 0.45)" },
-  legendary: { edge: "rgba(190, 110, 255, 0.35)", bloom: "rgba(190, 110, 255, 0.4)" },
+// Flat rarity edge while a weapon sits landed — in-game item-tile colors.
+const EDGE = {
+  exotic: "rgba(199, 166, 74, 0.9)",
+  legendary: "rgba(120, 81, 145, 0.9)",
 };
-const INSET_HIGHLIGHT = "inset 0 1px 0 rgba(255,255,255,0.06)";
 const REEL_MASK = "linear-gradient(to bottom, transparent 0%, black 24%, black 76%, transparent 100%)";
 
 // translateY that vertically centers reel item `i` in the window.
@@ -148,21 +148,19 @@ function ReelSlot({
   }, [spinning, reelItems]);
 
   const landedTier = weapons[currentIndexRef.current]?.tierType;
-  const glow = landedTier === EXOTIC_TIER ? GLOW.exotic : GLOW.legendary;
-  // Rarity-tinted edge + bloom that stays lit while the weapon sits landed,
-  // and fades out as the next spin starts.
-  const frameShadow = spinning
-    ? INSET_HIGHLIGHT
-    : `${INSET_HIGHLIGHT}, 0 0 0 1px ${glow.edge}, 0 0 26px -6px ${glow.bloom}`;
+  const edge = landedTier === EXOTIC_TIER ? EDGE.exotic : EDGE.legendary;
+  // Rarity-tinted 1px edge that stays lit while the weapon sits landed, and
+  // drops back to the neutral frame as the next spin starts.
+  const frameShadow = spinning ? "none" : `0 0 0 1px ${edge}`;
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-gray-900/80"
+      className="relative overflow-hidden shrink-0 border border-white/10 bg-bungie-surface"
       style={{
         width: REEL_ITEM_H,
         height: REEL_WINDOW_H,
         boxShadow: frameShadow,
-        transition: "box-shadow 500ms ease",
+        transition: "box-shadow 400ms ease",
       }}
     >
       <div
@@ -249,8 +247,8 @@ export default function HeroReel({ weaponsBySlot }: { weaponsBySlot: Record<Weap
         {SLOTS.map((s) => (
           <div
             key={s.slot}
-            className="rounded-2xl overflow-hidden shrink-0 border border-white/10 bg-gray-900/80"
-            style={{ width: REEL_ITEM_H, height: REEL_WINDOW_H, boxShadow: INSET_HIGHLIGHT }}
+            className="overflow-hidden shrink-0 border border-white/10 bg-bungie-surface"
+            style={{ width: REEL_ITEM_H, height: REEL_WINDOW_H }}
           />
         ))}
       </div>

@@ -24,28 +24,25 @@ export default async function WeaponHallOfFame() {
 
   if (error || !data?.length) {
     return (
-      <div className="armory-panel p-6">
-        <p className="armory-kicker mb-2">Kill archive</p>
-        <h2 className="font-mono text-lg font-black uppercase text-white mb-2">Weapon Hall of Fame</h2>
-        <p className="text-gray-500 text-sm">
-          No roulette weapon kills yet. Weapons appear here after completed tracked games.
-        </p>
+      <div className="panel">
+        <div className="px-4 py-3 border-b border-bungie-border">
+          <h2 className="section-label">Weapon Hall of Fame</h2>
+        </div>
+        <p className="text-gray-500 text-sm p-4">No weapon kills recorded yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="armory-panel overflow-hidden animate-rise-in" style={{ opacity: 0, animationDelay: "80ms" }}>
-      <div className="px-4 py-3 border-b border-bungie-border/60">
-        <p className="armory-kicker mb-2">Kill archive</p>
-        <h2 className="font-mono text-lg font-black uppercase text-white">Weapon Hall of Fame</h2>
-        <p className="text-xs text-gray-500 mt-0.5">Top roulette weapons by total kills</p>
+    <div className="panel overflow-hidden">
+      <div className="px-4 py-3 border-b border-bungie-border">
+        <h2 className="section-label">Weapon Hall of Fame</h2>
       </div>
       <div className="divide-y divide-bungie-border/40">
         {data.map((e, i) => (
           <div key={e.item_hash} className={`flex items-center gap-3 px-4 py-3 ${i === 0 ? "bg-yellow-400/5" : ""}`}>
             <span className="text-gray-400 font-mono text-sm w-5 text-right shrink-0">{i + 1}</span>
-            <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden bg-bungie-dark">
+            <div className="relative w-10 h-10 shrink-0 overflow-hidden bg-bungie-dark border border-bungie-border">
               {e.weapon_icon ? (
                 <Image
                   src={e.weapon_icon}

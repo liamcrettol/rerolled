@@ -8,49 +8,33 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // System grotesque stack (same family DIM ships) — no webfont payload.
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        sans: ['"Helvetica Neue"', "Helvetica", '"Segoe UI"', "Arial", "sans-serif"],
+        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
       },
       colors: {
         bungie: {
           blue: "#00aeef",
-          dark: "#0d1117",
-          surface: "#161b22",
-          border: "#30363d",
+          dark: "#101216",
+          surface: "#171a1f",
+          border: "#2a2e36",
         },
       },
       keyframes: {
-        "bounce-in": {
-          "0%": { transform: "scale(0.5)", opacity: "0" },
-          "60%": { transform: "scale(1.1)", opacity: "1" },
-          "100%": { transform: "scale(1)", opacity: "1" },
-        },
         "pick-pop": {
-          "0%": { transform: "scale(0.7) rotate(-6deg)", opacity: "0.3" },
-          "55%": { transform: "scale(1.18) rotate(3deg)", opacity: "1" },
-          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+          "0%": { transform: "scale(0.85)", opacity: "0.4" },
+          "60%": { transform: "scale(1.06)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
         },
         "slot-land": {
           "0%":   { boxShadow: "0 0 0 0 rgba(0,174,239,0)" },
-          "30%":  { boxShadow: "0 0 0 4px rgba(0,174,239,0.55)" },
+          "30%":  { boxShadow: "0 0 0 2px rgba(0,174,239,0.6)" },
           "100%": { boxShadow: "0 0 0 0 rgba(0,174,239,0)" },
         },
         "fade-in": {
           "0%":   { opacity: "0" },
           "100%": { opacity: "1" },
-        },
-        "glow-drift": {
-          "0%, 100%": { transform: "translate(0, 0) scale(1)", opacity: "0.5" },
-          "50%":      { transform: "translate(3%, -4%) scale(1.08)", opacity: "0.8" },
-        },
-        "rise-in": {
-          "0%":   { transform: "translateY(12px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" },
-        },
-        "page-in": {
-          "0%":   { transform: "translateY(6px)", opacity: "0" },
-          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         // Revolver cylinder: six discrete 60° clicks per revolution - move
         // fast, then hold, like thumbing a cylinder round by round.
@@ -64,21 +48,17 @@ const config: Config = {
           "92.33%, 100%":   { transform: "rotate(360deg)" },
         },
         "weapon-land": {
-          "0%":   { transform: "scale(0.92)", boxShadow: "0 0 0 0 var(--land-glow, rgba(0,174,239,0))" },
-          "45%":  { transform: "scale(1.1)",  boxShadow: "0 0 20px 4px var(--land-glow, rgba(0,174,239,0.65))" },
-          "100%": { transform: "scale(1)",    boxShadow: "0 0 0 0 var(--land-glow, rgba(0,174,239,0))" },
+          "0%":   { transform: "scale(0.96)" },
+          "55%":  { transform: "scale(1.03)" },
+          "100%": { transform: "scale(1)" },
         },
       },
       animation: {
-        "bounce-in": "bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
-        "pick-pop":  "pick-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        "slot-land": "slot-land 0.6s ease-out forwards",
+        "pick-pop":  "pick-pop 0.3s ease-out",
+        "slot-land": "slot-land 0.5s ease-out forwards",
         "fade-in":   "fade-in 0.15s ease-out forwards",
-        "glow-drift": "glow-drift 9s ease-in-out infinite",
-        "rise-in":   "rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        "page-in":   "page-in 0.26s ease-out",
         "cyl-spin":  "cyl-spin 1.9s cubic-bezier(0.34, 1.4, 0.64, 1) infinite",
-        "weapon-land": "weapon-land 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "weapon-land": "weapon-land 0.35s ease-out",
       },
     },
   },

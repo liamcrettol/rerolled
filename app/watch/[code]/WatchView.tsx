@@ -17,6 +17,7 @@
 // Keep this component intentionally small, read-only, and independent.
 import { useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import { Crown, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { trimBungieName } from "@/lib/utils";
 import { mergeSlot, upsertMember, updateMember, removeMemberById } from "@/lib/lobby/realtimeState";
@@ -261,26 +262,26 @@ export default function WatchView({
             Watching <span className="font-mono text-bungie-blue font-bold slashed-zero">{code}</span> · Round {roundNumber}
           </p>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-full border ${badge.cls}`}>{badge.label}</span>
+        <span className={`text-xs px-2 py-1 border ${badge.cls}`}>{badge.label}</span>
       </div>
 
       {/* Fireteam */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-white font-semibold text-sm">Fireteam ({members.length})</h2>
+          <h2 className="section-label">Fireteam ({members.length})</h2>
           {captain && (
-            <span className="text-xs text-yellow-400">👑 {trimBungieName(captain.displayName)}&apos;s turn</span>
+            <span className="text-xs text-yellow-400 inline-flex items-center gap-1"><Crown size={12} /> {trimBungieName(captain.displayName)}&apos;s turn</span>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
           {members.map((m) => (
             <div
               key={m.id}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border ${
                 m.isCaptain ? "border-yellow-500 bg-yellow-500/10" : "border-bungie-border bg-bungie-dark"
               }`}
             >
-              {m.isCaptain && <span>👑</span>}
+              {m.isCaptain && <Crown size={13} className="text-yellow-400 shrink-0" />}
               <span className={m.hasCharacter ? "text-green-400" : "text-gray-300"}>
                 {trimBungieName(m.displayName)}
               </span>
@@ -290,23 +291,23 @@ export default function WatchView({
       </div>
 
       {/* Current loadout */}
-      <h2 className="text-white font-semibold text-sm mb-2">This round&apos;s loadout</h2>
+      <h2 className="section-label mb-2">Loadout</h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {SLOT_ORDER.map((slotName, i) => {
           const slot = ordered[i];
           const isWildcard = slot?.item_hash === 0;
           return (
-            <div key={slotName} className="flex flex-col items-center gap-2 rounded-xl p-4 border border-bungie-border bg-bungie-surface">
+            <div key={slotName} className="flex flex-col items-center gap-2 p-4 border border-bungie-border bg-bungie-surface">
               <span className="text-xs text-gray-400 uppercase tracking-wider">{SLOT_LABELS[slotName]}</span>
               {isWildcard ? (
                 <>
-                  <div className="w-16 h-16 rounded bg-purple-500/10 border border-purple-500/40 flex items-center justify-center text-2xl">👤</div>
+                  <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/40 flex items-center justify-center"><User size={26} className="text-purple-300" /></div>
                   <p className="text-purple-300 text-xs font-semibold">Player&apos;s own</p>
                 </>
               ) : slot && slot.weapon_icon ? (
                 <>
                   <div className="relative w-16 h-16">
-                    <Image src={slot.weapon_icon} alt={slot.weapon_name} fill className="object-cover rounded" unoptimized />
+                    <Image src={slot.weapon_icon} alt={slot.weapon_name} fill className="object-cover" unoptimized />
                   </div>
                   <div className="text-center">
                     <p className="text-white text-sm font-semibold leading-tight">{slot.weapon_name}</p>
@@ -316,7 +317,7 @@ export default function WatchView({
                 </>
               ) : (
                 <>
-                  <div className="w-16 h-16 rounded bg-bungie-dark/60 border border-dashed border-bungie-border flex items-center justify-center text-gray-600 text-2xl">🎲</div>
+                  <div className="w-16 h-16 bg-bungie-dark/60 border border-dashed border-bungie-border flex items-center justify-center text-gray-600 text-xl">?</div>
                   <p className="text-gray-500 text-xs">Not rolled yet</p>
                 </>
               )}
@@ -329,10 +330,10 @@ export default function WatchView({
       {lastGame && lastGame.stats.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-white font-semibold text-sm">Last game</h2>
+            <h2 className="section-label">Last Game</h2>
             {lastGame.mapName && <span className="text-xs text-gray-500">{lastGame.mapName}</span>}
           </div>
-          <div className="overflow-x-auto rounded-xl border border-bungie-border bg-bungie-surface">
+          <div className="overflow-x-auto border border-bungie-border bg-bungie-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-bungie-border">
@@ -346,8 +347,10 @@ export default function WatchView({
                 {[...lastGame.stats].sort((a, b) => b.kills - a.kills).map((s) => (
                   <tr key={s.userId} className={s.userId === topPlayer?.userId ? "text-yellow-400" : "text-gray-300"}>
                     <td className="p-2 pl-3 font-medium">
-                      {s.userId === topPlayer?.userId ? "👑 " : ""}
-                      {trimBungieName(s.displayName)}
+                      <span className="inline-flex items-center gap-1.5">
+                        {s.userId === topPlayer?.userId && <Crown size={12} className="text-yellow-400 shrink-0" />}
+                        {trimBungieName(s.displayName)}
+                      </span>
                     </td>
                     <td className="p-2 text-right">{s.kills}</td>
                     <td className="p-2 text-right">{s.deaths}</td>
@@ -363,8 +366,8 @@ export default function WatchView({
       {/* Lobby leaderboard */}
       {lobbyLeaderboard.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-white font-semibold text-sm mb-2">Lobby Stats (All Games)</h2>
-          <div className="overflow-x-auto rounded-xl border border-bungie-border bg-bungie-surface">
+          <h2 className="section-label mb-2">Lobby Stats</h2>
+          <div className="overflow-x-auto border border-bungie-border bg-bungie-surface">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-bungie-border">
@@ -389,7 +392,6 @@ export default function WatchView({
         </div>
       )}
 
-      <p className="text-center text-gray-600 text-xs mt-6">Updates live as weapons are rolled.</p>
     </div>
   );
 }

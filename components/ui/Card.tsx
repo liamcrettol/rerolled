@@ -14,5 +14,5 @@ interface Props {
 
 export default function Card({ children, className = "", border = "default" }: Props) {
   const borderCls = border === "subtle" ? "border-bungie-border/55" : "border-bungie-border";
-  return <div className={`armory-panel border ${borderCls} ${className}`}>{children}</div>;
+  return <div className={`bg-bungie-surface border ${borderCls} ${className}`}>{children}</div>;
 }

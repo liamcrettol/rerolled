@@ -13,11 +13,11 @@ interface Props {
 export default function Modal({ children, onBackdropClick }: Props) {
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4"
       onClick={onBackdropClick}
     >
       <div
-        className="w-full max-w-sm bg-bungie-surface border border-bungie-border rounded-xl shadow-2xl overflow-hidden"
+        className="w-full max-w-sm bg-bungie-surface border border-bungie-border shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

@@ -44,14 +44,14 @@ export default function SeedButton() {
       <button
         onClick={seed}
         disabled={loading}
-        className="px-4 py-2 bg-bungie-blue text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition"
+        className="px-4 py-2 bg-bungie-blue text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
         {loading ? "Working..." : "Seed Test Data"}
       </button>
       <button
         onClick={clear}
         disabled={loading}
-        className="px-3 py-2 text-gray-400 text-sm border border-bungie-border rounded-lg hover:text-red-400 hover:border-red-800 disabled:opacity-50 transition"
+        className="px-3 py-2 text-gray-400 text-sm border border-bungie-border hover:text-red-400 hover:border-red-800 disabled:opacity-50 transition"
       >
         Clear
       </button>

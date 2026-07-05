@@ -115,9 +115,9 @@ export default function RollDetails({
     return (
       <Card className="p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-white font-semibold text-sm">Roll Comparison</h2>
+          <h2 className="section-label">Roll Comparison</h2>
           {onRetry && !loading && (
-            <button onClick={onRetry} className="text-xs px-2 py-1 rounded border border-bungie-border text-gray-300 hover:border-gray-400 transition">
+            <button onClick={onRetry} className="text-xs px-2 py-1 border border-bungie-border text-gray-300 hover:border-gray-400 transition">
               Refresh
             </button>
           )}
@@ -226,8 +226,8 @@ export default function RollDetails({
   // on one line and groups sockets with thin separators.
   const rollPreview = (inst: RollInstance, large = true) => {
     const cls = large
-      ? "w-10 h-10 rounded border transition"
-      : "w-8 h-8 rounded border";
+      ? "w-10 h-10 border transition"
+      : "w-8 h-8 border";
     const neutralCls = socketClass(cls, undefined, false);
     const noTip = !large;
     // The weapon's fixed intrinsic frame/archetype perk (e.g. a legendary's
@@ -340,7 +340,7 @@ export default function RollDetails({
       <div
         key={m.userId}
         aria-label={isBest ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
-        className={`relative rounded-lg overflow-hidden flex flex-col w-full max-w-[26rem] ${
+        className={`relative overflow-hidden flex flex-col w-full max-w-[26rem] ${
           isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
@@ -354,7 +354,7 @@ export default function RollDetails({
             plain fallback header renders below, so "which one is mine" is
             never ambiguous (#203). */}
         {m.isMe && (
-          <span className={`absolute top-1 left-1.5 z-10 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${theme.chip}`}>
+          <span className={`absolute top-1 left-1.5 z-10 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 ${theme.chip}`}>
             You
           </span>
         )}
@@ -395,7 +395,7 @@ export default function RollDetails({
                 return (
                   <div key={s} className="flex items-center gap-2">
                     <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
-                    <div className="flex-1 h-2.5 bg-gray-700/40 rounded-full" />
+                    <div className="flex-1 h-2.5 bg-gray-700/40" />
                     <span className="w-7 text-right text-gray-500 text-sm">—</span>
                     <span className="w-7" />
                   </div>
@@ -427,7 +427,7 @@ export default function RollDetails({
               return (
                 <div key={s} className="flex items-center gap-2">
                   <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
-                  <div className="flex-1 h-2.5 bg-gray-700/80 rounded-full overflow-hidden flex">
+                  <div className="flex-1 h-2.5 bg-gray-700/80 overflow-hidden flex">
                     <div className="h-full bg-gray-400" style={{ width: `${lo}%` }} />
                     {otherGainWidth > 0 && <div className="h-full bg-green-400" style={{ width: `${otherGainWidth}%` }} />}
                     {masterworkGainWidth > 0 && <div className="h-full bg-sky-400" style={{ width: `${masterworkGainWidth}%` }} />}
@@ -462,15 +462,15 @@ export default function RollDetails({
       <div className="px-4 py-2.5 border-b border-bungie-border">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-white font-semibold text-sm">
-              Roll Comparison {loading && <span className="text-gray-500 font-normal text-xs">· refreshing…</span>}
+            <h2 className="section-label">
+              Roll Comparison {loading && <span className="text-gray-500 font-normal tracking-normal normal-case">· refreshing…</span>}
             </h2>
             <p className="mt-0.5 text-xs text-gray-500 truncate">
               {activeWeaponName} · {members.length} fireteam {members.length === 1 ? "roll" : "rolls"}
             </p>
           </div>
           {myShown && (
-            <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-semibold ${myShown.isBestRoll ? "border-amber-400/50 bg-amber-400/10 text-amber-200" : `${theme.border} ${theme.bg} ${theme.text}`}`}>
+            <span className={`shrink-0 border px-2 py-1 text-[11px] font-semibold ${myShown.isBestRoll ? "border-amber-400/50 bg-amber-400/10 text-amber-200" : `${theme.border} ${theme.bg} ${theme.text}`}`}>
               {myShown.isBestRoll ? bestRollLabel(myShown) : "Selected roll"}
             </span>
           )}
@@ -494,11 +494,11 @@ export default function RollDetails({
                 <button
                   key={s}
                   onClick={() => setTab(s)}
-                  className={`w-full px-2 py-1.5 rounded text-xs font-semibold border transition flex items-center gap-2 ${
+                  className={`w-full px-2 py-1.5 text-xs font-semibold border transition flex items-center gap-2 ${
                     activeTab === s ? `${t.border} ${t.bg} text-white ring-1 ${t.ring}` : "border-bungie-border/60 text-gray-400 hover:text-white hover:border-gray-500"
                   }`}
                 >
-                  {weaponIcon && <img src={weaponIcon} alt="" className="w-7 h-7 rounded-sm shrink-0" />}
+                  {weaponIcon && <img src={weaponIcon} alt="" className="w-7 h-7 shrink-0" />}
                   <span className="truncate text-left flex-1">{weaponName}</span>
                   {activeTab === s && <Check size={14} className="shrink-0" />}
                 </button>
@@ -516,7 +516,7 @@ export default function RollDetails({
             </span>
           </div>
           {myInstances.length === 0 ? (
-            <p className="rounded-lg border border-bungie-border/60 bg-bungie-dark/60 px-2 py-2 text-gray-500 text-[11px]">
+            <p className="border border-bungie-border/60 bg-bungie-dark/60 px-2 py-2 text-gray-500 text-[11px]">
               {me?.failed ? "Your rolls could not load for this weapon." : "No owned rolls for this weapon."}
             </p>
           ) : (
@@ -528,7 +528,7 @@ export default function RollDetails({
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
                   aria-label={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
-                  className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 rounded-md pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
+                  className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
                       : isSel
@@ -538,7 +538,7 @@ export default function RollDetails({
                 >
                   {/* Accent bar that grows in on selection */}
                   <span
-                    className={`absolute left-0 top-1 bottom-1 w-0.5 rounded-full origin-center transition-all duration-200 ease-out ${theme.fill} ${
+                    className={`absolute left-0 top-1 bottom-1 w-0.5 origin-center transition-all duration-200 ease-out ${theme.fill} ${
                       isSel ? "opacity-100 scale-y-100" : "opacity-0 scale-y-50 group-hover:opacity-40 group-hover:scale-y-75"
                     }`}
                   />

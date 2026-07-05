@@ -1,6 +1,5 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import Image from "next/image";
-import AnimatedNumber from "./AnimatedNumber";
 
 interface HallOfFameTop {
   weapon_name: string | null;
@@ -25,37 +24,28 @@ export default async function DashboardStats() {
   const topWeapon = topWeaponRows?.[0];
 
   const cards = [
-    { label: "Games tracked", value: gamesTracked ?? 0 },
-    { label: "Total kills", value: totalKills },
+    { label: "Games", value: gamesTracked ?? 0 },
+    { label: "Kills", value: totalKills },
     { label: "Players", value: players },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {cards.map((c, i) => (
-        <div
-          key={c.label}
-          className="armory-card p-4 animate-rise-in"
-          style={{ animationDelay: `${i * 80}ms`, opacity: 0 }}
-        >
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-1">{c.label}</p>
-          <p className="font-mono text-2xl font-black text-white tabular-nums">
-            <AnimatedNumber value={c.value} />
-          </p>
+    <div className="panel grid grid-cols-2 sm:grid-cols-4 divide-x divide-bungie-border">
+      {cards.map((c) => (
+        <div key={c.label} className="p-4">
+          <p className="section-label mb-1">{c.label}</p>
+          <p className="text-2xl font-bold text-white tabular-nums">{c.value.toLocaleString()}</p>
         </div>
       ))}
       {topWeapon && (
-        <div
-          className="armory-card p-4 flex items-center gap-3 animate-rise-in"
-          style={{ animationDelay: `${cards.length * 80}ms`, opacity: 0 }}
-        >
-          <div className="relative w-9 h-9 shrink-0 rounded overflow-hidden bg-bungie-dark">
+        <div className="p-4 flex items-center gap-3">
+          <div className="relative w-9 h-9 shrink-0 overflow-hidden bg-bungie-dark border border-bungie-border">
             {topWeapon.weapon_icon && (
               <Image src={topWeapon.weapon_icon} alt="" fill className="object-cover" unoptimized />
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-gray-400 text-xs mb-0.5">Top weapon</p>
+            <p className="section-label mb-0.5">Top weapon</p>
             <p className="text-white text-sm font-semibold truncate">{topWeapon.weapon_name ?? "Unknown"}</p>
           </div>
         </div>

@@ -1,10 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
-import GlowBackdrop from "@/components/GlowBackdrop";
 import HeroReel from "@/components/HeroReel";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
-import { Shuffle, Zap, GitCompare } from "lucide-react";
 import Link from "next/link";
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
@@ -18,62 +16,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   const heroWeaponsBySlot = getRandomWeaponSample(60);
 
   return (
-    <main className="relative min-h-screen overflow-hidden flex flex-col items-center justify-center gap-12 p-8">
-      <GlowBackdrop />
-
-      <div className="text-center animate-rise-in" style={{ opacity: 0 }}>
-        <p className="text-bungie-blue text-sm font-semibold uppercase tracking-[0.2em] mb-2">
-          Destiny 2
-        </p>
-        <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-4 bg-gradient-to-b from-white via-white to-gray-400 bg-clip-text text-transparent">
+    <main className="min-h-screen flex flex-col items-center justify-center gap-10 p-8">
+      <div className="text-center">
+        <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
+        <h1 className="text-5xl md:text-6xl font-bold uppercase tracking-tight text-white">
           Gun Roulette
         </h1>
-        <p className="text-gray-400 text-lg max-w-md mx-auto">
-          Roll random loadouts for your whole fireteam and equip them in one click.
-        </p>
+        <p className="text-gray-400 mt-3">Random loadouts for your fireteam.</p>
       </div>
 
-      <div className="animate-rise-in" style={{ opacity: 0, animationDelay: "120ms" }}>
-        <HeroReel weaponsBySlot={heroWeaponsBySlot} />
-      </div>
+      <HeroReel weaponsBySlot={heroWeaponsBySlot} />
 
-      <div
-        className="flex flex-col items-center gap-4 w-full max-w-sm animate-rise-in"
-        style={{ opacity: 0, animationDelay: "200ms" }}
-      >
+      <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         {code && (
-          <p className="text-sm text-bungie-blue text-center font-medium">
-            You&apos;ve been invited to join lobby <span className="font-mono font-bold slashed-zero">{code}</span>. Sign in to join.
+          <p className="text-sm text-bungie-blue text-center">
+            Invited to lobby <span className="font-mono font-bold slashed-zero">{code}</span> — sign in to join.
           </p>
         )}
         <SignInButton returnTo={code ? `/join/${code}` : undefined} />
-        <div className="text-xs text-gray-500 text-center space-y-1">
-          <p>
-            Signs in through Bungie.net&apos;s official OAuth. We read your inventory to
-            build valid rolls and equip the loadout you choose. Nothing gets deleted,
-            dismantled, or spent. Everyone in the group needs to sign in.
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 max-w-2xl w-full text-center">
-        {[
-          { Icon: Shuffle, title: "Random Rolls", desc: "Only rolls weapons everyone has" },
-          { Icon: Zap, title: "Auto-Equip", desc: "Equips the whole fireteam at once" },
-          { Icon: GitCompare, title: "Roll Comparison", desc: "See everyone's roll of the same gun" },
-        ].map((f, i) => (
-          <div
-            key={f.title}
-            className="glass-card rounded-xl p-4 transition hover:-translate-y-1 hover:border-bungie-blue/50 animate-rise-in"
-            style={{ opacity: 0, animationDelay: `${280 + i * 80}ms` }}
-          >
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-bungie-blue/10 ring-1 ring-bungie-blue/30 mb-3">
-              <f.Icon size={20} className="text-bungie-blue" />
-            </span>
-            <div className="font-semibold text-white text-sm">{f.title}</div>
-            <div className="text-xs text-gray-400 mt-1">{f.desc}</div>
-          </div>
-        ))}
+        <p className="text-xs text-gray-500 text-center">
+          Reads your inventory to build rolls. Nothing gets deleted or spent.
+        </p>
       </div>
 
       <div className="flex items-center gap-3 text-xs text-gray-600">

@@ -100,12 +100,11 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">{displayName}</h1>
-        <p className="text-gray-400 text-sm mt-1">Player stats across all Gun Roulette games</p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
+        <div className="panel p-4 text-center">
           <p className="text-2xl font-bold text-white">{totalGames}</p>
           <p className="text-gray-500 text-xs mt-1">Games</p>
           {winRate !== null && (
@@ -117,15 +116,15 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
             </p>
           )}
         </div>
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
+        <div className="panel p-4 text-center">
           <p className="text-2xl font-bold text-bungie-blue">{totalKills}</p>
           <p className="text-gray-500 text-xs mt-1">Kills</p>
         </div>
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
+        <div className="panel p-4 text-center">
           <p className="text-2xl font-bold text-white">{avgKD.toFixed(2)}</p>
           <p className="text-gray-500 text-xs mt-1">Avg K/D</p>
         </div>
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4 text-center">
+        <div className="panel p-4 text-center">
           <p className="text-2xl font-bold text-white">{totalKills}/{totalDeaths}/{totalAssists}</p>
           <p className="text-gray-500 text-xs mt-1">Total K/D/A</p>
         </div>
@@ -133,17 +132,17 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
       {/* Best / Roughest round */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Best Round</p>
-          <p className="text-yellow-400 font-bold text-lg">👑 {bestRound.kills} kills</p>
+        <div className="panel p-4">
+          <p className="section-label mb-1">Best Round</p>
+          <p className="text-yellow-400 font-bold text-lg">{bestRound.kills} kills</p>
           <p className="text-gray-400 text-sm">{bestRound.kills}K / {bestRound.deaths}D · {Number(bestRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(bestRound.game_sessions as any)?.map_name && (
             <p className="text-gray-500 text-xs mt-1">{(bestRound.game_sessions as any).map_name}</p>
           )}
         </div>
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl p-4">
-          <p className="text-xs text-gray-500 mb-1">Roughest Round</p>
+        <div className="panel p-4">
+          <p className="section-label mb-1">Roughest Round</p>
           <p className="text-red-400 font-bold text-lg">{worstRound.kills}K / {worstRound.deaths}D</p>
           <p className="text-gray-400 text-sm">{Number(worstRound.kd).toFixed(2)} K/D</p>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -155,14 +154,14 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
       {/* Most rolled weapons */}
       {topWeapons.length > 0 && (
-        <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden mb-6">
+        <div className="panel overflow-hidden mb-6">
           <div className="px-4 py-3 border-b border-bungie-border">
-            <h2 className="text-sm font-semibold text-white">Most Rolled Weapons</h2>
+            <h2 className="section-label">Most Rolled Weapons</h2>
           </div>
           <div className="divide-y divide-bungie-border/40">
             {topWeapons.map((e) => (
               <div key={e.hash} className="flex items-center gap-3 px-4 py-3">
-                <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden bg-bungie-dark">
+                <div className="relative w-10 h-10 shrink-0 overflow-hidden bg-bungie-dark">
                   {e.icon ? (
                     <Image src={e.icon} alt={e.name} fill className="object-cover" unoptimized />
                   ) : (
@@ -184,9 +183,9 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
       )}
 
       {/* Game history */}
-      <div className="bg-bungie-surface border border-bungie-border rounded-xl overflow-hidden">
+      <div className="panel overflow-hidden">
         <div className="px-4 py-3 border-b border-bungie-border">
-          <h2 className="text-sm font-semibold text-white">Game History</h2>
+          <h2 className="section-label">Game History</h2>
         </div>
         <div className="divide-y divide-bungie-border/40">
           {rows.map((row) => {
@@ -212,15 +211,15 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                       <p className="text-gray-400 text-[10px] truncate">{session.map_name}</p>
                     )}
                     {isPrivate && (
-                      <span className="text-[9px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/30 rounded px-1 py-0.5 shrink-0">Private</span>
+                      <span className="text-[9px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1 py-0.5 shrink-0">Private</span>
                     )}
                   </div>
                 </div>
 
                 {/* W/L badge */}
                 <div className="w-8 shrink-0 text-center">
-                  {row.won === true && <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 rounded px-1 py-0.5">W</span>}
-                  {row.won === false && <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 rounded px-1 py-0.5">L</span>}
+                  {row.won === true && <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-1 py-0.5">W</span>}
+                  {row.won === false && <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 px-1 py-0.5">L</span>}
                   {row.won === null && <span className="text-gray-500 text-xs">—</span>}
                 </div>
 
@@ -240,7 +239,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 {orderedSlots.length > 0 && (
                   <div className="flex items-center gap-1 shrink-0">
                     {orderedSlots.map((s) => (
-                      <div key={s.slot} className="relative w-8 h-8 rounded overflow-hidden bg-bungie-dark">
+                      <div key={s.slot} className="relative w-8 h-8 overflow-hidden bg-bungie-dark">
                         <Image src={s.weapon_icon} alt={s.weapon_name} fill className="object-cover" unoptimized />
                       </div>
                     ))}

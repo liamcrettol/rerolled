@@ -14,7 +14,7 @@ export default function PerkIcon({
   communityDescription,
   stats,
   noTooltip,
-  className = "w-8 h-8 rounded border border-bungie-blue/40 hover:border-bungie-blue transition",
+  className = "w-8 h-8 border border-bungie-blue/40 hover:border-bungie-blue transition",
 }: {
   icon?: string;
   name?: string;
@@ -70,7 +70,7 @@ export default function PerkIcon({
               maxWidth: "16rem",
               pointerEvents: "none",
             }}
-            className="rounded border border-bungie-border bg-bungie-dark px-2.5 py-1.5 shadow-lg"
+            className="border border-bungie-border bg-bungie-dark px-2.5 py-1.5 shadow-lg"
           >
             {name && <div className="text-white text-xs font-semibold">{name}</div>}
             {description && <div className="text-gray-300 text-[11px] mt-0.5 leading-snug">{description}</div>}
