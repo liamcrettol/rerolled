@@ -6,6 +6,7 @@ import {
   computeComplianceHandler,
   pollActivityHistoryHandler,
 } from "@/lib/scoreAttack/worker/detection";
+import { syncPlayerStats } from "@/lib/scoreAttack/worker/stats";
 import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
 import { successfulPvePgcrWithWeapons } from "@/__fixtures__/scoreAttack/pgcr";
 
@@ -23,6 +24,9 @@ function makeDb({ tables = {} }: { tables?: Record<string, any> } = {}) {
       const builder: any = {
         select: () => builder,
         eq: () => builder,
+        in: () => builder,
+        order: () => builder,
+        limit: () => builder,
         maybeSingle: async () => ({ data: cfg.maybeSingle ?? null, error: null }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         upsert: (...a: any[]) => { (calls.upserts[table] ??= []).push(a); return builder; },
@@ -31,7 +35,7 @@ function makeDb({ tables = {} }: { tables?: Record<string, any> } = {}) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         update: (...a: any[]) => { (calls.updates[table] ??= []).push(a); return builder; },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        then: (r: any) => r({ error: null, data: cfg.list ?? null }),
+        then: (r: any) => r({ error: null, data: cfg.list ?? null, count: cfg.count ?? 0 }),
       };
       return builder;
     },
@@ -115,6 +119,29 @@ describe("computeComplianceHandler", () => {
     expect(result).toMatchObject({ run_id: "r1", bungie_membership_id: PLAYER });
     expect(typeof result.status).toBe("string");
     expect(db._calls.updates.challenge_runs[0][0]).toHaveProperty("compliance_status");
+  });
+});
+
+describe("syncPlayerStats", () => {
+  it("recomputes and upserts season + lifetime aggregates", async () => {
+    const db = makeDb({
+      tables: {
+        challenge_runs: { count: 5 },
+        weekly_leaderboard_entries: { maybeSingle: { score: 9000, rank: 3 } },
+      },
+    });
+    await syncPlayerStats({ userId: "u1", seasonId: "s1" }, db);
+    const season = db._calls.upserts.player_season_stats[0][0];
+    expect(season).toMatchObject({ user_id: "u1", season_id: "s1", total_runs: 5, best_weekly_score: 9000, best_weekly_rank: 3 });
+    const lifetime = db._calls.upserts.player_lifetime_stats[0][0];
+    expect(lifetime).toMatchObject({ user_id: "u1", total_runs: 5 });
+  });
+
+  it("skips season stats when there is no active season", async () => {
+    const db = makeDb({ tables: { challenge_runs: { count: 2 } } });
+    await syncPlayerStats({ userId: "u1", seasonId: null }, db);
+    expect(db._calls.upserts.player_season_stats).toBeUndefined();
+    expect(db._calls.upserts.player_lifetime_stats[0][0]).toMatchObject({ user_id: "u1", total_runs: 2 });
   });
 });
 

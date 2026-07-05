@@ -23,6 +23,7 @@ import type {
   EquipmentSnapshot,
 } from "@/lib/scoreAttack/types";
 import { enqueueJob } from "./store";
+import { syncPlayerStats } from "./stats";
 import type { WorkerJobRow } from "./store";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -242,6 +243,9 @@ export async function computeScoreHandler(job: WorkerJobRow, d: DetectionDeps = 
 
   await enqueueJob({ jobType: "update_leaderboard", runId: p.runId, payload: { runId: p.runId } }, db);
   await enqueueJob({ jobType: "award_badges", runId: p.runId, payload: { runId: p.runId } }, db);
+
+  // Refresh the player's Your Season aggregates (idempotent recompute).
+  await syncPlayerStats({ userId: run.created_by, seasonId: run.season_id ?? null }, db);
 }
 
 /** Evaluate leaderboard eligibility from PGCR usage + equipment snapshots. */
