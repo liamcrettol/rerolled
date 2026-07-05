@@ -143,9 +143,8 @@ export default function LobbySidebar({
       {/* Single scrollable area covering the context card + weapon pool. */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 pr-0.5">
 
-      {/* Context: Fireteam + Your Guardian + Settings. Auto-compacts into a
-          single summary row once a guardian's picked, so it stops competing
-          with the Weapon Browser for space (#204); expandable back on click. */}
+      {/* Context: Fireteam + Your Guardian. Expandable by hand, but never
+          auto-collapsed after guardian selection. */}
       <Card border="subtle" className="shrink-0">
         {!contextExpanded ? (
           <button
@@ -164,40 +163,6 @@ export default function LobbySidebar({
               </span>
               <span className="text-[10px] text-gray-500 shrink-0 uppercase tracking-wide">Change</span>
             </span>
-            {/* Everyone's currently-equipped weapons, one icon-trio per member,
-                so the reference stays visible even with the card collapsed. */}
-            {(() => {
-              const groups = members
-                .filter((m) => !m.is_spectator && memberEquipped[m.user_id])
-                .map((m) => ({
-                  member: m,
-                  details: (["kinetic", "energy", "power"] as WeaponSlot[]).map((s) => {
-                    const h = memberEquipped[m.user_id]?.[s];
-                    return h != null ? weaponDetails[h.toString()] : undefined;
-                  }),
-                }))
-                .filter((g) => g.details.some((d) => d?.icon));
-              if (groups.length === 0) return null;
-              return (
-                <span className="mt-1.5 flex items-center gap-2.5 flex-wrap">
-                  {groups.map(({ member, details }) => (
-                    <span
-                      key={member.id}
-                      className="flex items-center gap-1"
-                    >
-                      {details.map((d, i) =>
-                        d?.icon ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img key={i} src={d.icon} alt={d.name} className="w-5 h-5 rounded-sm border border-white/10" />
-                        ) : (
-                          <span key={i} className="w-5 h-5 rounded-sm border border-white/5 bg-white/5" />
-                        )
-                      )}
-                    </span>
-                  ))}
-                </span>
-              );
-            })()}
           </button>
         ) : (
           <>

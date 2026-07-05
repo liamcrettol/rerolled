@@ -87,15 +87,7 @@ export default function LobbyRoom({
   const [selectedCharId, setSelectedCharId] = useState<string | null>(
     initialMembers.find((m) => m.user_id === currentUserId)?.selected_character_id ?? null
   );
-  // The fireteam/guardian context card auto-compacts the first time a guardian
-  // gets selected, so it doesn't keep competing with the Weapon Browser for
-  // space once setup is done (#204). Users can still expand it back manually.
-  const [contextExpanded, setContextExpanded] = useState(!selectedCharId);
-  const hadSelectedCharRef = useRef(!!selectedCharId);
-  useEffect(() => {
-    if (selectedCharId && !hadSelectedCharRef.current) setContextExpanded(false);
-    hadSelectedCharRef.current = !!selectedCharId;
-  }, [selectedCharId]);
+  const [contextExpanded, setContextExpanded] = useState(true);
 
   const [preferredInstances, setPreferredInstancesState] = useState<Partial<Record<WeaponSlot, string>>>({});
   const [copied, setCopied] = useState(false);
