@@ -1,0 +1,51 @@
+name: CI
+
+# Basic verification suite (#240): typecheck, lint, tests, and a production
+# build. Runs on PRs into main and on pushes to main/release so regressions in
+# the lobby/auth/equip areas get caught before they land.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, release]
+
+# Cancel superseded runs on the same ref to save Actions minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # Placeholder, non-secret env so `next build` and module init succeed
+    # without production secrets. adminSupabase is lazy (Proxy), so the
+    # service-role key is not needed at build time — only the public client
+    # and NextAuth need values present. These are dummy values, never real.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-placeholder-secret-not-used-at-runtime
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
