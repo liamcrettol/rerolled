@@ -10,7 +10,11 @@
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { canTransitionScoreAttackRunState, type ScoreAttackRunActor } from "./runLifecycle";
+import { enqueueJob } from "./worker/store";
 import type { ScoreAttackRunState } from "./types";
+
+// How long a run may sit in an early state before the worker reaps it (#255).
+const RUN_ABANDON_TIMEOUT_MS = 3 * 60 * 60 * 1000;
 
 export type RunMode = "score_attack" | "weekly_challenge";
 
@@ -92,6 +96,22 @@ export async function createRun(input: CreateRunInput, db: Db = adminSupabase): 
     bungie_membership_type: input.bungieMembershipType,
     is_owner: true,
   });
+
+  // Schedule an abandonment reaper so runs that never finish don't poll forever.
+  // Best-effort: a queue hiccup must not fail run creation.
+  try {
+    await enqueueJob(
+      {
+        jobType: "expire_run",
+        runId: r.id,
+        payload: { runId: r.id },
+        runAt: new Date(Date.now() + RUN_ABANDON_TIMEOUT_MS).toISOString(),
+      },
+      db,
+    );
+  } catch {
+    /* non-fatal */
+  }
 
   return { ok: true, runId: r.id, status: r.status };
 }

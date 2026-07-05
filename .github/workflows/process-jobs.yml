@@ -1,0 +1,27 @@
+name: Process worker jobs
+
+# Drains the challenge-platform worker queue (#255). Vercel's Hobby plan rejects
+# sub-daily crons, so we schedule from GitHub Actions and hit the protected
+# endpoint — same pattern as the detect-games workflow.
+#
+# Requires two repository secrets:
+#   APP_URL      e.g. https://preview.d2roulette.app  (no trailing slash)
+#   CRON_SECRET  same value set in the Vercel project env
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # every 5 minutes (GitHub may delay under load)
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger process-jobs
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/process-jobs" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body
