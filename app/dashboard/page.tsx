@@ -1,58 +1,56 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
-import SignOutButton from "@/components/SignOutButton";
-import LobbyControls from "@/components/LobbyControls";
-import Leaderboard from "@/components/Leaderboard";
-import WeaponHallOfFame from "@/components/WeaponHallOfFame";
-import DashboardStats from "@/components/DashboardStats";
+import PlatformShell from "@/components/platform/PlatformShell";
+import WeeklyHero from "@/components/platform/WeeklyHero";
+import ModeGrid from "@/components/platform/ModeGrid";
+import LobbyRow from "@/components/platform/LobbyRow";
+import StandingsPreview from "@/components/platform/StandingsPreview";
+import SeasonPanel from "@/components/platform/SeasonPanel";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
 import { getActiveSessionForUser } from "@/lib/lobby";
-import Spinner from "@/components/Spinner";
+import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
+import { getUserWeeklyPlacement, getStandingsPreview } from "@/lib/weekly/leaderboard";
+import { getSeasonStats } from "@/lib/stats/season";
 
-// Always render fresh so the global leaderboard reflects the latest games.
+// New game-night platform home shell (#243). Replaces the old single-purpose
+// dashboard with the framing layer: weekly hero, mode grid, lobby row, week
+// standings, and the Your Season panel. Weekly/Score Attack data is mock for
+// this first pass; the existing Gun Roulette lobby flow remains fully usable.
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
   const session = await auth();
   if (!session?.userId) redirect("/");
 
-  const activeSession = await getActiveSessionForUser(session.userId);
+  const challenge = await getActiveWeeklyChallenge();
+  const [activeSession, placement, standings, season] = await Promise.all([
+    getActiveSessionForUser(session.userId),
+    getUserWeeklyPlacement(session.userId),
+    challenge ? getStandingsPreview(challenge.id, session.userId) : Promise.resolve([]),
+    getSeasonStats(session.userId),
+  ]);
 
   return (
-    <main className="min-h-screen p-6 w-full">
-      <div className="max-w-5xl mx-auto">
-        <header className="flex items-center justify-between gap-4 border-b border-bungie-border pb-4 mb-8">
-          <h1 className="text-lg font-bold uppercase tracking-wider text-white">Gun Roulette</h1>
-          <div className="flex items-center gap-4 min-w-0">
-            <span className="text-sm text-gray-400 truncate">{session.displayName}</span>
-            <SignOutButton />
-          </div>
-        </header>
+    <PlatformShell displayName={session.displayName}>
+      <DashboardLiveRefresh />
 
-        <LobbyControls activeSession={activeSession} />
+      <div className="space-y-8">
+        {/* runCount is placeholder mock data for this first pass (#243). */}
+        <WeeklyHero challenge={challenge} placement={placement} runCount={1284} />
 
-        <DashboardLiveRefresh />
+        <ModeGrid />
 
-        <div className="mt-8">
-          <Suspense fallback={<div className="text-gray-500 py-4 flex items-center gap-2"><Spinner size={14} /></div>}>
-            <DashboardStats />
-          </Suspense>
-        </div>
+        <LobbyRow activeSession={activeSession} />
 
-        <div className="mt-8 grid lg:grid-cols-3 gap-6 items-start">
+        <div className="grid lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2">
-            <Suspense fallback={<div className="text-gray-500 py-4 flex items-center gap-2"><Spinner size={14} /></div>}>
-              <Leaderboard />
-            </Suspense>
+            <StandingsPreview entries={standings} />
           </div>
           <div>
-            <Suspense fallback={<div className="text-gray-500 py-4 flex items-center gap-2"><Spinner size={14} /></div>}>
-              <WeaponHallOfFame />
-            </Suspense>
+            <SeasonPanel stats={season} />
           </div>
         </div>
       </div>
-    </main>
+    </PlatformShell>
   );
 }
