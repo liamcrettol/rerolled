@@ -45,6 +45,8 @@ type Db = typeof adminSupabase;
  */
 export async function createRun(input: CreateRunInput, db: Db = adminSupabase): Promise<RunResult> {
   let seasonId: string | null = null;
+  let versionId: string | null = null;
+  let activityHash: number | null = null;
 
   if (input.mode === "weekly_challenge") {
     if (!input.weeklyChallengeId) {
@@ -52,7 +54,7 @@ export async function createRun(input: CreateRunInput, db: Db = adminSupabase): 
     }
     const { data: challenge } = await db
       .from("weekly_challenges")
-      .select("id, status, ends_at, season_id")
+      .select("id, status, ends_at, season_id, activity_hash")
       .eq("id", input.weeklyChallengeId)
       .maybeSingle();
 
@@ -66,6 +68,32 @@ export async function createRun(input: CreateRunInput, db: Db = adminSupabase): 
       return { ok: false, error: "This weekly challenge has ended.", httpStatus: 409 };
     }
     seasonId = c.season_id ?? null;
+    activityHash = c.activity_hash ?? null;
+
+    // challenge_runs requires the published version snapshot for weekly runs
+    // (migration 026 CHECK) so later edits never change what a run was scored
+    // against. Latest version wins — publish always writes one.
+    const { data: version } = await db
+      .from("weekly_challenge_versions")
+      .select("id")
+      .eq("weekly_challenge_id", input.weeklyChallengeId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    versionId = (version as any)?.id ?? null;
+    if (!versionId) {
+      return { ok: false, error: "This weekly challenge has no published version.", httpStatus: 409 };
+    }
+  } else {
+    // Score Attack runs count toward the active season's aggregates too.
+    const { data: season } = await db
+      .from("seasons")
+      .select("id")
+      .eq("status", "active")
+      .maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    seasonId = (season as any)?.id ?? null;
   }
 
   const { data: run, error } = await db
@@ -74,7 +102,9 @@ export async function createRun(input: CreateRunInput, db: Db = adminSupabase): 
       mode: input.mode,
       status: "created",
       weekly_challenge_id: input.mode === "weekly_challenge" ? input.weeklyChallengeId : null,
+      weekly_challenge_version_id: versionId,
       season_id: seasonId,
+      activity_hash: activityHash,
       lobby_id: input.lobbyId ?? null,
       round_id: input.roundId ?? null,
       created_by: input.userId,

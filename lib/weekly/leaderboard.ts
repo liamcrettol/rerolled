@@ -36,6 +36,20 @@ export async function getWeeklyStandings(
   }
 }
 
+/** Total runs started against a weekly challenge, for the hero's counter. */
+export async function getWeeklyRunCount(weeklyChallengeId: string | null): Promise<number> {
+  if (!weeklyChallengeId) return 0;
+  try {
+    const { count } = await adminSupabase
+      .from("challenge_runs")
+      .select("id", { count: "exact", head: true })
+      .eq("weekly_challenge_id", weeklyChallengeId);
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** The viewing user's best placement in a given weekly challenge (#249). */
 export async function getUserWeeklyPlacement(
   userId: string,

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
-import { getRawWeapons, type RawWeapon } from "@/lib/bungie/rawInventory";
+import { getRawWeapons } from "@/lib/bungie/rawInventory";
 import {
   applyWeapons,
   ensureInventorySpace,
+  findBestInstance,
   type InventoryClearResult,
   type WeaponToApply,
 } from "@/lib/bungie/equip";
@@ -22,33 +23,6 @@ const schema = z.object({
   // Captain-chosen instanceId per slot (overrides findBestInstance heuristic)
   preferredInstances: z.record(z.string(), z.string()).optional(),
 });
-
-function findBestInstance(
-  itemHash: number,
-  weapons: RawWeapon[],
-  targetCharacterId: string,
-  preferredInstanceId?: string
-): RawWeapon | null {
-  const candidates = weapons.filter((w) => w.itemHash === itemHash);
-  if (candidates.length === 0) return null;
-
-  // Honor captain's chosen roll if it exists in this user's inventory
-  if (preferredInstanceId) {
-    const preferred = candidates.find((w) => w.itemInstanceId === preferredInstanceId);
-    if (preferred) return preferred;
-  }
-
-  const transferCost = (w: RawWeapon) => {
-    if (w.characterId === targetCharacterId) return 0;
-    if (w.location === "vault") return 1;
-    return 2;
-  };
-
-  return candidates.sort((a, b) => {
-    const costDiff = transferCost(a) - transferCost(b);
-    return costDiff !== 0 ? costDiff : b.lightLevel - a.lightLevel;
-  })[0];
-}
 
 export async function POST(req: NextRequest) {
   const t = Date.now();

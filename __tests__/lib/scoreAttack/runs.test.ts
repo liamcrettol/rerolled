@@ -13,6 +13,8 @@ function makeDb(config: Record<string, any>) {
       const builder: any = {
         select: () => builder,
         eq: () => builder,
+        order: () => builder,
+        limit: () => builder,
         insert: () => builder,
         update: () => builder,
         maybeSingle: async () => cfg.maybeSingle ?? { data: null, error: null },
@@ -40,10 +42,23 @@ describe("createRun", () => {
   it("creates a weekly run inside the challenge window", async () => {
     const db = makeDb({
       weekly_challenges: { maybeSingle: { data: { id: "wc1", status: "active", ends_at: future, season_id: "s1" } } },
+      weekly_challenge_versions: { maybeSingle: { data: { id: "v1" } } },
       challenge_runs: { single: { data: { id: "r2", status: "created" }, error: null } },
     });
     const res = await createRun({ ...owner, mode: "weekly_challenge", weeklyChallengeId: "wc1" }, db);
     expect(res.ok).toBe(true);
+  });
+
+  it("rejects a weekly run when the challenge has no published version", async () => {
+    // challenge_runs has a CHECK requiring weekly_challenge_version_id for
+    // weekly runs — better to 409 here than blow up on insert.
+    const db = makeDb({
+      weekly_challenges: { maybeSingle: { data: { id: "wc1", status: "active", ends_at: future, season_id: "s1" } } },
+      weekly_challenge_versions: { maybeSingle: { data: null } },
+    });
+    const res = await createRun({ ...owner, mode: "weekly_challenge", weeklyChallengeId: "wc1" }, db);
+    expect(res).toMatchObject({ ok: false, httpStatus: 409 });
+    expect(res.error).toMatch(/version/i);
   });
 
   it("requires a weeklyChallengeId for weekly runs", async () => {

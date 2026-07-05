@@ -3,17 +3,11 @@ import { requireSession } from "@/lib/auth/helpers";
 import { transitionRun } from "@/lib/scoreAttack/runs";
 import { z } from "zod";
 
-// Advance a run the caller owns through a client-driven state (#246). The FSM
-// rejects illegal transitions and any attempt to claim a worker-owned result
-// state (parsed/scored/finalized/…) — those are set by the worker only.
+// Advance a run the caller owns through a client-driven state (#246). Result
+// states (completed_pending_pgcr/parsed/scored/finalized/…) are worker-owned —
+// the FSM rejects clients claiming them, so they aren't accepted here at all.
 const schema = z.object({
-  next: z.enum([
-    "loadout_rolled",
-    "applied",
-    "in_activity",
-    "completed_pending_pgcr",
-    "abandoned",
-  ]),
+  next: z.enum(["loadout_rolled", "applied", "in_activity", "abandoned"]),
 });
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

@@ -1,15 +1,34 @@
 import Link from "next/link";
-import type { ModeDefinition, ModeStatus } from "@/types/platform";
+import { Dices, Crosshair, Swords, Skull, CalendarClock } from "lucide-react";
+import type { ModeAccent, ModeDefinition, ModeId, ModeStatus } from "@/types/platform";
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
 
 // Home mode grid (#243/#244/#253). Every card is driven by the mode registry —
-// no per-card conditionals here. Disabled roadmap modes (Draft/Ironman) render
-// as visibly-inert cards that cannot start a flow.
+// no per-card conditionals here. Each mode carries its own accent + icon so
+// the hub reads as distinct activities. Disabled roadmap modes (Draft/Ironman)
+// render as visibly-inert cards that cannot start a flow.
 
 const STATUS_CLS: Record<ModeStatus, string> = {
   live: "text-green-400 border-green-400/40",
   new: "text-bungie-blue border-bungie-blue/40",
   soon: "text-gray-500 border-bungie-border",
+};
+
+// Static class sets per accent — Tailwind can't see dynamic class names.
+const ACCENT_CLS: Record<ModeAccent, { border: string; icon: string; hover: string }> = {
+  green: { border: "border-l-green-400", icon: "text-green-400", hover: "hover:border-green-400" },
+  amber: { border: "border-l-amber-400", icon: "text-amber-400", hover: "hover:border-amber-400" },
+  blue: { border: "border-l-bungie-blue", icon: "text-bungie-blue", hover: "hover:border-bungie-blue" },
+  purple: { border: "border-l-purple-400", icon: "text-purple-400", hover: "hover:border-purple-400" },
+  red: { border: "border-l-red-400", icon: "text-red-400", hover: "hover:border-red-400" },
+};
+
+const MODE_ICONS: Record<ModeId, typeof Dices> = {
+  gun_roulette: Dices,
+  score_attack: Crosshair,
+  weekly_challenge: CalendarClock,
+  draft: Swords,
+  ironman: Skull,
 };
 
 function StatusBadge({ status }: { status: ModeStatus }) {
@@ -21,10 +40,16 @@ function StatusBadge({ status }: { status: ModeStatus }) {
 }
 
 function ModeCard({ mode }: { mode: ModeDefinition }) {
+  const accent = ACCENT_CLS[mode.accent];
+  const Icon = MODE_ICONS[mode.id];
+
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-white">{mode.title}</h3>
+        <div className="flex items-center gap-2 min-w-0">
+          <Icon size={16} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white truncate">{mode.title}</h3>
+        </div>
         <StatusBadge status={mode.status} />
       </div>
       <p className="text-xs text-gray-400 mt-2 leading-relaxed">{mode.description}</p>
@@ -36,7 +61,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
     return (
       <div
         aria-disabled="true"
-        className="panel p-4 opacity-50 cursor-not-allowed select-none"
+        className={`panel border-l-2 ${accent.border} p-4 opacity-50 cursor-not-allowed select-none`}
       >
         {body}
       </div>
@@ -46,7 +71,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
   return (
     <Link
       href={mode.href}
-      className="panel p-4 block hover:border-bungie-blue transition-colors"
+      className={`panel border-l-2 ${accent.border} p-4 block ${accent.hover} transition-colors`}
     >
       {body}
     </Link>

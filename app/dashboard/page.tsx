@@ -9,13 +9,11 @@ import SeasonPanel from "@/components/platform/SeasonPanel";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
 import { getActiveSessionForUser } from "@/lib/lobby";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
-import { getUserWeeklyPlacement, getStandingsPreview } from "@/lib/weekly/leaderboard";
+import { getUserWeeklyPlacement, getStandingsPreview, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
 import { getSeasonStats } from "@/lib/stats/season";
 
-// New game-night platform home shell (#243). Replaces the old single-purpose
-// dashboard with the framing layer: weekly hero, mode grid, lobby row, week
-// standings, and the Your Season panel. Weekly/Score Attack data is mock for
-// this first pass; the existing Gun Roulette lobby flow remains fully usable.
+// Game-night platform home shell (#243): weekly hero, mode grid, lobby row,
+// week standings, and the Your Season panel — all reading live data.
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
@@ -23,11 +21,12 @@ export default async function Dashboard() {
   if (!session?.userId) redirect("/");
 
   const challenge = await getActiveWeeklyChallenge();
-  const [activeSession, placement, standings, season] = await Promise.all([
+  const [activeSession, placement, standings, season, runCount] = await Promise.all([
     getActiveSessionForUser(session.userId),
     getUserWeeklyPlacement(session.userId, challenge?.id ?? null),
     challenge ? getStandingsPreview(challenge.id, session.userId) : Promise.resolve([]),
     getSeasonStats(session.userId),
+    getWeeklyRunCount(challenge?.id ?? null),
   ]);
 
   return (
@@ -35,8 +34,7 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
 
       <div className="space-y-8">
-        {/* runCount is placeholder mock data for this first pass (#243). */}
-        <WeeklyHero challenge={challenge} placement={placement} runCount={1284} />
+        <WeeklyHero challenge={challenge} placement={placement} runCount={runCount} />
 
         <ModeGrid />
 

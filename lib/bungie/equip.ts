@@ -262,6 +262,37 @@ export interface WeaponToApply {
   tierType?: number;
 }
 
+/**
+ * Pick the cheapest-to-equip owned instance of a weapon: prefer one already on
+ * the target character, then the vault, then another character; ties broken by
+ * light level. A caller-preferred instanceId wins when the user owns it.
+ */
+export function findBestInstance(
+  itemHash: number,
+  weapons: RawWeapon[],
+  targetCharacterId: string,
+  preferredInstanceId?: string
+): RawWeapon | null {
+  const candidates = weapons.filter((w) => w.itemHash === itemHash);
+  if (candidates.length === 0) return null;
+
+  if (preferredInstanceId) {
+    const preferred = candidates.find((w) => w.itemInstanceId === preferredInstanceId);
+    if (preferred) return preferred;
+  }
+
+  const transferCost = (w: RawWeapon) => {
+    if (w.characterId === targetCharacterId) return 0;
+    if (w.location === "vault") return 1;
+    return 2;
+  };
+
+  return candidates.sort((a, b) => {
+    const costDiff = transferCost(a) - transferCost(b);
+    return costDiff !== 0 ? costDiff : b.lightLevel - a.lightLevel;
+  })[0];
+}
+
 export async function applyWeapons(
   weapons: WeaponToApply[],
   targetCharacterId: string,
