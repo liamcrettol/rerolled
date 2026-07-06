@@ -31,6 +31,11 @@ const MODE_ICONS: Record<ModeId, typeof Dices> = {
 };
 
 function StatusBadge({ status }: { status: ModeStatus }) {
+  // "live" just means "the original, always-on mode" — badging it reads as
+  // "a match is happening right now," which is wrong. Only NEW/SOON need a
+  // callout; the flagship mode doesn't announce itself.
+  if (status === "live") return null;
+
   return (
     <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${STATUS_CLS[status]}`}>
       {status}

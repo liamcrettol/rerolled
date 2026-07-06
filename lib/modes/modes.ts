@@ -19,7 +19,7 @@ import type { ModeDefinition, ModeId } from "@/types/platform";
 export const MODES: Record<ModeId, ModeDefinition> = {
   gun_roulette: {
     id: "gun_roulette",
-    title: "PvP Lobby",
+    title: "Open Table",
     eyebrow: "Fireteam",
     description: "Create a shared loadout lobby for Crucible.",
     status: "live",
@@ -54,7 +54,7 @@ export const MODES: Record<ModeId, ModeDefinition> = {
   },
   draft: {
     id: "draft",
-    title: "PvP Draft",
+    title: "Full House",
     eyebrow: "Fireteam",
     description: "Choose 1 of 3 for each slot.",
     status: "new",
@@ -65,7 +65,7 @@ export const MODES: Record<ModeId, ModeDefinition> = {
   },
   ironman: {
     id: "ironman",
-    title: "PvE Survival",
+    title: "Dead Man's Hand",
     eyebrow: "PvE",
     description: "Reroll after deaths.",
     status: "soon",

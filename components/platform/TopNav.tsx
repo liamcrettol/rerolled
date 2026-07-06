@@ -21,7 +21,7 @@ export default function TopNav({ displayName }: { displayName?: string }) {
 
   return (
     <header className="border-b border-bungie-border">
-      <div className="max-w-5xl mx-auto flex items-center gap-6 px-6 h-14">
+      <div className="max-w-7xl mx-auto flex items-center gap-6 px-6 h-14">
         <Link href="/dashboard" className="flex items-baseline gap-2 shrink-0">
           <BrandWordmark className="text-lg" />
           <span className="text-[9px] font-bold uppercase tracking-widest text-gray-600">beta</span>

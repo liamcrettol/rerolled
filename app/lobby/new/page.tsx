@@ -144,7 +144,7 @@ export default function NewLobbyPage() {
         </Link>
 
         <div className="mb-6">
-          <p className="section-label text-green-400 mb-2">PvP Lobby</p>
+          <p className="section-label text-green-400 mb-2">Open Table</p>
           <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-white">
             Create lobby
           </h1>
