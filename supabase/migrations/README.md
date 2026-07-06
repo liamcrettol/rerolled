@@ -27,6 +27,7 @@ If you add a migration, also:
 | 032_lobby_pools | `lobby_pools` cache | ✅ |
 | 033_draft_sessions | `draft_sessions`, `draft_picks` (#264 pick/ban draft) | 🗑️ superseded — 034 drops these tables, don't apply on a fresh DB |
 | 034_draft_reveal | `lobby_draft_options` (#266 shared 1-of-3 reveal, replaces 033's mechanic) | ✅ |
+| 035_lock_down_unused_anon_reads | Drops anon SELECT policies on `roll_history`, `weapon_round_kills`, `lobby_pools`, `player_season_stats`, `player_weekly_stats`, `player_lifetime_stats` (#276) | ✅ |
 
 ### Challenge platform (025–031)
 
@@ -41,3 +42,27 @@ The detect route calls `claim_detection`. Until 014 is applied that RPC errors,
 which the route treats as "not claimed" → it returns `pending` and live
 client-side detection pauses. Stats still get recorded by the 5-minute cron
 backstop, so nothing is lost — detection just isn't instant until 014 is run.
+
+### Anon RLS: what's still openly readable, and why (#276)
+035 locked down every table the browser (anon-key) client never actually
+touches. Seven tables are still `USING (true)` for anon on purpose, because
+the browser client reads them directly (verified by a full audit of every
+`"use client"` file): `lobbies`, `lobby_members`, `lobby_rounds`,
+`lobby_loadout_slots`, `lobby_draft_options`, `game_sessions`,
+`player_game_stats`. That's the lobby realtime flow, the `/watch/[code]`
+spectator page, and the draft board.
+
+This means anyone holding the public anon key (it's embedded in the browser
+bundle — not a secret) can still read every row in those seven tables, not
+just the lobby they're actually in. NextAuth sessions aren't mapped to
+Supabase's own auth, so there's no `auth.uid()` to scope a real per-lobby RLS
+policy against. Closing this needs one of:
+- Bridging real Supabase auth (issue a Supabase-compatible JWT per NextAuth
+  session, then write membership-scoped policies), or
+- Dropping `postgres_changes` in favor of server-sent Broadcast messages for
+  all the realtime flows above, so the tables themselves can go anon-closed.
+
+Both are a real project, not a policy tweak — acceptable residual risk for a
+friends-only beta, revisit before this app is ever public. `weekly_leaderboard_entries`,
+`season_leaderboard_entries`, `badges`, and `player_badges` are also anon-readable
+but that's intentional (a leaderboard/badge shelf is meant to be public).
