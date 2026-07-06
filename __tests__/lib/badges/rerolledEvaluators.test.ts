@@ -101,11 +101,6 @@ describe("evaluateRerolledBadge - dispatch", () => {
     expect(() => evaluateRerolledBadge({ rule: "manual_grant" }, baseCtx())).toThrow(/admin path/);
   });
 
-  it("throws for rules with no evaluator yet", () => {
-    expect(() => evaluateRerolledBadge({ rule: "no_round_illegal" }, baseCtx())).toThrow(/no evaluator yet/);
-    expect(() => evaluateRerolledBadge({ rule: "final_round_rolled_win" }, baseCtx())).toThrow(/no evaluator yet/);
-    expect(() => evaluateRerolledBadge({ rule: "session_all_valid" }, baseCtx())).toThrow(/no evaluator yet/);
-  });
 });
 
 describe("first_valid_run (core_drawn)", () => {
@@ -292,6 +287,42 @@ describe("card_win_count (trials_passage/iii/vii)", () => {
       baseCtx({ card: { cardId: "card-1", winsOnCard: 3, isFlawless: false, isComplete: false } })
     );
     expect(decision).toEqual({ awarded: true, scopeKey: "card-1" });
+  });
+});
+
+describe("weekly_all_valid (iron_banner_rite_of_iron)", () => {
+  it("awards when every match played this week was valid", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "weekly_all_valid", activity_family: "iron_banner" },
+      baseCtx({
+        weeklyMatchCount: 6,
+        weeklyValidMatchCount: 6,
+        weekScopeKey: "ib-week-1",
+        activity: makeActivity({ family: "iron_banner" }),
+      })
+    );
+    expect(decision).toEqual({ awarded: true, scopeKey: "ib-week-1" });
+  });
+
+  it("does not award if even one match this week was invalid", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "weekly_all_valid", activity_family: "iron_banner" },
+      baseCtx({
+        weeklyMatchCount: 6,
+        weeklyValidMatchCount: 5,
+        weekScopeKey: "ib-week-1",
+        activity: makeActivity({ family: "iron_banner" }),
+      })
+    );
+    expect(decision.awarded).toBe(false);
+  });
+
+  it("does not award if no matches were played this week", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "weekly_all_valid", activity_family: "iron_banner" },
+      baseCtx({ weeklyMatchCount: 0, weeklyValidMatchCount: 0, activity: makeActivity({ family: "iron_banner" }) })
+    );
+    expect(decision.awarded).toBe(false);
   });
 });
 

@@ -42,13 +42,14 @@ export const REROLLED_BADGE_SLUGS = {
   GHOST_SIGNAL: "crucible_ghost_signal",
   UNTOUCHED: "crucible_untouched",
   // Trials
+  // (trials_verdict and trials_last_rite were cut — Bungie's PGCR has no
+  // round-by-round data, so "no round with an illegal final blow" and "the
+  // final round's winning blow" aren't derivable from the API at all. See #278.)
   PASSAGE: "trials_passage",
   PASSAGE_III: "trials_passage_iii",
   PASSAGE_VII: "trials_passage_vii",
   LIGHTHOUSE_WRIT: "trials_lighthouse_writ",
   PROVEN: "trials_proven",
-  VERDICT: "trials_verdict",
-  LAST_RITE: "trials_last_rite",
   CARDBOUND: "trials_cardbound",
   // Iron Banner
   IRONBOUND: "iron_banner_ironbound",
@@ -76,13 +77,8 @@ export type RerolledBadgeSlug = (typeof REROLLED_BADGE_SLUGS)[keyof typeof REROL
 
 export const ALL_REROLLED_BADGE_SLUGS: RerolledBadgeSlug[] = Object.values(REROLLED_BADGE_SLUGS);
 
-// Rule keys not yet backed by an evaluator implementation — the underlying
-// PGCR data (round-by-round final blows, an "Iron Banner session" boundary)
-// doesn't exist in the pipeline yet. Seeded in the catalog as locked/upcoming
-// so the Badge Case can show them, but rerolledEvaluators.ts throws if one of
-// these is dispatched. See that file's NOT_YET_IMPLEMENTED_RULES comment.
-export const NOT_YET_IMPLEMENTED_REROLLED_SLUGS: RerolledBadgeSlug[] = [
-  REROLLED_BADGE_SLUGS.VERDICT,
-  REROLLED_BADGE_SLUGS.LAST_RITE,
-  REROLLED_BADGE_SLUGS.RITE_OF_IRON,
-];
+// No badges currently lack an evaluator — trials_verdict/trials_last_rite
+// were cut (#278, no round data exists in Bungie's PGCR) and Rite of Iron was
+// redefined to a whole-week scope (weekly_all_valid) instead of an undefined
+// "session" concept. Kept as an export point in case a future badge needs it.
+export const NOT_YET_IMPLEMENTED_REROLLED_SLUGS: RerolledBadgeSlug[] = [];

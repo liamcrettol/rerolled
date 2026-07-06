@@ -14,16 +14,15 @@ import { NOT_YET_IMPLEMENTED_REROLLED_SLUGS } from "./catalog";
 // data, persisting player_badges rows — is separate follow-up work, not
 // implemented here).
 //
-// NOT_YET_IMPLEMENTED: no_round_illegal, final_round_rolled_win,
-// session_all_valid. Verified against Bungie's actual PGCR schema
+// All seeded badges have an evaluator (#278: trials_verdict/trials_last_rite
+// were cut outright — verified against Bungie's actual PGCR schema
 // (DestinyPostGameCarnageReportData: only entries[] and teams[], both
-// whole-match aggregates — no round array, no kill-sequence, anywhere) that
-// the first two are not derivable from the API at all, not just "not built
-// yet." session_all_valid needs a product decision (what bounds an "Iron
-// Banner session") before it can be implemented. Dispatching any of these
-// throws rather than silently returning a false/true decision. manual_grant
-// is intentionally NOT dispatched here at all; Status/Legacy badges are
-// granted through a separate admin path, not run evaluation.
+// whole-match aggregates) that round-by-round final-blow data doesn't exist
+// in the API at all, not just "not built yet"). manual_grant is intentionally
+// NOT dispatched here at all; Status/Legacy badges are granted through a
+// separate admin path, not run evaluation. If a future badge's rule has no
+// evaluator, add it to NOT_YET_IMPLEMENTED_RULES below so dispatch throws
+// instead of silently misevaluating.
 //
 // team_final_blow_lead (Proven) does NOT need round data despite the badge's
 // "round-based match" phrasing — "leading your team in final blows" is a
@@ -71,6 +70,7 @@ export interface RerolledBadgeContext {
   leaderboardEligible?: boolean;
   weeklyChallengeVerified?: boolean;
   weeklyMatchCount?: number;
+  weeklyValidMatchCount?: number;
   weekScopeKey?: string | null;
 }
 
@@ -261,9 +261,21 @@ const ruleFns: Record<string, RerolledRuleFn> = {
       matchesActivityFamily(criteria, ctx.activity),
     scopeKey: runScope(ctx),
   }),
+
+  // Rite of Iron (#278): "session" was redefined to the whole active Iron
+  // Banner week (same scope as weekly_match_count) rather than an undefined
+  // play-sitting concept — zero invalid matches across every match played
+  // that week, not just a minimum count.
+  weekly_all_valid: (criteria, ctx) => ({
+    awarded:
+      matchesActivityFamily(criteria, ctx.activity) &&
+      (ctx.weeklyMatchCount ?? 0) > 0 &&
+      ctx.weeklyValidMatchCount === ctx.weeklyMatchCount,
+    scopeKey: ctx.weekScopeKey ?? runScope(ctx),
+  }),
 };
 
-const NOT_YET_IMPLEMENTED_RULES = new Set(["no_round_illegal", "final_round_rolled_win", "session_all_valid"]);
+const NOT_YET_IMPLEMENTED_RULES = new Set<string>([]);
 
 export function evaluateRerolledBadge(criteria: Record<string, unknown>, ctx: RerolledBadgeContext): RerolledAwardDecision {
   const rule = criteria.rule;
