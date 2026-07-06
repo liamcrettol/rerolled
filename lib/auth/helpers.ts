@@ -49,10 +49,61 @@ async function findBungieAccount(userId: string, membershipId?: string) {
   return null;
 }
 
+async function refreshSessionBungieToken(refreshToken: string): Promise<string> {
+  const res = await fetch("https://www.bungie.net/Platform/App/OAuth/token/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-API-Key": process.env.BUNGIE_API_KEY!,
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: process.env.BUNGIE_CLIENT_ID!,
+      client_secret: process.env.BUNGIE_CLIENT_SECRET!,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Bungie token refresh failed (${res.status}): ${body.slice(0, 100)}. Please sign out and sign in again`);
+  }
+
+  const tokens = await res.json();
+  return tokens.access_token;
+}
+
+async function getSessionBungieToken(userId: string, membershipId?: string) {
+  const session = await auth();
+  if (!session?.bungieAccessToken || session.userId !== userId) return null;
+  if (membershipId && session.bungieMembershipId !== membershipId) return null;
+
+  if (session.bungieTokenExpiresAt) {
+    const expiresAt = new Date(session.bungieTokenExpiresAt).getTime();
+    if (Date.now() > expiresAt - 90_000) {
+      if (!session.bungieRefreshToken) return null;
+      return refreshSessionBungieToken(session.bungieRefreshToken);
+    }
+  }
+
+  return session.bungieAccessToken;
+}
+
 /** Retrieve a decrypted, valid Bungie access token. Refreshes automatically if expired. */
 export async function getBungieToken(userId: string, membershipId?: string): Promise<string> {
-  const data = await findBungieAccount(userId, membershipId);
-  if (!data) throw new Error("No Bungie account found for user");
+  let data: Awaited<ReturnType<typeof findBungieAccount>>;
+  try {
+    data = await findBungieAccount(userId, membershipId);
+  } catch (err) {
+    const sessionToken = await getSessionBungieToken(userId, membershipId);
+    if (sessionToken) return sessionToken;
+    throw err;
+  }
+  if (!data) {
+    const sessionToken = await getSessionBungieToken(userId, membershipId);
+    if (sessionToken) return sessionToken;
+    throw new Error("No Bungie account found for user");
+  }
 
   // Refresh if expired (with 90s buffer)
   if (data.expires_at) {

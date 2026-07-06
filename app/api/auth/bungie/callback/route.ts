@@ -9,7 +9,8 @@ const OAUTH_RETURN_TO_COOKIE = "bungie_oauth_return_to";
 const BUNGIE_REDIRECT_URI =
   process.env.BUNGIE_REDIRECT_URI ||
   `${BASE_URL}/api/auth/bungie/callback`;
-const AUTH_DB_RETRY_DELAYS_MS = [0, 750, 1500, 3000];
+const AUTH_DB_RETRY_DELAYS_MS = [0];
+const AUTH_DB_WRITE_TIMEOUT_MS = 1500;
 
 type SupabaseWriteError = {
   message?: string;
@@ -230,11 +231,14 @@ export async function GET(req: NextRequest) {
     adminSupabase.from("users").upsert(
       { id: userId, display_name: displayName, updated_at: new Date().toISOString() },
       { onConflict: "id" }
-    )
+    ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
   );
   if (userErr) {
-    return errRedirect(
-      isTransientSupabaseError(userErr) ? "database_unavailable" : "user_upsert_failed",
+    if (!isTransientSupabaseError(userErr)) {
+      return errRedirect("user_upsert_failed", formatSupabaseError(userErr));
+    }
+    console.error(
+      "[bungie/callback] continuing with session-only auth after users upsert outage:",
       formatSupabaseError(userErr)
     );
   }
@@ -252,11 +256,14 @@ export async function GET(req: NextRequest) {
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
-    )
+    ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
   );
   if (accountErr) {
-    return errRedirect(
-      isTransientSupabaseError(accountErr) ? "database_unavailable" : "account_upsert_failed",
+    if (!isTransientSupabaseError(accountErr)) {
+      return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
+    }
+    console.error(
+      "[bungie/callback] continuing with session-only auth after bungie_accounts upsert outage:",
       formatSupabaseError(accountErr)
     );
   }
@@ -264,14 +271,25 @@ export async function GET(req: NextRequest) {
   // Touch this user's lobby member rows after a successful sign-in/reauth.
   // Lobby clients subscribe to lobby_members UPDATE events, so this lets every
   // open lobby retry inventory loading without asking the fireteam to refresh.
-  await adminSupabase
-    .from("lobby_members")
-    .update({
-      display_name: displayName,
-      bungie_membership_id: membershipId,
-      bungie_membership_type: membershipType,
-    })
-    .eq("user_id", userId);
+  try {
+    const { error: lobbyTouchErr } = await adminSupabase
+      .from("lobby_members")
+      .update({
+        display_name: displayName,
+        bungie_membership_id: membershipId,
+        bungie_membership_type: membershipType,
+      })
+      .eq("user_id", userId)
+      .abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS));
+    if (lobbyTouchErr) {
+      console.error("[bungie/callback] lobby member touch failed:", formatSupabaseError(lobbyTouchErr));
+    }
+  } catch (caught) {
+    console.error(
+      "[bungie/callback] lobby member touch threw:",
+      caught instanceof Error ? caught.message : String(caught)
+    );
+  }
 
   const isProd = process.env.NODE_ENV === "production";
   const cookieName = isProd
@@ -289,6 +307,9 @@ export async function GET(req: NextRequest) {
         bungieMembershipId: membershipId,
         bungieMembershipType: membershipType,
         displayName,
+        bungieAccessToken: tokens.access_token,
+        bungieRefreshToken: tokens.refresh_token,
+        bungieTokenExpiresAt: expiresAt,
       },
       secret: process.env.NEXTAUTH_SECRET!,
       maxAge: 30 * 24 * 60 * 60, // 30 days
