@@ -5,6 +5,8 @@
 // mock sources in lib/weekly and lib/stats return these types today; a real
 // Supabase-backed implementation can drop in later without touching the UI.
 
+import type { ActivityFamily } from "./challenges";
+
 /** Every play mode the platform knows about (#244). */
 export type ModeId =
   | "gun_roulette"
@@ -63,7 +65,7 @@ export interface WeeklyChallenge {
   slug: string;
   /** Human activity name, e.g. "GM: Lightblade". */
   activityName: string;
-  activityFamily: "gm" | "nightfall" | "dungeon" | "raid" | "vanguard" | "other";
+  activityFamily: ActivityFamily;
   /** ISO timestamps defining the competition window (#251). */
   startsAt: string;
   endsAt: string;

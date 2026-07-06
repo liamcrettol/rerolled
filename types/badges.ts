@@ -10,6 +10,17 @@ export type BadgeCategory =
 
 export type BadgeTier = "bronze" | "silver" | "gold" | "platinum" | "special";
 
+// Which Badge Case tab a badge shows under (see project design notes). Distinct
+// from `category`, which describes the badge's nature (completion/streak/etc.)
+// rather than its mode grouping. Null = mode-agnostic (e.g. Core badges).
+export type BadgeMode =
+  | "core"
+  | "crucible"
+  | "trials"
+  | "iron_banner"
+  | "pve"
+  | "status_legacy";
+
 export interface Badge {
   id: string;
   slug: string;
@@ -17,6 +28,7 @@ export interface Badge {
   description: string;
   category: BadgeCategory;
   tier: BadgeTier;
+  mode: BadgeMode | null;
   icon_key: string | null;
   is_active: boolean;
   is_hidden: boolean;

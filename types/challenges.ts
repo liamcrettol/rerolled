@@ -17,7 +17,16 @@ export interface Season {
 }
 
 export type WeeklyChallengeStatus = "draft" | "scheduled" | "active" | "expired" | "archived";
-export type ActivityFamily = "gm" | "nightfall" | "dungeon" | "raid" | "vanguard" | "other";
+export type ActivityFamily =
+  | "gm"
+  | "nightfall"
+  | "dungeon"
+  | "raid"
+  | "vanguard"
+  | "crucible"
+  | "trials"
+  | "iron_banner"
+  | "other";
 
 // Machine-readable rule keys a weekly challenge can carry. Each maps to a
 // display chip in the UI (see lib/challenges/rules.ts).
@@ -157,4 +166,27 @@ export interface ChallengeRunLoadoutSlot {
   reroll_count: number;
   created_at: string;
   updated_at: string;
+}
+
+// Mirrors supabase/migrations/036_run_legality_and_badge_mode.sql.
+// Strict zero-tolerance legality for the Rerolled badge layer — distinct from
+// run_compliance_results, which is a ratio-based (>=70%) eligibility check for
+// score attack/weekly challenge leaderboard placement. A run can be
+// leaderboard-"eligible" under the ratio model while still being invalid here
+// (badges require ZERO illegal final blows, not "mostly rolled").
+export interface RunLegalityResult {
+  id: string;
+  run_id: string;
+  user_id: string | null;
+  is_valid: boolean;
+  had_active_loadout: boolean;
+  rolled_final_blows: number;
+  illegal_final_blows: number;
+  // e.g. ["melee", "grenade", "super", "off_roll_weapon:1234567890"]
+  illegal_sources: string[];
+  // weaponHashes (from the rolled loadout) that recorded at least one final
+  // blow this run — used by all_rolled_weapons_used (Threefold/No Reserve).
+  rolled_weapons_used: number[];
+  evaluated_at: string;
+  created_at: string;
 }
