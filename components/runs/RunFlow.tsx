@@ -8,7 +8,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Dices, RotateCcw, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import BungieReauthPrompt from "@/components/BungieReauthPrompt";
 import WeaponIcon from "@/components/WeaponIcon";
+import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import type { WeaponSlot } from "@/types/bungie";
 
 type Accent = "amber" | "blue";
@@ -110,6 +112,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const needsReauth = error ? isBungieAuthErrorMessage(error) : false;
 
   const api = useCallback(async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
@@ -271,7 +274,13 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
           {busy === "start" ? <Loader2 size={14} className="animate-spin" /> : <Dices size={14} />}
           {busy === "start" ? "Rolling…" : mode === "weekly_challenge" ? "Run the Weekly" : "Start a Run"}
         </button>
-        {error && <p className="text-xs text-red-400 mt-3">{error}</p>}
+        {needsReauth ? (
+          <div className="mt-4">
+            <BungieReauthPrompt message="Your Bungie connection needs to be refreshed before we can roll from your live inventory." />
+          </div>
+        ) : error ? (
+          <p className="text-xs text-red-400 mt-3">{error}</p>
+        ) : null}
       </div>
     );
   }
@@ -380,7 +389,11 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
         >
           Abandon run
         </button>
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {needsReauth ? (
+          <BungieReauthPrompt message="Your Bungie connection expired while this run was active. Reconnect it, then try again." />
+        ) : error ? (
+          <p className="text-xs text-red-400">{error}</p>
+        ) : null}
       </div>
     );
   }
@@ -453,7 +466,11 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
           Cancel
         </button>
       </div>
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {needsReauth ? (
+        <BungieReauthPrompt message="Your Bungie connection needs to be refreshed before we can continue this run." />
+      ) : error ? (
+        <p className="text-xs text-red-400">{error}</p>
+      ) : null}
     </div>
   );
 }

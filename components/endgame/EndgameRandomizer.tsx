@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Shield, Swords, Target } from "lucide-react";
+import BungieReauthPrompt from "@/components/BungieReauthPrompt";
 import WeaponIcon from "@/components/WeaponIcon";
+import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import type { EndgameActivityKind } from "@/lib/endgame/randomizer";
 
 interface Character {
@@ -74,6 +76,7 @@ export default function EndgameRandomizer() {
   const [loadingCharacters, setLoadingCharacters] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const needsReauth = error ? isBungieAuthErrorMessage(error) : false;
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +145,8 @@ export default function EndgameRandomizer() {
               <p className="text-xs text-gray-500 flex items-center gap-2">
                 <Loader2 size={12} className="animate-spin" /> Loading characters...
               </p>
+            ) : needsReauth && (!characters || characters.length === 0) ? (
+              <p className="text-xs text-amber-400">Your Bungie connection needs to be refreshed.</p>
             ) : error && (!characters || characters.length === 0) ? (
               <p className="text-xs text-red-400">Couldn&apos;t load your Bungie characters right now.</p>
             ) : (characters?.length ?? 0) === 0 ? (
@@ -224,7 +229,11 @@ export default function EndgameRandomizer() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {needsReauth ? (
+        <BungieReauthPrompt />
+      ) : error ? (
+        <p className="text-sm text-red-400">{error}</p>
+      ) : null}
 
       {result && (
         <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">

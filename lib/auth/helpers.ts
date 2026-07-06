@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import { decryptToken, encryptToken } from "@/lib/auth/encrypt";
-
-const BUNGIE_REAUTH_MESSAGE = "Bungie sign-in expired. Please sign out and sign in again.";
+import { BUNGIE_REAUTH_MESSAGE, isBungieAuthErrorMessage } from "./bungieErrors";
+export { isBungieAuthErrorMessage } from "./bungieErrors";
 
 export async function requireSession() {
   const session = await auth();
@@ -21,16 +21,6 @@ function normalizeBungieTokenError(err: unknown): Error {
     return new Error(BUNGIE_REAUTH_MESSAGE);
   }
   return err instanceof Error ? err : new Error(msg);
-}
-
-export function isBungieAuthErrorMessage(msg: string): boolean {
-  return (
-    msg === "Unauthorized" ||
-    msg === "No Bungie account found for user" ||
-    msg === "Bungie token expired. Please sign in again" ||
-    msg === BUNGIE_REAUTH_MESSAGE ||
-    msg.startsWith("Bungie token refresh failed (")
-  );
 }
 
 async function findBungieAccount(userId: string, membershipId?: string) {
