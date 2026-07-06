@@ -8,7 +8,7 @@
 //   - gun_roulette   → live PvP loadout roulette, routes into the existing lobby flow
 //   - score_attack   → new, live solo run flow (roll → equip → auto-score)
 //   - weekly_challenge → surfaced via the hero, not the grid; run flow on /weekly
-//   - draft → new, v1 pick/ban run flow on /draft (#264)
+//   - draft → new, shared 1-of-3 card-reveal run flow on /draft (#266)
 //   - ironman → still a disabled roadmap card (#253)
 //
 // Each mode also carries an `accent` — its color identity across the hub
@@ -56,7 +56,7 @@ export const MODES: Record<ModeId, ModeDefinition> = {
     id: "draft",
     title: "PvP Draft",
     eyebrow: "Fireteam",
-    description: "Pick and ban weapons.",
+    description: "Choose 1 of 3 for each slot.",
     status: "new",
     enabled: true,
     href: "/draft/new",
