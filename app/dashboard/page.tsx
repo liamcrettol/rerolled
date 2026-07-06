@@ -34,14 +34,14 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
 
       <div className="space-y-8">
-        <ModeGrid />
-
         <div className="grid lg:grid-cols-3 gap-6 items-start">
           <div className="lg:col-span-2"><WeeklyHero challenge={challenge} placement={placement} runCount={runCount} /></div>
           <div>
             <SeasonPanel stats={season} />
           </div>
         </div>
+
+        <ModeGrid />
 
         <LobbyRow activeSession={activeSession} />
 

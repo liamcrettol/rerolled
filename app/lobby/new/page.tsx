@@ -25,22 +25,22 @@ interface LobbyPreset {
 const PVP_PRESETS: LobbyPreset[] = [
   {
     id: "balanced",
-    label: "Balanced Crucible",
-    detail: "One shared loadout, a few mulligans, familiar chaos.",
+    label: "Standard",
+    detail: "Same loadout, 3 rerolls.",
     icon: Crosshair,
     settings: { rollMode: "normal", rerollLimit: 3, noDup: false },
   },
   {
     id: "chaos",
-    label: "Chaos Scrim",
-    detail: "Different rolls per Guardian and fewer second chances.",
+    label: "Random",
+    detail: "Different loadouts, 1 reroll.",
     icon: Shuffle,
     settings: { rollMode: "chaos", rerollLimit: 1, noDup: true },
   },
   {
     id: "meta",
-    label: "Meta Check",
-    detail: "Lean toward stronger Crucible frames without picking exact guns.",
+    label: "Meta",
+    detail: "Meta-weighted, 3 rerolls.",
     icon: Zap,
     settings: { rollMode: "meta", rerollLimit: 3, noDup: false },
   },
@@ -144,20 +144,16 @@ export default function NewLobbyPage() {
         </Link>
 
         <div className="mb-6">
-          <p className="section-label text-green-400 mb-2">PvP Loadout Roulette</p>
+          <p className="section-label text-green-400 mb-2">PvP Lobby</p>
           <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-white">
-            Set the rules before you invite the fireteam
+            Create lobby
           </h1>
-          <p className="text-sm text-gray-400 mt-2 max-w-2xl">
-            This lobby flow is for shared fireteam modes. Score Attack and Weekly Challenge start
-            solo scored runs from their own pages, while PvP gets lobby rules built for Crucible nights.
-          </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className="panel p-5">
-              <p className="section-label mb-3">PvP Preset</p>
+              <p className="section-label mb-3">Preset</p>
               <div className="space-y-2">
                 {PVP_PRESETS.map((preset) => {
                   const Icon = preset.icon;
@@ -304,7 +300,7 @@ export default function NewLobbyPage() {
           className="w-full mt-6 bg-bungie-blue hover:bg-[#26bcf3] disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider py-3 transition-colors inline-flex items-center justify-center gap-2"
         >
           {loading && <Spinner size={15} />}
-          {loading ? "Creating…" : "Create PvP Lobby"}
+          {loading ? "Creating…" : "Create Lobby"}
         </button>
       </div>
     </div>

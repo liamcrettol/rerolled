@@ -26,7 +26,7 @@ export default function LobbyControls({
   activeSession,
   showCreate = true,
   createHref = "/lobby/new",
-  createLabel = "Create PvP Lobby",
+  createLabel = "Create Lobby",
 }: Props) {
   const router = useRouter();
   const [code, setCode] = useState("");

@@ -4,9 +4,8 @@ import type { ModeAccent, ModeDefinition, ModeId, ModeStatus } from "@/types/pla
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
 
 // Home mode grid (#243/#244/#253). Every card is driven by the mode registry —
-// no per-card conditionals here. Each mode carries its own accent + icon so
-// the hub reads as distinct activities. Disabled roadmap modes (Draft/Ironman)
-// render as visibly-inert cards that cannot start a flow.
+// no per-card conditionals here. Each mode carries its own accent + icon.
+// Disabled roadmap modes render as visibly-inert cards that cannot start a flow.
 
 const STATUS_CLS: Record<ModeStatus, string> = {
   live: "text-green-400 border-green-400/40",
@@ -53,7 +52,6 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
         <StatusBadge status={mode.status} />
       </div>
       <h3 className="text-base font-bold uppercase tracking-wider text-white mt-3">{mode.title}</h3>
-      <p className="text-xs text-gray-400 mt-2 leading-relaxed min-h-[3rem]">{mode.description}</p>
       <div className={`mt-4 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${mode.enabled ? accent.action : "text-gray-600"}`}>
         {mode.ctaLabel}
         {mode.enabled && <ArrowRight size={12} aria-hidden="true" />}
@@ -86,15 +84,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
 export default function ModeGrid() {
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
-        <div>
-          <p className="section-label mb-1">Choose a Mode</p>
-          <h2 className="text-lg font-bold uppercase tracking-tight text-white">Start from the kind of night you are playing</h2>
-        </div>
-        <p className="text-xs text-gray-500 max-w-sm">
-          Fireteam modes create lobbies. Solo and weekly modes start scored runs.
-        </p>
-      </div>
+      <p className="section-label mb-3">Modes</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />
