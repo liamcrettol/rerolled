@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
-  title: "Destiny Roulette",
+  title: "Rerolled",
   description: "Roll random Destiny 2 weapon loadouts from a shared fireteam pool, then equip and compare rolls together.",
 };
 

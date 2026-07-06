@@ -7,8 +7,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
-
-const WORDMARK = "Destiny Roulette";
+import BrandWordmark from "@/components/BrandWordmark";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
@@ -24,7 +23,7 @@ export default function TopNav({ displayName }: { displayName?: string }) {
     <header className="border-b border-bungie-border">
       <div className="max-w-5xl mx-auto flex items-center gap-6 px-6 h-14">
         <Link href="/dashboard" className="flex items-baseline gap-2 shrink-0">
-          <span className="text-lg font-bold uppercase tracking-tight text-white">{WORDMARK}</span>
+          <BrandWordmark className="text-lg" />
           <span className="text-[9px] font-bold uppercase tracking-widest text-gray-600">beta</span>
         </Link>
 

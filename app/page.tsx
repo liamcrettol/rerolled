@@ -6,6 +6,7 @@ import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { MODES } from "@/lib/modes/modes";
 import type { ModeAccent } from "@/types/platform";
 import Link from "next/link";
+import BrandWordmark from "@/components/BrandWordmark";
 
 // Signed-out landing. Pitches the whole activity hub (mode strip below the
 // sign-in), not just roulette — each mode wears its accent from the registry.
@@ -39,8 +40,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
     <main className="min-h-screen flex flex-col items-center justify-center gap-10 p-8">
       <div className="text-center">
         <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
-        <h1 className="text-5xl md:text-6xl font-bold uppercase tracking-tight text-white">
-          Destiny Roulette
+        <h1 className="text-5xl md:text-6xl">
+          <BrandWordmark />
         </h1>
         <p className="text-gray-400 mt-3">
           PvP loadout chaos, scored PvE runs, and weekly challenges for your fireteam.

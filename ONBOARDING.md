@@ -1,6 +1,6 @@
-# Destiny Roulette - Developer Onboarding
+# Rerolled - Developer Onboarding
 
-Welcome to the Destiny Roulette project! This guide will help you set up your local development environment.
+Welcome to the Rerolled project! This guide will help you set up your local development environment.
 
 ## Prerequisites
 

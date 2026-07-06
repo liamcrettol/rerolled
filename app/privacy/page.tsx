@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Destiny Roulette",
+  title: "Privacy Policy | Rerolled",
 };
 
 export default function PrivacyPage() {
@@ -13,7 +13,7 @@ export default function PrivacyPage() {
         <p className="text-xs text-gray-500 mb-6">Last updated: July 2, 2026</p>
 
         <p className="mb-4">
-          Destiny Roulette is a free tool for Destiny 2 fireteams. This policy explains what data
+          Rerolled is a free tool for Destiny 2 fireteams. This policy explains what data
           we collect and why.
         </p>
 
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
 
         <h2 className="text-lg font-semibold text-white mt-6 mb-2">Your data</h2>
         <p className="mb-4">
-          You can revoke Destiny Roulette&apos;s access at any time from your{" "}
+          You can revoke Rerolled&apos;s access at any time from your{" "}
           <a
             href="https://www.bungie.net/7/en/User/Account/IdentityAuthorizations"
             target="_blank"

@@ -1,4 +1,4 @@
-# CLAUDE.md — Destiny Roulette
+# CLAUDE.md — Rerolled
 
 Operating guide for Claude Code. **Read this fully before acting.** Private repo;
 team-visible is fine. Never commit secret *values* (they live in Vercel).
