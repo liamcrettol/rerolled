@@ -10,7 +10,7 @@ const BUNGIE_REDIRECT_URI =
   process.env.BUNGIE_REDIRECT_URI ||
   `${BASE_URL}/api/auth/bungie/callback`;
 const AUTH_DB_RETRY_DELAYS_MS = [0];
-const AUTH_DB_WRITE_TIMEOUT_MS = 1500;
+const AUTH_DB_WRITE_TIMEOUT_MS = 600;
 
 type SupabaseWriteError = {
   message?: string;
@@ -233,6 +233,7 @@ export async function GET(req: NextRequest) {
       { onConflict: "id" }
     ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
   );
+  const skipDependentDbWrites = userErr && isTransientSupabaseError(userErr);
   if (userErr) {
     if (!isTransientSupabaseError(userErr)) {
       return errRedirect("user_upsert_failed", formatSupabaseError(userErr));
@@ -244,20 +245,22 @@ export async function GET(req: NextRequest) {
   }
 
   // Persist bungie account
-  const accountErr = await retrySupabaseWrite("bungie_accounts upsert", () =>
-    adminSupabase.from("bungie_accounts").upsert(
-      {
-        user_id: userId,
-        membership_id: membershipId,
-        membership_type: membershipType,
-        access_token_enc: encryptedAccess,
-        refresh_token_enc: encryptedRefresh,
-        expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
-  );
+  const accountErr = skipDependentDbWrites
+    ? null
+    : await retrySupabaseWrite("bungie_accounts upsert", () =>
+        adminSupabase.from("bungie_accounts").upsert(
+          {
+            user_id: userId,
+            membership_id: membershipId,
+            membership_type: membershipType,
+            access_token_enc: encryptedAccess,
+            refresh_token_enc: encryptedRefresh,
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
+      );
   if (accountErr) {
     if (!isTransientSupabaseError(accountErr)) {
       return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
@@ -271,24 +274,26 @@ export async function GET(req: NextRequest) {
   // Touch this user's lobby member rows after a successful sign-in/reauth.
   // Lobby clients subscribe to lobby_members UPDATE events, so this lets every
   // open lobby retry inventory loading without asking the fireteam to refresh.
-  try {
-    const { error: lobbyTouchErr } = await adminSupabase
-      .from("lobby_members")
-      .update({
-        display_name: displayName,
-        bungie_membership_id: membershipId,
-        bungie_membership_type: membershipType,
-      })
-      .eq("user_id", userId)
-      .abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS));
-    if (lobbyTouchErr) {
-      console.error("[bungie/callback] lobby member touch failed:", formatSupabaseError(lobbyTouchErr));
+  if (!skipDependentDbWrites) {
+    try {
+      const { error: lobbyTouchErr } = await adminSupabase
+        .from("lobby_members")
+        .update({
+          display_name: displayName,
+          bungie_membership_id: membershipId,
+          bungie_membership_type: membershipType,
+        })
+        .eq("user_id", userId)
+        .abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS));
+      if (lobbyTouchErr) {
+        console.error("[bungie/callback] lobby member touch failed:", formatSupabaseError(lobbyTouchErr));
+      }
+    } catch (caught) {
+      console.error(
+        "[bungie/callback] lobby member touch threw:",
+        caught instanceof Error ? caught.message : String(caught)
+      );
     }
-  } catch (caught) {
-    console.error(
-      "[bungie/callback] lobby member touch threw:",
-      caught instanceof Error ? caught.message : String(caught)
-    );
   }
 
   const isProd = process.env.NODE_ENV === "production";

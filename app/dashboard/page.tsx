@@ -20,24 +20,27 @@ export default async function Dashboard() {
   const session = await auth();
   if (!session?.userId) redirect("/");
 
+  const activeSessionPromise = getActiveSessionForUser(session.userId).catch(() => null);
+  const seasonPromise = getSeasonStats(session.userId).catch(() => ({
+    seasonKey: "",
+    seasonName: "Season",
+    totalRuns: 0,
+    rouletteKills: 0,
+    weeklyChallengesCleared: 0,
+    bestWeeklyPlacement: null,
+    bestWeapon: null,
+  }));
+
   const challenge = await getActiveWeeklyChallenge().catch(() => null);
   const [activeSession, placement, standings, season, runCount] = await Promise.all([
-    getActiveSessionForUser(session.userId).catch(() => null),
+    activeSessionPromise,
     getUserWeeklyPlacement(session.userId, challenge?.id ?? null).catch(() => ({
       rank: null,
       bestScore: null,
       totalRuns: 0,
     })),
     challenge ? getStandingsPreview(challenge.id, session.userId).catch(() => []) : Promise.resolve([]),
-    getSeasonStats(session.userId).catch(() => ({
-      seasonKey: "",
-      seasonName: "Season",
-      totalRuns: 0,
-      rouletteKills: 0,
-      weeklyChallengesCleared: 0,
-      bestWeeklyPlacement: null,
-      bestWeapon: null,
-    })),
+    seasonPromise,
     getWeeklyRunCount(challenge?.id ?? null).catch(() => 0),
   ]);
 

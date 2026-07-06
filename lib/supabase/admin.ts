@@ -9,7 +9,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // defers createClient() to the first real property access at request time, so
 // importing a route no longer requires the service-role secret at build time.
 let client: SupabaseClient | null = null;
-const SUPABASE_REQUEST_TIMEOUT_MS = 5_000;
+const SUPABASE_REQUEST_TIMEOUT_MS = Number(process.env.SUPABASE_REQUEST_TIMEOUT_MS ?? 1_200);
 
 function timedFetch(input: string | URL | Request, init?: RequestInit) {
   const timeoutSignal = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
