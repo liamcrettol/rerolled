@@ -20,6 +20,8 @@ interface Props {
   showCreate?: boolean;
   createHref?: string;
   createLabel?: string;
+  /** Where the join form and "Rejoin" button route to, e.g. "/draft" for Draft mode. */
+  joinBasePath?: string;
 }
 
 export default function LobbyControls({
@@ -27,6 +29,7 @@ export default function LobbyControls({
   showCreate = true,
   createHref = "/lobby/new",
   createLabel = "Create Lobby",
+  joinBasePath = "/lobby",
 }: Props) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -46,7 +49,7 @@ export default function LobbyControls({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      router.push(`/lobby/${data.code}`);
+      router.push(`${joinBasePath}/${data.code}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to join lobby");
       setLoading(null);
@@ -63,7 +66,7 @@ export default function LobbyControls({
             {STATUS_LABELS[activeSession.status]}
           </p>
           <button
-            onClick={() => router.push(`/lobby/${activeSession.code}`)}
+            onClick={() => router.push(`${joinBasePath}/${activeSession.code}`)}
             className="shrink-0 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-4 py-2 transition-colors"
           >
             Rejoin
