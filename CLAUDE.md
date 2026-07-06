@@ -129,6 +129,90 @@ After the PR merges, the work is in **staging**. Wait for "ship it" before promo
 
 ---
 
+## Design system (flat DIM-style — don't drift back to "AI slop")
+
+The whole UI was deliberately redesigned (#243, "remove AI aesthetic") to a flat
+armory look — DIM / Trials Report / light.gg, not a generic SaaS template. Liam
+notices and rejects the generic look immediately. The rules:
+
+- **Hard edges everywhere: zero border radius.** No `rounded-*` (the lone
+  exception is a `rounded-full` circle icon). No gradients, no glassmorphism,
+  no scan-lines/grid backdrops, no gold-corner "armory" kitsch, no emoji.
+- **Tokens** (globals.css / tailwind `bungie.*`): bg `#101216` (`bungie-dark`),
+  panels `#171a1f` (`bungie-surface`), 1px strokes `#2a2e36` (`bungie-border`),
+  single accent `#00aeef` (`bungie-blue`, hover `#26bcf3`). System font stack
+  (same grotesque family DIM ships) — don't add webfonts.
+- **Utilities to reuse, not reinvent:** `.panel` (flat surface + 1px stroke),
+  `.section-label` (11px bold uppercase 0.14em-tracked micro-label — used for
+  *every* section header), `components/ui/Card.tsx`, `WeaponIcon.tsx`.
+  Buttons get a mechanical 1px translate press via global CSS — no scale/ease.
+- **Color is semantic, never decorative.** Destiny element colors (Arc `#7bd6ff`,
+  Solar `#ff8a3d`, Void `#b58cff`, Stasis `#5b8dff`, Strand `#2fd66f`, Kinetic
+  `#d3dae1` — see `DAMAGE_COLORS` in `DraftBoard.tsx`) and rarity edges (exotic
+  gold `#c7a64a`, legendary purple — `.exotic-border`, HeroReel's `EDGE`) are the
+  only things allowed to glow, as thin box-shadow edges on dark tiles.
+- **Motion vocabulary lives in `tailwind.config.ts`** (`pick-pop`, `slot-land`,
+  `fade-in`, `cyl-spin`, `weapon-land`) plus the scroll-and-land **reel** in
+  `components/HeroReel.tsx` — blurred filler icons scrolling vertically in a
+  masked window, notching onto the target with an overshoot ease. That reel is
+  the app's signature mechanic; reuse it for any new "random reveal" moment
+  (LoadoutQueue and DraftBoard already do) instead of inventing a new animation.
+- **Layout taste:** fill the viewport (`min-h-[calc(100vh-*)]` + `flex-1`
+  centered stage) — Liam calls out dead space. Big uppercase slot/stage titles,
+  progress steppers as square bordered pills, trays pinned to the bottom.
+  Game-feel references he reaches for: Clash Royale card reveals, slot reels.
+
+---
+
+## UI verification (auth'd pages can't render in preview)
+
+Lobby/draft/dashboard pages need a Bungie session + live Supabase lobby, so the
+preview browser just redirects to `/`. To actually *see* a UI change: create a
+throwaway `app/<thing>-preview/page.tsx` client harness that renders the
+component with mock props/data (grab real icon URLs from
+`lib/bungie/data/weapons-table.json`), screenshot it via the preview tools,
+then **delete the harness before committing**. After deleting a route, also
+`rm -rf .next/types/app/<thing>-preview` or `tsc --noEmit` fails on stale
+generated route types. Static screenshots can't prove motion — for animation
+checks, describe/loop it in the harness (add a Replay button) and let Liam
+watch it live in the preview window.
+
+---
+
+## Gameplay rules the code must respect (Destiny invariants)
+
+Bungie's sandbox rules — enforce them anywhere a loadout is generated
+(roulette roll, draft reveal, future modes), don't rediscover them per mode:
+
+- **One exotic per loadout** (HeroReel models this even decoratively).
+- **No double Special:** never two Special-ammo weapons across Kinetic+Energy
+  (`getWeaponAmmoType()` in `lib/bungie/definitions.ts` returns
+  `"Primary" | "Special" | "Heavy"`; see `applyAmmoRules` in
+  `lib/draft/optionsService.ts`). Power slot is always Heavy.
+- Draft order is fixed Kinetic → Energy → Power; each slot's options are only
+  generated after the previous slot commits, so cross-slot rules can filter
+  server-side at reveal time. Enforce rules in the API/service layer (captain
+  client can't be trusted), with a graceful fallback if filtering would empty
+  the pool — show *something* rather than erroring the reveal.
+
+---
+
+## Testing conventions
+
+- Jest, `__tests__/` mirroring source paths (`__tests__/lib/draft/…`). Node env
+  via `/** @jest-environment node */` for service code.
+- Supabase is mocked with a chainable `makeDb(config)` builder (see
+  `__tests__/lib/draft/optionsService.test.ts`) — extend that builder
+  (`single`/`maybeSingle`/`list`/`upsertResult`) rather than pulling in a mock
+  library.
+- **Never let tests depend on `lib/bungie/data/*.json` contents** — those files
+  are regenerated weekly by CI. `jest.mock("@/lib/bungie/definitions")` with
+  fixed hashes instead.
+- Full suite is fast (~2s) — run all of it, plus `tsc --noEmit` and
+  `npx next lint --file <changed>` before every push.
+
+---
+
 ## Database migrations
 
 - Plain SQL in `supabase/migrations/`, numbered sequentially. Make migrations idempotent
