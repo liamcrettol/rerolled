@@ -8,6 +8,7 @@ import {
   findBestInstance,
   type WeaponToApply,
 } from "@/lib/bungie/equip";
+import { getWeaponDefinition } from "@/lib/bungie/definitions";
 import { transitionRun } from "@/lib/scoreAttack/runs";
 import type { ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
@@ -118,7 +119,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       rosterAfterClearing
     );
 
-    const results = [...equipResults, ...missing];
+    // Surface vault-clear results the same way the lobby apply route does —
+    // otherwise a weapon getting vaulted to make room happens silently (#276).
+    const clearResultsEnriched = await Promise.all(
+      clearResults.map(async (r) => {
+        const def = await getWeaponDefinition(r.itemHash);
+        return {
+          user_id: session.userId,
+          display_name: session.displayName,
+          slot: "kinetic" as WeaponSlot, // vault operations don't have a specific slot
+          item_hash: r.itemHash,
+          success: r.success,
+          error: r.error ? `Vaulted to make room: ${r.error}` : undefined,
+          error_detail: r.error,
+          weapon_name: def?.name,
+          weapon_icon: def?.icon,
+          kind: "vault" as const,
+        };
+      })
+    );
+
+    const results = [...clearResultsEnriched, ...equipResults, ...missing];
 
     // Record the character before transitioning — the `applied` transition
     // reads it to enqueue the equipment-snapshot and activity-history jobs.

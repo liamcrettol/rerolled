@@ -1,8 +1,14 @@
 import { bungieGet } from "./client";
 import type { BungieProfileResponse, DestinyCharacter } from "@/types/bungie";
 import { ALL_WEAPON_BUCKETS, bucketToSlot } from "@/types/bungie";
+import type { WeaponSlot } from "@/types/bungie";
 import { getWeaponDefinitions } from "@/lib/bungie/definitions";
 import type { ResolvedWeapon } from "@/types/weapon";
+
+// Vault items share this single bucket hash instead of their slot bucket — the
+// real slot only comes from the weapon definition's defaultBucketHash, resolved
+// once defs are fetched below. Same pattern as lib/bungie/rawInventory.ts.
+const VAULT_BUCKET = 138197802;
 
 const DAMAGE_TYPE_ICONS: Record<string, string> = {
   Kinetic: "/icons/damage-kinetic.png",
@@ -52,7 +58,7 @@ export async function getCharacters(
 interface RawItem {
   itemHash: number;
   itemInstanceId: string;
-  slot: "kinetic" | "energy" | "power";
+  slot: WeaponSlot;
   location: "character" | "vault" | "postmaster";
   characterId?: string;
   isEquipped: boolean;
@@ -67,11 +73,12 @@ export async function getWeapons(
   const instances = profile.itemComponents?.instances?.data ?? {};
   const raw: RawItem[] = [];
 
-  function collectItems(
+  // Character-equipped and character-bag items always carry the correct slot
+  // bucket hash directly.
+  function collectCharacterItems(
     items: BungieProfileResponse["characterInventories"]["data"][string]["items"],
-    location: "character" | "vault" | "postmaster",
-    characterId?: string,
-    equippedSet?: Set<string>
+    characterId: string,
+    equippedSet: Set<string>
   ) {
     for (const item of items) {
       if (!ALL_WEAPON_BUCKETS.has(item.bucketHash as 1498876634 | 2465295065 | 953998645)) continue;
@@ -84,9 +91,9 @@ export async function getWeapons(
         itemHash: item.itemHash,
         itemInstanceId: item.itemInstanceId,
         slot,
-        location,
+        location: "character",
         characterId,
-        isEquipped: equippedSet?.has(item.itemInstanceId) ?? false,
+        isEquipped: equippedSet.has(item.itemInstanceId),
       });
     }
   }
@@ -96,7 +103,7 @@ export async function getWeapons(
     profile.characterEquipment?.data ?? {}
   )) {
     const equippedIds = new Set(charEquip.items.map((i) => i.itemInstanceId));
-    collectItems(charEquip.items, "character", charId, equippedIds);
+    collectCharacterItems(charEquip.items, charId, equippedIds);
   }
 
   // Unequipped items per character
@@ -108,16 +115,35 @@ export async function getWeapons(
         (i) => i.itemInstanceId
       )
     );
-    collectItems(charInv.items, "character", charId, equippedIds);
+    collectCharacterItems(charInv.items, charId, equippedIds);
   }
 
-  // Vault
-  const vaultItems = profile.profileInventory?.data?.items ?? [];
-  collectItems(vaultItems, "vault");
+  // Vault items all carry VAULT_BUCKET instead of a slot bucket, so they can't
+  // be classified (or even confirmed to be weapons) until defs are resolved
+  // below — collect the candidates now, slot them after.
+  const vaultCandidates = (profile.profileInventory?.data?.items ?? []).filter(
+    (item) => item.bucketHash === VAULT_BUCKET && instances[item.itemInstanceId]
+  );
 
   // Resolved from the prebuilt static weapons table (lib/bungie/definitions.ts),
   // not the live ~190MB Bungie manifest — that path OOM'd the roll route (#274).
-  const defs = await getWeaponDefinitions([...new Set(raw.map((r) => r.itemHash))]);
+  const defs = await getWeaponDefinitions([
+    ...new Set([...raw.map((r) => r.itemHash), ...vaultCandidates.map((i) => i.itemHash)]),
+  ]);
+
+  for (const item of vaultCandidates) {
+    const def = defs.get(item.itemHash);
+    if (!def) continue; // not a weapon - armor, material, etc.
+    const slot = bucketToSlot(def.defaultBucketHash);
+    if (!slot) continue;
+    raw.push({
+      itemHash: item.itemHash,
+      itemInstanceId: item.itemInstanceId,
+      slot,
+      location: "vault",
+      isEquipped: false,
+    });
+  }
 
   const weapons: ResolvedWeapon[] = [];
   for (const item of raw) {

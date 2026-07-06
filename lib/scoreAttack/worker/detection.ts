@@ -16,7 +16,8 @@ import { BungieWorkerClient } from "@/lib/bungie/workerClient";
 import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
 import { scoreAttackRun } from "@/lib/scoreAttack/scoring";
 import { getActivityDifficultyMultiplier } from "@/lib/scoreAttack/activityPool";
-import { computeRunEligibility } from "@/lib/scoreAttack/compliance";
+import { computeRunEligibility, type WeeklyWeaponRequirement } from "@/lib/scoreAttack/compliance";
+import { weeklyWeaponRequirementFromRules } from "@/lib/challenges/rules";
 import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
 import type {
   NormalizedPvEPgcr,
@@ -91,6 +92,17 @@ async function loadExpectedWeapons(db: Db, runId: string): Promise<RolledWeaponE
 async function loadNormalizedPgcr(db: Db, instanceId: string): Promise<NormalizedPvEPgcr | null> {
   const { data } = await db.from("pgcr_cache").select("normalized_pgcr").eq("instance_id", instanceId).maybeSingle();
   return data?.normalized_pgcr ?? null;
+}
+
+// The published version snapshot, not live weekly_challenges.rules — a run is
+// always judged against what was published when it started (see runs.ts).
+async function loadWeeklyVersionRules(db: Db, versionId: string) {
+  const { data } = await db
+    .from("weekly_challenge_versions")
+    .select("rules")
+    .eq("id", versionId)
+    .maybeSingle();
+  return data?.rules ?? null;
 }
 
 // ── handlers ────────────────────────────────────────────────────────────────
@@ -280,7 +292,13 @@ export async function computeComplianceHandler(job: WorkerJobRow, d: DetectionDe
     weapons: Array.isArray(s.equipped) ? (s.equipped as EquipmentSnapshot["weapons"]) : [],
   }));
 
-  const eligibility = computeRunEligibility({ player, expectedWeapons: expected, snapshots });
+  let weeklyRequirement: WeeklyWeaponRequirement | undefined;
+  if (run.mode === "weekly_challenge" && run.weekly_challenge_version_id) {
+    const rules = await loadWeeklyVersionRules(db, run.weekly_challenge_version_id);
+    weeklyRequirement = weeklyWeaponRequirementFromRules(rules);
+  }
+
+  const eligibility = computeRunEligibility({ player, expectedWeapons: expected, snapshots, weeklyRequirement });
 
   await db.from("run_compliance_results").upsert({
     run_id: p.runId,

@@ -6,6 +6,7 @@ import {
   rerollLimitRule,
   minimumRolledWeaponUsagePctRule,
   validateRuleSet,
+  weeklyWeaponRequirementFromRules,
 } from "@/lib/challenges/rules";
 
 describe("validateRuleSet", () => {
@@ -53,5 +54,32 @@ describe("validateRuleSet", () => {
       rerollLimitRule(-5),
     ]);
     expect(result.errors).toHaveLength(2);
+  });
+});
+
+describe("weeklyWeaponRequirementFromRules (#275)", () => {
+  it("returns undefined when the week has no required_weapon_type rule", () => {
+    expect(weeklyWeaponRequirementFromRules([allowExoticsRule(false), rerollLimitRule(3)])).toBeUndefined();
+  });
+
+  it("returns undefined for a null/missing rule set", () => {
+    expect(weeklyWeaponRequirementFromRules(null)).toBeUndefined();
+    expect(weeklyWeaponRequirementFromRules(undefined)).toBeUndefined();
+  });
+
+  it("maps required_weapon_type to weaponType, with no minimum ratio when unset", () => {
+    expect(weeklyWeaponRequirementFromRules([requiredWeaponTypeRule("Sidearm")])).toEqual({
+      weaponType: "Sidearm",
+      minimumUsageRatio: undefined,
+    });
+  });
+
+  it("converts minimum_rolled_weapon_usage_pct (0-100) into a 0-1 ratio", () => {
+    expect(
+      weeklyWeaponRequirementFromRules([
+        requiredWeaponTypeRule("Sidearm"),
+        minimumRolledWeaponUsagePctRule(80),
+      ])
+    ).toEqual({ weaponType: "Sidearm", minimumUsageRatio: 0.8 });
   });
 });

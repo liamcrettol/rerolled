@@ -1,4 +1,5 @@
 import type { WeeklyChallengeRule, WeeklyChallengeRuleKey, WeeklyChallengeRuleSet } from "@/types/challenges";
+import type { WeeklyWeaponRequirement } from "@/lib/scoreAttack/compliance";
 
 // Builders for each supported rule. Each produces the JSONB shape stored in
 // weekly_challenges.rules / weekly_challenge_versions.rules.
@@ -120,11 +121,33 @@ export function flawlessBonusEnabledRule(enabled: boolean): WeeklyChallengeRule<
   };
 }
 
-function findRule<K extends WeeklyChallengeRuleKey>(
+export function findRule<K extends WeeklyChallengeRuleKey>(
   rules: WeeklyChallengeRuleSet,
   key: K
 ): WeeklyChallengeRule<K> | undefined {
   return rules.find((r): r is WeeklyChallengeRule<K> => r.key === key);
+}
+
+/**
+ * Translate a published rule set's `required_weapon_type` (+ optional
+ * `minimum_rolled_weapon_usage_pct`) into the shape compliance scoring wants.
+ * Returns undefined when the week doesn't require a specific weapon type, so
+ * callers can skip weekly compliance entirely rather than construct a
+ * requirement that matches nothing (#275).
+ */
+export function weeklyWeaponRequirementFromRules(
+  rules: WeeklyChallengeRuleSet | null | undefined
+): WeeklyWeaponRequirement | undefined {
+  if (!rules) return undefined;
+  const requiredWeaponType = findRule(rules, "required_weapon_type");
+  if (!requiredWeaponType || typeof requiredWeaponType.value !== "string") return undefined;
+
+  const minUsagePct = findRule(rules, "minimum_rolled_weapon_usage_pct");
+  return {
+    weaponType: requiredWeaponType.value,
+    minimumUsageRatio:
+      typeof minUsagePct?.value === "number" ? minUsagePct.value / 100 : undefined,
+  };
 }
 
 export interface RuleValidationContext {
