@@ -16,6 +16,19 @@ describe("Score Attack activity pool", () => {
     expect(pvePool.some((activity) => activity.kind === "grandmaster")).toBe(true);
   });
 
+  it("covers Strikes/Vanguard Ops and Onslaught, not just endgame PvE (#271)", () => {
+    const pvePool = getActivityPool({ pillar: "pve" });
+
+    expect(pvePool.some((activity) => activity.kind === "vanguard-op")).toBe(true);
+    expect(pvePool.some((activity) => activity.kind === "onslaught")).toBe(true);
+
+    const vanguardOp = pvePool.find((activity) => activity.kind === "vanguard-op")!;
+    const grandmaster = pvePool.find((activity) => activity.kind === "grandmaster")!;
+    expect(getActivityDifficultyMultiplier(vanguardOp.activityHashes[0])).toBeLessThan(
+      getActivityDifficultyMultiplier(grandmaster.activityHashes[0])
+    );
+  });
+
   it("keeps PvP activities available as their own section of the catalog", () => {
     const pvpPool = getActivityPool({ pillar: "pvp" });
 

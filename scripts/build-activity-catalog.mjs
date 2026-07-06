@@ -72,6 +72,8 @@ function classifyByActivityType(def, activityTypes) {
   if (typeName.includes("raid")) return { pillar: "pve", kind: "raid" };
   if (typeName.includes("dungeon")) return { pillar: "pve", kind: "dungeon" };
   if (typeName.includes("nightfall")) return { pillar: "pve", kind: "grandmaster" };
+  if (typeName === "vanguard op" || typeName === "strike") return { pillar: "pve", kind: "vanguard-op" };
+  if (typeName === "onslaught") return { pillar: "pve", kind: "onslaught" };
   return null;
 }
 

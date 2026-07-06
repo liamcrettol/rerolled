@@ -6,6 +6,8 @@ export type ActivityKind =
   | "raid"
   | "dungeon"
   | "grandmaster"
+  | "vanguard-op"
+  | "onslaught"
   | "crucible"
   | "trials"
   | "iron-banner";
@@ -45,6 +47,8 @@ export const ACTIVITY_DIFFICULTY_MULTIPLIER: Record<ActivityKind, number> = {
   trials: 1.15,
   "iron-banner": 1.05,
   crucible: 1,
+  onslaught: 0.6,
+  "vanguard-op": 0.5,
 };
 
 const kindByHash: Map<number, ActivityKind> = new Map();

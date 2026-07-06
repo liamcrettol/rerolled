@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T23:46:27.714Z",
+  "generatedAt": "2026-07-06T15:04:11.365Z",
   "source": "bungie-manifest:244164.26.06.16.2053-2-bnet.65465",
   "activities": [
     {
@@ -1590,6 +1590,42 @@
       ]
     },
     {
+      "name": "Midtown: Customize",
+      "pillar": "pve",
+      "kind": "onslaught",
+      "activityHashes": [
+        849675207,
+        2144591146
+      ]
+    },
+    {
+      "name": "Midtown: Matchmade",
+      "pillar": "pve",
+      "kind": "onslaught",
+      "activityHashes": [
+        690276443,
+        762252622
+      ]
+    },
+    {
+      "name": "Widow's Court: Customize",
+      "pillar": "pve",
+      "kind": "onslaught",
+      "activityHashes": [
+        732075595,
+        1478695866
+      ]
+    },
+    {
+      "name": "Widow's Court: Matchmade",
+      "pillar": "pve",
+      "kind": "onslaught",
+      "activityHashes": [
+        296790207,
+        1598363326
+      ]
+    },
+    {
       "name": "Crota's End",
       "pillar": "pve",
       "kind": "raid",
@@ -1903,6 +1939,678 @@
       "kind": "raid",
       "activityHashes": [
         1441982566
+      ]
+    },
+    {
+      "name": "A Garden World",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        117447065,
+        656703508,
+        689927878,
+        2230236212,
+        2230236214,
+        2230236215,
+        2579344189,
+        3676029623
+      ]
+    },
+    {
+      "name": "Armsweek Strikes",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1646729752
+      ]
+    },
+    {
+      "name": "Battleground: Behemoth",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1469356655,
+        2439292398,
+        2578924608
+      ]
+    },
+    {
+      "name": "Battleground: Foothold",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        176258399,
+        677564606,
+        2657757320
+      ]
+    },
+    {
+      "name": "Battleground: Hailstone",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        311109403,
+        3179637142,
+        3957893349
+      ]
+    },
+    {
+      "name": "Battleground: Oracle",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        821391412,
+        844836187
+      ]
+    },
+    {
+      "name": "Birthplace of the Vile",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1682266665,
+        2241536682,
+        4025464880
+      ]
+    },
+    {
+      "name": "Broodhold",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1666283939,
+        1778527052,
+        1778527054,
+        1778527055,
+        3813623455,
+        3907785690
+      ]
+    },
+    {
+      "name": "Defiant Battleground: Cosmodrome",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2257836204,
+        4040857389
+      ]
+    },
+    {
+      "name": "Defiant Battleground: EDZ",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1341998667,
+        3225381482
+      ]
+    },
+    {
+      "name": "Defiant Battleground: Orbital Prison",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        3157138285,
+        3235242800
+      ]
+    },
+    {
+      "name": "Exodus Crash",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1236031537,
+        1468958662,
+        1545783077,
+        1549614516,
+        1563393783,
+        1930116820,
+        1930116822,
+        1930116823,
+        2459768558,
+        2479262829,
+        2971335647,
+        4260306233
+      ]
+    },
+    {
+      "name": "Fallen S.A.B.E.R.",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        3597990372,
+        3777220691
+      ]
+    },
+    {
+      "name": "Guardian Games Strikes: Hunters",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1418633249
+      ]
+    },
+    {
+      "name": "Guardian Games Strikes: Titans",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        420235875
+      ]
+    },
+    {
+      "name": "Guardian Games Strikes: Warlocks",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2816660150
+      ]
+    },
+    {
+      "name": "Guardian Games: Recreational Playlist: Class Matchmaking",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        808018770,
+        3691749400
+      ]
+    },
+    {
+      "name": "Guardian Games: Recreational Playlist: Standard Matchmaking",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1423301315,
+        3485493153
+      ]
+    },
+    {
+      "name": "Heist Battleground: Europa",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1434749769,
+        1471566974
+      ]
+    },
+    {
+      "name": "Heist Battleground: Mars",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        3213068454,
+        3785722985
+      ]
+    },
+    {
+      "name": "Heist Battleground: Moon",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1278918650,
+        1436586545
+      ]
+    },
+    {
+      "name": "Heroic Strikes Playlist",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        387373040,
+        387373043,
+        434462141,
+        2026037412,
+        4052671056
+      ]
+    },
+    {
+      "name": "HyperNet Current",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        808496216,
+        2634696345,
+        3286705365,
+        3874943062
+      ]
+    },
+    {
+      "name": "HyperNet Current: Normal",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        392725406
+      ]
+    },
+    {
+      "name": "Lake of Shadows",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        661855681,
+        882238722,
+        1495993294,
+        2157013599,
+        2318521576,
+        2630091888,
+        2630091889,
+        2630091891,
+        3121231695,
+        3711627564,
+        3725993747,
+        4134816102
+      ]
+    },
+    {
+      "name": "Legacy Strikes",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1182517645,
+        2838151085,
+        2838151086,
+        4269241421
+      ]
+    },
+    {
+      "name": "Legend PsiOps Battleground: Cosmodrome",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1859320492,
+        4022778561
+      ]
+    },
+    {
+      "name": "Liminality",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2924990176,
+        3718917631
+      ]
+    },
+    {
+      "name": "Liminality: Normal",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        871133489
+      ]
+    },
+    {
+      "name": "Proving Grounds",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        546528643,
+        1754609040
+      ]
+    },
+    {
+      "name": "PsiOps Battleground: EDZ",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2411308881,
+        3367406520
+      ]
+    },
+    {
+      "name": "PsiOps Battleground: Moon",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2128786079,
+        4080148232
+      ]
+    },
+    {
+      "name": "QUEST: Exodus Crash",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        940394831
+      ]
+    },
+    {
+      "name": "Quickplay",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        451570814,
+        1387415234
+      ]
+    },
+    {
+      "name": "Quickplay: Advanced",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2866658313
+      ]
+    },
+    {
+      "name": "Quickplay: Expert",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2694614320
+      ]
+    },
+    {
+      "name": "Quickplay: Normal",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2582324487,
+        3437865231,
+        4225173883
+      ]
+    },
+    {
+      "name": "Savathûn's Song",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        649648599,
+        981383200,
+        981383201,
+        981383202,
+        1101792305,
+        1542611209,
+        2359594803,
+        3191123858
+      ]
+    },
+    {
+      "name": "Strange Terrain",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        743963294,
+        861639649,
+        861639650,
+        861639651,
+        2248296964,
+        2992505404,
+        3801775390
+      ]
+    },
+    {
+      "name": "The Arms Dealer",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        442671778,
+        770196931,
+        1258914202,
+        1679518121,
+        1918032438,
+        2080275457,
+        2378719024,
+        2378719025,
+        2378719026,
+        2724706103,
+        3219500702,
+        3240321863
+      ]
+    },
+    {
+      "name": "The Chasm of Screams",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2421741347
+      ]
+    },
+    {
+      "name": "The Corrupted",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        224295651,
+        723056533,
+        1254422902,
+        3374205760,
+        3374205761,
+        3374205762
+      ]
+    },
+    {
+      "name": "The Devils' Lair",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        969982762,
+        1917776943
+      ]
+    },
+    {
+      "name": "The Disgraced",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        174131855,
+        1684420962
+      ]
+    },
+    {
+      "name": "The Festering Core",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1035850837,
+        3596828104
+      ]
+    },
+    {
+      "name": "The Glassway",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2226120409,
+        3329390423,
+        3965479856
+      ]
+    },
+    {
+      "name": "The Hollowed Lair",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        663301842,
+        955874134,
+        1475539136,
+        1475539137,
+        1475539139,
+        2096861577
+      ]
+    },
+    {
+      "name": "The Insight Terminus",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        291911094,
+        1295173537,
+        2124407811,
+        2534103059,
+        2711970723,
+        3735153516,
+        3735153518,
+        3735153519,
+        3751421841
+      ]
+    },
+    {
+      "name": "The Inverted Spire",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        286562305,
+        338662534,
+        387974033,
+        467266668,
+        1107473294,
+        1743518000,
+        1743518001,
+        1743518003,
+        2753180142,
+        3452476632,
+        3704910925,
+        3913937556
+      ]
+    },
+    {
+      "name": "The Lightblade",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1012655911,
+        1346366017,
+        3169259134
+      ]
+    },
+    {
+      "name": "The Pyramidion",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1035135049,
+        1332567112,
+        1332567114,
+        1332567115,
+        1603374112,
+        2318812547,
+        2704613535,
+        2799837309,
+        4261351281
+      ]
+    },
+    {
+      "name": "The Scarlet Keep",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        346345236,
+        1775791936,
+        2047723007,
+        2580423606,
+        3643233460,
+        3879143309
+      ]
+    },
+    {
+      "name": "The Sunless Cell",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        3416179771
+      ]
+    },
+    {
+      "name": "The Sunless Cell: Normal",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1118238877
+      ]
+    },
+    {
+      "name": "Tree of Probabilities",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        561345572,
+        561345573,
+        561345575,
+        840678113,
+        1263901594,
+        2678510381,
+        2684121894,
+        4085493024
+      ]
+    },
+    {
+      "name": "Vanguard Ops",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        743628305
+      ]
+    },
+    {
+      "name": "Vanguard Ops Cross Play Beta",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        2875598802
+      ]
+    },
+    {
+      "name": "Vanguard Strikes",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        492869759,
+        1984315274,
+        3406133130,
+        3807442201,
+        3807442202,
+        4252456044
+      ]
+    },
+    {
+      "name": "Vanguard Strikes: Level 30",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1895583727
+      ]
+    },
+    {
+      "name": "Vanguard Strikes: Level 40",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1895583726
+      ]
+    },
+    {
+      "name": "Vanguard Strikes: Level 50",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1895583725
+      ]
+    },
+    {
+      "name": "Warden of Nothing",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        896593727,
+        1134446996,
+        1360385764,
+        1360385765,
+        1360385767,
+        1493405720,
+        2320403638,
+        2587691997
+      ]
+    },
+    {
+      "name": "Will of the Thousands",
+      "pillar": "pve",
+      "kind": "vanguard-op",
+      "activityHashes": [
+        1198216109,
+        1317492847,
+        1891220709,
+        3510043585,
+        3944547192,
+        3944547194,
+        3944547195
       ]
     },
     {
