@@ -33,17 +33,36 @@ export function isBungieAuthErrorMessage(msg: string): boolean {
   );
 }
 
-/** Retrieve a decrypted, valid Bungie access token. Refreshes automatically if expired. */
-export async function getBungieToken(userId: string): Promise<string> {
-  const { data, error } = await withSupabaseTimeout(
+async function findBungieAccount(userId: string, membershipId?: string) {
+  const fallbackIds = [...new Set([membershipId, userId].filter(Boolean))] as string[];
+
+  const primary = await withSupabaseTimeout(
     adminSupabase
       .from("bungie_accounts")
-      .select("access_token_enc, refresh_token_enc, expires_at")
+      .select("user_id, access_token_enc, refresh_token_enc, expires_at, membership_id")
       .eq("user_id", userId)
-      .single()
+      .maybeSingle()
   );
+  if (primary.data) return primary.data;
 
-  if (error || !data) throw new Error("No Bungie account found for user");
+  for (const candidateMembershipId of fallbackIds) {
+    const fallback = await withSupabaseTimeout(
+      adminSupabase
+        .from("bungie_accounts")
+        .select("user_id, access_token_enc, refresh_token_enc, expires_at, membership_id")
+        .eq("membership_id", candidateMembershipId)
+        .maybeSingle()
+    );
+    if (fallback.data) return fallback.data;
+  }
+
+  return null;
+}
+
+/** Retrieve a decrypted, valid Bungie access token. Refreshes automatically if expired. */
+export async function getBungieToken(userId: string, membershipId?: string): Promise<string> {
+  const data = await findBungieAccount(userId, membershipId);
+  if (!data) throw new Error("No Bungie account found for user");
 
   // Refresh if expired (with 90s buffer)
   if (data.expires_at) {
@@ -55,7 +74,7 @@ export async function getBungieToken(userId: string): Promise<string> {
       const refreshToken = await decryptToken(data.refresh_token_enc).catch((err) => {
         throw normalizeBungieTokenError(err);
       });
-      return refreshBungieToken(userId, refreshToken);
+      return refreshBungieToken(data.user_id, refreshToken);
     }
   }
 

@@ -67,7 +67,7 @@ function armorLocationLabel(
 }
 
 export default function EndgameRandomizer() {
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [characters, setCharacters] = useState<Character[] | null>(null);
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [selectedKinds, setSelectedKinds] = useState<EndgameActivityKind[]>(["grandmaster", "dungeon", "raid"]);
   const [result, setResult] = useState<RollResult | null>(null);
@@ -142,11 +142,13 @@ export default function EndgameRandomizer() {
               <p className="text-xs text-gray-500 flex items-center gap-2">
                 <Loader2 size={12} className="animate-spin" /> Loading characters...
               </p>
-            ) : characters.length === 0 ? (
+            ) : error && (!characters || characters.length === 0) ? (
+              <p className="text-xs text-red-400">Couldn&apos;t load your Bungie characters right now.</p>
+            ) : (characters?.length ?? 0) === 0 ? (
               <p className="text-xs text-red-400">No characters found for this Bungie account.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {characters.map((character) => {
+                {(characters ?? []).map((character) => {
                   const active = characterId === character.characterId;
                   return (
                     <button
@@ -200,7 +202,7 @@ export default function EndgameRandomizer() {
             <button
               type="button"
               onClick={roll}
-              disabled={busy || !characterId || loadingCharacters || characters.length === 0}
+              disabled={busy || !characterId || loadingCharacters || (characters?.length ?? 0) === 0}
               className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider px-5 py-3 bg-red-500 hover:bg-red-400 text-white transition-colors disabled:opacity-50"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Swords size={14} />}

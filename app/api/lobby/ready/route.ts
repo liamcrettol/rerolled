@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     // Clan is cosmetic too — fetch from Bungie best-effort and store. Wrapped so
     // a Bungie hiccup or unapplied migration never blocks character selection.
     try {
-      const token = await getBungieToken(session.userId);
+      const token = await getBungieToken(session.userId, session.bungieMembershipId);
       const clan = await getClan(session.bungieMembershipType, session.bungieMembershipId, token);
       await adminSupabase
         .from("lobby_members")

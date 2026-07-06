@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true, reason: "no character selected" });
     }
 
-    const hostToken = await getBungieToken(session.userId);
+    const hostToken = await getBungieToken(session.userId, session.bungieMembershipId);
 
     const memberInputs = members
       .filter((m) => m.selected_character_id)

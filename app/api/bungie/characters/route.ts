@@ -5,7 +5,7 @@ import { getCharacters } from "@/lib/bungie/inventory";
 export async function GET() {
   try {
     const session = await requireSession();
-    const token = await getBungieToken(session.userId);
+    const token = await getBungieToken(session.userId, session.bungieMembershipId);
     const characters = await getCharacters(
       session.bungieMembershipType,
       session.bungieMembershipId,

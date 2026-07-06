@@ -83,7 +83,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     // Build the roll pool from the owner's full inventory (character + vault).
-    const token = await getBungieToken(session.userId);
+    const token = await getBungieToken(session.userId, session.bungieMembershipId);
     const weapons = await getWeapons(
       session.bungieMembershipType,
       session.bungieMembershipId,

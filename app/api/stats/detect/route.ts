@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     // ── Step 5: Get the caller's token BEFORE claiming ───────────────────────
     // Fetch the token first so a member with a dead refresh token fails here
     // instead of grabbing the lease and blocking everyone else for its TTL.
-    const token = await getBungieToken(session.userId);
+    const token = await getBungieToken(session.userId, session.bungieMembershipId);
 
     // ── Step 6: Claim the detection slot ─────────────────────────────────────
     // Only one worker scans Bungie per cycle; everyone else returns pending and

@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return NextResponse.json({ error: "No loadout rolled yet" }, { status: 400 });
     }
 
-    const token = await getBungieToken(session.userId);
+    const token = await getBungieToken(session.userId, session.bungieMembershipId);
     const myWeapons = await getRawWeapons(
       session.bungieMembershipType,
       session.bungieMembershipId,

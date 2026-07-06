@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const session = await requireSession();
     const body = schema.parse(await req.json());
     const activityKinds = [...new Set(body.activityKinds)] as EndgameActivityKind[];
-    const token = await getBungieToken(session.userId);
+    const token = await getBungieToken(session.userId, session.bungieMembershipId);
 
     const [weapons, profile] = await Promise.all([
       getWeapons(session.bungieMembershipType, session.bungieMembershipId, token),
