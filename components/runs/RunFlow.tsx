@@ -88,7 +88,7 @@ const TRACKING_STATES = new Set([
 const DONE_STATES = new Set(["scored", "finalized"]);
 const DEAD_STATES = new Set(["failed", "abandoned", "expired"]);
 
-const POLL_INTERVAL_MS = 15_000;
+const POLL_INTERVAL_MS = 60_000;
 
 interface Props {
   mode: "score_attack" | "weekly_challenge";
