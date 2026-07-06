@@ -110,10 +110,13 @@ export default function NewLobbyPage() {
   async function handleCreate() {
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 2_500);
     try {
       const res = await fetch("/api/lobby/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           settings: {
             mode: rollMode,
@@ -127,8 +130,17 @@ export default function NewLobbyPage() {
       if (!res.ok) throw new Error(data.error);
       router.push(`/lobby/${data.code}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create lobby");
+      const timedOut = e instanceof DOMException && e.name === "AbortError";
+      setError(
+        timedOut
+          ? "Lobby creation needs the database, and Supabase is timing out right now. Please try again in a minute."
+          : e instanceof Error
+            ? e.message
+            : "Failed to create lobby"
+      );
       setLoading(false);
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 

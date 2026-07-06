@@ -41,18 +41,30 @@ export default function LobbyControls({
     if (!code.trim()) return;
     setLoading("join");
     setError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 2_500);
     try {
       const res = await fetch("/api/lobby/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ code: code.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       router.push(`${joinBasePath}/${data.code}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to join lobby");
+      const timedOut = e instanceof DOMException && e.name === "AbortError";
+      setError(
+        timedOut
+          ? "This needs the database, and Supabase is timing out right now. Please try again in a minute."
+          : e instanceof Error
+            ? e.message
+            : "Failed to join lobby"
+      );
       setLoading(null);
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 
