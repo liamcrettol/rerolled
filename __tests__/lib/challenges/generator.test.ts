@@ -56,4 +56,12 @@ describe("generateWeeklyChallengeDraft", () => {
   it("slugifies season key + week number into a URL-safe, unique-ish slug", () => {
     expect(slugifyWeeklyChallenge("2026-summer", 7)).toBe("2026-summer-week-7");
   });
+
+  it("picks from the real manifest-backed catalog, not the old fake placeholder hashes (#273)", () => {
+    const draft = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 42 });
+
+    expect([1, 2, 3]).not.toContain(draft.activityHash);
+    expect(draft.activityHash).toBeGreaterThan(1000);
+    expect(["raid", "dungeon", "gm"]).toContain(draft.activityFamily);
+  });
 });

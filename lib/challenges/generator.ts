@@ -1,4 +1,5 @@
 import type { ActivityFamily, ScoringConfig, WeeklyChallengeRuleSet } from "@/types/challenges";
+import { getActivityPool } from "@/lib/scoreAttack/activityPool";
 import {
   activityCompletionRequiredRule,
   allowExoticsRule,
@@ -45,14 +46,44 @@ export interface GenerateWeeklyChallengeInput {
   ruleValidationContext?: RuleValidationContext;
 }
 
-// A small built-in placeholder pool so the generator works out of the box.
-// Replace with a real manifest-sourced pool (raids/dungeons/nightfalls) before
-// relying on this for actual publishing.
-const DEFAULT_ACTIVITY_POOL: ActivityPoolEntry[] = [
-  { activityHash: 1, name: "Vanguard Ops", mode: 7, family: "vanguard" },
-  { activityHash: 2, name: "Grandmaster Nightfall", mode: 4, family: "gm" },
-  { activityHash: 3, name: "Weekly Nightfall", mode: 46, family: "nightfall" },
-];
+// Bungie DestinyActivityModeType per catalog kind, majority-verified against
+// the live manifest (#273) — not used for validation anywhere yet, only
+// stored/displayed, so a per-kind constant is enough (no per-hash lookup).
+const PVE_KIND_MODE = { raid: 4, dungeon: 82, grandmaster: 46 } as const;
+const PVE_KIND_FAMILY: Record<keyof typeof PVE_KIND_MODE, ActivityFamily> = {
+  raid: "raid",
+  dungeon: "dungeon",
+  grandmaster: "gm",
+};
+
+// Real, manifest-sourced pool (#273 — this used to be 3 fake placeholder
+// hashes that never matched a real activity, so PGCR detection could never
+// succeed for a weekly run). Backed by the same catalog Score Attack uses
+// (`data/activities/activity-catalog.json`, built by
+// scripts/build-activity-catalog.mjs). Flattened to one pool entry per real
+// activity hash so whichever variant the RNG picks is guaranteed matchable.
+function buildDefaultActivityPool(): ActivityPoolEntry[] {
+  const activities = getActivityPool({
+    pillar: "pve",
+    kinds: Object.keys(PVE_KIND_MODE) as Array<keyof typeof PVE_KIND_MODE>,
+  });
+
+  const pool: ActivityPoolEntry[] = [];
+  for (const activity of activities) {
+    const kind = activity.kind as keyof typeof PVE_KIND_MODE;
+    for (const activityHash of activity.activityHashes) {
+      pool.push({ activityHash, name: activity.name, mode: PVE_KIND_MODE[kind], family: PVE_KIND_FAMILY[kind] });
+    }
+  }
+
+  if (pool.length === 0) {
+    throw new Error("Activity catalog has no raid/dungeon/grandmaster entries — regenerate data/activities/activity-catalog.json");
+  }
+
+  return pool;
+}
+
+const DEFAULT_ACTIVITY_POOL: ActivityPoolEntry[] = buildDefaultActivityPool();
 
 const DEFAULT_WEAPON_TYPE_POOL = ["Hand Cannon", "Sidearm", "Scout Rifle", "Pulse Rifle", "Auto Rifle"];
 
