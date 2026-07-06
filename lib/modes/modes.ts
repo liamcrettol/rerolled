@@ -9,7 +9,7 @@
 //   - score_attack   → new, live solo run flow (roll → equip → auto-score)
 //   - weekly_challenge → surfaced via the hero, not the grid; run flow on /weekly
 //   - draft → new, shared 1-of-3 card-reveal run flow on /draft (#266)
-//   - ironman → still a disabled roadmap card (#253)
+//   - ironman → repurposed into the live endgame PvE randomizer
 //
 // Each mode also carries an `accent` — its color identity across the hub
 // (mode cards, run flow, page headers) so every activity has a distinct UI.
@@ -65,13 +65,13 @@ export const MODES: Record<ModeId, ModeDefinition> = {
   },
   ironman: {
     id: "ironman",
-    title: "Dead Man's Hand",
+    title: "Endgame Roulette",
     eyebrow: "PvE",
-    description: "Reroll after deaths.",
-    status: "soon",
-    enabled: false,
-    href: null,
-    ctaLabel: "Coming Soon",
+    description: "Roll a raid, dungeon, or Grandmaster loadout.",
+    status: "new",
+    enabled: true,
+    href: "/endgame",
+    ctaLabel: "Roll Endgame",
     accent: "red",
   },
 };

@@ -44,7 +44,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
           <BrandWordmark />
         </h1>
         <p className="text-gray-400 mt-3">
-          PvP loadout chaos, scored PvE runs, and weekly challenges for your fireteam.
+          PvP loadout chaos, scored PvE runs, weekly challenges, and endgame randomizers.
         </p>
       </div>
 
