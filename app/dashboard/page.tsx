@@ -34,20 +34,18 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
 
       <div className="space-y-8">
-        <WeeklyHero challenge={challenge} placement={placement} runCount={runCount} />
-
         <ModeGrid />
 
-        <LobbyRow activeSession={activeSession} />
-
         <div className="grid lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2">
-            <StandingsPreview entries={standings} />
-          </div>
+          <div className="lg:col-span-2"><WeeklyHero challenge={challenge} placement={placement} runCount={runCount} /></div>
           <div>
             <SeasonPanel stats={season} />
           </div>
         </div>
+
+        <LobbyRow activeSession={activeSession} />
+
+        <StandingsPreview entries={standings} />
       </div>
     </PlatformShell>
   );

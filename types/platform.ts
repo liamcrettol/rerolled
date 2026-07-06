@@ -31,6 +31,7 @@ export type ModeAccent = "blue" | "amber" | "green" | "purple" | "red";
 export interface ModeDefinition {
   id: ModeId;
   title: string;
+  eyebrow: string;
   /** One-sentence pitch shown under the title. */
   description: string;
   status: ModeStatus;
@@ -40,6 +41,7 @@ export interface ModeDefinition {
    * (#253) that must not start a flow.
    */
   href: string | null;
+  ctaLabel: string;
   /** The mode's accent color — its visual identity across the hub. */
   accent: ModeAccent;
 }

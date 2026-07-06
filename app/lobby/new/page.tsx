@@ -3,10 +3,48 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Crosshair, Shuffle, Zap } from "lucide-react";
 import Spinner from "@/components/Spinner";
 
 type RollMode = "normal" | "chaos" | "meta";
+
+type LobbyPresetId = "balanced" | "chaos" | "meta";
+
+interface LobbyPreset {
+  id: LobbyPresetId;
+  label: string;
+  detail: string;
+  icon: typeof Crosshair;
+  settings: {
+    rollMode: RollMode;
+    rerollLimit: number | null;
+    noDup: boolean;
+  };
+}
+
+const PVP_PRESETS: LobbyPreset[] = [
+  {
+    id: "balanced",
+    label: "Balanced Crucible",
+    detail: "One shared loadout, a few mulligans, familiar chaos.",
+    icon: Crosshair,
+    settings: { rollMode: "normal", rerollLimit: 3, noDup: false },
+  },
+  {
+    id: "chaos",
+    label: "Chaos Scrim",
+    detail: "Different rolls per Guardian and fewer second chances.",
+    icon: Shuffle,
+    settings: { rollMode: "chaos", rerollLimit: 1, noDup: true },
+  },
+  {
+    id: "meta",
+    label: "Meta Check",
+    detail: "Lean toward stronger Crucible frames without picking exact guns.",
+    icon: Zap,
+    settings: { rollMode: "meta", rerollLimit: 3, noDup: false },
+  },
+];
 
 const WEAPON_TYPES: { label: string; types: string[] }[] = [
   {
@@ -47,10 +85,18 @@ export default function NewLobbyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedPreset, setSelectedPreset] = useState<LobbyPresetId | null>("balanced");
   const [rollMode, setRollMode] = useState<RollMode>("normal");
-  const [rerollLimit, setRerollLimit] = useState<number | null>(null);
+  const [rerollLimit, setRerollLimit] = useState<number | null>(3);
   const [noDup, setNoDup] = useState(false);
   const [bannedTypes, setBannedTypes] = useState<Set<string>>(new Set());
+
+  function applyPreset(preset: LobbyPreset) {
+    setSelectedPreset(preset.id);
+    setRollMode(preset.settings.rollMode);
+    setRerollLimit(preset.settings.rerollLimit);
+    setNoDup(preset.settings.noDup);
+  }
 
   function toggleBan(type: string) {
     setBannedTypes((prev) => {
@@ -97,10 +143,46 @@ export default function NewLobbyPage() {
           Back to Dashboard
         </Link>
 
-        <h1 className="text-xl font-bold uppercase tracking-wider text-white mb-6">Create Lobby</h1>
+        <div className="mb-6">
+          <p className="section-label text-green-400 mb-2">PvP Loadout Roulette</p>
+          <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-white">
+            Set the rules before you invite the fireteam
+          </h1>
+          <p className="text-sm text-gray-400 mt-2 max-w-2xl">
+            This lobby flow is for shared fireteam modes. Score Attack and Weekly Challenge start
+            solo scored runs from their own pages, while PvP gets lobby rules built for Crucible nights.
+          </p>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="space-y-6">
+            <div className="panel p-5">
+              <p className="section-label mb-3">PvP Preset</p>
+              <div className="space-y-2">
+                {PVP_PRESETS.map((preset) => {
+                  const Icon = preset.icon;
+                  const active = selectedPreset === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyPreset(preset)}
+                      className={`w-full text-left border p-3 transition ${
+                        active
+                          ? "border-green-400 bg-green-400/10"
+                          : "border-bungie-border hover:border-gray-500"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon size={14} className={active ? "text-green-400" : "text-gray-500"} aria-hidden="true" />
+                        <p className="text-sm font-bold uppercase tracking-wider text-white">{preset.label}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{preset.detail}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Roll Mode */}
             <div className="panel p-5">
               <p className="section-label mb-3">Roll Mode</p>
@@ -108,7 +190,10 @@ export default function NewLobbyPage() {
                 {(["normal", "chaos", "meta"] as RollMode[]).map((m) => (
                   <button
                     key={m}
-                    onClick={() => setRollMode(m)}
+                    onClick={() => {
+                      setRollMode(m);
+                      setSelectedPreset(null);
+                    }}
                     className={`flex-1 py-2 text-sm border capitalize transition ${
                       rollMode === m
                         ? "border-bungie-blue bg-bungie-blue/20 text-white font-semibold"
@@ -133,7 +218,10 @@ export default function NewLobbyPage() {
                 {([null, 1, 3, 5] as (number | null)[]).map((v) => (
                   <button
                     key={String(v)}
-                    onClick={() => setRerollLimit(v)}
+                    onClick={() => {
+                      setRerollLimit(v);
+                      setSelectedPreset(null);
+                    }}
                     className={`flex-1 py-2 text-sm border transition ${
                       rerollLimit === v
                         ? "border-bungie-blue bg-bungie-blue/20 text-white font-semibold"
@@ -153,7 +241,13 @@ export default function NewLobbyPage() {
                   <p className="text-sm text-white font-medium">No duplicate weapon types</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">e.g. never two Hand Cannons</p>
                 </div>
-                <BoxSwitch checked={noDup} onChange={() => setNoDup((v) => !v)} />
+                <BoxSwitch
+                  checked={noDup}
+                  onChange={() => {
+                    setNoDup((v) => !v);
+                    setSelectedPreset(null);
+                  }}
+                />
               </label>
             </div>
           </div>
@@ -210,7 +304,7 @@ export default function NewLobbyPage() {
           className="w-full mt-6 bg-bungie-blue hover:bg-[#26bcf3] disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider py-3 transition-colors inline-flex items-center justify-center gap-2"
         >
           {loading && <Spinner size={15} />}
-          {loading ? "Creating…" : "Create Lobby"}
+          {loading ? "Creating…" : "Create PvP Lobby"}
         </button>
       </div>
     </div>

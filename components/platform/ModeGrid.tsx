@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Dices, Crosshair, Swords, Skull, CalendarClock } from "lucide-react";
+import { ArrowRight, Dices, Crosshair, Swords, Skull, CalendarClock } from "lucide-react";
 import type { ModeAccent, ModeDefinition, ModeId, ModeStatus } from "@/types/platform";
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
 
@@ -15,12 +15,12 @@ const STATUS_CLS: Record<ModeStatus, string> = {
 };
 
 // Static class sets per accent — Tailwind can't see dynamic class names.
-const ACCENT_CLS: Record<ModeAccent, { border: string; icon: string; hover: string }> = {
-  green: { border: "border-l-green-400", icon: "text-green-400", hover: "hover:border-green-400" },
-  amber: { border: "border-l-amber-400", icon: "text-amber-400", hover: "hover:border-amber-400" },
-  blue: { border: "border-l-bungie-blue", icon: "text-bungie-blue", hover: "hover:border-bungie-blue" },
-  purple: { border: "border-l-purple-400", icon: "text-purple-400", hover: "hover:border-purple-400" },
-  red: { border: "border-l-red-400", icon: "text-red-400", hover: "hover:border-red-400" },
+const ACCENT_CLS: Record<ModeAccent, { border: string; icon: string; hover: string; action: string }> = {
+  green: { border: "border-l-green-400", icon: "text-green-400", hover: "hover:border-green-400", action: "text-green-300" },
+  amber: { border: "border-l-amber-400", icon: "text-amber-400", hover: "hover:border-amber-400", action: "text-amber-300" },
+  blue: { border: "border-l-bungie-blue", icon: "text-bungie-blue", hover: "hover:border-bungie-blue", action: "text-bungie-blue" },
+  purple: { border: "border-l-purple-400", icon: "text-purple-400", hover: "hover:border-purple-400", action: "text-purple-300" },
+  red: { border: "border-l-red-400", icon: "text-red-400", hover: "hover:border-red-400", action: "text-red-300" },
 };
 
 const MODE_ICONS: Record<ModeId, typeof Dices> = {
@@ -48,11 +48,16 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Icon size={16} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
-          <h3 className="text-sm font-bold uppercase tracking-wider text-white truncate">{mode.title}</h3>
+          <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
         </div>
         <StatusBadge status={mode.status} />
       </div>
-      <p className="text-xs text-gray-400 mt-2 leading-relaxed">{mode.description}</p>
+      <h3 className="text-base font-bold uppercase tracking-wider text-white mt-3">{mode.title}</h3>
+      <p className="text-xs text-gray-400 mt-2 leading-relaxed min-h-[3rem]">{mode.description}</p>
+      <div className={`mt-4 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${mode.enabled ? accent.action : "text-gray-600"}`}>
+        {mode.ctaLabel}
+        {mode.enabled && <ArrowRight size={12} aria-hidden="true" />}
+      </div>
     </>
   );
 
@@ -81,7 +86,15 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
 export default function ModeGrid() {
   return (
     <section>
-      <p className="section-label mb-3">Modes</p>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+        <div>
+          <p className="section-label mb-1">Choose a Mode</p>
+          <h2 className="text-lg font-bold uppercase tracking-tight text-white">Start from the kind of night you are playing</h2>
+        </div>
+        <p className="text-xs text-gray-500 max-w-sm">
+          Fireteam modes create lobbies. Solo and weekly modes start scored runs.
+        </p>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />

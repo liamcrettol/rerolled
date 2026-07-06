@@ -17,9 +17,17 @@ const STATUS_LABELS: Record<Lobby["status"], string> = {
 
 interface Props {
   activeSession?: { code: string; status: Lobby["status"] } | null;
+  showCreate?: boolean;
+  createHref?: string;
+  createLabel?: string;
 }
 
-export default function LobbyControls({ activeSession }: Props) {
+export default function LobbyControls({
+  activeSession,
+  showCreate = true,
+  createHref = "/lobby/new",
+  createLabel = "Create PvP Lobby",
+}: Props) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState<"join" | null>(null);
@@ -64,13 +72,15 @@ export default function LobbyControls({ activeSession }: Props) {
       )}
 
       <div className="panel p-4 flex flex-col sm:flex-row sm:items-center gap-4">
-        <Link
-          href="/lobby/new"
-          className="sm:flex-1 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
-        >
-          <PlusCircle size={15} />
-          Create Lobby
-        </Link>
+        {showCreate && (
+          <Link
+            href={createHref}
+            className="sm:flex-1 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
+          >
+            <PlusCircle size={15} />
+            {createLabel}
+          </Link>
+        )}
         <form onSubmit={handleJoin} className="sm:flex-1 flex gap-2">
           <label className="flex-1 min-w-0">
             <span className="sr-only">Lobby code</span>
