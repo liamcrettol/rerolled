@@ -23,11 +23,11 @@ export interface RoundRecord {
   mapName?: string | null;
 }
 
-// How often each client checks Bungie for the finished game. The PGCR takes a
-// couple minutes to appear on Bungie's side; once it does, a tight interval
-// grabs it fast. Every fireteam member that has the page open polls, so the
-// first one to see it records and pushes to everyone via realtime.
-const POLL_INTERVAL_MS = 10_000;
+// How often each client checks Bungie for the finished game. The PGCR can take
+// a couple minutes to appear on Bungie's side, and every fireteam member that
+// has the page open can poll. Keep this conservative so one lobby does not
+// multiply into a steady database/API load spike.
+const POLL_INTERVAL_MS = 60_000;
 
 // Owns the match-detection polling lifecycle for a lobby: checking whether the
 // applied loadout's game has finished (via PGCR), recording it, and keeping
