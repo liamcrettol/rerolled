@@ -43,6 +43,14 @@ export interface DestinySocket {
   enableFailIndexes?: number[];
 }
 
+export interface DestinyObjectiveProgress {
+  objectiveHash: number;
+  progress: number;
+  completionValue: number;
+  complete: boolean;
+  visible: boolean;
+}
+
 export interface BungieProfileResponse {
   characters: {
     data: Record<string, DestinyCharacter>;
@@ -57,9 +65,10 @@ export interface BungieProfileResponse {
     data: { items: DestinyItemComponent[] };
   };
   itemComponents: {
-    instances: { data: Record<string, DestinyItemInstance> };
-    sockets: { data: Record<string, { sockets: DestinySocket[] }> };
-    reusablePlugs: { data: Record<string, { plugs: Record<string, Array<{ plugItemHash: number; canInsert: boolean; enabled: boolean }>> }> };
+    instances?: { data: Record<string, DestinyItemInstance> };
+    objectives?: { data: Record<string, { objectives: DestinyObjectiveProgress[] }> };
+    sockets?: { data: Record<string, { sockets: DestinySocket[] }> };
+    reusablePlugs?: { data: Record<string, { plugs: Record<string, Array<{ plugItemHash: number; canInsert: boolean; enabled: boolean }>> }> };
   };
 }
 

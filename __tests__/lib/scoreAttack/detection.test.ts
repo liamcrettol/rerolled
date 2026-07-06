@@ -4,13 +4,16 @@ import {
   parsePgcrHandler,
   computeScoreHandler,
   computeComplianceHandler,
+  computeLegalityHandler,
   pollActivityHistoryHandler,
+  captureTrialsPassageSnapshotHandler,
 } from "@/lib/scoreAttack/worker/detection";
 import { syncPlayerStats } from "@/lib/scoreAttack/worker/stats";
 import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
 import { successfulPvePgcrWithWeapons } from "@/__fixtures__/scoreAttack/pgcr";
 
 const PLAYER = "4611686018429000001";
+const TEAMMATE = "4611686018429000002";
 const normalized = parsePvEPgcr(successfulPvePgcrWithWeapons);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,11 +48,8 @@ function makeDb({ tables = {} }: { tables?: Record<string, any> } = {}) {
   return db;
 }
 
-// getBungieToken pulls in next-auth (ESM, untransformed); the handlers take an
-// injectable tokenFor in tests, so stub the module to keep the import chain out.
 jest.mock("@/lib/auth/helpers", () => ({ getBungieToken: jest.fn() }));
 
-// Capture enqueued jobs by mocking the store the handlers import.
 const enqueued: Array<{ jobType: string; payload: unknown }> = [];
 jest.mock("@/lib/scoreAttack/worker/store", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,7 +72,7 @@ describe("fetchPgcrHandler", () => {
 });
 
 describe("parsePgcrHandler", () => {
-  it("normalizes the cached PGCR and fans out to score + compliance", async () => {
+  it("normalizes the cached PGCR and fans out to score + compliance + legality", async () => {
     const db = makeDb({
       tables: {
         pgcr_cache: { maybeSingle: { raw_pgcr: successfulPvePgcrWithWeapons } },
@@ -82,7 +82,82 @@ describe("parsePgcrHandler", () => {
     });
     await parsePgcrHandler(job({ runId: "r1", instanceId: "pgcr-100" }), { db });
     expect(db._calls.updates.pgcr_cache[0][0]).toMatchObject({ status: "normalized" });
-    expect(enqueued.map((e) => e.jobType).sort()).toEqual(["compute_compliance", "compute_score"]);
+    expect(enqueued.map((e) => e.jobType).sort()).toEqual([
+      "capture_trials_passage_snapshot",
+      "compute_compliance",
+      "compute_legality",
+      "compute_score",
+    ]);
+  });
+});
+
+describe("captureTrialsPassageSnapshotHandler", () => {
+  it("stores derived Trials passage snapshots from profile objectives", async () => {
+    const db = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: { id: "r1", created_by: "u1" } },
+        challenge_run_participants: { maybeSingle: ownerRow },
+      },
+    });
+    const client = {
+      fetchPgcr: jest.fn(),
+      get: jest.fn().mockResolvedValue({
+        characters: { data: {} },
+        characterInventories: {
+          data: {
+            "char-1": {
+              items: [
+                {
+                  itemHash: 3125852681,
+                  itemInstanceId: "passage-1",
+                  quantity: 1,
+                  bindStatus: 0,
+                  location: 1,
+                  bucketHash: 1345459588,
+                  transferStatus: 0,
+                  lockable: false,
+                  state: 0,
+                },
+              ],
+            },
+          },
+        },
+        characterEquipment: { data: {} },
+        profileInventory: { data: { items: [] } },
+        itemComponents: {
+          instances: { data: {} },
+          objectives: {
+            data: {
+              "passage-1": {
+                objectives: [
+                  { objectiveHash: 1586211619, progress: 2, completionValue: 7, complete: false, visible: true },
+                  { objectiveHash: 2369244651, progress: 0, completionValue: 1, complete: false, visible: true },
+                  { objectiveHash: 984122744, progress: 9, completionValue: 1, complete: true, visible: true },
+                ],
+              },
+            },
+          },
+          sockets: { data: {} },
+          reusablePlugs: { data: {} },
+        },
+      }),
+    };
+    await captureTrialsPassageSnapshotHandler(
+      job({ runId: "r1", membershipId: PLAYER, membershipType: 3, characterId: "char-1", capturePhase: "pre_match" }),
+      { db, client, tokenFor: async () => "token" },
+    );
+
+    const rows = db._calls.upserts.run_trials_passage_snapshots[0][0];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      run_id: "r1",
+      capture_phase: "pre_match",
+      passage_item_hash: 3125852681,
+      wins: 2,
+      rounds_won: 9,
+      is_flawless: false,
+      is_complete: false,
+    });
   });
 });
 
@@ -146,6 +221,29 @@ describe("computeComplianceHandler", () => {
   });
 });
 
+describe("computeLegalityHandler", () => {
+  it("writes strict legality rows for every run participant", async () => {
+    const db = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: { id: "r1", pgcr_instance_id: "pgcr-100", created_by: "u1" } },
+        pgcr_cache: { maybeSingle: { normalized_pgcr: normalized } },
+        challenge_run_loadout_slots: { list: [{ slot: "kinetic", item_hash: 1001, weapon_type: "Auto Rifle", is_wildcard: false }] },
+        challenge_run_participants: {
+          list: [
+            { user_id: "u1", bungie_membership_id: PLAYER },
+            { user_id: "u2", bungie_membership_id: TEAMMATE },
+          ],
+        },
+      },
+    });
+    await computeLegalityHandler(job({ runId: "r1" }), { db });
+    const rows = db._calls.upserts.run_legality_results[0][0];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ run_id: "r1", user_id: "u1", is_valid: false, illegal_final_blows: 46 });
+    expect(rows[1]).toMatchObject({ run_id: "r1", user_id: "u2", is_valid: true, illegal_final_blows: 0 });
+  });
+});
+
 describe("syncPlayerStats", () => {
   it("recomputes and upserts season + lifetime aggregates", async () => {
     const db = makeDb({
@@ -181,7 +279,11 @@ describe("pollActivityHistoryHandler", () => {
       }),
     };
     await pollActivityHistoryHandler(job({ runId: "r1", membershipId: PLAYER, membershipType: 3, characterId: "char-1", appliedAt: new Date(Date.now() - 1000).toISOString() }), { db, client });
-    expect(db._calls.updates.challenge_runs[0][0]).toMatchObject({ pgcr_instance_id: "pgcr-100", status: "completed_pending_pgcr" });
+    expect(db._calls.updates.challenge_runs[0][0]).toMatchObject({
+      activity_hash: 3849697860,
+      pgcr_instance_id: "pgcr-100",
+      status: "completed_pending_pgcr",
+    });
     expect(enqueued.map((e) => e.jobType)).toContain("fetch_pgcr");
   });
 
@@ -193,3 +295,4 @@ describe("pollActivityHistoryHandler", () => {
     expect(enqueued.map((e) => e.jobType)).toContain("poll_activity_history");
   });
 });
+

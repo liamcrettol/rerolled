@@ -1,28 +1,31 @@
 // Bungie-detection worker handlers (#247/#248/#254 wiring).
 //
 // The second half of the pipeline: watch a run's activity, read the PGCR, and
-// turn it into a score + compliance verdict, then hand off to the finalize
-// handlers. The pure transforms (parse / score / compliance) are covered by
-// #260's fixtures; the Bungie HTTP calls are shape-dependent and need a real
-// completed activity to fully verify — that's the remaining smoke-test.
+// turn it into a score + compliance + legality verdict, then hand off to the
+// finalize handlers. The pure transforms (parse / score / compliance / legality)
+// are covered by fixtures; the Bungie HTTP calls are shape-dependent and need a
+// real completed activity to fully verify.
 //
-//   capture_equipment_snapshot ─┐
-//   poll_activity_history ──▶ fetch_pgcr ──▶ parse_pgcr ─┬▶ compute_score ─▶ update_leaderboard / award_badges
-//                                                        └▶ compute_compliance
+//   capture_equipment_snapshot -+
+//   poll_activity_history --? fetch_pgcr --? parse_pgcr --? compute_score -? update_leaderboard / award_badges
+//                                                        +? compute_compliance
+//                                                        +? compute_legality
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { BungieWorkerClient } from "@/lib/bungie/workerClient";
-import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
+import { parsePgcr } from "@/lib/scoreAttack/pgcr";
 import { scoreAttackRun } from "@/lib/scoreAttack/scoring";
 import { getActivityDifficultyMultiplier } from "@/lib/scoreAttack/activityPool";
 import { computeRunEligibility, type WeeklyWeaponRequirement } from "@/lib/scoreAttack/compliance";
+import { computeRunLegality } from "@/lib/scoreAttack/legality";
+import { extractTrialsPassageSnapshots, type TrialsPassageCapturePhase } from "@/lib/scoreAttack/trialsPassages";
 import { weeklyWeaponRequirementFromRules } from "@/lib/challenges/rules";
-import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
+import { bucketToSlot, type BungieProfileResponse, type WeaponSlot } from "@/types/bungie";
 import type {
-  NormalizedPvEPgcr,
-  RolledWeaponExpectation,
   EquipmentSnapshot,
+  NormalizedPgcr,
+  RolledWeaponExpectation,
 } from "@/lib/scoreAttack/types";
 import { enqueueJob } from "./store";
 import { syncPlayerStats } from "./stats";
@@ -31,12 +34,10 @@ import type { WorkerJobRow } from "./store";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any;
 
-// Recurring polls self-reschedule until the run is done or too old. A
-// time-bucketed dedupe key lets successive windows enqueue while collapsing
-// rapid duplicates within a window.
 const MAX_DETECTION_WINDOW_MS = 2 * 60 * 60 * 1000;
 const POLL_INTERVAL_MS = 90_000;
 const SNAPSHOT_INTERVAL_MS = 120_000;
+const TRIALS_PASSAGE_PROFILE_COMPONENTS = [200, 201, 205, 102, 300, 301].join(",");
 
 function withinWindow(startedAt: string | null): boolean {
   if (!startedAt) return true;
@@ -59,8 +60,6 @@ function deps(d: DetectionDeps = {}) {
   };
 }
 
-// ── shared loaders ──────────────────────────────────────────────────────────
-
 async function loadRun(db: Db, runId: string) {
   const { data } = await db.from("challenge_runs").select("*").eq("id", runId).maybeSingle();
   return data;
@@ -76,6 +75,14 @@ async function loadOwner(db: Db, run: { id: string; created_by: string }) {
   return data;
 }
 
+async function loadParticipants(db: Db, runId: string) {
+  const { data } = await db
+    .from("challenge_run_participants")
+    .select("user_id, bungie_membership_id, bungie_membership_type, character_id")
+    .eq("run_id", runId);
+  return data ?? [];
+}
+
 async function loadExpectedWeapons(db: Db, runId: string): Promise<RolledWeaponExpectation[]> {
   const { data } = await db
     .from("challenge_run_loadout_slots")
@@ -89,13 +96,11 @@ async function loadExpectedWeapons(db: Db, runId: string): Promise<RolledWeaponE
   }));
 }
 
-async function loadNormalizedPgcr(db: Db, instanceId: string): Promise<NormalizedPvEPgcr | null> {
+async function loadNormalizedPgcr(db: Db, instanceId: string): Promise<NormalizedPgcr | null> {
   const { data } = await db.from("pgcr_cache").select("normalized_pgcr").eq("instance_id", instanceId).maybeSingle();
   return data?.normalized_pgcr ?? null;
 }
 
-// The published version snapshot, not live weekly_challenges.rules — a run is
-// always judged against what was published when it started (see runs.ts).
 async function loadWeeklyVersionRules(db: Db, versionId: string) {
   const { data } = await db
     .from("weekly_challenge_versions")
@@ -105,9 +110,6 @@ async function loadWeeklyVersionRules(db: Db, versionId: string) {
   return data?.rules ?? null;
 }
 
-// ── handlers ────────────────────────────────────────────────────────────────
-
-/** Poll the owner's equipped weapons mid-run and record an off-loadout signal. */
 export async function captureEquipmentSnapshotHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db, client, tokenFor } = deps(d);
   const p = job.payload as { runId: string; membershipId: string; membershipType: number; characterId: string };
@@ -140,17 +142,70 @@ export async function captureEquipmentSnapshotHandler(job: WorkerJobRow, d: Dete
     expected,
   });
 
-  // Keep sampling until the run leaves an active state or ages out.
   const active = ["applied", "in_activity"].includes(run.status);
   if (active && withinWindow(run.started_at)) {
     await enqueueJob(
-      { jobType: "capture_equipment_snapshot", runId: p.runId, payload: p, runAt: new Date(Date.now() + SNAPSHOT_INTERVAL_MS).toISOString(), dedupeKey: `capture:${p.runId}:${bucket(SNAPSHOT_INTERVAL_MS)}` },
+      {
+        jobType: "capture_equipment_snapshot",
+        runId: p.runId,
+        payload: p,
+        runAt: new Date(Date.now() + SNAPSHOT_INTERVAL_MS).toISOString(),
+        dedupeKey: `capture:${p.runId}:${bucket(SNAPSHOT_INTERVAL_MS)}`,
+      },
       db,
     );
   }
 }
 
-/** Find the run's completed activity instance and kick off PGCR fetch. */
+export async function captureTrialsPassageSnapshotHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
+  const { db, client, tokenFor } = deps(d);
+  const p = job.payload as {
+    runId: string;
+    membershipId: string;
+    membershipType: number;
+    characterId: string;
+    capturePhase: TrialsPassageCapturePhase;
+  };
+  const run = await loadRun(db, p.runId);
+  if (!run) return;
+  const owner = await loadOwner(db, run);
+  if (!owner) return;
+
+  const token = await tokenFor(owner.user_id);
+  const profile = await client.get<BungieProfileResponse>(
+    `/Destiny2/${p.membershipType}/Profile/${p.membershipId}/?components=${TRIALS_PASSAGE_PROFILE_COMPONENTS}`,
+    token,
+  );
+  const snapshots = extractTrialsPassageSnapshots(profile);
+  if (!snapshots.length) return;
+
+  const capturedAt = new Date().toISOString();
+  await db.from("run_trials_passage_snapshots").upsert(
+    snapshots.map((snapshot) => ({
+      run_id: p.runId,
+      user_id: owner.user_id,
+      bungie_membership_id: p.membershipId,
+      capture_phase: p.capturePhase,
+      passage_instance_id: snapshot.passageInstanceId,
+      passage_item_hash: snapshot.passageItemHash,
+      passage_name: snapshot.passageName,
+      bucket_hash: snapshot.bucketHash,
+      character_id: snapshot.characterId,
+      wins: snapshot.wins,
+      rounds_won: snapshot.roundsWon,
+      active_win_streak: snapshot.activeWinStreak,
+      flawless_win_streak: snapshot.flawlessWinStreak,
+      flawless_progress: snapshot.flawlessProgress,
+      is_flawless: snapshot.isFlawless,
+      is_complete: snapshot.isComplete,
+      trials_multiplier: snapshot.trialsMultiplier,
+      raw_objectives: snapshot.objectiveProgress,
+      captured_at: capturedAt,
+    })),
+    { onConflict: "run_id,user_id,capture_phase,passage_instance_id" },
+  );
+}
+
 export async function pollActivityHistoryHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db, client, tokenFor } = deps(d);
   const p = job.payload as { runId: string; membershipId: string; membershipType: number; characterId: string; appliedAt?: string };
@@ -176,10 +231,15 @@ export async function pollActivityHistoryHandler(job: WorkerJobRow, d: Detection
       (a.values?.completed?.basic?.value ?? 0) === 1,
   );
   if (!match) {
-    // Not finished yet — reschedule until the run leaves an active state or ages out.
     if (["applied", "in_activity"].includes(run.status) && withinWindow(run.started_at)) {
       await enqueueJob(
-        { jobType: "poll_activity_history", runId: p.runId, payload: p, runAt: new Date(Date.now() + POLL_INTERVAL_MS).toISOString(), dedupeKey: `poll:${p.runId}:${bucket(POLL_INTERVAL_MS)}` },
+        {
+          jobType: "poll_activity_history",
+          runId: p.runId,
+          payload: p,
+          runAt: new Date(Date.now() + POLL_INTERVAL_MS).toISOString(),
+          dedupeKey: `poll:${p.runId}:${bucket(POLL_INTERVAL_MS)}`,
+        },
         db,
       );
     }
@@ -187,6 +247,7 @@ export async function pollActivityHistoryHandler(job: WorkerJobRow, d: Detection
   }
 
   await db.from("challenge_runs").update({
+    activity_hash: Number(match.activityDetails.directorActivityHash),
     pgcr_instance_id: match.activityDetails.instanceId,
     status: "completed_pending_pgcr",
     completed_at: new Date().toISOString(),
@@ -196,7 +257,6 @@ export async function pollActivityHistoryHandler(job: WorkerJobRow, d: Detection
   await enqueueJob({ jobType: "fetch_pgcr", runId: p.runId, payload: { runId: p.runId, instanceId: match.activityDetails.instanceId } }, db);
 }
 
-/** Fetch and cache the raw PGCR, then hand off to parsing. */
 export async function fetchPgcrHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db, client } = deps(d);
   const p = job.payload as { runId: string; instanceId: string };
@@ -209,14 +269,13 @@ export async function fetchPgcrHandler(job: WorkerJobRow, d: DetectionDeps = {})
   await enqueueJob({ jobType: "parse_pgcr", runId: p.runId, payload: { runId: p.runId, instanceId: p.instanceId } }, db);
 }
 
-/** Normalize the cached PGCR and fan out to scoring + compliance. */
 export async function parsePgcrHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db } = deps(d);
   const p = job.payload as { runId: string; instanceId: string };
   const { data: cache } = await db.from("pgcr_cache").select("raw_pgcr").eq("instance_id", p.instanceId).maybeSingle();
   if (!cache?.raw_pgcr) throw new Error(`pgcr ${p.instanceId} not cached`);
 
-  const normalized = parsePvEPgcr(cache.raw_pgcr);
+  const normalized = parsePgcr(cache.raw_pgcr);
   await db.from("pgcr_cache").update({ normalized_pgcr: normalized, status: "normalized", updated_at: new Date().toISOString() }).eq("instance_id", p.instanceId);
 
   const run = await loadRun(db, p.runId);
@@ -226,11 +285,24 @@ export async function parsePgcrHandler(job: WorkerJobRow, d: DetectionDeps = {})
   const membershipId = owner?.bungie_membership_id;
   if (!membershipId) return;
 
+  if (owner?.character_id) {
+    await enqueueJob({
+      jobType: "capture_trials_passage_snapshot",
+      runId: p.runId,
+      payload: {
+        runId: p.runId,
+        membershipId,
+        membershipType: owner.bungie_membership_type ?? 3,
+        characterId: owner.character_id,
+        capturePhase: "post_match",
+      },
+    }, db);
+  }
   await enqueueJob({ jobType: "compute_score", runId: p.runId, payload: { runId: p.runId, playerMembershipId: membershipId } }, db);
   await enqueueJob({ jobType: "compute_compliance", runId: p.runId, payload: { runId: p.runId, playerMembershipId: membershipId } }, db);
+  await enqueueJob({ jobType: "compute_legality", runId: p.runId, payload: { runId: p.runId } }, db);
 }
 
-/** Score the run from its parsed PGCR and trigger the finalize handlers. */
 export async function computeScoreHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db } = deps(d);
   const p = job.payload as { runId: string; playerMembershipId: string };
@@ -263,11 +335,9 @@ export async function computeScoreHandler(job: WorkerJobRow, d: DetectionDeps = 
   await enqueueJob({ jobType: "update_leaderboard", runId: p.runId, payload: { runId: p.runId } }, db);
   await enqueueJob({ jobType: "award_badges", runId: p.runId, payload: { runId: p.runId } }, db);
 
-  // Refresh the player's Your Season aggregates (idempotent recompute).
   await syncPlayerStats({ userId: run.created_by, seasonId: run.season_id ?? null }, db);
 }
 
-/** Evaluate leaderboard eligibility from PGCR usage + equipment snapshots. */
 export async function computeComplianceHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db } = deps(d);
   const p = job.payload as { runId: string; playerMembershipId: string };
@@ -312,4 +382,41 @@ export async function computeComplianceHandler(job: WorkerJobRow, d: DetectionDe
   }, { onConflict: "run_id" });
 
   await db.from("challenge_runs").update({ compliance_status: eligibility.status, updated_at: new Date().toISOString() }).eq("id", p.runId);
+}
+
+export async function computeLegalityHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
+  const { db } = deps(d);
+  const p = job.payload as { runId: string };
+  const run = await loadRun(db, p.runId);
+  if (!run?.pgcr_instance_id) return;
+
+  const pgcr = await loadNormalizedPgcr(db, run.pgcr_instance_id);
+  if (!pgcr) throw new Error(`normalized pgcr missing for run ${p.runId}`);
+
+  const [expected, participants] = await Promise.all([
+    loadExpectedWeapons(db, p.runId),
+    loadParticipants(db, p.runId),
+  ]);
+  if (!participants.length) return;
+
+  const evaluatedAt = new Date().toISOString();
+  const rows = participants.map((participant: { user_id: string; bungie_membership_id: string | null }) => {
+    const player = participant.bungie_membership_id
+      ? pgcr.players.find((entry) => entry.membershipId === participant.bungie_membership_id) ?? null
+      : null;
+    const legality = computeRunLegality({ player, expectedWeapons: expected });
+    return {
+      run_id: p.runId,
+      user_id: participant.user_id,
+      is_valid: legality.isValid,
+      had_active_loadout: legality.hadActiveLoadout,
+      rolled_final_blows: legality.rolledFinalBlows,
+      illegal_final_blows: legality.illegalFinalBlows,
+      illegal_sources: legality.illegalSources,
+      rolled_weapons_used: legality.rolledWeaponsUsed,
+      evaluated_at: evaluatedAt,
+    };
+  });
+
+  await db.from("run_legality_results").upsert(rows, { onConflict: "run_id,user_id" });
 }

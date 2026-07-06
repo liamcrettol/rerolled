@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession, getBungieToken } from "@/lib/auth/helpers";
+import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getRawWeapons } from "@/lib/bungie/rawInventory";
 import {
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ results });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    const status = msg === "Unauthorized" ? 401 : 500;
+    const status = isBungieAuthErrorMessage(msg) ? 401 : 500;
     log.error("run.apply.error", { error: msg, durationMs: Date.now() - t });
     await log.flush();
     return NextResponse.json({ error: msg }, { status });

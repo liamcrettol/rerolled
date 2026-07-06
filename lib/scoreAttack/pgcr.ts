@@ -1,6 +1,10 @@
 import type {
+  NormalizedPgcr,
   NormalizedPgcrPlayer,
   NormalizedPgcrWeapon,
+  NormalizedPvpPgcr,
+  NormalizedPvpPgcrPlayer,
+  NormalizedPvpPgcrTeam,
   NormalizedPvEPgcr,
   NullableNumber,
 } from "./types";
@@ -23,12 +27,29 @@ interface PlayerAccumulator {
   weaponDataAvailable: boolean;
 }
 
+interface PvpPlayerAccumulator extends PlayerAccumulator {
+  team: number | null;
+  standing: number | null;
+  isWin: boolean | null;
+  score: NullableAccumulator;
+  medalKeys: Set<string>;
+  scoreboardValues: Record<string, number>;
+}
+
 interface NullableAccumulator {
   seen: boolean;
   value: number;
 }
 
 const PVP_STANDING_STAT = "standing";
+const KNOWN_MEDAL_KEYS = new Map<string, string>([
+  ["seventh_column", "seventh_column"],
+  ["column_vii", "seventh_column"],
+  ["ran_out_of_medals", "ran_out_of_medals"],
+  ["we_ran_out_of_medals", "ran_out_of_medals"],
+  ["ghost_in_the_night", "ghost_in_the_night"],
+  ["iron_banner_high_score", "iron_banner_high_score"],
+]);
 
 function asRecord(value: unknown): UnknownRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -153,7 +174,7 @@ function getOrCreatePlayer(
   entry: unknown,
   membershipId: string,
   membershipType: number | null,
-  displayName?: string
+  displayName?: string,
 ): PlayerAccumulator {
   const existing = players.get(membershipId);
   if (existing) return existing;
@@ -178,6 +199,27 @@ function getOrCreatePlayer(
   if (characterId) created.characterIds.add(characterId);
   players.set(membershipId, created);
   return created;
+}
+
+function getOrCreatePvpPlayer(
+  players: Map<string, PvpPlayerAccumulator>,
+  entry: unknown,
+  membershipId: string,
+  membershipType: number | null,
+  displayName?: string,
+): PvpPlayerAccumulator {
+  const existing = players.get(membershipId);
+  if (existing) return existing;
+
+  const base = getOrCreatePlayer(players as unknown as Map<string, PlayerAccumulator>, entry, membershipId, membershipType, displayName) as PvpPlayerAccumulator;
+  base.team = null;
+  base.standing = null;
+  base.isWin = null;
+  base.score = makeNullableAccumulator();
+  base.medalKeys = new Set<string>();
+  base.scoreboardValues = {};
+  players.set(membershipId, base);
+  return base;
 }
 
 function addWeapon(acc: PlayerAccumulator, weapon: unknown): void {
@@ -231,12 +273,135 @@ function finalizePlayer(acc: PlayerAccumulator): NormalizedPgcrPlayer {
   };
 }
 
+function finalizePvpPlayer(acc: PvpPlayerAccumulator): NormalizedPvpPgcrPlayer {
+  return {
+    ...finalizePlayer(acc),
+    team: acc.team,
+    standing: acc.standing,
+    isWin: acc.isWin,
+    score: finishNullable(acc.score),
+    medalKeys: [...acc.medalKeys].sort(),
+    scoreboardValues: Object.fromEntries(Object.entries(acc.scoreboardValues).sort(([a], [b]) => a.localeCompare(b))),
+  };
+}
+
+function baseNormalizedPgcr(pgcr: UnknownRecord, entries: unknown[]) {
+  const activityDetails = readPath(pgcr, ["activityDetails"]);
+  const period = readFirstString(pgcr, [["period"]]);
+  const durationSeconds = readDurationSeconds(pgcr, entries);
+  const activityMode = readFirstNumber(activityDetails, [["mode"], ["activityMode"]]);
+  const activityModes = asArray(readPath(activityDetails, ["modes"]))
+    .map(coerceNumber)
+    .filter((value): value is number => value !== null);
+
+  return {
+    instanceId: readFirstString(activityDetails, [["instanceId"]]),
+    activityHash: readFirstNumber(activityDetails, [["referenceId"], ["directorActivityHash"]]),
+    activityMode,
+    activityModes,
+    period,
+    startTime: period,
+    endTime: calculateEndTime(period, durationSeconds),
+    durationSeconds,
+    completed: readCompleted(pgcr, entries),
+    warnings: [] as string[],
+  };
+}
+
+function normalizeKey(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+function readScoreboardValues(scoreboardValues: unknown): Record<string, number> {
+  const record = asRecord(scoreboardValues);
+  if (record) {
+    return Object.fromEntries(
+      Object.entries(record)
+        .map(([key, value]) => [normalizeKey(key), coerceNumber(readPath(value, ["basic", "value"])) ?? coerceNumber(value)])
+        .filter((entry): entry is [string, number] => entry[1] !== null),
+    );
+  }
+
+  const entries = asArray(scoreboardValues)
+    .map((entry) => {
+      const key = readFirstString(entry, [["statId"], ["key"], ["name"], ["displayName"]]);
+      const value = readFirstNumber(entry, [["basic", "value"], ["value"]]);
+      return key && value !== null ? [normalizeKey(key), value] : null;
+    })
+    .filter((entry): entry is [string, number] => entry !== null);
+
+  return Object.fromEntries(entries);
+}
+
+function addScoreboardValues(target: Record<string, number>, incoming: Record<string, number>): void {
+  for (const [key, value] of Object.entries(incoming)) {
+    target[key] = (target[key] ?? 0) + value;
+  }
+}
+
+function extractKnownMedalKeys(scoreboardValues: Record<string, number>): string[] {
+  const medalKeys = new Set<string>();
+  for (const [key, value] of Object.entries(scoreboardValues)) {
+    if (value <= 0) continue;
+    const normalized = normalizeKey(key);
+    for (const [pattern, medalKey] of KNOWN_MEDAL_KEYS) {
+      if (normalized.includes(pattern)) medalKeys.add(medalKey);
+    }
+  }
+  return [...medalKeys];
+}
+
+function hasNumericOnlyKeys(scoreboardValues: Record<string, number>): boolean {
+  const keys = Object.keys(scoreboardValues);
+  return keys.length > 0 && keys.every((key) => /^\d+$/.test(key));
+}
+
+function readPvpTeams(pgcr: UnknownRecord): NormalizedPvpPgcrTeam[] {
+  return asArray(pgcr.teams)
+    .map((team) => ({
+      teamId: readFirstNumber(team, [["teamId"]]),
+      standing: readFirstNumber(team, [["standing"]]),
+      score: readFirstNumber(team, [["score"], ["values", "score", "basic", "value"]]),
+      teamName: readFirstString(team, [["teamName"]]) ?? undefined,
+    }))
+    .filter((team) => team.teamId !== null || team.standing !== null || team.score !== null || team.teamName);
+}
+
+function determineWin(teamId: number | null, standing: number | null, teams: NormalizedPvpPgcrTeam[]): boolean | null {
+  const teamStanding =
+    (teamId !== null ? teams.find((team) => team.teamId === teamId)?.standing : null) ??
+    standing;
+  const opposingStandings = teams
+    .filter((team) => teamId === null || team.teamId !== teamId)
+    .map((team) => team.standing)
+    .filter((value): value is number => value !== null);
+
+  if (teamStanding === null || opposingStandings.length === 0) return null;
+  if (opposingStandings.every((value) => teamStanding < value)) return true;
+  if (opposingStandings.some((value) => teamStanding > value)) return false;
+  return null;
+}
+
+function appearsToBePvp(pgcr: UnknownRecord): boolean {
+  const entries = asArray(pgcr.entries);
+  if (asArray(pgcr.teams).length > 0) return true;
+  return entries.some((entry) => {
+    const values = asRecord(readPath(entry, ["values"]));
+    return Boolean(values && PVP_STANDING_STAT in values) || readFirstNumber(entry, [["standing"]]) !== null;
+  });
+}
+
 export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
-  const warnings: string[] = [];
   const pgcr = unwrapPgcr(raw);
 
   if (!pgcr) {
     return {
+      kind: "pve",
       instanceId: null,
       activityHash: null,
       activityMode: null,
@@ -253,45 +418,26 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
     };
   }
 
-  const activityDetails = readPath(pgcr, ["activityDetails"]);
   const entries = asArray(pgcr.entries);
-  const period = readFirstString(pgcr, [["period"]]);
-  const durationSeconds = readDurationSeconds(pgcr, entries);
-  const activityMode = readFirstNumber(activityDetails, [["mode"], ["activityMode"]]);
-  const activityModes = asArray(readPath(activityDetails, ["modes"]))
-    .map(coerceNumber)
-    .filter((value): value is number => value !== null);
-
+  const base = baseNormalizedPgcr(pgcr, entries);
   const normalized: NormalizedPvEPgcr = {
-    instanceId: readFirstString(activityDetails, [["instanceId"]]),
-    activityHash: readFirstNumber(activityDetails, [["referenceId"], ["directorActivityHash"]]),
-    activityMode,
-    activityModes,
-    period,
-    startTime: period,
-    endTime: calculateEndTime(period, durationSeconds),
-    durationSeconds,
-    completed: readCompleted(pgcr, entries),
+    kind: "pve",
+    ...base,
     players: [],
     isSupported: true,
-    warnings,
   };
 
   if (!entries.length) {
     normalized.isSupported = false;
     normalized.unsupportedReason = "no_entries";
-    warnings.push("PGCR had no entries to parse");
+    normalized.warnings.push("PGCR had no entries to parse");
     return normalized;
   }
 
-  const hasPvpStanding = entries.some((entry) => {
-    const values = asRecord(readPath(entry, ["values"]));
-    return Boolean(values && PVP_STANDING_STAT in values);
-  });
-  if (hasPvpStanding) {
+  if (appearsToBePvp(pgcr)) {
     normalized.isSupported = false;
     normalized.unsupportedReason = "pvp_pgcr";
-    warnings.push("PGCR includes standing values and appears to be PvP");
+    normalized.warnings.push("PGCR includes standing/team data and appears to be PvP");
   }
 
   const players = new Map<string, PlayerAccumulator>();
@@ -303,7 +449,7 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
       ["membershipId"],
     ]);
     if (!membershipId) {
-      warnings.push(`Entry ${index} did not include a membershipId`);
+      normalized.warnings.push(`Entry ${index} did not include a membershipId`);
       return;
     }
 
@@ -329,15 +475,15 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
     addNullable(acc.precisionKills, readBasicNumber(values, "precisionKills"));
     addNullable(
       acc.superKills,
-      readBasicNumber(values, "weaponKillsSuper") ?? readBasicNumber(values, "superKills")
+      readBasicNumber(values, "weaponKillsSuper") ?? readBasicNumber(values, "superKills"),
     );
     addNullable(
       acc.grenadeKills,
-      readBasicNumber(values, "weaponKillsGrenade") ?? readBasicNumber(values, "grenadeKills")
+      readBasicNumber(values, "weaponKillsGrenade") ?? readBasicNumber(values, "grenadeKills"),
     );
     addNullable(
       acc.meleeKills,
-      readBasicNumber(values, "weaponKillsMelee") ?? readBasicNumber(values, "meleeKills")
+      readBasicNumber(values, "weaponKillsMelee") ?? readBasicNumber(values, "meleeKills"),
     );
 
     const extended = asRecord(readPath(entry, ["extended"]));
@@ -351,8 +497,137 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
   if (!normalized.players.length) {
     normalized.isSupported = false;
     normalized.unsupportedReason = "no_players";
-    warnings.push("PGCR entries did not contain parseable player membership IDs");
+    normalized.warnings.push("PGCR entries did not contain parseable player membership IDs");
   }
 
   return normalized;
+}
+
+export function parsePvpPgcr(raw: unknown): NormalizedPvpPgcr {
+  const pgcr = unwrapPgcr(raw);
+
+  if (!pgcr) {
+    return {
+      kind: "pvp",
+      instanceId: null,
+      activityHash: null,
+      activityMode: null,
+      activityModes: [],
+      period: null,
+      startTime: null,
+      endTime: null,
+      durationSeconds: null,
+      completed: null,
+      players: [],
+      teams: [],
+      isSupported: false,
+      unsupportedReason: "invalid_pgcr",
+      warnings: ["PGCR payload was not an object"],
+    };
+  }
+
+  const entries = asArray(pgcr.entries);
+  const base = baseNormalizedPgcr(pgcr, entries);
+  const teams = readPvpTeams(pgcr);
+  const normalized: NormalizedPvpPgcr = {
+    kind: "pvp",
+    ...base,
+    players: [],
+    teams,
+    isSupported: true,
+  };
+
+  if (!entries.length) {
+    normalized.isSupported = false;
+    normalized.unsupportedReason = "no_entries";
+    normalized.warnings.push("PGCR had no entries to parse");
+    return normalized;
+  }
+
+  const players = new Map<string, PvpPlayerAccumulator>();
+
+  entries.forEach((entry, index) => {
+    const membershipId = readFirstString(entry, [
+      ["player", "destinyUserInfo", "membershipId"],
+      ["player", "membershipId"],
+      ["membershipId"],
+    ]);
+    if (!membershipId) {
+      normalized.warnings.push(`Entry ${index} did not include a membershipId`);
+      return;
+    }
+
+    const membershipType = readFirstNumber(entry, [
+      ["player", "destinyUserInfo", "membershipType"],
+      ["player", "membershipType"],
+      ["membershipType"],
+    ]);
+    const displayName = readFirstString(entry, [
+      ["player", "destinyUserInfo", "displayName"],
+      ["player", "destinyUserInfo", "bungieGlobalDisplayName"],
+      ["player", "displayName"],
+    ]) ?? undefined;
+
+    const acc = getOrCreatePvpPlayer(players, entry, membershipId, membershipType, displayName);
+    const characterId = readFirstString(entry, [["characterId"]]);
+    if (characterId) acc.characterIds.add(characterId);
+
+    const values = readPath(entry, ["values"]);
+    addNullable(acc.kills, readBasicNumber(values, "kills"));
+    addNullable(acc.assists, readBasicNumber(values, "assists"));
+    addNullable(acc.deaths, readBasicNumber(values, "deaths"));
+    addNullable(acc.precisionKills, readBasicNumber(values, "precisionKills"));
+    addNullable(
+      acc.superKills,
+      readBasicNumber(values, "weaponKillsSuper") ?? readBasicNumber(values, "superKills"),
+    );
+    addNullable(
+      acc.grenadeKills,
+      readBasicNumber(values, "weaponKillsGrenade") ?? readBasicNumber(values, "grenadeKills"),
+    );
+    addNullable(
+      acc.meleeKills,
+      readBasicNumber(values, "weaponKillsMelee") ?? readBasicNumber(values, "meleeKills"),
+    );
+    addNullable(acc.score, readBasicNumber(values, "score") ?? readFirstNumber(entry, [["score"]]));
+
+    const team = readBasicNumber(values, "team") ?? readFirstNumber(entry, [["team"]]);
+    const standing = readFirstNumber(entry, [["standing"]]) ?? readBasicNumber(values, "standing");
+    if (team !== null) acc.team = team;
+    if (standing !== null) acc.standing = standing;
+    acc.isWin = determineWin(acc.team, acc.standing, teams);
+
+    const extended = asRecord(readPath(entry, ["extended"]));
+    if (extended && Array.isArray(extended.weapons)) {
+      acc.weaponDataAvailable = true;
+      for (const weapon of extended.weapons) addWeapon(acc, weapon);
+    }
+
+    const scoreboardValues = readScoreboardValues(readPath(entry, ["extended", "scoreboardValues"]));
+    addScoreboardValues(acc.scoreboardValues, scoreboardValues);
+    for (const medalKey of extractKnownMedalKeys(scoreboardValues)) acc.medalKeys.add(medalKey);
+  });
+
+  normalized.players = [...players.values()].map(finalizePvpPlayer);
+  if (!normalized.players.length) {
+    normalized.isSupported = false;
+    normalized.unsupportedReason = "no_players";
+    normalized.warnings.push("PGCR entries did not contain parseable player membership IDs");
+  }
+
+  if (
+    normalized.players.some((player) =>
+      hasNumericOnlyKeys(player.scoreboardValues) && player.medalKeys.length === 0,
+    )
+  ) {
+    normalized.warnings.push("PvP scoreboardValues used numeric-only keys; medalKeys were left empty because medal manifest lookup is not wired");
+  }
+
+  return normalized;
+}
+
+export function parsePgcr(raw: unknown): NormalizedPgcr {
+  const pgcr = unwrapPgcr(raw);
+  if (pgcr && appearsToBePvp(pgcr)) return parsePvpPgcr(pgcr);
+  return parsePvEPgcr(pgcr ?? raw);
 }

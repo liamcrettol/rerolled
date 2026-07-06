@@ -135,6 +135,7 @@ const ruleFns: Record<string, RerolledRuleFn> = {
 
   fireteam_all_valid: (criteria, ctx) => ({
     awarded:
+      isValid(ctx) &&
       matchesActivityFamily(criteria, ctx.activity) &&
       (ctx.fireteamLegality ?? []).length > 0 &&
       (ctx.fireteamLegality ?? []).every((entry) => entry.is_valid),
@@ -298,3 +299,5 @@ export function evaluateRerolledBadge(criteria: Record<string, unknown>, ctx: Re
 }
 
 export { NOT_YET_IMPLEMENTED_REROLLED_SLUGS };
+
+

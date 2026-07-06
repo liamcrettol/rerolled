@@ -1,4 +1,4 @@
-import type { NormalizedPgcrPlayer, NormalizedPvEPgcr } from "./types";
+import type { NormalizedPgcr, NormalizedPgcrPlayer } from "./types";
 
 export interface ScoreAttackScoringConfig {
   completionScore: number;
@@ -16,7 +16,7 @@ export interface ScoreAttackScoringConfig {
 }
 
 export interface ScoreAttackInput {
-  pgcr: NormalizedPvEPgcr;
+  pgcr: NormalizedPgcr;
   playerMembershipId: string;
   rolledWeaponHashes: number[];
   config?: Partial<ScoreAttackScoringConfig>;
@@ -67,14 +67,14 @@ function mergeConfig(config?: Partial<ScoreAttackScoringConfig>): ScoreAttackSco
   return { ...DEFAULT_SCORE_ATTACK_SCORING, ...config };
 }
 
-function findPlayer(pgcr: NormalizedPvEPgcr, membershipId: string): NormalizedPgcrPlayer | null {
+function findPlayer(pgcr: NormalizedPgcr, membershipId: string): NormalizedPgcrPlayer | null {
   return pgcr.players.find((player) => player.membershipId === membershipId) ?? null;
 }
 
 function calculateTimeComponents(
   durationSeconds: number | null,
   config: ScoreAttackScoringConfig,
-  notes: string[]
+  notes: string[],
 ): { timeBonus: number; timePenalty: number } {
   if (durationSeconds === null) {
     notes.push("missing_duration");
@@ -85,7 +85,7 @@ function calculateTimeComponents(
     return {
       timeBonus: Math.min(
         config.maxTimeBonus,
-        Math.round((config.targetDurationSeconds - durationSeconds) * config.timeBonusPerSecondUnderTarget)
+        Math.round((config.targetDurationSeconds - durationSeconds) * config.timeBonusPerSecondUnderTarget),
       ),
       timePenalty: 0,
     };
@@ -95,7 +95,7 @@ function calculateTimeComponents(
     timeBonus: 0,
     timePenalty: Math.min(
       config.maxTimePenalty,
-      Math.round((durationSeconds - config.targetDurationSeconds) * config.timePenaltyPerSecondOverTarget)
+      Math.round((durationSeconds - config.targetDurationSeconds) * config.timePenaltyPerSecondOverTarget),
     ),
   };
 }
@@ -138,7 +138,7 @@ export function scoreAttackRun(input: ScoreAttackInput): ScoreAttackResult {
   const rolledWeaponKills = rolledWeapons.reduce((sum, weapon) => sum + weapon.kills, 0);
   const rolledWeaponPrecisionKills = rolledWeapons.reduce(
     (sum, weapon) => sum + weapon.precisionKills,
-    0
+    0,
   );
   const totalWeaponKills = player.weapons.reduce((sum, weapon) => sum + weapon.kills, 0);
 
@@ -160,7 +160,7 @@ export function scoreAttackRun(input: ScoreAttackInput): ScoreAttackResult {
   const { timeBonus, timePenalty } = calculateTimeComponents(
     input.pgcr.durationSeconds,
     config,
-    notes
+    notes,
   );
   const baseCompletionScore = completionSatisfied ? config.completionScore : 0;
   const rolledWeaponKillScore = rolledWeaponKills * config.rolledWeaponKillPoints;
@@ -173,7 +173,7 @@ export function scoreAttackRun(input: ScoreAttackInput): ScoreAttackResult {
       rolledWeaponPrecisionBonus +
       timeBonus -
       timePenalty -
-      deathPenalty
+      deathPenalty,
   );
   const totalScore = completionSatisfied
     ? Math.max(
@@ -181,8 +181,8 @@ export function scoreAttackRun(input: ScoreAttackInput): ScoreAttackResult {
         Math.round(
           subtotalBeforeMultipliers *
             config.difficultyMultiplier *
-            rolledWeaponUsageMultiplier
-        )
+            rolledWeaponUsageMultiplier,
+        ),
       )
     : 0;
 

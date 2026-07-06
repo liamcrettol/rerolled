@@ -2,12 +2,35 @@ import { auth } from "@/lib/auth";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { decryptToken, encryptToken } from "@/lib/auth/encrypt";
 
+const BUNGIE_REAUTH_MESSAGE = "Bungie sign-in expired. Please sign out and sign in again.";
+
 export async function requireSession() {
   const session = await auth();
   if (!session?.userId) {
     throw new Error("Unauthorized");
   }
   return session;
+}
+
+function normalizeBungieTokenError(err: unknown): Error {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (
+    msg.includes("Unsupported state or unable to authenticate data") ||
+    msg.includes("TOKEN_ENCRYPTION_KEY")
+  ) {
+    return new Error(BUNGIE_REAUTH_MESSAGE);
+  }
+  return err instanceof Error ? err : new Error(msg);
+}
+
+export function isBungieAuthErrorMessage(msg: string): boolean {
+  return (
+    msg === "Unauthorized" ||
+    msg === "No Bungie account found for user" ||
+    msg === "Bungie token expired. Please sign in again" ||
+    msg === BUNGIE_REAUTH_MESSAGE ||
+    msg.startsWith("Bungie token refresh failed (")
+  );
 }
 
 /** Retrieve a decrypted, valid Bungie access token. Refreshes automatically if expired. */
@@ -27,12 +50,16 @@ export async function getBungieToken(userId: string): Promise<string> {
       if (!data.refresh_token_enc) {
         throw new Error("Bungie token expired. Please sign in again");
       }
-      const refreshToken = await decryptToken(data.refresh_token_enc);
+      const refreshToken = await decryptToken(data.refresh_token_enc).catch((err) => {
+        throw normalizeBungieTokenError(err);
+      });
       return refreshBungieToken(userId, refreshToken);
     }
   }
 
-  return decryptToken(data.access_token_enc);
+  return decryptToken(data.access_token_enc).catch((err) => {
+    throw normalizeBungieTokenError(err);
+  });
 }
 
 async function refreshBungieToken(userId: string, refreshToken: string): Promise<string> {

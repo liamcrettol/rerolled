@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession, getBungieToken } from "@/lib/auth/helpers";
+import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
 import { getWeapons } from "@/lib/bungie/inventory";
 
 export async function GET() {
@@ -16,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ weapons });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
-    const status = msg === "Unauthorized" ? 401 : 500;
+    const status = isBungieAuthErrorMessage(msg) ? 401 : 500;
     return NextResponse.json({ error: msg }, { status });
   }
 }

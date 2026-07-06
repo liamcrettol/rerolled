@@ -1,10 +1,11 @@
 /** @jest-environment node */
-import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
+import { parsePgcr, parsePvpPgcr, parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
 import {
   incompleteUnsupportedPgcr,
   missingWeaponDataPgcr,
   multiCharacterPgcr,
   successfulPvePgcrWithWeapons,
+  successfulPvpPgcrWithTeams,
 } from "@/__fixtures__/scoreAttack/pgcr";
 
 describe("parsePvEPgcr", () => {
@@ -12,6 +13,7 @@ describe("parsePvEPgcr", () => {
     const pgcr = parsePvEPgcr(successfulPvePgcrWithWeapons);
 
     expect(pgcr).toMatchObject({
+      kind: "pve",
       instanceId: "pgcr-100",
       activityHash: 123456,
       activityMode: 4,
@@ -78,5 +80,44 @@ describe("parsePvEPgcr", () => {
       { weaponHash: 1001, kills: 10, precisionKills: 3 },
       { weaponHash: 1003, kills: 2, precisionKills: 0 },
     ]);
+  });
+});
+
+describe("parsePvpPgcr", () => {
+  it("normalizes team-based PvP PGCRs instead of rejecting them", () => {
+    const pgcr = parsePvpPgcr(successfulPvpPgcrWithTeams);
+
+    expect(pgcr).toMatchObject({
+      kind: "pvp",
+      instanceId: "pgcr-200",
+      activityHash: 654321,
+      activityMode: 10,
+      activityModes: [5, 10],
+      durationSeconds: 600,
+      completed: true,
+      isSupported: true,
+      teams: [
+        { teamId: 1, standing: 0, score: 150, teamName: "Alpha" },
+        { teamId: 2, standing: 1, score: 90, teamName: "Bravo" },
+      ],
+    });
+
+    const player = pgcr.players.find((entry) => entry.membershipId === "4611686018429000001");
+    expect(player).toMatchObject({
+      team: 1,
+      standing: 0,
+      isWin: true,
+      score: 150,
+      kills: 28,
+      deaths: 0,
+      medalKeys: ["seventh_column"],
+      scoreboardValues: { captures: 5, seventh_column: 1 },
+    });
+  });
+
+  it("auto-detects PvP payloads via parsePgcr", () => {
+    const pgcr = parsePgcr(successfulPvpPgcrWithTeams);
+    expect(pgcr.kind).toBe("pvp");
+    expect(pgcr.players).toHaveLength(3);
   });
 });

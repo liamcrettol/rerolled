@@ -25,7 +25,23 @@ export interface NormalizedPgcrPlayer {
   weaponDataAvailable: boolean;
 }
 
-export interface NormalizedPvEPgcr {
+export interface NormalizedPvpPgcrPlayer extends NormalizedPgcrPlayer {
+  team: number | null;
+  standing: number | null;
+  isWin: boolean | null;
+  score: number | null;
+  medalKeys: string[];
+  scoreboardValues: Record<string, number>;
+}
+
+export interface NormalizedPvpPgcrTeam {
+  teamId: number | null;
+  standing: number | null;
+  score: number | null;
+  teamName?: string;
+}
+
+interface NormalizedPgcrBase<TPlayer> {
   instanceId: string | null;
   activityHash: number | null;
   activityMode: number | null;
@@ -35,11 +51,22 @@ export interface NormalizedPvEPgcr {
   endTime: string | null;
   durationSeconds: number | null;
   completed: boolean | null;
-  players: NormalizedPgcrPlayer[];
+  players: TPlayer[];
   isSupported: boolean;
   unsupportedReason?: string;
   warnings: string[];
 }
+
+export interface NormalizedPvEPgcr extends NormalizedPgcrBase<NormalizedPgcrPlayer> {
+  kind: "pve";
+}
+
+export interface NormalizedPvpPgcr extends NormalizedPgcrBase<NormalizedPvpPgcrPlayer> {
+  kind: "pvp";
+  teams: NormalizedPvpPgcrTeam[];
+}
+
+export type NormalizedPgcr = NormalizedPvEPgcr | NormalizedPvpPgcr;
 
 export interface RolledWeaponExpectation {
   slot?: WeaponSlot;

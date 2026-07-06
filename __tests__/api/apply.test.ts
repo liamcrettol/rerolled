@@ -21,6 +21,7 @@ jest.mock("@/lib/auth/helpers", () => ({
     bungieMembershipId: "123",
   }),
   getBungieToken: jest.fn().mockResolvedValue("fake-token"),
+  isBungieAuthErrorMessage: jest.fn((msg: string) => msg === "Unauthorized"),
 }));
 
 jest.mock("@/lib/supabase/admin", () => ({

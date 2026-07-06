@@ -205,6 +205,11 @@ export async function transitionRun(
           characterId: o.character_id,
         };
         await enqueueJob({ jobType: "capture_equipment_snapshot", runId: args.runId, payload: base }, db);
+        await enqueueJob({
+          jobType: "capture_trials_passage_snapshot",
+          runId: args.runId,
+          payload: { ...base, capturePhase: "pre_match" },
+        }, db);
         await enqueueJob({ jobType: "poll_activity_history", runId: args.runId, payload: { ...base, appliedAt: new Date().toISOString() } }, db);
       }
     } catch {

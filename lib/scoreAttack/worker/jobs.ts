@@ -1,10 +1,12 @@
 export const SCORE_ATTACK_JOB_TYPES = [
   "capture_equipment_snapshot",
+  "capture_trials_passage_snapshot",
   "poll_activity_history",
   "fetch_pgcr",
   "parse_pgcr",
   "compute_score",
   "compute_compliance",
+  "compute_legality",
   "update_leaderboard",
   "award_badges",
   "expire_run",
@@ -18,6 +20,13 @@ export interface ScoreAttackJobPayloadMap {
     membershipId: string;
     membershipType: number;
     characterId: string;
+  };
+  capture_trials_passage_snapshot: {
+    runId: string;
+    membershipId: string;
+    membershipType: number;
+    characterId: string;
+    capturePhase: "pre_match" | "post_match";
   };
   poll_activity_history: {
     runId: string;
@@ -41,6 +50,9 @@ export interface ScoreAttackJobPayloadMap {
   compute_compliance: {
     runId: string;
     playerMembershipId: string;
+  };
+  compute_legality: {
+    runId: string;
   };
   update_leaderboard: {
     runId: string;
@@ -186,7 +198,7 @@ export class InMemoryScoreAttackJobQueue implements ScoreAttackJobQueue {
     jobId: string,
     error: unknown,
     now: Date = new Date(),
-    backoffMs: number = DEFAULT_RETRY_BACKOFF_MS
+    backoffMs: number = DEFAULT_RETRY_BACKOFF_MS,
   ): ScoreAttackJob | null {
     const job = this.jobs.get(jobId);
     if (!job) return null;
@@ -214,7 +226,7 @@ export async function runNextScoreAttackJob(
   queue: ScoreAttackJobQueue,
   handlers: ScoreAttackJobHandlers,
   now: Date = new Date(),
-  retryBackoffMs: number = DEFAULT_RETRY_BACKOFF_MS
+  retryBackoffMs: number = DEFAULT_RETRY_BACKOFF_MS,
 ): Promise<RunNextJobResult> {
   const job = queue.reserve(now);
   if (!job) return { job: null, status: "idle" };

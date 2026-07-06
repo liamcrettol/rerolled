@@ -124,11 +124,18 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
   const refreshRun = useCallback(
     async (runId: string) => {
       const data = await api(`/api/runs/${runId}`);
-      setRun(data.run);
+      const nextRun = data.run as RunState;
+      if (nextRun.status === "created" && !(data.loadout?.length)) {
+        localStorage.removeItem(storageKey);
+        setRun(null);
+        setLoadout([]);
+        return null;
+      }
+      setRun(nextRun);
       if (data.loadout?.length) setLoadout(data.loadout);
-      return data.run as RunState;
+      return nextRun;
     },
-    [api]
+    [api, storageKey]
   );
 
   // Resume an in-flight run after a reload so leaving the page mid-run doesn't
@@ -162,8 +169,8 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
         method: "POST",
         body: JSON.stringify({ mode, weeklyChallengeId: weeklyChallengeId ?? null }),
       });
-      localStorage.setItem(storageKey, created.runId);
       const rolled = await api(`/api/runs/${created.runId}/roll`, { method: "POST" });
+      localStorage.setItem(storageKey, created.runId);
       setLoadout(rolled.loadout);
       setRerollsUsed(rolled.rerollsUsed);
       setRerollLimit(rolled.rerollLimit);

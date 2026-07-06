@@ -190,3 +190,29 @@ export interface RunLegalityResult {
   evaluated_at: string;
   created_at: string;
 }
+
+export type TrialsPassageCapturePhase = "pre_match" | "post_match";
+
+export interface RunTrialsPassageSnapshot {
+  id: string;
+  run_id: string;
+  user_id: string;
+  bungie_membership_id: string | null;
+  capture_phase: TrialsPassageCapturePhase;
+  passage_instance_id: string;
+  passage_item_hash: number;
+  passage_name: string | null;
+  bucket_hash: number | null;
+  character_id: string | null;
+  wins: number;
+  rounds_won: number;
+  active_win_streak: number;
+  flawless_win_streak: number;
+  flawless_progress: number | null;
+  is_flawless: boolean;
+  is_complete: boolean;
+  trials_multiplier: number | null;
+  raw_objectives: Record<string, number>;
+  captured_at: string;
+  created_at: string;
+}

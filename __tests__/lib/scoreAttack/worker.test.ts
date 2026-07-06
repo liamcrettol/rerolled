@@ -1,13 +1,12 @@
 /** @jest-environment node */
-// handlers.ts transitively imports getBungieToken (→ next-auth ESM); stub it so
-// the suite loads. The finalize handlers under test never call it.
 jest.mock("@/lib/auth/helpers", () => ({ getBungieToken: jest.fn() }));
 
 import { enqueueJob, claimNextJob, completeJob, failJob } from "@/lib/scoreAttack/worker/store";
 import { updateLeaderboardHandler, expireRunHandler, awardBadgesHandler } from "@/lib/scoreAttack/worker/handlers";
 import { processWorkerJobs } from "@/lib/scoreAttack/worker/process";
+import { parsePvpPgcr } from "@/lib/scoreAttack/pgcr";
+import { successfulPvpPgcrWithTeams } from "@/__fixtures__/scoreAttack/pgcr";
 
-// Chainable Supabase fake that records mutations and supports rpc queues.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeDb({ tables = {}, rpc = {} }: { tables?: Record<string, any>; rpc?: Record<string, any> } = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -111,9 +110,122 @@ describe("handlers", () => {
   });
 
   it("awardBadges inserts nothing for a run that earns none", async () => {
-    const db = makeDb({ tables: { challenge_runs: { maybeSingle: { id: "r1", status: "scored", created_by: "u1", mode: "score_attack" } }, challenge_run_participants: { maybeSingle: { bungie_membership_id: "m1" } } } });
+    const run = { id: "r1", status: "scored", created_by: "u1", mode: "score_attack", season_id: null, weekly_challenge_id: null, completed_at: null, finalized_at: null, created_at: "2026-07-01T00:00:00Z", activity_hash: null, compliance_status: "flagged", pgcr_instance_id: null };
+    const db = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: run, list: [run] },
+        challenge_run_participants: { maybeSingle: { bungie_membership_id: "m1" } },
+        badges: { list: [] },
+        run_legality_results: { maybeSingle: null, list: [] },
+        challenge_run_loadout_slots: { list: [] },
+        run_equipment_snapshots: { list: [] },
+      },
+    });
     await awardBadgesHandler({ id: "j", job_type: "award_badges", run_id: "r1" } as never, db);
     expect(db._calls.upserts.player_badges).toBeUndefined();
+  });
+
+  it("awardBadges upserts rerolled awards when the strict legality context qualifies", async () => {
+    const run = { id: "r1", status: "scored", created_by: "u1", mode: "score_attack", season_id: null, weekly_challenge_id: null, completed_at: "2026-07-01T01:00:00Z", finalized_at: null, created_at: "2026-07-01T00:00:00Z", activity_hash: null, compliance_status: "eligible", pgcr_instance_id: null };
+    const legalityRow = { id: "l1", run_id: "r1", user_id: "u1", is_valid: true, had_active_loadout: true, rolled_final_blows: 5, illegal_final_blows: 0, illegal_sources: [], rolled_weapons_used: [111], evaluated_at: "2026-07-01T01:00:00Z", created_at: "2026-07-01T01:00:00Z" };
+    const db = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: run, list: [run] },
+        challenge_run_participants: { maybeSingle: { bungie_membership_id: "m1" } },
+        badges: { list: [{ id: "b1", slug: "core_drawn", criteria: { rule: "first_valid_run" }, mode: "core" }] },
+        run_legality_results: { maybeSingle: legalityRow, list: [legalityRow] },
+        challenge_run_loadout_slots: { list: [] },
+        run_equipment_snapshots: { list: [] },
+      },
+    });
+    await awardBadgesHandler({ id: "j", job_type: "award_badges", run_id: "r1" } as never, db);
+    const rows = db._calls.upserts.player_badges[0][0];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ user_id: "u1", badge_id: "b1", scope_key: "once" });
+  });
+
+  it("awardBadges uses Trials passage snapshots to award card-based rerolled badges", async () => {
+    const run = {
+      id: "r1",
+      status: "scored",
+      created_by: "u1",
+      mode: "score_attack",
+      season_id: null,
+      weekly_challenge_id: null,
+      completed_at: "2026-07-01T01:00:00Z",
+      finalized_at: null,
+      created_at: "2026-07-01T00:00:00Z",
+      activity_hash: 588019350,
+      compliance_status: "eligible",
+      pgcr_instance_id: "pgcr-200",
+    };
+    const legalityRow = { id: "l1", run_id: "r1", user_id: "u1", is_valid: true, had_active_loadout: true, rolled_final_blows: 5, illegal_final_blows: 0, illegal_sources: [], rolled_weapons_used: [111], evaluated_at: "2026-07-01T01:00:00Z", created_at: "2026-07-01T01:00:00Z" };
+    const pvpPgcr = parsePvpPgcr(successfulPvpPgcrWithTeams);
+    const db = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: run, list: [run] },
+        challenge_run_participants: { maybeSingle: { bungie_membership_id: "4611686018429000001" } },
+        badges: { list: [{ id: "b-trials", slug: "trials_passage_iii", criteria: { rule: "card_win_count", min_wins_on_card: 3 }, mode: "trials" }] },
+        run_legality_results: { maybeSingle: legalityRow, list: [legalityRow] },
+        challenge_run_loadout_slots: { list: [] },
+        run_equipment_snapshots: { list: [] },
+        pgcr_cache: { maybeSingle: { normalized_pgcr: pvpPgcr } },
+        run_trials_passage_snapshots: {
+          list: [
+            {
+              id: "pre-1",
+              run_id: "r1",
+              user_id: "u1",
+              bungie_membership_id: "4611686018429000001",
+              capture_phase: "pre_match",
+              passage_instance_id: "card-1",
+              passage_item_hash: 3125852681,
+              passage_name: "Passage of Mercy",
+              bucket_hash: 1345459588,
+              character_id: "char-1",
+              wins: 2,
+              rounds_won: 10,
+              active_win_streak: 2,
+              flawless_win_streak: 0,
+              flawless_progress: 0,
+              is_flawless: false,
+              is_complete: false,
+              trials_multiplier: null,
+              raw_objectives: { "1586211619": 2, "984122744": 10 },
+              captured_at: "2026-07-01T00:55:00Z",
+              created_at: "2026-07-01T00:55:00Z",
+            },
+            {
+              id: "post-1",
+              run_id: "r1",
+              user_id: "u1",
+              bungie_membership_id: "4611686018429000001",
+              capture_phase: "post_match",
+              passage_instance_id: "card-1",
+              passage_item_hash: 3125852681,
+              passage_name: "Passage of Mercy",
+              bucket_hash: 1345459588,
+              character_id: "char-1",
+              wins: 3,
+              rounds_won: 15,
+              active_win_streak: 3,
+              flawless_win_streak: 0,
+              flawless_progress: 0,
+              is_flawless: false,
+              is_complete: false,
+              trials_multiplier: null,
+              raw_objectives: { "1586211619": 3, "984122744": 15 },
+              captured_at: "2026-07-01T01:00:00Z",
+              created_at: "2026-07-01T01:00:00Z",
+            },
+          ],
+        },
+      },
+    });
+    await awardBadgesHandler({ id: "j", job_type: "award_badges", run_id: "r1" } as never, db);
+    const rows = db._calls.upserts.player_badges[0][0];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ user_id: "u1", badge_id: "b-trials", scope_key: "card-1" });
   });
 });
 
@@ -130,8 +242,6 @@ describe("processWorkerJobs", () => {
   });
 
   it("completes an unregistered job type as a no-op without retrying", async () => {
-    // All real job types are registered now; use a bogus type to exercise the
-    // defensive no-op path (forward-compat for new/unknown job types).
     const db = makeDb({ rpc: { claim_next_worker_job: [{ id: "j1", job_type: "unknown_future_type", run_id: "r1" }, null] } });
     const result = await processWorkerJobs({ maxJobs: 5, db });
     expect(result).toMatchObject({ processed: 1, noHandler: 1, completed: 0, failed: 0 });

@@ -37,9 +37,6 @@ export interface WeeklyActivitySelection {
 
 const catalog = catalogRaw as ActivityCatalog;
 
-// Relative endgame difficulty per activity kind, applied as a scoring
-// multiplier in Score Attack (#272). Starting values — tune once real runs
-// come in; a grandmaster and a strike shouldn't score the same.
 export const ACTIVITY_DIFFICULTY_MULTIPLIER: Record<ActivityKind, number> = {
   grandmaster: 1.5,
   raid: 1.3,
@@ -52,16 +49,22 @@ export const ACTIVITY_DIFFICULTY_MULTIPLIER: Record<ActivityKind, number> = {
 };
 
 const kindByHash: Map<number, ActivityKind> = new Map();
+const activityByHash: Map<number, ScoreAttackActivity> = new Map();
 for (const activity of catalogRaw.activities as ScoreAttackActivity[]) {
-  for (const hash of activity.activityHashes) kindByHash.set(hash, activity.kind);
+  for (const hash of activity.activityHashes) {
+    kindByHash.set(hash, activity.kind);
+    activityByHash.set(hash, activity);
+  }
 }
 
-/** Looks up an activity's catalog kind by its Bungie activity hash, if known. */
 export function getActivityKindByHash(activityHash: number): ActivityKind | null {
   return kindByHash.get(activityHash) ?? null;
 }
 
-/** Difficulty multiplier for a run's activity hash; defaults to 1 (no-op) when unknown. */
+export function getActivityByHash(activityHash: number): ScoreAttackActivity | null {
+  return activityByHash.get(activityHash) ?? null;
+}
+
 export function getActivityDifficultyMultiplier(activityHash: number | null | undefined): number {
   if (activityHash == null) return 1;
   const kind = getActivityKindByHash(activityHash);
@@ -99,7 +102,7 @@ export function getActivityPool(filter: ActivityPoolFilter = {}): ScoreAttackAct
       if (filter.pillar && activity.pillar !== filter.pillar) return false;
       if (kinds && !kinds.has(activity.kind)) return false;
       return true;
-    })
+    }),
   );
 }
 
@@ -127,7 +130,7 @@ function stableIndex(seed: string, size: number): number {
 
 export function pickWeeklyActivity(
   date: Date = new Date(),
-  filter: ActivityPoolFilter = { pillar: "pve" }
+  filter: ActivityPoolFilter = { pillar: "pve" },
 ): WeeklyActivitySelection {
   const pool = getActivityPool(filter);
   if (!pool.length) {

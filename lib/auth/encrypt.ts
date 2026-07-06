@@ -1,12 +1,24 @@
 // AES-256-GCM encryption for storing OAuth tokens in Supabase.
-// TOKEN_ENCRYPTION_KEY must be a 64-char hex string (32 bytes).
+// TOKEN_ENCRYPTION_KEY accepts either:
+//   - 64-char hex (current preferred format)
+//   - 32-byte base64 (legacy/local-dev format still present in older env files)
 
 function getKey(): Buffer {
-  const hex = process.env.TOKEN_ENCRYPTION_KEY;
-  if (!hex || hex.length !== 64) {
-    throw new Error("TOKEN_ENCRYPTION_KEY must be a 64-character hex string");
+  const raw = process.env.TOKEN_ENCRYPTION_KEY?.trim();
+  if (!raw) {
+    throw new Error("TOKEN_ENCRYPTION_KEY must be set");
   }
-  return Buffer.from(hex, "hex");
+
+  if (/^[0-9a-fA-F]{64}$/.test(raw)) {
+    return Buffer.from(raw, "hex");
+  }
+
+  const base64 = Buffer.from(raw, "base64");
+  if (base64.length === 32 && base64.toString("base64").replace(/=+$/, "") === raw.replace(/=+$/, "")) {
+    return base64;
+  }
+
+  throw new Error("TOKEN_ENCRYPTION_KEY must be a 64-character hex string or base64-encoded 32-byte key");
 }
 
 export async function encryptToken(plaintext: string): Promise<string> {
