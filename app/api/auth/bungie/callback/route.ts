@@ -4,6 +4,8 @@ import { encryptToken } from "@/lib/auth/encrypt";
 import { encode } from "@auth/core/jwt";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
+const OAUTH_STATE_COOKIE = "bungie_oauth_state";
+const OAUTH_RETURN_TO_COOKIE = "bungie_oauth_return_to";
 const BUNGIE_REDIRECT_URI =
   process.env.BUNGIE_REDIRECT_URI ||
   `${BASE_URL}/api/auth/bungie/callback`;
@@ -18,6 +20,11 @@ function errRedirect(step: string, detail?: string) {
   );
 }
 
+function clearOAuthCookies(response: NextResponse) {
+  response.cookies.set(OAUTH_STATE_COOKIE, "", { path: "/", maxAge: 0 });
+  response.cookies.set(OAUTH_RETURN_TO_COOKIE, "", { path: "/", maxAge: 0 });
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
@@ -28,17 +35,37 @@ export async function GET(req: NextRequest) {
   if (!state) return errRedirect("no_state");
   if (!code) return errRedirect("no_code");
 
-  // Validate CSRF state against DB
-  const { data: storedState } = await adminSupabase
-    .from("oauth_states")
-    .select("state, return_to")
-    .eq("state", state)
-    .gt("expires_at", new Date().toISOString())
-    .single();
+  // Primary CSRF validation is now cookie-based so the login redirect no longer
+  // blocks on Supabase just to persist transient OAuth state.
+  const cookieState = req.cookies.get(OAUTH_STATE_COOKIE)?.value;
+  const cookieReturnTo = req.cookies.get(OAUTH_RETURN_TO_COOKIE)?.value;
+  let returnTo = cookieReturnTo || "/dashboard";
+  let stateValid = cookieState === state;
 
-  if (!storedState) return errRedirect("state_mismatch");
-  const returnTo: string = storedState.return_to ?? "/dashboard";
-  await adminSupabase.from("oauth_states").delete().eq("state", state);
+  // Fallback for flows that started before the cookie-based state rollout.
+  if (!stateValid) {
+    const { data: storedState } = await adminSupabase
+      .from("oauth_states")
+      .select("state, return_to")
+      .eq("state", state)
+      .gt("expires_at", new Date().toISOString())
+      .single();
+
+    if (!storedState) {
+      const response = errRedirect("state_mismatch");
+      clearOAuthCookies(response);
+      return response;
+    }
+    returnTo = storedState.return_to ?? "/dashboard";
+    stateValid = true;
+    await adminSupabase.from("oauth_states").delete().eq("state", state);
+  }
+
+  if (!stateValid) {
+    const response = errRedirect("state_mismatch");
+    clearOAuthCookies(response);
+    return response;
+  }
 
   // Exchange auth code for tokens
   let tokens: {
@@ -185,6 +212,7 @@ export async function GET(req: NextRequest) {
   }
 
   const response = NextResponse.redirect(`${BASE_URL}${returnTo}`);
+  clearOAuthCookies(response);
   response.cookies.set(cookieName, sessionToken, {
     httpOnly: true,
     secure: isProd,
