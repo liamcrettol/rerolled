@@ -172,6 +172,16 @@ export async function getWeaponDefinition(
   return WEAPONS.get(itemHash) ?? null;
 }
 
+/**
+ * A weapon's ammo type ("Primary" | "Special" | "Heavy"), or null if the hash
+ * isn't in the static table. Synchronous (plain in-memory map read) so callers
+ * enforcing loadout rules — e.g. the draft's no-double-special guard — can
+ * filter a whole pool without awaiting per hash.
+ */
+export function getWeaponAmmoType(itemHash: number): string | null {
+  return WEAPONS.get(itemHash)?.ammoType ?? null;
+}
+
 export async function getPerkNames(hashes: number[]): Promise<Map<number, string>> {
   const result = new Map<number, string>();
   for (const hash of hashes) {

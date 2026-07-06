@@ -5,6 +5,7 @@
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { pickCandidates, isValidPick } from "./options";
+import { getWeaponAmmoType } from "@/lib/bungie/definitions";
 import type { WeaponSlot } from "@/types/bungie";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,6 +49,36 @@ async function requireCaptain(
   return { ok: true };
 }
 
+// Destiny ammo economy: a fireteam loadout can't run two Special-ammo weapons
+// across the Kinetic + Energy slots. Draft order is Kinetic → Energy → Power,
+// so the only place a double-special can arise is the Energy reveal after a
+// Special Kinetic pick — filter Special weapons out of the Energy pool in that
+// case. (Power is always Heavy, so it's never affected.) Falls back to the
+// unfiltered pool if the group happens to own no non-Special energy weapons, so
+// the reveal still shows something rather than erroring.
+async function applyAmmoRules(
+  slot: WeaponSlot,
+  roundId: string,
+  pool: number[],
+  db: Db
+): Promise<number[]> {
+  if (slot !== "energy") return pool;
+
+  const { data: kineticPick } = await db
+    .from("lobby_loadout_slots")
+    .select("item_hash")
+    .eq("round_id", roundId)
+    .eq("slot", "kinetic")
+    .maybeSingle();
+
+  if (!kineticPick || getWeaponAmmoType(kineticPick.item_hash) !== "Special") {
+    return pool;
+  }
+
+  const nonSpecial = pool.filter((h) => getWeaponAmmoType(h) !== "Special");
+  return nonSpecial.length > 0 ? nonSpecial : pool;
+}
+
 export async function generateSlotOptions(
   lobbyId: string,
   roundId: string,
@@ -70,7 +101,8 @@ export async function generateSlotOptions(
     return { ok: false, error: "No shared weapon pool cached yet — open the lobby's weapon browser first" };
   }
 
-  const candidates = pickCandidates(pool);
+  const candidatePool = await applyAmmoRules(slot, roundId, pool, db);
+  const candidates = pickCandidates(candidatePool);
   const options: DraftOption[] = candidates
     .map((itemHash, position) => {
       const detail = details[itemHash.toString()];
