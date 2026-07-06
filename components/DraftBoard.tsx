@@ -1,37 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Card from "./ui/Card";
 import Spinner from "./Spinner";
+import WeaponIcon from "./WeaponIcon";
+import { createClient } from "@/lib/supabase/client";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
-import type { Lobby, LobbyMember } from "@/types/lobby";
+import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 
+const SLOT_ORDER: WeaponSlot[] = ["kinetic", "energy", "power"];
 const SLOT_LABELS: Record<WeaponSlot, string> = {
   kinetic: "Kinetic",
   energy: "Energy",
   power: "Power",
 };
-
 const CLASS_LABELS: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 
-interface DraftPick {
-  forUserId: string;
-  pickedByUserId: string;
-  slot: WeaponSlot;
+interface DraftOption {
+  position: number;
   itemHash: number;
-}
-
-interface DraftTurn {
-  forUserId: string;
-  slot: WeaponSlot;
-  pickNumber: number;
-}
-
-interface WeaponDetail {
   name: string;
   icon: string;
+  weaponType: string;
+  damageType: string;
 }
 
 interface Props {
@@ -42,12 +35,12 @@ interface Props {
 
 export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const router = useRouter();
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [picks, setPicks] = useState<DraftPick[]>([]);
-  const [currentTurn, setCurrentTurn] = useState<DraftTurn | null>(null);
-  const [complete, setComplete] = useState(false);
-  const [pool, setPool] = useState<Record<WeaponSlot, number[]> | null>(null);
-  const [weaponDetails, setWeaponDetails] = useState<Record<string, WeaponDetail>>({});
+  const supabase = useMemo(() => createClient(), []);
+  const isCaptain = lobby.captain_user_id === currentUserId;
+
+  const [roundId, setRoundId] = useState<string | null>(null);
+  const [slots, setSlots] = useState<LobbyLoadoutSlot[]>([]);
+  const [options, setOptions] = useState<Partial<Record<WeaponSlot, DraftOption[]>>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,37 +52,65 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     [members]
   );
 
-  const refresh = useCallback(async () => {
-    const res = await fetch(`/api/draft/lobby/${lobby.id}`);
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error ?? "Failed to load draft");
-      return;
+  const loadRound = useCallback(async () => {
+    const { data: round } = await supabase
+      .from("lobby_rounds")
+      .select("id")
+      .eq("lobby_id", lobby.id)
+      .eq("round_number", lobby.current_round)
+      .single();
+    if (!round) return;
+    setRoundId(round.id);
+
+    const [{ data: existingSlots }, { data: existingOptions }] = await Promise.all([
+      supabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id),
+      supabase.from("lobby_draft_options").select("*").eq("round_id", round.id),
+    ]);
+    setSlots(existingSlots ?? []);
+
+    const grouped: Partial<Record<WeaponSlot, DraftOption[]>> = {};
+    for (const row of existingOptions ?? []) {
+      const slot = row.slot as WeaponSlot;
+      grouped[slot] = [
+        ...(grouped[slot] ?? []),
+        { position: row.position, itemHash: row.item_hash, name: row.weapon_name, icon: row.weapon_icon, weaponType: row.weapon_type, damageType: row.damage_type },
+      ].sort((a, b) => a.position - b.position);
     }
-    setSessionId(data.sessionId);
-    setPicks(data.picks ?? []);
-    setCurrentTurn(data.currentTurn ?? null);
-    setComplete(Boolean(data.complete));
-  }, [lobby.id]);
+    setOptions(grouped);
+  }, [supabase, lobby.id, lobby.current_round]);
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false));
-  }, [refresh]);
-
-  useEffect(() => {
-    if (!sessionId || pool) return;
+    // Ensures the shared weapon pool is cached (lobby_pools) so the reveal has
+    // something to draw from — same call the roulette flow makes.
     fetch("/api/roulette/intersection", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lobbyId: lobby.id }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.intersection) setPool(data.intersection);
-        if (data.weaponDetails) setWeaponDetails(data.weaponDetails);
-      })
-      .catch(() => setError("Failed to load the shared weapon pool"));
-  }, [sessionId, pool, lobby.id]);
+    }).catch(() => setError("Failed to load the shared weapon pool"));
+    loadRound().finally(() => setLoading(false));
+  }, [lobby.id, loadRound]);
+
+  const configureChannel = useCallback(
+    (channel: SupabaseChannel) => {
+      channel
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "lobby_draft_options" },
+          () => loadRound()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "lobby_loadout_slots" },
+          () => loadRound()
+        );
+    },
+    [loadRound]
+  );
+  useSupabaseChannel(`draft:${lobby.id}`, configureChannel);
+
+  const committedSlots = new Set(slots.map((s) => s.slot));
+  const complete = SLOT_ORDER.every((s) => committedSlots.has(s));
+  const activeSlot = SLOT_ORDER.find((s) => !committedSlots.has(s)) ?? null;
 
   useEffect(() => {
     if (!complete) return;
@@ -104,56 +125,39 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       .catch(() => {});
   }, [complete]);
 
-  const configureChannel = useCallback(
-    (channel: SupabaseChannel) => {
-      channel
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "draft_picks" },
-          () => refresh()
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "draft_sessions", filter: `lobby_id=eq.${lobby.id}` },
-          () => refresh()
-        );
-    },
-    [lobby.id, refresh]
-  );
-  useSupabaseChannel(`draft:${lobby.id}`, configureChannel);
-
-  async function startDraft() {
+  async function reveal(slot: WeaponSlot) {
+    if (!roundId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/draft/create", {
+      const res = await fetch("/api/draft/options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId: lobby.id }),
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, slot }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      await refresh();
+      await loadRound();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start draft");
+      setError(e instanceof Error ? e.message : "Failed to reveal options");
     } finally {
       setBusy(false);
     }
   }
 
-  async function pick(itemHash: number) {
-    if (!sessionId) return;
+  async function pick(slot: WeaponSlot, itemHash: number) {
+    if (!roundId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/draft/${sessionId}/pick`, {
+      const res = await fetch("/api/draft/pick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemHash }),
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, slot, itemHash }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      await refresh();
+      await loadRound();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to pick");
     } finally {
@@ -162,14 +166,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   }
 
   async function applyLoadout() {
-    if (!sessionId || !selectedCharacterId) return;
+    if (!roundId || !selectedCharacterId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/draft/${sessionId}/apply`, {
+      const res = await fetch("/api/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ characterId: selectedCharacterId }),
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, characterId: selectedCharacterId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -189,10 +193,6 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     );
   }
 
-  const myLoadoutComplete =
-    complete &&
-    picks.filter((p) => p.forUserId === currentUserId).length === 3;
-
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <h1 className="text-xs font-bold uppercase tracking-wider text-gray-400">
@@ -201,47 +201,48 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
-      {!sessionId && (
-        <Card className="p-6 text-center space-y-4">
-          <p className="text-sm text-gray-300">
-            Pick and ban weapons for each other from the fireteam&rsquo;s shared pool.
-          </p>
-          <button
-            onClick={startDraft}
-            disabled={busy}
-            className="bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-5 py-2.5 disabled:opacity-50"
-          >
-            {busy ? "Starting…" : "Start Draft"}
-          </button>
-        </Card>
-      )}
+      {activeSlot && (
+        <Card className="p-6 space-y-4 text-center">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+            {SLOT_LABELS[activeSlot]} &middot; Choose One
+          </h2>
 
-      {sessionId && !complete && currentTurn && (
-        <Card className="p-4 space-y-3">
-          <p className="text-sm text-gray-300">
-            {currentTurn.forUserId === currentUserId ? (
-              <>Waiting for a teammate to draft your <b>{SLOT_LABELS[currentTurn.slot]}</b>.</>
-            ) : (
-              <>
-                Pick <b>{SLOT_LABELS[currentTurn.slot]}</b> for{" "}
-                <b>{nameFor(currentTurn.forUserId)}</b>.
-              </>
-            )}
-          </p>
-          {currentTurn.forUserId !== currentUserId && pool && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {(pool[currentTurn.slot] ?? []).map((hash) => (
+          {(options[activeSlot]?.length ?? 0) === 0 && (
+            <div className="py-6">
+              {isCaptain ? (
                 <button
-                  key={hash}
-                  onClick={() => pick(hash)}
+                  onClick={() => reveal(activeSlot)}
                   disabled={busy}
-                  className="text-left text-xs bg-bungie-dark border border-bungie-border px-3 py-2 hover:border-bungie-blue transition-colors disabled:opacity-50"
+                  className="bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-6 py-3 disabled:opacity-50"
                 >
-                  {weaponDetails[hash.toString()]?.name ?? hash}
+                  {busy ? "Revealing…" : `Reveal ${SLOT_LABELS[activeSlot]} Options`}
+                </button>
+              ) : (
+                <p className="text-sm text-gray-400">
+                  Waiting for <b>{nameFor(lobby.captain_user_id)}</b> to reveal {SLOT_LABELS[activeSlot]} options…
+                </p>
+              )}
+            </div>
+          )}
+
+          {(options[activeSlot]?.length ?? 0) > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {options[activeSlot]!.map((opt) => (
+                <button
+                  key={opt.itemHash}
+                  onClick={() => isCaptain && pick(activeSlot, opt.itemHash)}
+                  disabled={busy || !isCaptain}
+                  className="group flex flex-col items-center gap-2 bg-bungie-dark border border-bungie-border p-4 hover:border-bungie-blue hover:scale-[1.03] transition-all disabled:hover:scale-100 disabled:hover:border-bungie-border"
+                >
+                  <WeaponIcon icon={opt.icon} name={opt.name} size="large" />
+                  <span className="text-sm font-bold text-white">{opt.name}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-gray-500">{opt.weaponType}</span>
                 </button>
               ))}
-              {(pool[currentTurn.slot] ?? []).length === 0 && (
-                <p className="text-xs text-gray-500 col-span-full">Loading the shared pool…</p>
+              {!isCaptain && (
+                <p className="col-span-full text-xs text-gray-500">
+                  {nameFor(lobby.captain_user_id)} is choosing…
+                </p>
               )}
             </div>
           )}
@@ -250,39 +251,32 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
       <Card className="p-4">
         <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-3">
-          Fireteam Picks
+          Fireteam Loadout
         </h2>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-gray-500 uppercase tracking-wider text-left">
-              <th className="pb-2 font-normal">Player</th>
-              {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => (
-                <th key={slot} className="pb-2 font-normal">{SLOT_LABELS[slot]}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => (
-              <tr key={m.user_id} className="border-t border-bungie-border/40">
-                <td className="py-2 text-gray-300">{m.display_name}</td>
-                {(["kinetic", "energy", "power"] as WeaponSlot[]).map((slot) => {
-                  const p = picks.find((x) => x.forUserId === m.user_id && x.slot === slot);
-                  return (
-                    <td key={slot} className="py-2 text-gray-400">
-                      {p ? weaponDetails[p.itemHash.toString()]?.name ?? p.itemHash : "—"}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="grid grid-cols-3 gap-3">
+          {SLOT_ORDER.map((slot) => {
+            const committed = slots.find((s) => s.slot === slot);
+            return (
+              <div key={slot} className="flex flex-col items-center gap-2 border border-bungie-border/40 p-3">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500">{SLOT_LABELS[slot]}</span>
+                {committed ? (
+                  <>
+                    <WeaponIcon icon={committed.weapon_icon} name={committed.weapon_name} size="medium" />
+                    <span className="text-xs text-gray-300 text-center">{committed.weapon_name}</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-600">—</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
-      {myLoadoutComplete && (
+      {complete && (
         <Card className="p-4 space-y-3">
           <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-            Apply Your Draft
+            Apply Loadout
           </h2>
           {characters.length > 0 && (
             <select
