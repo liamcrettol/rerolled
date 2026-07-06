@@ -113,30 +113,34 @@ export async function joinLobby(
 export async function getActiveSessionForUser(
   userId: string
 ): Promise<{ code: string; status: Lobby["status"] } | null> {
-  const { data: memberships } = await withSupabaseTimeout(
-    adminSupabase
-      .from("lobby_members")
-      .select("lobby_id")
-      .eq("user_id", userId)
-  );
+  try {
+    const { data: memberships } = await withSupabaseTimeout(
+      adminSupabase
+        .from("lobby_members")
+        .select("lobby_id")
+        .eq("user_id", userId)
+    );
 
-  if (!memberships || memberships.length === 0) return null;
+    if (!memberships || memberships.length === 0) return null;
 
-  const lobbyIds = memberships.map((m) => m.lobby_id);
+    const lobbyIds = memberships.map((m) => m.lobby_id);
 
-  const { data: lobby } = await withSupabaseTimeout(
-    adminSupabase
-      .from("lobbies")
-      .select("code, status")
-      .in("id", lobbyIds)
-      .neq("status", "done")
-      .order("last_active_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-  );
+    const { data: lobby } = await withSupabaseTimeout(
+      adminSupabase
+        .from("lobbies")
+        .select("code, status")
+        .in("id", lobbyIds)
+        .neq("status", "done")
+        .order("last_active_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    );
 
-  if (!lobby) return null;
-  return { code: lobby.code, status: lobby.status as Lobby["status"] };
+    if (!lobby) return null;
+    return { code: lobby.code, status: lobby.status as Lobby["status"] };
+  } catch {
+    return null;
+  }
 }
 
 export async function getLobbyByCode(code: string): Promise<Lobby | null> {
