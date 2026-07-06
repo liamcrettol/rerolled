@@ -15,6 +15,7 @@ import { getBungieToken } from "@/lib/auth/helpers";
 import { BungieWorkerClient } from "@/lib/bungie/workerClient";
 import { parsePvEPgcr } from "@/lib/scoreAttack/pgcr";
 import { scoreAttackRun } from "@/lib/scoreAttack/scoring";
+import { getActivityDifficultyMultiplier } from "@/lib/scoreAttack/activityPool";
 import { computeRunEligibility } from "@/lib/scoreAttack/compliance";
 import { bucketToSlot, type WeaponSlot } from "@/types/bungie";
 import type {
@@ -232,7 +233,13 @@ export async function computeScoreHandler(job: WorkerJobRow, d: DetectionDeps = 
     .map((e) => e.weaponHash)
     .filter((h): h is number => typeof h === "number");
 
-  const result = scoreAttackRun({ pgcr, playerMembershipId: p.playerMembershipId, rolledWeaponHashes });
+  const difficultyMultiplier = getActivityDifficultyMultiplier(run.activity_hash);
+  const result = scoreAttackRun({
+    pgcr,
+    playerMembershipId: p.playerMembershipId,
+    rolledWeaponHashes,
+    config: { difficultyMultiplier },
+  });
 
   await db.from("challenge_runs").update({
     score: result.totalScore,

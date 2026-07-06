@@ -2,6 +2,8 @@
 import {
   getActivityPool,
   pickWeeklyActivity,
+  getActivityKindByHash,
+  getActivityDifficultyMultiplier,
 } from "@/lib/scoreAttack/activityPool";
 
 describe("Score Attack activity pool", () => {
@@ -28,5 +30,26 @@ describe("Score Attack activity pool", () => {
     const second = pickWeeklyActivity(new Date("2026-07-10T12:00:00.000Z"));
 
     expect(second).toEqual(first);
+  });
+
+  it("resolves an activity's kind and difficulty multiplier from its hash (#272)", () => {
+    const grandmaster = getActivityPool({ pillar: "pve", kinds: ["grandmaster"] })[0];
+    const raid = getActivityPool({ pillar: "pve", kinds: ["raid"] })[0];
+    const crucible = getActivityPool({ pillar: "pvp", kinds: ["crucible"] })[0];
+
+    expect(getActivityKindByHash(grandmaster.activityHashes[0])).toBe("grandmaster");
+    expect(getActivityDifficultyMultiplier(grandmaster.activityHashes[0])).toBeGreaterThan(
+      getActivityDifficultyMultiplier(raid.activityHashes[0])
+    );
+    expect(getActivityDifficultyMultiplier(raid.activityHashes[0])).toBeGreaterThan(
+      getActivityDifficultyMultiplier(crucible.activityHashes[0])
+    );
+  });
+
+  it("defaults an unknown or missing activity hash to a 1x (no-op) multiplier", () => {
+    expect(getActivityKindByHash(999999999)).toBeNull();
+    expect(getActivityDifficultyMultiplier(999999999)).toBe(1);
+    expect(getActivityDifficultyMultiplier(null)).toBe(1);
+    expect(getActivityDifficultyMultiplier(undefined)).toBe(1);
   });
 });

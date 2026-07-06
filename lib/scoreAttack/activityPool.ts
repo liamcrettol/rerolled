@@ -35,6 +35,35 @@ export interface WeeklyActivitySelection {
 
 const catalog = catalogRaw as ActivityCatalog;
 
+// Relative endgame difficulty per activity kind, applied as a scoring
+// multiplier in Score Attack (#272). Starting values — tune once real runs
+// come in; a grandmaster and a strike shouldn't score the same.
+export const ACTIVITY_DIFFICULTY_MULTIPLIER: Record<ActivityKind, number> = {
+  grandmaster: 1.5,
+  raid: 1.3,
+  dungeon: 1.2,
+  trials: 1.15,
+  "iron-banner": 1.05,
+  crucible: 1,
+};
+
+const kindByHash: Map<number, ActivityKind> = new Map();
+for (const activity of catalogRaw.activities as ScoreAttackActivity[]) {
+  for (const hash of activity.activityHashes) kindByHash.set(hash, activity.kind);
+}
+
+/** Looks up an activity's catalog kind by its Bungie activity hash, if known. */
+export function getActivityKindByHash(activityHash: number): ActivityKind | null {
+  return kindByHash.get(activityHash) ?? null;
+}
+
+/** Difficulty multiplier for a run's activity hash; defaults to 1 (no-op) when unknown. */
+export function getActivityDifficultyMultiplier(activityHash: number | null | undefined): number {
+  if (activityHash == null) return 1;
+  const kind = getActivityKindByHash(activityHash);
+  return kind ? ACTIVITY_DIFFICULTY_MULTIPLIER[kind] : 1;
+}
+
 function hasValidHashList(activity: ScoreAttackActivity): boolean {
   return activity.activityHashes.every((hash) => Number.isInteger(hash) && hash > 0);
 }

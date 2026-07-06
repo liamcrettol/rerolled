@@ -102,6 +102,30 @@ describe("computeScoreHandler", () => {
     expect(update.score).toBeGreaterThan(0);
     expect(enqueued.map((e) => e.jobType).sort()).toEqual(["award_badges", "update_leaderboard"]);
   });
+
+  it("scores a grandmaster run higher than an otherwise-identical run with no known activity (#272)", async () => {
+    const dbNoActivity = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: { id: "r1", pgcr_instance_id: "pgcr-100", created_by: "u1", activity_hash: null } },
+        pgcr_cache: { maybeSingle: { normalized_pgcr: normalized } },
+        challenge_run_loadout_slots: { list: [{ slot: "kinetic", item_hash: 1001, weapon_type: "Sidearm", is_wildcard: false }] },
+      },
+    });
+    const dbGrandmaster = makeDb({
+      tables: {
+        challenge_runs: { maybeSingle: { id: "r1", pgcr_instance_id: "pgcr-100", created_by: "u1", activity_hash: 373475104 } },
+        pgcr_cache: { maybeSingle: { normalized_pgcr: normalized } },
+        challenge_run_loadout_slots: { list: [{ slot: "kinetic", item_hash: 1001, weapon_type: "Sidearm", is_wildcard: false }] },
+      },
+    });
+
+    await computeScoreHandler(job({ runId: "r1", playerMembershipId: PLAYER }), { db: dbNoActivity });
+    await computeScoreHandler(job({ runId: "r1", playerMembershipId: PLAYER }), { db: dbGrandmaster });
+
+    const baseScore = dbNoActivity._calls.updates.challenge_runs[0][0].score;
+    const gmScore = dbGrandmaster._calls.updates.challenge_runs[0][0].score;
+    expect(gmScore).toBeGreaterThan(baseScore);
+  });
 });
 
 describe("computeComplianceHandler", () => {
