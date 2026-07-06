@@ -1,15 +1,9 @@
 name: Process worker jobs
 
-# Temporarily disabled automatic scheduling while Supabase is recovering from
-# resource exhaustion. Keep workflow_dispatch so this can still be run manually
-# from the Actions tab after the database is stable.
-#
-# Requires two repository secrets:
-#   APP_URL      e.g. https://preview.d2roulette.app  (no trailing slash)
-#   CRON_SECRET  same value set in the Vercel project env
-
 on:
-  workflow_dispatch: {} # manual only for now
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
 
 jobs:
   drain:
