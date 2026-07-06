@@ -9,6 +9,18 @@ const OAUTH_RETURN_TO_COOKIE = "bungie_oauth_return_to";
 const BUNGIE_REDIRECT_URI =
   process.env.BUNGIE_REDIRECT_URI ||
   `${BASE_URL}/api/auth/bungie/callback`;
+const AUTH_DB_RETRY_DELAYS_MS = [0, 750, 1500, 3000];
+
+type SupabaseWriteError = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+type SupabaseWriteResult = {
+  error: SupabaseWriteError | null;
+};
 
 // Redirect the user with a STABLE, generic error code only (#239). Raw upstream
 // response bodies / exception strings are kept server-side in logs — they must
@@ -23,6 +35,67 @@ function errRedirect(step: string, detail?: string) {
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.set(OAUTH_STATE_COOKIE, "", { path: "/", maxAge: 0 });
   response.cookies.set(OAUTH_RETURN_TO_COOKIE, "", { path: "/", maxAge: 0 });
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatSupabaseError(error: SupabaseWriteError | null) {
+  if (!error) return "unknown";
+  return JSON.stringify({
+    message: error.message,
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+  });
+}
+
+function isTransientSupabaseError(error: SupabaseWriteError | null) {
+  if (!error) return false;
+  const text = `${error.message ?? ""} ${error.code ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase();
+  return (
+    !text.trim() ||
+    text.includes("abort") ||
+    text.includes("fetch failed") ||
+    text.includes("timed out") ||
+    text.includes("timeout") ||
+    text.includes("connection timed out") ||
+    text.includes("cloudflare") ||
+    text.includes("522")
+  );
+}
+
+async function retrySupabaseWrite(
+  label: string,
+  operation: () => PromiseLike<SupabaseWriteResult>
+) {
+  let lastError: SupabaseWriteError | null = null;
+
+  for (let attempt = 0; attempt < AUTH_DB_RETRY_DELAYS_MS.length; attempt += 1) {
+    const delay = AUTH_DB_RETRY_DELAYS_MS[attempt];
+    if (delay) await sleep(delay);
+
+    let error: SupabaseWriteError | null;
+    try {
+      ({ error } = await operation());
+    } catch (caught) {
+      error = {
+        message: caught instanceof Error ? caught.message : String(caught),
+      };
+    }
+    if (!error) return null;
+
+    lastError = error;
+    console.error(
+      "[bungie/callback] Supabase write failed:",
+      `${label} attempt ${attempt + 1}/${AUTH_DB_RETRY_DELAYS_MS.length}: ${formatSupabaseError(error)}`
+    );
+
+    if (!isTransientSupabaseError(error)) break;
+  }
+
+  return lastError;
 }
 
 export async function GET(req: NextRequest) {
@@ -153,26 +226,40 @@ export async function GET(req: NextRequest) {
     : null;
 
   // Persist user
-  const { error: userErr } = await adminSupabase.from("users").upsert(
-    { id: userId, display_name: displayName, updated_at: new Date().toISOString() },
-    { onConflict: "id" }
+  const userErr = await retrySupabaseWrite("users upsert", () =>
+    adminSupabase.from("users").upsert(
+      { id: userId, display_name: displayName, updated_at: new Date().toISOString() },
+      { onConflict: "id" }
+    )
   );
-  if (userErr) return errRedirect("user_upsert_failed", userErr.message);
+  if (userErr) {
+    return errRedirect(
+      isTransientSupabaseError(userErr) ? "database_unavailable" : "user_upsert_failed",
+      formatSupabaseError(userErr)
+    );
+  }
 
   // Persist bungie account
-  const { error: accountErr } = await adminSupabase.from("bungie_accounts").upsert(
-    {
-      user_id: userId,
-      membership_id: membershipId,
-      membership_type: membershipType,
-      access_token_enc: encryptedAccess,
-      refresh_token_enc: encryptedRefresh,
-      expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
+  const accountErr = await retrySupabaseWrite("bungie_accounts upsert", () =>
+    adminSupabase.from("bungie_accounts").upsert(
+      {
+        user_id: userId,
+        membership_id: membershipId,
+        membership_type: membershipType,
+        access_token_enc: encryptedAccess,
+        refresh_token_enc: encryptedRefresh,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
   );
-  if (accountErr) return errRedirect("account_upsert_failed", accountErr.message);
+  if (accountErr) {
+    return errRedirect(
+      isTransientSupabaseError(accountErr) ? "database_unavailable" : "account_upsert_failed",
+      formatSupabaseError(accountErr)
+    );
+  }
 
   // Touch this user's lobby member rows after a successful sign-in/reauth.
   // Lobby clients subscribe to lobby_members UPDATE events, so this lets every

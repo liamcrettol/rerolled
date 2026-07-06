@@ -13,6 +13,7 @@ const MESSAGES: Record<string, string> = {
   user_fetch_threw: "We couldn't reach Bungie to load your profile. Please try again.",
   no_destiny_membership: "No Destiny 2 account is linked to this Bungie profile.",
   encrypt_failed: "Something went wrong securing your session. Please try again.",
+  database_unavailable: "The database is timing out right now. Please try again in a minute.",
   user_upsert_failed: "We couldn't save your account. Please try again.",
   account_upsert_failed: "We couldn't save your Bungie link. Please try again.",
   jwt_encode_failed: "Something went wrong creating your session. Please try again.",
