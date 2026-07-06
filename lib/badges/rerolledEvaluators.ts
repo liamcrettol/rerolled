@@ -14,13 +14,21 @@ import { NOT_YET_IMPLEMENTED_REROLLED_SLUGS } from "./catalog";
 // data, persisting player_badges rows — is separate follow-up work, not
 // implemented here).
 //
-// NOT_YET_IMPLEMENTED: round_final_blow_lead, no_round_illegal,
-// final_round_rolled_win, session_all_valid. These need data the pipeline
-// doesn't capture yet (per-round final-blow breakdown for Trials/Elimination,
-// and a defined "Iron Banner session" boundary) — dispatching one throws
-// rather than silently returning a false/true decision. manual_grant is
-// intentionally NOT dispatched here at all; Status/Legacy badges are granted
-// through a separate admin path, not run evaluation.
+// NOT_YET_IMPLEMENTED: no_round_illegal, final_round_rolled_win,
+// session_all_valid. Verified against Bungie's actual PGCR schema
+// (DestinyPostGameCarnageReportData: only entries[] and teams[], both
+// whole-match aggregates — no round array, no kill-sequence, anywhere) that
+// the first two are not derivable from the API at all, not just "not built
+// yet." session_all_valid needs a product decision (what bounds an "Iron
+// Banner session") before it can be implemented. Dispatching any of these
+// throws rather than silently returning a false/true decision. manual_grant
+// is intentionally NOT dispatched here at all; Status/Legacy badges are
+// granted through a separate admin path, not run evaluation.
+//
+// team_final_blow_lead (Proven) does NOT need round data despite the badge's
+// "round-based match" phrasing — "leading your team in final blows" is a
+// whole-match comparison (entries[].values.kills grouped by
+// entries[].values.team), which the schema does support.
 
 export interface RerolledActivityContext {
   family: ActivityFamily | null;
@@ -35,6 +43,8 @@ export interface RerolledActivityContext {
   isMercy: boolean | null;
   scoreLeadOnTeam: boolean | null;
   objectiveLeadOnTeam: boolean | null;
+  /** This player recorded the most final blows among their own team (entries[].values.team). */
+  finalBlowLeadOnTeam: boolean | null;
 }
 
 export interface RerolledCardContext {
@@ -242,14 +252,18 @@ const ruleFns: Record<string, RerolledRuleFn> = {
       (ctx.weeklyMatchCount ?? 0) >= Number(criteria.min_matches ?? Infinity),
     scopeKey: ctx.weekScopeKey ?? runScope(ctx),
   }),
+
+  team_final_blow_lead: (criteria, ctx) => ({
+    awarded:
+      isValid(ctx) &&
+      ctx.activity?.isWin === true &&
+      ctx.activity?.finalBlowLeadOnTeam === true &&
+      matchesActivityFamily(criteria, ctx.activity),
+    scopeKey: runScope(ctx),
+  }),
 };
 
-const NOT_YET_IMPLEMENTED_RULES = new Set([
-  "round_final_blow_lead",
-  "no_round_illegal",
-  "final_round_rolled_win",
-  "session_all_valid",
-]);
+const NOT_YET_IMPLEMENTED_RULES = new Set(["no_round_illegal", "final_round_rolled_win", "session_all_valid"]);
 
 export function evaluateRerolledBadge(criteria: Record<string, unknown>, ctx: RerolledBadgeContext): RerolledAwardDecision {
   const rule = criteria.rule;

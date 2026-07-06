@@ -82,7 +82,6 @@ export const ALL_REROLLED_BADGE_SLUGS: RerolledBadgeSlug[] = Object.values(REROL
 // so the Badge Case can show them, but rerolledEvaluators.ts throws if one of
 // these is dispatched. See that file's NOT_YET_IMPLEMENTED_RULES comment.
 export const NOT_YET_IMPLEMENTED_REROLLED_SLUGS: RerolledBadgeSlug[] = [
-  REROLLED_BADGE_SLUGS.PROVEN,
   REROLLED_BADGE_SLUGS.VERDICT,
   REROLLED_BADGE_SLUGS.LAST_RITE,
   REROLLED_BADGE_SLUGS.RITE_OF_IRON,

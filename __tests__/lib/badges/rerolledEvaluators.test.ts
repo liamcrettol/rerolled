@@ -69,6 +69,25 @@ function baseCtx(overrides: Partial<RerolledBadgeContext> = {}): RerolledBadgeCo
   };
 }
 
+function makeActivity(overrides: Record<string, unknown> = {}) {
+  return {
+    family: "crucible" as const,
+    modeKey: null,
+    isWin: null,
+    isCompleted: null,
+    defeats: null,
+    teamPlacement: null,
+    totalTeams: null,
+    medalKeys: [],
+    isUndefeated: null,
+    isMercy: null,
+    scoreLeadOnTeam: null,
+    objectiveLeadOnTeam: null,
+    finalBlowLeadOnTeam: null,
+    ...overrides,
+  };
+}
+
 describe("evaluateRerolledBadge - dispatch", () => {
   it("throws when criteria has no rule key", () => {
     expect(() => evaluateRerolledBadge({}, baseCtx())).toThrow(/missing a "rule" key/);
@@ -83,7 +102,6 @@ describe("evaluateRerolledBadge - dispatch", () => {
   });
 
   it("throws for rules with no evaluator yet", () => {
-    expect(() => evaluateRerolledBadge({ rule: "round_final_blow_lead" }, baseCtx())).toThrow(/no evaluator yet/);
     expect(() => evaluateRerolledBadge({ rule: "no_round_illegal" }, baseCtx())).toThrow(/no evaluator yet/);
     expect(() => evaluateRerolledBadge({ rule: "final_round_rolled_win" }, baseCtx())).toThrow(/no evaluator yet/);
     expect(() => evaluateRerolledBadge({ rule: "session_all_valid" }, baseCtx())).toThrow(/no evaluator yet/);
@@ -154,7 +172,7 @@ describe("all_rolled_weapons_used (core_threefold / pve_no_reserve)", () => {
       baseCtx({
         loadoutSlots: [makeSlot({ item_hash: 111 })],
         legality: makeLegality({ rolled_weapons_used: [111] }),
-        activity: { family: "crucible", modeKey: null, isWin: null, isCompleted: null, defeats: null, teamPlacement: null, totalTeams: null, medalKeys: [], isUndefeated: null, isMercy: null, scoreLeadOnTeam: null, objectiveLeadOnTeam: null },
+        activity: makeActivity(),
       })
     );
     expect(decision.awarded).toBe(false);
@@ -187,21 +205,8 @@ describe("valid_streak (core_chain / core_unbroken_chain)", () => {
 });
 
 describe("win_valid_activity (crucible_writ / iron_banner_ironbound)", () => {
-  const activity = (overrides: Record<string, unknown> = {}) => ({
-    family: "crucible" as const,
-    modeKey: "control",
-    isWin: true,
-    isCompleted: true,
-    defeats: 20,
-    teamPlacement: 1,
-    totalTeams: 2,
-    medalKeys: [],
-    isUndefeated: false,
-    isMercy: false,
-    scoreLeadOnTeam: false,
-    objectiveLeadOnTeam: false,
-    ...overrides,
-  });
+  const activity = (overrides: Record<string, unknown> = {}) =>
+    makeActivity({ modeKey: "control", isWin: true, isCompleted: true, defeats: 20, teamPlacement: 1, totalTeams: 2, ...overrides });
 
   it("awards a win in the matching activity_family", () => {
     const decision = evaluateRerolledBadge(
@@ -238,9 +243,7 @@ describe("win_valid_activity (crucible_writ / iron_banner_ironbound)", () => {
 
 describe("defeat_threshold (crucible_overmatch/high_mark/redline)", () => {
   it("awards at or above the threshold", () => {
-    const ctx = baseCtx({
-      activity: { family: "crucible", modeKey: null, isWin: null, isCompleted: null, defeats: 30, teamPlacement: null, totalTeams: null, medalKeys: [], isUndefeated: null, isMercy: null, scoreLeadOnTeam: null, objectiveLeadOnTeam: null },
-    });
+    const ctx = baseCtx({ activity: makeActivity({ defeats: 30 }) });
     expect(evaluateRerolledBadge({ rule: "defeat_threshold", activity_family: "crucible", min_defeats: 30 }, ctx).awarded).toBe(true);
     expect(evaluateRerolledBadge({ rule: "defeat_threshold", activity_family: "crucible", min_defeats: 40 }, ctx).awarded).toBe(false);
   });
@@ -250,11 +253,35 @@ describe("medal_earned (crucible_column_vii etc.)", () => {
   it("awards when the medal key is present", () => {
     const decision = evaluateRerolledBadge(
       { rule: "medal_earned", medal_key: "seventh_column" },
-      baseCtx({
-        activity: { family: "crucible", modeKey: null, isWin: null, isCompleted: null, defeats: null, teamPlacement: null, totalTeams: null, medalKeys: ["seventh_column"], isUndefeated: null, isMercy: null, scoreLeadOnTeam: null, objectiveLeadOnTeam: null },
-      })
+      baseCtx({ activity: makeActivity({ medalKeys: ["seventh_column"] }) })
     );
     expect(decision.awarded).toBe(true);
+  });
+});
+
+describe("team_final_blow_lead (trials_proven)", () => {
+  it("awards a win where this player led their team in final blows", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "team_final_blow_lead" },
+      baseCtx({ activity: makeActivity({ isWin: true, finalBlowLeadOnTeam: true }) })
+    );
+    expect(decision.awarded).toBe(true);
+  });
+
+  it("does not award if this player did not lead their team", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "team_final_blow_lead" },
+      baseCtx({ activity: makeActivity({ isWin: true, finalBlowLeadOnTeam: false }) })
+    );
+    expect(decision.awarded).toBe(false);
+  });
+
+  it("does not award a loss even with the most final blows", () => {
+    const decision = evaluateRerolledBadge(
+      { rule: "team_final_blow_lead" },
+      baseCtx({ activity: makeActivity({ isWin: false, finalBlowLeadOnTeam: true }) })
+    );
+    expect(decision.awarded).toBe(false);
   });
 });
 
@@ -275,7 +302,7 @@ describe("weekly_match_count (iron_banner_banner_writ)", () => {
       baseCtx({
         weeklyMatchCount: 5,
         weekScopeKey: "ib-week-1",
-        activity: { family: "iron_banner", modeKey: null, isWin: null, isCompleted: null, defeats: null, teamPlacement: null, totalTeams: null, medalKeys: [], isUndefeated: null, isMercy: null, scoreLeadOnTeam: null, objectiveLeadOnTeam: null },
+        activity: makeActivity({ family: "iron_banner" }),
       })
     );
     expect(decision).toEqual({ awarded: true, scopeKey: "ib-week-1" });
