@@ -122,7 +122,7 @@ async function getInventoryItemDefinition(
 export async function getInventoryItemDefinitions(
   itemHashes: number[],
   accessToken: string,
-  batchSize = 10
+  batchSize = 50
 ): Promise<Record<string, DestinyInventoryItemDefinitionLite>> {
   const uniqueHashes = [...new Set(itemHashes.filter((hash) => Number.isFinite(hash) && hash > 0))];
   const result: Record<string, DestinyInventoryItemDefinitionLite> = {};

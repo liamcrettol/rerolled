@@ -1,4 +1,4 @@
-import { adminSupabase } from "@/lib/supabase/admin";
+import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import type { Lobby, LobbyMember, LobbyRollSettings } from "@/types/lobby";
 
 function generateCode(): string {
@@ -113,23 +113,27 @@ export async function joinLobby(
 export async function getActiveSessionForUser(
   userId: string
 ): Promise<{ code: string; status: Lobby["status"] } | null> {
-  const { data: memberships } = await adminSupabase
-    .from("lobby_members")
-    .select("lobby_id")
-    .eq("user_id", userId);
+  const { data: memberships } = await withSupabaseTimeout(
+    adminSupabase
+      .from("lobby_members")
+      .select("lobby_id")
+      .eq("user_id", userId)
+  );
 
   if (!memberships || memberships.length === 0) return null;
 
   const lobbyIds = memberships.map((m) => m.lobby_id);
 
-  const { data: lobby } = await adminSupabase
-    .from("lobbies")
-    .select("code, status")
-    .in("id", lobbyIds)
-    .neq("status", "done")
-    .order("last_active_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: lobby } = await withSupabaseTimeout(
+    adminSupabase
+      .from("lobbies")
+      .select("code, status")
+      .in("id", lobbyIds)
+      .neq("status", "done")
+      .order("last_active_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  );
 
   if (!lobby) return null;
   return { code: lobby.code, status: lobby.status as Lobby["status"] };

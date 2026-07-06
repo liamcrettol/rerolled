@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     const armorDefinitions = await getInventoryItemDefinitions(
-      collectEndgameArmorCandidateHashes(profile),
+      collectEndgameArmorCandidateHashes(profile, body.characterId),
       token
     );
 

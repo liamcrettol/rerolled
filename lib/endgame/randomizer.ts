@@ -52,6 +52,8 @@ export type EndgameArmorProfile = Pick<
   "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
 >;
 
+const ARMOR_BUCKET_HASHES = new Set([3448274439, 3551918588, 14239492, 20886954, 1585787867]);
+
 const BUNGIE_CDN = "https://www.bungie.net";
 const SLOTS: WeaponSlot[] = ["kinetic", "energy", "power"];
 
@@ -301,18 +303,30 @@ export function selectExoticArmorOptions(
 function collectItemHashes(items: DestinyItemComponent[] | undefined, target: Set<number>) {
   for (const item of items ?? []) {
     if (bucketToSlot(item.bucketHash)) continue;
+    if (!ARMOR_BUCKET_HASHES.has(item.bucketHash)) continue;
     if (item.itemHash > 0) target.add(item.itemHash);
   }
 }
 
-export function collectEndgameArmorCandidateHashes(profile: EndgameArmorProfile): number[] {
+export function collectEndgameArmorCandidateHashes(
+  profile: EndgameArmorProfile,
+  characterId: string
+): number[] {
   const hashes = new Set<number>();
+  const selectedCharacter = profile.characters.data[characterId];
+  if (!selectedCharacter) {
+    throw new Error("Character not found on your Bungie profile.");
+  }
 
-  for (const inventory of Object.values(profile.characterInventories?.data ?? {})) {
+  for (const [candidateCharacterId, inventory] of Object.entries(profile.characterInventories?.data ?? {})) {
+    const candidateCharacter = profile.characters.data[candidateCharacterId];
+    if (!candidateCharacter || candidateCharacter.classType !== selectedCharacter.classType) continue;
     collectItemHashes(inventory.items, hashes);
   }
 
-  for (const equipment of Object.values(profile.characterEquipment?.data ?? {})) {
+  for (const [candidateCharacterId, equipment] of Object.entries(profile.characterEquipment?.data ?? {})) {
+    const candidateCharacter = profile.characters.data[candidateCharacterId];
+    if (!candidateCharacter || candidateCharacter.classType !== selectedCharacter.classType) continue;
     collectItemHashes(equipment.items, hashes);
   }
 

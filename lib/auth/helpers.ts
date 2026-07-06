@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { adminSupabase } from "@/lib/supabase/admin";
+import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import { decryptToken, encryptToken } from "@/lib/auth/encrypt";
 
 const BUNGIE_REAUTH_MESSAGE = "Bungie sign-in expired. Please sign out and sign in again.";
@@ -35,11 +35,13 @@ export function isBungieAuthErrorMessage(msg: string): boolean {
 
 /** Retrieve a decrypted, valid Bungie access token. Refreshes automatically if expired. */
 export async function getBungieToken(userId: string): Promise<string> {
-  const { data, error } = await adminSupabase
-    .from("bungie_accounts")
-    .select("access_token_enc, refresh_token_enc, expires_at")
-    .eq("user_id", userId)
-    .single();
+  const { data, error } = await withSupabaseTimeout(
+    adminSupabase
+      .from("bungie_accounts")
+      .select("access_token_enc, refresh_token_enc, expires_at")
+      .eq("user_id", userId)
+      .single()
+  );
 
   if (error || !data) throw new Error("No Bungie account found for user");
 
@@ -91,15 +93,17 @@ async function refreshBungieToken(userId: string, refreshToken: string): Promise
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
-  await adminSupabase
-    .from("bungie_accounts")
-    .update({
-      access_token_enc: encryptedAccess,
-      ...(encryptedRefresh ? { refresh_token_enc: encryptedRefresh } : {}),
-      expires_at: expiresAt,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", userId);
+  await withSupabaseTimeout(
+    adminSupabase
+      .from("bungie_accounts")
+      .update({
+        access_token_enc: encryptedAccess,
+        ...(encryptedRefresh ? { refresh_token_enc: encryptedRefresh } : {}),
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+  );
 
   return tokens.access_token;
 }

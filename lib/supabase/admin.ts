@@ -9,16 +9,50 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 // defers createClient() to the first real property access at request time, so
 // importing a route no longer requires the service-role secret at build time.
 let client: SupabaseClient | null = null;
+const SUPABASE_REQUEST_TIMEOUT_MS = 5_000;
+
+function timedFetch(input: string | URL | Request, init?: RequestInit) {
+  const timeoutSignal = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal
+    ? AbortSignal.any([init.signal, timeoutSignal])
+    : timeoutSignal;
+  return fetch(input, { ...init, signal });
+}
 
 function getClient(): SupabaseClient {
   if (!client) {
     client = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { fetch: timedFetch },
+      }
     );
   }
   return client;
+}
+
+export async function withSupabaseTimeout<T>(
+  promise: PromiseLike<T>,
+  timeoutMs = SUPABASE_REQUEST_TIMEOUT_MS
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error("Supabase query timed out"));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
 }
 
 export const adminSupabase = new Proxy({} as SupabaseClient, {

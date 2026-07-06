@@ -5,7 +5,7 @@
 // a readable name. New/empty users get a clean zeroed summary. All failures
 // degrade to the empty state so the panel never breaks.
 
-import { adminSupabase } from "@/lib/supabase/admin";
+import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import { getWeaponDefinitions } from "@/lib/bungie/definitions";
 import type { SeasonStats } from "@/types/platform";
 import {
@@ -19,11 +19,13 @@ const FALLBACK_SEASON: SeasonRow = { season_key: "", display_name: "Season" };
 
 async function resolveFavoriteWeapon(userId: string): Promise<SeasonStats["bestWeapon"]> {
   try {
-    const { data } = await adminSupabase
-      .from("player_lifetime_stats")
-      .select("favorite_weapon_hash, total_rolled_weapon_kills")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const { data } = await withSupabaseTimeout(
+      adminSupabase
+        .from("player_lifetime_stats")
+        .select("favorite_weapon_hash, total_rolled_weapon_kills")
+        .eq("user_id", userId)
+        .maybeSingle()
+    );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const row = data as any;
     if (!row?.favorite_weapon_hash) return null;
@@ -38,25 +40,29 @@ async function resolveFavoriteWeapon(userId: string): Promise<SeasonStats["bestW
 
 export async function getSeasonStats(userId: string): Promise<SeasonStats> {
   try {
-    const { data: season } = await adminSupabase
-      .from("seasons")
-      .select("id, season_key, display_name")
-      .eq("status", "active")
-      .order("starts_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: season } = await withSupabaseTimeout(
+      adminSupabase
+        .from("seasons")
+        .select("id, season_key, display_name")
+        .eq("status", "active")
+        .order("starts_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = season as any;
     if (!s) return emptySeasonStats(FALLBACK_SEASON);
 
     const [{ data: statsRow }, bestWeapon] = await Promise.all([
-      adminSupabase
-        .from("player_season_stats")
-        .select("total_runs, total_weapon_kills, weekly_clears, best_weekly_rank")
-        .eq("user_id", userId)
-        .eq("season_id", s.id)
-        .maybeSingle(),
+      withSupabaseTimeout(
+        adminSupabase
+          .from("player_season_stats")
+          .select("total_runs, total_weapon_kills, weekly_clears, best_weekly_rank")
+          .eq("user_id", userId)
+          .eq("season_id", s.id)
+          .maybeSingle()
+      ),
       resolveFavoriteWeapon(userId),
     ]);
 

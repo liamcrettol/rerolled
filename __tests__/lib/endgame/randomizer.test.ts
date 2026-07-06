@@ -153,7 +153,7 @@ describe("selectExoticArmorOptions", () => {
 });
 
 describe("collectEndgameArmorCandidateHashes", () => {
-  it("only returns non-weapon hashes from equipment, inventory, and vault", () => {
+  it("only returns armor-slot hashes for the selected class plus vault", () => {
     const profile: Pick<
       BungieProfileResponse,
       "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
@@ -161,6 +161,7 @@ describe("collectEndgameArmorCandidateHashes", () => {
       characters: {
         data: {
           hunter: makeCharacter("hunter", 1),
+          warlock: makeCharacter("warlock", 2),
         },
       },
       characterEquipment: {
@@ -171,6 +172,11 @@ describe("collectEndgameArmorCandidateHashes", () => {
               { itemHash: 222, itemInstanceId: "b", quantity: 1, bindStatus: 0, location: 1, bucketHash: 1498876634, transferStatus: 0, lockable: false, state: 0 },
             ],
           },
+          warlock: {
+            items: [
+              { itemHash: 999, itemInstanceId: "z", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3448274439, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
         },
       },
       characterInventories: {
@@ -178,6 +184,12 @@ describe("collectEndgameArmorCandidateHashes", () => {
           hunter: {
             items: [
               { itemHash: 333, itemInstanceId: "c", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3551918588, transferStatus: 0, lockable: false, state: 0 },
+              { itemHash: 777, itemInstanceId: "f", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3284755031, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
+          warlock: {
+            items: [
+              { itemHash: 888, itemInstanceId: "y", quantity: 1, bindStatus: 0, location: 1, bucketHash: 14239492, transferStatus: 0, lockable: false, state: 0 },
             ],
           },
         },
@@ -192,6 +204,6 @@ describe("collectEndgameArmorCandidateHashes", () => {
       },
     };
 
-    expect(collectEndgameArmorCandidateHashes(profile)).toEqual([333, 111, 444]);
+    expect(collectEndgameArmorCandidateHashes(profile, "hunter")).toEqual([333, 111, 444]);
   });
 });
