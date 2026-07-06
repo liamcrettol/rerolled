@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getWeapons } from "@/lib/bungie/inventory";
-import { ensureManifest } from "@/lib/manifest/lookup";
 import { rollLoadout } from "@/lib/roulette/intersection";
 import { seededRng } from "@/lib/roulette/seededRng";
 import { rerollCountFromRules } from "@/lib/challenges/present";
@@ -84,7 +83,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
 
     // Build the roll pool from the owner's full inventory (character + vault).
-    await ensureManifest();
     const token = await getBungieToken(session.userId);
     const weapons = await getWeapons(
       session.bungieMembershipType,

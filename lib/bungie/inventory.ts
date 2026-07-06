@@ -1,8 +1,17 @@
 import { bungieGet } from "./client";
 import type { BungieProfileResponse, DestinyCharacter } from "@/types/bungie";
 import { ALL_WEAPON_BUCKETS, bucketToSlot } from "@/types/bungie";
-import { lookupWeapon } from "@/lib/manifest/lookup";
+import { getWeaponDefinitions } from "@/lib/bungie/definitions";
 import type { ResolvedWeapon } from "@/types/weapon";
+
+const DAMAGE_TYPE_ICONS: Record<string, string> = {
+  Kinetic: "/icons/damage-kinetic.png",
+  Solar: "/icons/damage-solar.png",
+  Arc: "/icons/damage-arc.png",
+  Void: "/icons/damage-void.png",
+  Stasis: "/icons/damage-stasis.png",
+  Strand: "/icons/damage-strand.png",
+};
 
 const PROFILE_COMPONENTS = [
   200, // Characters
@@ -40,19 +49,25 @@ export async function getCharacters(
   return Object.values(profile.characters.data);
 }
 
+interface RawItem {
+  itemHash: number;
+  itemInstanceId: string;
+  slot: "kinetic" | "energy" | "power";
+  location: "character" | "vault" | "postmaster";
+  characterId?: string;
+  isEquipped: boolean;
+}
+
 export async function getWeapons(
   membershipType: number,
   membershipId: string,
   accessToken: string
 ): Promise<ResolvedWeapon[]> {
   const profile = await getProfile(membershipType, membershipId, accessToken);
-  const weapons: ResolvedWeapon[] = [];
-
   const instances = profile.itemComponents?.instances?.data ?? {};
-  const sockets = profile.itemComponents?.sockets?.data ?? {};
-  const reusablePlugs = profile.itemComponents?.reusablePlugs?.data ?? {};
+  const raw: RawItem[] = [];
 
-  function processItems(
+  function collectItems(
     items: BungieProfileResponse["characterInventories"]["data"][string]["items"],
     location: "character" | "vault" | "postmaster",
     characterId?: string,
@@ -63,22 +78,16 @@ export async function getWeapons(
 
       const slot = bucketToSlot(item.bucketHash);
       if (!slot) continue;
+      if (!instances[item.itemInstanceId]) continue;
 
-      const instance = instances[item.itemInstanceId];
-      if (!instance) continue;
-
-      const resolved = lookupWeapon({
-        item,
-        instance,
-        sockets: sockets[item.itemInstanceId]?.sockets ?? [],
-        reusablePlugs: reusablePlugs[item.itemInstanceId]?.plugs ?? {},
+      raw.push({
+        itemHash: item.itemHash,
+        itemInstanceId: item.itemInstanceId,
         slot,
         location,
         characterId,
         isEquipped: equippedSet?.has(item.itemInstanceId) ?? false,
       });
-
-      if (resolved) weapons.push(resolved);
     }
   }
 
@@ -87,7 +96,7 @@ export async function getWeapons(
     profile.characterEquipment?.data ?? {}
   )) {
     const equippedIds = new Set(charEquip.items.map((i) => i.itemInstanceId));
-    processItems(charEquip.items, "character", charId, equippedIds);
+    collectItems(charEquip.items, "character", charId, equippedIds);
   }
 
   // Unequipped items per character
@@ -99,12 +108,45 @@ export async function getWeapons(
         (i) => i.itemInstanceId
       )
     );
-    processItems(charInv.items, "character", charId, equippedIds);
+    collectItems(charInv.items, "character", charId, equippedIds);
   }
 
   // Vault
   const vaultItems = profile.profileInventory?.data?.items ?? [];
-  processItems(vaultItems, "vault");
+  collectItems(vaultItems, "vault");
+
+  // Resolved from the prebuilt static weapons table (lib/bungie/definitions.ts),
+  // not the live ~190MB Bungie manifest — that path OOM'd the roll route (#274).
+  const defs = await getWeaponDefinitions([...new Set(raw.map((r) => r.itemHash))]);
+
+  const weapons: ResolvedWeapon[] = [];
+  for (const item of raw) {
+    const def = defs.get(item.itemHash);
+    if (!def) continue;
+    const instance = instances[item.itemInstanceId];
+    weapons.push({
+      itemHash: item.itemHash,
+      itemInstanceId: item.itemInstanceId,
+      name: def.name,
+      flavorText: def.flavorText,
+      icon: def.icon,
+      slot: item.slot,
+      weaponType: def.weaponType,
+      ammoType: def.ammoType,
+      damageType: def.damageType,
+      damageTypeIcon: DAMAGE_TYPE_ICONS[def.damageType] ?? DAMAGE_TYPE_ICONS.Kinetic,
+      lightLevel: instance?.primaryStat?.value ?? 0,
+      isEquipped: item.isEquipped,
+      location: item.location,
+      characterId: item.characterId,
+      // Perks/stats aren't needed by any current caller (roll route only reads
+      // the fields above) — left empty rather than resolving sockets here.
+      perks: [],
+      stats: [],
+      tierType: def.tierType,
+      tierName: def.tierName,
+    });
+  }
 
   return weapons;
 }
