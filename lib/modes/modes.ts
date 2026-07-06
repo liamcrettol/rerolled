@@ -19,7 +19,7 @@ import type { ModeDefinition, ModeId } from "@/types/platform";
 export const MODES: Record<ModeId, ModeDefinition> = {
   gun_roulette: {
     id: "gun_roulette",
-    title: "Open Table",
+    title: "Loadout Roulette",
     eyebrow: "Fireteam",
     description: "Create a shared loadout lobby for Crucible.",
     status: "live",
@@ -54,7 +54,7 @@ export const MODES: Record<ModeId, ModeDefinition> = {
   },
   draft: {
     id: "draft",
-    title: "Full House",
+    title: "Draft",
     eyebrow: "Fireteam",
     description: "Choose 1 of 3 for each slot.",
     status: "new",
