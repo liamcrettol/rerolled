@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
-import { bungieGet } from "@/lib/bungie/client";
+import { bungieGet, getInventoryItemDefinitions } from "@/lib/bungie/client";
 import { getWeapons } from "@/lib/bungie/inventory";
-import { getManifest } from "@/lib/manifest/download";
 import type { BungieProfileResponse } from "@/types/bungie";
 import {
   buildEndgameWeaponRoll,
   CLASS_NAMES,
+  collectEndgameArmorCandidateHashes,
   pickEndgameActivity,
   selectExoticArmorOptions,
   type EndgameActivityKind,
@@ -29,27 +29,22 @@ export async function POST(req: NextRequest) {
     const activityKinds = [...new Set(body.activityKinds)] as EndgameActivityKind[];
     const token = await getBungieToken(session.userId);
 
-    const [weapons, profile, manifest] = await Promise.all([
+    const [weapons, profile] = await Promise.all([
       getWeapons(session.bungieMembershipType, session.bungieMembershipId, token),
       bungieGet<BungieProfileResponse>(
         `/Destiny2/${session.bungieMembershipType}/Profile/${session.bungieMembershipId}/?components=${PROFILE_COMPONENTS}`,
         token
       ),
-      getManifest(),
     ]);
+
+    const armorDefinitions = await getInventoryItemDefinitions(
+      collectEndgameArmorCandidateHashes(profile),
+      token
+    );
 
     const { character, options } = selectExoticArmorOptions(
       profile,
-      manifest.items as Record<string, unknown> as Record<
-        string,
-        {
-          itemType?: number;
-          classType?: number;
-          itemTypeDisplayName?: string;
-          inventory?: { tierType?: number };
-          displayProperties?: { name?: string; icon?: string };
-        }
-      >,
+      armorDefinitions,
       body.characterId
     );
 

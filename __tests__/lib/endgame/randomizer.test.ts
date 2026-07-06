@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import {
   buildEndgameWeaponRoll,
+  collectEndgameArmorCandidateHashes,
   pickEndgameActivity,
   selectExoticArmorOptions,
 } from "@/lib/endgame/randomizer";
@@ -148,5 +149,49 @@ describe("selectExoticArmorOptions", () => {
       characterId: "hunter",
       isEquipped: true,
     });
+  });
+});
+
+describe("collectEndgameArmorCandidateHashes", () => {
+  it("only returns non-weapon hashes from equipment, inventory, and vault", () => {
+    const profile: Pick<
+      BungieProfileResponse,
+      "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
+    > = {
+      characters: {
+        data: {
+          hunter: makeCharacter("hunter", 1),
+        },
+      },
+      characterEquipment: {
+        data: {
+          hunter: {
+            items: [
+              { itemHash: 111, itemInstanceId: "a", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3448274439, transferStatus: 0, lockable: false, state: 0 },
+              { itemHash: 222, itemInstanceId: "b", quantity: 1, bindStatus: 0, location: 1, bucketHash: 1498876634, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
+        },
+      },
+      characterInventories: {
+        data: {
+          hunter: {
+            items: [
+              { itemHash: 333, itemInstanceId: "c", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3551918588, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
+        },
+      },
+      profileInventory: {
+        data: {
+          items: [
+            { itemHash: 444, itemInstanceId: "d", quantity: 1, bindStatus: 0, location: 2, bucketHash: 1585787867, transferStatus: 0, lockable: false, state: 0 },
+            { itemHash: 222, itemInstanceId: "e", quantity: 1, bindStatus: 2, location: 2, bucketHash: 1498876634, transferStatus: 0, lockable: false, state: 0 },
+          ],
+        },
+      },
+    };
+
+    expect(collectEndgameArmorCandidateHashes(profile)).toEqual([333, 111, 444]);
   });
 });

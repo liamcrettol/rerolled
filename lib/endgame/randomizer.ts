@@ -1,6 +1,7 @@
 import { getActivityPool, type ActivityKind, type ScoreAttackActivity } from "@/lib/scoreAttack/activityPool";
 import { rollLoadout } from "@/lib/roulette/intersection";
-import type { BungieProfileResponse, DestinyCharacter, WeaponSlot } from "@/types/bungie";
+import { bucketToSlot } from "@/types/bungie";
+import type { BungieProfileResponse, DestinyCharacter, DestinyItemComponent, WeaponSlot } from "@/types/bungie";
 import type { ResolvedWeapon } from "@/types/weapon";
 
 export type EndgameActivityKind = "grandmaster" | "dungeon" | "raid";
@@ -45,6 +46,11 @@ interface ManifestItemLike {
     icon?: string;
   };
 }
+
+export type EndgameArmorProfile = Pick<
+  BungieProfileResponse,
+  "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
+>;
 
 const BUNGIE_CDN = "https://www.bungie.net";
 const SLOTS: WeaponSlot[] = ["kinetic", "energy", "power"];
@@ -222,7 +228,7 @@ function uniqueCharacterItemRows(
 }
 
 export function selectExoticArmorOptions(
-  profile: Pick<BungieProfileResponse, "characters" | "characterEquipment" | "characterInventories" | "profileInventory">,
+  profile: EndgameArmorProfile,
   manifestItems: Record<string, ManifestItemLike>,
   characterId: string
 ): { character: DestinyCharacter; options: ExoticArmorChoice[] } {
@@ -290,4 +296,27 @@ export function selectExoticArmorOptions(
   });
 
   return { character, options };
+}
+
+function collectItemHashes(items: DestinyItemComponent[] | undefined, target: Set<number>) {
+  for (const item of items ?? []) {
+    if (bucketToSlot(item.bucketHash)) continue;
+    if (item.itemHash > 0) target.add(item.itemHash);
+  }
+}
+
+export function collectEndgameArmorCandidateHashes(profile: EndgameArmorProfile): number[] {
+  const hashes = new Set<number>();
+
+  for (const inventory of Object.values(profile.characterInventories?.data ?? {})) {
+    collectItemHashes(inventory.items, hashes);
+  }
+
+  for (const equipment of Object.values(profile.characterEquipment?.data ?? {})) {
+    collectItemHashes(equipment.items, hashes);
+  }
+
+  collectItemHashes(profile.profileInventory?.data?.items, hashes);
+
+  return [...hashes];
 }

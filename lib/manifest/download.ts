@@ -29,42 +29,32 @@ let memoryCache: CachedManifest | null = null;
 export async function getManifest(): Promise<CachedManifest> {
   if (memoryCache) return memoryCache;
 
-  // Check DB for cached version and fetch the current manifest version from
-  // Bungie in parallel — neither depends on the other's result.
-  const [{ data: meta }, res] = await Promise.all([
-    adminSupabase
-      .from("cached_manifest_metadata")
-      .select("version, cached_at")
-      .order("cached_at", { ascending: false })
-      .limit(1)
-      .single(),
-    fetch(MANIFEST_URL, {
-      headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
-      next: { revalidate: 3600 },
-    }),
-  ]);
+  const res = await fetch(MANIFEST_URL, {
+    headers: { "X-API-Key": process.env.BUNGIE_API_KEY! },
+    next: { revalidate: 3600 },
+  });
   const manifestData: { Response: ManifestResponse } = await res.json();
   const { version, jsonWorldComponentContentPaths } = manifestData.Response;
   const paths = jsonWorldComponentContentPaths.en;
 
-  if (meta?.version === version) {
-    // Version hasn't changed - load from DB cache
-    const { data: cached } = await adminSupabase
-      .from("cached_manifest_metadata")
-      .select("items_json, stats_json, damage_types_json, sandbox_perks_json")
-      .eq("version", version)
-      .single();
+  // Other jobs also persist rows here, so "latest cached row" is not reliable.
+  // Always look up the exact Bungie manifest version before falling back to the
+  // expensive full-table download path.
+  const { data: cached } = await adminSupabase
+    .from("cached_manifest_metadata")
+    .select("items_json, stats_json, damage_types_json, sandbox_perks_json")
+    .eq("version", version)
+    .maybeSingle();
 
-    if (cached) {
-      memoryCache = {
-        version,
-        items: cached.items_json,
-        stats: cached.stats_json,
-        damageTypes: cached.damage_types_json,
-        sandboxPerks: cached.sandbox_perks_json,
-      };
-      return memoryCache;
-    }
+  if (cached) {
+    memoryCache = {
+      version,
+      items: cached.items_json,
+      stats: cached.stats_json,
+      damageTypes: cached.damage_types_json,
+      sandboxPerks: cached.sandbox_perks_json,
+    };
+    return memoryCache;
   }
 
   // Download fresh manifest tables
