@@ -4,6 +4,7 @@ import SignInButton from "@/components/SignInButton";
 import HeroReel from "@/components/HeroReel";
 import ModeSpotlight from "@/components/ModeSpotlight";
 import FireteamMoment from "@/components/FireteamMoment";
+import FireteamReadyPanel from "@/components/FireteamReadyPanel";
 import LandingFaq from "@/components/LandingFaq";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { MODES } from "@/lib/modes/modes";
@@ -39,11 +40,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         </h1>
       </div>
 
-      <HeroReel weaponsBySlot={heroWeaponsBySlot} />
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <HeroReel weaponsBySlot={heroWeaponsBySlot} />
+        <FireteamReadyPanel />
+      </div>
+
+      <FireteamMoment />
 
       <ModeSpotlight modes={LANDING_MODES} />
-
-      <FireteamMoment weaponsBySlot={heroWeaponsBySlot} />
 
       <LandingFaq />
 
