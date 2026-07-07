@@ -520,7 +520,7 @@ export default function RollDetails({
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
                   aria-label={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
-                  className={`group relative grid grid-cols-[1fr_1rem] items-center gap-2 pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
+                  className={`group relative grid grid-cols-[1fr_1.75rem] items-center gap-2 pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     inst.isBestRoll
                       ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
                       : isSel
@@ -541,7 +541,7 @@ export default function RollDetails({
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleFavorite(activeTab, slot.itemHash, inst.instanceId); }}
                       aria-label={fav ? "Unfavorite" : "Favorite auto-picked on roll"}
-                      className={`h-8 w-4 justify-self-end text-sm leading-none transition-colors duration-150 ${fav ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}`}
+                      className={`h-8 w-7 justify-self-end text-lg leading-none transition-colors duration-150 ${fav ? "text-yellow-400" : "text-gray-500 hover:text-yellow-400"}`}
                     >
                       {fav ? "★" : "☆"}
                     </button>
