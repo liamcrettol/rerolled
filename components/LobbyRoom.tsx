@@ -122,6 +122,8 @@ export default function LobbyRoom({
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false);
+  const [endSessionError, setEndSessionError] = useState<string | null>(null);
+  const [endingSession, setEndingSession] = useState(false);
   // Confirmation for picking a second Special-ammo weapon into kinetic+energy
   // (leaves no Primary in the loadout) - styled like the End Session dialog
   // instead of a native browser confirm() (#187).
@@ -454,15 +456,27 @@ export default function LobbyRoom({
   }, [lobby.id, router, stopPolling]);
 
   const handleEndSession = useCallback(async () => {
-    setShowEndSessionConfirm(false);
-    stopPolling();
-    await fetch("/api/lobby/end", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lobbyId: lobby.id }),
-    });
-    router.push("/dashboard");
-    router.refresh();
+    setEndSessionError(null);
+    setEndingSession(true);
+    try {
+      const res = await fetch("/api/lobby/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error ?? "Couldn't end the session. Try again.");
+      }
+      stopPolling();
+      setShowEndSessionConfirm(false);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (e) {
+      setEndSessionError(e instanceof Error ? e.message : "Couldn't end the session. Try again.");
+    } finally {
+      setEndingSession(false);
+    }
   }, [lobby.id, router, stopPolling]);
 
   // Picking a character is all a player needs to do - it persists their
@@ -657,7 +671,7 @@ export default function LobbyRoom({
                 )}
                 {isHost && (
                   <button
-                    onClick={() => { setShowOverflowMenu(false); setShowEndSessionConfirm(true); }}
+                    onClick={() => { setShowOverflowMenu(false); setEndSessionError(null); setShowEndSessionConfirm(true); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
                   >
                     End Session
@@ -685,8 +699,10 @@ export default function LobbyRoom({
               body="Closes the lobby for everyone."
               confirmLabel="End Session"
               tone="danger"
-              onCancel={() => setShowEndSessionConfirm(false)}
+              onCancel={() => { setShowEndSessionConfirm(false); setEndSessionError(null); }}
               onConfirm={handleEndSession}
+              error={endSessionError}
+              confirming={endingSession}
             />
           )}
 
