@@ -290,7 +290,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
       <div className="space-y-3">
         <p className="text-sm text-gray-400">
           {run.status === "failed"
-            ? "Scoring failed for this run — the clear couldn't be verified."
+            ? "Scoring failed for this run. The clear couldn't be verified."
             : "This run ended without a scored clear."}
         </p>
         <button
@@ -373,11 +373,11 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
           <Loader2 size={14} className={`animate-spin ${a.text}`} />
           {run.status === "applied" || run.status === "in_activity" ? (
             <span>
-              Loadout equipped — launch {activityName ?? "your activity"} in-game. The clear is
+              Loadout equipped. Launch {activityName ?? "your activity"} in-game. The clear is
               detected and scored automatically.
             </span>
           ) : (
-            <span>Clear detected — fetching the report and scoring your run…</span>
+            <span>Clear detected. Fetching the report and scoring your run…</span>
           )}
         </div>
 
@@ -422,7 +422,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
             <Loader2 size={12} className="animate-spin" /> Loading characters…
           </p>
         ) : characters.length === 0 ? (
-          <p className="text-xs text-red-400">Couldn&apos;t load your characters — try refreshing.</p>
+          <p className="text-xs text-red-400">Couldn&apos;t load your characters. Try refreshing.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {characters.map((c) => (

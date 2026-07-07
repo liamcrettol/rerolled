@@ -102,7 +102,7 @@ function StatsTable({ stats }: { stats: PlayerStat[] }) {
                     ? <Badge tone="win" size="roomy">W</Badge>
                     : s.won === false
                     ? <Badge tone="loss" size="roomy">L</Badge>
-                    : <span className="text-gray-500 text-xs">—</span>}
+                    : <span className="text-gray-500 text-xs">-</span>}
                 </td>
               )}
               <td className="px-2 py-1.5 text-right tabular-nums">{s.kills}</td>
@@ -151,7 +151,7 @@ export default function LobbyStatsPanel({
         return (
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-bungie-border/40 bg-green-900/10">
             <span className="text-xs font-semibold text-green-400">
-              {result === true ? "W" : result === false ? "L" : "—"}
+              {result === true ? "W" : result === false ? "L" : "-"}
             </span>
             <span className="text-xs text-gray-300 flex-1 truncate inline-flex items-center gap-1.5">
               <Crown size={12} className="shrink-0 text-yellow-400" />

@@ -568,7 +568,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-gray-700">
-                      —
+                      -
                     </div>
                   )}
                 </div>

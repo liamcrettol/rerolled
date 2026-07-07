@@ -161,6 +161,11 @@ notices and rejects the generic look immediately. The rules:
   centered stage) — Liam calls out dead space. Big uppercase slot/stage titles,
   progress steppers as square bordered pills, trays pinned to the bottom.
   Game-feel references he reaches for: Clash Royale card reveals, slot reels.
+- **Never use em dashes (—) anywhere in user-facing text** — page copy, button
+  labels, error/toast messages, API error strings, dialog bodies, placeholder
+  glyphs. Use a period, comma, or separate sentence instead (a plain hyphen
+  `-` is fine for a "no value" table placeholder). Swept the whole app clean
+  of them 2026-07-07 — don't reintroduce while writing new copy.
 
 ---
 

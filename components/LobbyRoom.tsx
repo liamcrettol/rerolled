@@ -692,7 +692,7 @@ export default function LobbyRoom({
           {pendingSpecialSelect && (
             <ConfirmDialog
               title="Select this weapon anyway?"
-              body={`${pendingSpecialSelect.otherName} is already Special — this leaves no Primary in the loadout.`}
+              body={`${pendingSpecialSelect.otherName} is already Special. This leaves no Primary in the loadout.`}
               confirmLabel="Select Anyway"
               onCancel={() => setPendingSpecialSelect(null)}
               onConfirm={() => {

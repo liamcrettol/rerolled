@@ -446,7 +446,7 @@ describe("applyWeapons result enrichment", () => {
     expect(results).toHaveLength(1);
     expect(results[0].success).toBe(false);
     expect(results[0].error).toBe(
-      "Inventory full and no spare weapon to move — clear a slot, then Apply again"
+      "Inventory full and no spare weapon to move. Clear a slot, then Apply again."
     );
     expect(results[0].error_detail).toBe("Bungie code 1642 DestinationFull");
     expect(results[0].weapon_name).toBe("Riptide");

@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     // join. (Stats tracking warns separately that 2+ players are needed.)
     if (!members?.length) {
       return NextResponse.json(
-        { error: "You're not in this lobby — try rejoining." },
+        { error: "You're not in this lobby. Try rejoining." },
         { status: 404 }
       );
     }

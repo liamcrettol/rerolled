@@ -381,7 +381,7 @@ export default function RollDetails({
               ) : inst ? (
                 rollPreview(inst)
               ) : (
-                <span className="text-gray-500 text-xs">—</span>
+                <span className="text-gray-500 text-xs">-</span>
               )}
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function RollDetails({
                   <div key={s} className="flex items-center gap-2">
                     <span className="w-[4.5rem] text-gray-400 text-xs truncate">{s}</span>
                     <div className="flex-1 h-2.5 bg-gray-700/40" />
-                    <span className="w-7 text-right text-gray-500 text-sm">—</span>
+                    <span className="w-7 text-right text-gray-500 text-sm">-</span>
                     <span className="w-7" />
                   </div>
                 );
@@ -445,9 +445,9 @@ export default function RollDetails({
             {/* Reserve height for the tallest slot so switching tabs doesn't resize the panel. */}
             {Array.from({ length: Math.max(0, maxStatRows - statRows.length) }).map((_, i) => (
               <div key={`pad-${i}`} className="flex items-center gap-2" aria-hidden="true">
-                <span className="w-[4.5rem] text-xs invisible">—</span>
+                <span className="w-[4.5rem] text-xs invisible">-</span>
                 <div className="flex-1 h-2.5" />
-                <span className="w-7 text-sm invisible">—</span>
+                <span className="w-7 text-sm invisible">-</span>
                 <span className="w-7" />
               </div>
             ))}

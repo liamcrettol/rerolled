@@ -61,7 +61,7 @@ export default async function LeaderboardsPage() {
               </div>
               {scoreAttack.length === 0 ? (
                 <p className="text-sm text-gray-500 px-3 py-6 text-center">
-                  No scored runs yet — be the first.
+                  No scored runs yet. Be the first.
                 </p>
               ) : (
                 scoreAttack.map((e) => <StandingsRow key={e.userId} entry={e} />)

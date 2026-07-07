@@ -50,7 +50,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         {code && (
           <p className="text-sm text-bungie-blue text-center">
-            Invited to lobby <span className="font-mono font-bold slashed-zero">{code}</span> — sign in to join.
+            Invited to lobby <span className="font-mono font-bold slashed-zero">{code}</span>. Sign in to join.
           </p>
         )}
         <SignInButton returnTo={code ? `/join/${code}` : undefined} />

@@ -98,7 +98,7 @@ export async function generateSlotOptions(
   const pool: number[] = poolRow?.pool?.[slot] ?? [];
   const details: Record<string, WeaponDetail> = poolRow?.weapon_details ?? {};
   if (pool.length === 0) {
-    return { ok: false, error: "No shared weapon pool cached yet — open the lobby's weapon browser first" };
+    return { ok: false, error: "No shared weapon pool cached yet. Open the lobby's weapon browser first." };
   }
 
   const candidatePool = await applyAmmoRules(slot, roundId, pool, db);

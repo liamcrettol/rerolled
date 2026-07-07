@@ -197,7 +197,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
 
             const date = session?.played_at
               ? new Date(session.played_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-              : "—";
+              : "-";
 
             const isPrivate = session?.is_private === true;
 
@@ -220,7 +220,7 @@ export default async function PlayerStatsPage({ params }: { params: Promise<{ us
                 <div className="w-8 shrink-0 text-center">
                   {row.won === true && <span className="text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/30 px-1 py-0.5">W</span>}
                   {row.won === false && <span className="text-[10px] font-bold text-red-400 bg-red-400/10 border border-red-400/30 px-1 py-0.5">L</span>}
-                  {row.won === null && <span className="text-gray-500 text-xs">—</span>}
+                  {row.won === null && <span className="text-gray-500 text-xs">-</span>}
                 </div>
 
                 {/* Stats */}

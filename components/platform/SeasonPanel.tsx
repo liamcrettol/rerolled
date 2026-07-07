@@ -32,7 +32,7 @@ export default function SeasonPanel({ stats }: { stats: SeasonStats }) {
             <StatRow label="Weeklies cleared" value={stats.weeklyChallengesCleared} />
             <StatRow
               label="Best placement"
-              value={stats.bestWeeklyPlacement ? `#${stats.bestWeeklyPlacement}` : "—"}
+              value={stats.bestWeeklyPlacement ? `#${stats.bestWeeklyPlacement}` : "-"}
             />
             <StatRow
               label="Best weapon"
@@ -45,7 +45,7 @@ export default function SeasonPanel({ stats }: { stats: SeasonStats }) {
                     )}
                   </span>
                 ) : (
-                  "—"
+                  "-"
                 )
               }
             />

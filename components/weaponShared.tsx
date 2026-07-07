@@ -144,7 +144,7 @@ function FloatingTooltip({
 
         {isCollection && (
           <p className="mt-2 text-[11px] text-amber-300/90 leading-snug">
-            Not owned by everyone — pull from Collections before applying.
+            Not owned by everyone. Pull from Collections before applying.
           </p>
         )}
 

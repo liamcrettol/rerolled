@@ -478,7 +478,7 @@ export async function applyWeapons(
           conflictSlot,
           conflictingExotic.itemHash,
           false,
-          `Cannot swap out exotic in ${conflictSlot} slot — no legendary available`
+          `Cannot swap out exotic in ${conflictSlot} slot. No legendary available.`
         )
       );
       continue;
@@ -530,7 +530,7 @@ export async function applyWeapons(
       }
       const raw = err instanceof Error ? err.message : "Transfer failed";
       const friendly = isNoRoomError(err)
-        ? "Inventory full and no spare weapon to move — clear a slot, then Apply again"
+        ? "Inventory full and no spare weapon to move. Clear a slot, then Apply again."
         : raw;
       results.push(makeResult(weapon.slot, weapon.itemHash, false, friendly, raw));
     }

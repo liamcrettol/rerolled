@@ -17,7 +17,7 @@ const SCORING_POINTS = [
   {
     icon: Target,
     label: "Rolled-weapon kills",
-    detail: `+${S.rolledWeaponKillPoints} each, +${S.rolledWeaponPrecisionBonus} per precision kill — kills with anything else score nothing.`,
+    detail: `+${S.rolledWeaponKillPoints} each, +${S.rolledWeaponPrecisionBonus} per precision kill. Kills with anything else score nothing.`,
   },
   {
     icon: Timer,
@@ -53,7 +53,7 @@ export default async function ScoreAttackPage() {
           </h1>
           <p className="text-sm text-gray-400 mt-2 max-w-xl">
             Roll three guns from your own inventory, equip them, and clear any PvE activity. Your
-            clear is detected from your match history and scored automatically — no screenshots, no
+            clear is detected from your match history and scored automatically. No screenshots, no
             honor system.
           </p>
 
@@ -76,7 +76,7 @@ export default async function ScoreAttackPage() {
             ))}
           </div>
           <p className="text-xs text-gray-600 mt-3">
-            Swapping off your rolled guns mid-run flags the score — equipment is spot-checked while
+            Swapping off your rolled guns mid-run flags the score. Equipment is spot-checked while
             you play.
           </p>
         </section>

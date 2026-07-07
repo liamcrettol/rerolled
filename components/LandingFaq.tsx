@@ -22,7 +22,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Is it free?",
-    a: "Yes — free to use.",
+    a: "Yes, free to use.",
   },
 ];
 

@@ -294,7 +294,7 @@ function WeaponCard({
             className="w-full border-t border-bungie-border/50 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 hover:bg-white/5 transition flex items-center gap-1.5 disabled:opacity-40"
           >
             <Star size={11} className="text-bungie-blue" />
-            {rolls.length} rolls — select to choose
+            {rolls.length} rolls, select to choose
           </button>
         )
       )}
