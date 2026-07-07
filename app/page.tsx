@@ -5,7 +5,6 @@ import HeroReel from "@/components/HeroReel";
 import ModeSpotlight from "@/components/ModeSpotlight";
 import FireteamMoment from "@/components/FireteamMoment";
 import FireteamReadyPanel from "@/components/FireteamReadyPanel";
-import LandingFaq from "@/components/LandingFaq";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { MODES } from "@/lib/modes/modes";
 import Link from "next/link";
@@ -47,10 +46,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
 
       <FireteamMoment />
 
-      <ModeSpotlight modes={LANDING_MODES} />
-
-      <LandingFaq />
-
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         {code && (
           <p className="text-sm text-bungie-blue text-center">
@@ -58,10 +53,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
           </p>
         )}
         <SignInButton returnTo={code ? `/join/${code}` : undefined} />
-        <p className="text-xs text-gray-500 text-center">
-          Reads your inventory to build rolls. Nothing gets deleted or spent.
-        </p>
       </div>
+
+      <ModeSpotlight modes={LANDING_MODES} />
 
       <div className="flex items-center gap-3 text-xs text-gray-600">
         <span>Made by Invict Software Solutions</span>
