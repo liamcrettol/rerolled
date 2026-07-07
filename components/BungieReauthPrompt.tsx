@@ -20,7 +20,7 @@ export default function BungieReauthPrompt({
         >
           Reconnect Bungie
         </a>
-        <p className="text-xs text-gray-500">This opens Bungie&apos;s account picker and refreshes your app session.</p>
+        <p className="text-xs text-gray-500">Opens Bungie&apos;s account picker to refresh your session.</p>
       </div>
     </div>
   );

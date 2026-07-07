@@ -276,7 +276,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
         </button>
         {needsReauth ? (
           <div className="mt-4">
-            <BungieReauthPrompt message="Your Bungie connection needs to be refreshed before we can roll from your live inventory." />
+            <BungieReauthPrompt message="Your Bungie connection looks stale. Reconnect it to roll from your live inventory." />
           </div>
         ) : error ? (
           <p className="text-xs text-red-400 mt-3">{error}</p>
@@ -373,8 +373,8 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
           <Loader2 size={14} className={`animate-spin ${a.text}`} />
           {run.status === "applied" || run.status === "in_activity" ? (
             <span>
-              Loadout equipped. Launch {activityName ?? "your activity"} in-game. The clear is
-              detected and scored automatically.
+              Loadout equipped. Go clear {activityName ?? "your activity"}, we&apos;ll catch
+              your finish and score it automatically.
             </span>
           ) : (
             <span>Clear detected. Fetching the report and scoring your run…</span>
@@ -390,7 +390,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
           Abandon run
         </button>
         {needsReauth ? (
-          <BungieReauthPrompt message="Your Bungie connection expired while this run was active. Reconnect it, then try again." />
+          <BungieReauthPrompt message="Your Bungie connection expired mid-run. Reconnect it, then try again." />
         ) : error ? (
           <p className="text-xs text-red-400">{error}</p>
         ) : null}
@@ -467,7 +467,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
         </button>
       </div>
       {needsReauth ? (
-        <BungieReauthPrompt message="Your Bungie connection needs to be refreshed before we can continue this run." />
+        <BungieReauthPrompt message="Your Bungie connection looks stale. Reconnect it to keep going." />
       ) : error ? (
         <p className="text-xs text-red-400">{error}</p>
       ) : null}

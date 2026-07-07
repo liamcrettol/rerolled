@@ -10,15 +10,15 @@ import { ChevronDown } from "lucide-react";
 const FAQ: Array<{ q: string; a: string }> = [
   {
     q: "Why does this need my Bungie account?",
-    a: "Rolls are drawn from your real inventory, and applying a loadout equips it through Bungie's API. Both only work with your account connected.",
+    a: "Rolling pulls from your real inventory, and equipping a loadout goes through Bungie's API. Both need your account connected to work.",
   },
   {
     q: "Is my account safe?",
-    a: "Nothing is deleted, sold, or transferred. Your Bungie tokens are encrypted at rest and only ever used server-side.",
+    a: "We don't delete, sell, or transfer anything. Your login token is encrypted and never leaves our server.",
   },
   {
     q: "What can't it do?",
-    a: "It can't spend Silver, delete items, or take any action beyond reading your inventory and equipping the loadouts you or your captain roll.",
+    a: "It can't touch your Silver, delete anything, or go beyond reading your inventory and equipping whatever you or your captain rolls.",
   },
   {
     q: "Is it free?",
