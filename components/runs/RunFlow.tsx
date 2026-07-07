@@ -290,7 +290,7 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
       <div className="space-y-3">
         {run.status === "failed" && (
           <p className="text-sm text-gray-400">
-            Scoring failed for this run. The clear couldn't be verified.
+            Scoring failed for this run. The clear couldn&apos;t be verified.
           </p>
         )}
         <button
