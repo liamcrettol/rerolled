@@ -463,8 +463,8 @@ export default function RollDetails({
             </p>
           </div>
           {myShown && (
-            <span className={`shrink-0 border px-2 py-1 text-[11px] font-semibold ${myShown.isBestRoll ? "border-amber-400/50 bg-amber-400/10 text-amber-200" : `${theme.border} ${theme.bg} ${theme.text}`}`}>
-              {myShown.isBestRoll ? bestRollLabel(myShown) : "Selected roll"}
+            <span className={`shrink-0 border px-2 py-1 text-[11px] font-semibold ${theme.border} ${theme.bg} ${theme.text}`}>
+              Selected roll
             </span>
           )}
         </div>
