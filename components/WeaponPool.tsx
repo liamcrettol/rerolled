@@ -45,6 +45,9 @@ interface Props {
     isInYourRoll: boolean;
     isInFireteamRoll: boolean;
   }>;
+  // Meta lobbies already operate inside the meta archetype set, so the
+  // redundant "Meta only" filter is hidden there (#284). Defaults to shown.
+  showMetaFilter?: boolean;
 }
 
 const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
@@ -326,7 +329,7 @@ function WeaponCard({
 // ── Main component ──────────────────────────────────────────────────────────
 
 export default function WeaponPool({
-  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, readOnly, weaponSeals, fillHeight, noScroll, weaponReleases,
+  intersection, weaponDetails, instancePerks, collectionHashes, currentHashes, currentInstances, onSelectWeapon, favorites, onToggleFavorite, disabled, readOnly, weaponSeals, fillHeight, noScroll, weaponReleases, showMetaFilter = true,
 }: Props) {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<WeaponSlot>("kinetic");
@@ -455,17 +458,19 @@ export default function WeaponPool({
               <option value="exotic">Exotic</option>
               <option value="nonexotic">Non-exotic</option>
             </select>
-            <button
-              onClick={() => setMetaOnly((v) => !v)}
-              aria-label="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
-              className={`shrink-0 px-2.5 py-1.5 text-xs font-medium border transition ${
-                metaOnly
-                  ? "border-bungie-blue bg-bungie-blue/20 text-white"
-                  : "border-bungie-border text-gray-300 hover:border-gray-400"
-              }`}
-            >
-              Meta only
-            </button>
+            {showMetaFilter && (
+              <button
+                onClick={() => setMetaOnly((v) => !v)}
+                aria-label="Filter to only Hand Cannons, Shotguns, and Sniper Rifles"
+                className={`shrink-0 px-2.5 py-1.5 text-xs font-medium border transition ${
+                  metaOnly
+                    ? "border-bungie-blue bg-bungie-blue/20 text-white"
+                    : "border-bungie-border text-gray-300 hover:border-gray-400"
+                }`}
+              >
+                Meta only
+              </button>
+            )}
             <button
               onClick={() => setHideCollections((v) => !v)}
               aria-pressed={hideCollections}

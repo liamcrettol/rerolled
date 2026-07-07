@@ -89,6 +89,9 @@ interface Props {
   onSelectWeapon: (slot: WeaponSlot, hash: number, instanceId?: string) => void;
   onLoadIntersection: () => void;
   onHide: () => void;
+  // Meta lobbies already roll from the meta archetype set, so the browser's
+  // own "Meta only" filter is redundant there (#284). Defaults to shown.
+  showMetaFilter?: boolean;
 }
 
 export default function LobbySidebar({
@@ -119,6 +122,7 @@ export default function LobbySidebar({
   onSelectWeapon,
   onLoadIntersection,
   onHide,
+  showMetaFilter = true,
 }: Props) {
   const [mobileSection, setMobileSection] = useState<"fireteam" | "weapons">("weapons");
   const currentUserNeedsReauth =
@@ -288,6 +292,7 @@ export default function LobbySidebar({
                 onToggleFavorite={onToggleFavorite}
                 disabled={actionDisabled}
                 readOnly={!isCaptain}
+                showMetaFilter={showMetaFilter}
               />
           ) : !isCaptain ? (
             <div className="border border-bungie-blue/60 bg-bungie-blue/10 p-4">
