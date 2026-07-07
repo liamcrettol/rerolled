@@ -5,7 +5,6 @@
 export default function FireteamMoment() {
   return (
     <div className="max-w-md text-center">
-      <p className="section-label text-bungie-blue mb-2">Fireteam Intersection</p>
       <h2 className="text-xl md:text-2xl font-bold text-white">
         Built from what your fireteam actually owns
       </h2>
