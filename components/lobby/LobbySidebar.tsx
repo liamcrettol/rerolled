@@ -204,11 +204,6 @@ export default function LobbySidebar({
                   <PlayerCard key={m.id} member={m} variant="sidebar" />
                 ))}
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                <ReadinessPill ready={Boolean(selectedCharId)} label="Guardian" detail={selectedChar ? CLASS_NAMES[selectedChar.classType] ?? "Selected" : "Needed"} />
-                <ReadinessPill ready={fireteamReady} label="Fireteam" detail={`${selectedMembers.length}/${activeMembers.length || members.length}`} />
-                <ReadinessPill ready={poolReady} loading={poolLoading} label="Weapons" detail={poolLoading ? "Loading" : poolReady ? "Ready" : failedNames.length > 0 ? "Auth" : "Pending"} />
-              </div>
               {failedNames.length > 0 && (
                 <p className="mt-2 border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-[11px] leading-4 text-red-200">
                   Waiting on {failedNames.join(", ")} to sign in again.
@@ -375,31 +370,3 @@ function InventoryAuthNotice({
   );
 }
 
-function ReadinessPill({
-  ready,
-  loading,
-  label,
-  detail,
-}: {
-  ready: boolean;
-  loading?: boolean;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className={`border px-2 py-1.5 ${
-      ready
-        ? "border-green-500/25 bg-green-500/10"
-        : loading
-          ? "border-bungie-blue/30 bg-bungie-blue/10"
-          : "border-bungie-border bg-bungie-dark/60"
-    }`}>
-      <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`mt-0.5 text-[11px] font-semibold truncate ${
-        ready ? "text-green-300" : loading ? "text-bungie-blue" : "text-gray-400"
-      }`}>
-        {detail}
-      </p>
-    </div>
-  );
-}

@@ -512,7 +512,6 @@ export default function RollDetails({
             <p className={`text-xs font-semibold ${theme.text}`}>Your rolls</p>
             <span className="text-[10px] text-gray-500">
               {myInstances.length} {myInstances.length === 1 ? "roll" : "rolls"}
-              {myInstances.some((inst) => inst.isBestRoll) ? " · best first" : ""}
             </span>
           </div>
           {myInstances.length === 0 ? (

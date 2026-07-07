@@ -55,11 +55,6 @@ export default async function WeeklyPage() {
             activityName={challenge.activityName}
             accent="blue"
           />
-
-          <p className="text-xs text-gray-500 mt-4">
-            Roll → equip → clear {challenge.activityName} → scored automatically from your match
-            report. One best score per Guardian counts on the leaderboard.
-          </p>
         </section>
 
         <StandingsPreview entries={standings} />

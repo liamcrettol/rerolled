@@ -213,19 +213,7 @@ export default function EndgameRandomizer() {
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Swords size={14} />}
               {busy ? "Rolling..." : "Roll Endgame"}
             </button>
-            <p className="text-xs text-gray-500">Weapons come from your inventory. Activity and exotic are fully random.</p>
           </div>
-        </div>
-
-        <div className="panel p-5">
-          <p className="section-label mb-2">Working Name</p>
-          <h3 className="text-xl font-bold uppercase tracking-wide text-white">Endgame Roulette</h3>
-          <p className="text-sm text-gray-400 mt-2 leading-relaxed">
-            One click rolls a raid, dungeon, or Grandmaster plus a three-weapon loadout and one exotic armor piece for the character you picked.
-          </p>
-          <p className="text-xs text-gray-600 mt-3">
-            If you want a different name later, we can swap the label without changing the feature.
-          </p>
         </div>
       </div>
 

@@ -288,11 +288,11 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
   if (DEAD_STATES.has(run.status)) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-gray-400">
-          {run.status === "failed"
-            ? "Scoring failed for this run. The clear couldn't be verified."
-            : "This run ended without a scored clear."}
-        </p>
+        {run.status === "failed" && (
+          <p className="text-sm text-gray-400">
+            Scoring failed for this run. The clear couldn't be verified.
+          </p>
+        )}
         <button
           type="button"
           onClick={reset}
