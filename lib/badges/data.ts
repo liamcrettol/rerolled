@@ -100,6 +100,52 @@ export async function getUserBadges(userId: string): Promise<DisplayBadge[]> {
   }
 }
 
+/** Badges for many users in one query (e.g. a whole lobby fireteam) instead
+ * of one getUserBadges() call per member. Same visibility rules as
+ * getUserBadges — each user's own hidden badges are included in their own
+ * entry, keyed by user_id so a missing key just means "no badges yet". */
+export async function getUsersBadges(userIds: string[]): Promise<Record<string, DisplayBadge[]>> {
+  if (userIds.length === 0) return {};
+  try {
+    const { data, error } = await adminSupabase
+      .from("player_badges")
+      .select(
+        "user_id, earned_at, source_run_id, source_weekly_challenge_id, season_id, badges(slug, name, description, category, tier, mode, icon_key, is_active, is_hidden, sort_order)"
+      )
+      .in("user_id", userIds)
+      .order("earned_at", { ascending: false });
+
+    if (error || !data) return {};
+
+    const out: Record<string, DisplayBadge[]> = {};
+    for (const row of data as unknown as Array<PlayerBadgeRow & { user_id: string }>) {
+      if (!row.badges?.is_active) continue;
+      const b = row.badges;
+      const badge: DisplayBadge = {
+        slug: b.slug,
+        status: b.is_hidden ? "hidden" : "earned",
+        name: b.name,
+        description: b.description,
+        category: b.category,
+        tier: b.tier,
+        mode: b.mode,
+        iconKey: b.icon_key,
+        earnedAt: row.earned_at,
+        sortOrder: b.sort_order,
+        evidence: {
+          sourceRunId: row.source_run_id,
+          sourceWeeklyChallengeId: row.source_weekly_challenge_id,
+          seasonId: row.season_id,
+        },
+      };
+      (out[row.user_id] ??= []).push(badge);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 /** The full Badge Case for a user: every active, non-hidden badge in the
  * catalog (earned or not), plus the user's own hidden earned badges mixed
  * in. A hidden badge the user hasn't earned never appears here — its name

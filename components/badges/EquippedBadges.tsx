@@ -1,4 +1,4 @@
-import BadgeChip from "@/components/badges/BadgeChip";
+import BadgeChip, { type BadgeChipSize } from "@/components/badges/BadgeChip";
 import type { DisplayBadge } from "@/lib/badges/data";
 import type { BadgeTier } from "@/types/badges";
 
@@ -24,9 +24,10 @@ function byPriority(a: DisplayBadge, b: DisplayBadge): number {
 interface Props {
   badges: DisplayBadge[];
   max?: number;
+  size?: BadgeChipSize;
 }
 
-export default function EquippedBadges({ badges, max = 3 }: Props) {
+export default function EquippedBadges({ badges, max = 3, size = "tiny" }: Props) {
   if (badges.length === 0) return null;
 
   const ordered = [...badges].sort(byPriority);
@@ -34,7 +35,7 @@ export default function EquippedBadges({ badges, max = 3 }: Props) {
   const overflow = ordered.length - shown.length;
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       {shown.map((b) => (
         <BadgeChip
           key={b.slug + b.earnedAt}
@@ -43,11 +44,11 @@ export default function EquippedBadges({ badges, max = 3 }: Props) {
           tier={b.tier}
           mode={b.mode}
           iconKey={b.iconKey}
-          size="tiny"
+          size={size}
         />
       ))}
       {overflow > 0 && (
-        <span className="text-[10px] font-bold text-gray-500 px-1" aria-label={`${overflow} more badges`}>
+        <span className="text-[10px] font-bold text-gray-300 px-0.5 drop-shadow" aria-label={`${overflow} more badges`}>
           +{overflow}
         </span>
       )}
