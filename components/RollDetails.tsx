@@ -10,7 +10,7 @@ import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
 import Spinner from "./Spinner";
 import Card from "./ui/Card";
-import { Star, Check } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
@@ -334,22 +334,15 @@ export default function RollDetails({
     const card = memberCards?.[m.userId];
     const inst = shownFor(m);
     const isBest = Boolean(inst?.isBestRoll);
-    const label = bestRollLabel(inst);
     const weaponDisplay = weaponDisplayFor(inst);
     return (
       <div
         key={m.userId}
         aria-label={isBest ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
         className={`relative overflow-hidden flex flex-col w-full max-w-[26rem] ${
-          isBest ? "border-2 border-amber-400 ring-1 ring-amber-400/40" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
+          isBest ? "border border-amber-400/60" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
-        {isBest && (
-          <div className="flex items-center justify-center gap-1 bg-amber-400 text-bungie-dark text-[11px] font-bold py-0.5">
-            <Star size={11} className="fill-bungie-dark" />
-            {label}
-          </div>
-        )}
         {/* Own-card indicator, shown regardless of whether an emblem card or the
             plain fallback header renders below, so "which one is mine" is
             never ambiguous (#203). */}
