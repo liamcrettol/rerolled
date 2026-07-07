@@ -61,18 +61,12 @@ export default async function LeaderboardsPage() {
               </div>
               {scoreAttack.length === 0 ? (
                 <p className="text-sm text-gray-500 px-3 py-6 text-center">
-                  No scored runs yet. Be the first.
+                  No scored runs on record.
                 </p>
               ) : (
                 scoreAttack.map((e) => <StandingsRow key={e.userId} entry={e} />)
               )}
             </div>
-            <Link
-              href="/score-attack"
-              className="inline-block mt-3 text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-amber-400"
-            >
-              Start a run →
-            </Link>
           </section>
         </div>
 
