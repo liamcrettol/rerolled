@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useGameDetection } from "@/hooks/useGameDetection";
+import { useGameDetection, POLL_INTERVAL_MS } from "@/hooks/useGameDetection";
 
 type Handler = () => void;
 
@@ -72,7 +72,7 @@ describe("useGameDetection", () => {
     expect(detectCalls()).toHaveLength(2);
 
     await act(async () => {
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
     });
     expect(detectCalls()).toHaveLength(3);
   });
@@ -89,7 +89,7 @@ describe("useGameDetection", () => {
     expect(detectCalls()).toHaveLength(2);
 
     await act(async () => {
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
     });
     expect(detectCalls()).toHaveLength(3);
   });
@@ -159,7 +159,7 @@ describe("useGameDetection", () => {
     expect(result.current.polling).toBe(false);
 
     await act(async () => {
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
     });
     expect(detectCalls()).toHaveLength(2);
   });
@@ -219,7 +219,7 @@ describe("useGameDetection", () => {
     expect(removeChannel).toHaveBeenCalledWith(channel);
 
     await act(async () => {
-      jest.advanceTimersByTime(10_000);
+      jest.advanceTimersByTime(POLL_INTERVAL_MS);
     });
     expect(detectCalls()).toHaveLength(2);
   });

@@ -27,7 +27,7 @@ export interface RoundRecord {
 // a couple minutes to appear on Bungie's side, and every fireteam member that
 // has the page open can poll. Keep this conservative so one lobby does not
 // multiply into a steady database/API load spike.
-const POLL_INTERVAL_MS = 60_000;
+export const POLL_INTERVAL_MS = 60_000;
 
 // Owns the match-detection polling lifecycle for a lobby: checking whether the
 // applied loadout's game has finished (via PGCR), recording it, and keeping
