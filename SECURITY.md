@@ -67,7 +67,7 @@ removes your user record, encrypted tokens, and associated lobby/stat rows.
 Please report security issues **privately** — do not open a public issue for a
 vulnerability.
 
-- Preferred: open a private [GitHub Security Advisory](https://github.com/liamcrettol/destiny-gun-roulette/security/advisories/new)
+- Preferred: open a private [GitHub Security Advisory](https://github.com/liamcrettol/rerolled/security/advisories/new)
   on this repository, or
 - Contact the maintainer [@liamcrettol](https://github.com/liamcrettol) directly.
 

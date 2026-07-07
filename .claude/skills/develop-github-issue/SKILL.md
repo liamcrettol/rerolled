@@ -210,8 +210,8 @@ Returns issue details about adding dark mode.
 
 **Worktree:**
 ```bash
-git worktree add ../destiny-gun-roulette-wt-42 -b feature/42-add-dark-mode-support
-cd ../destiny-gun-roulette-wt-42
+git worktree add ../rerolled-wt-42 -b feature/42-add-dark-mode-support
+cd ../rerolled-wt-42
 ```
 
 The `42` in the branch name creates automatic GitHub backlinks. The worktree keeps your main checkout untouched.

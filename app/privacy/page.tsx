@@ -77,7 +77,7 @@ export default function PrivacyPage() {
         <p className="mb-2">
           Questions about this policy or your data? Reach out on{" "}
           <a
-            href="https://github.com/liamcrettol/destiny-gun-roulette/issues"
+            href="https://github.com/liamcrettol/rerolled/issues"
             target="_blank"
             rel="noopener noreferrer"
             className="text-bungie-blue hover:underline"

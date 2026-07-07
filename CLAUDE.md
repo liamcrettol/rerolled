@@ -54,7 +54,7 @@ NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby
 
 Use `.claude/skills/develop-github-issue` — **re-read it each time; it evolves** (Josh
 updates it). The flow: claim (assign `@me` + `doing` label) → `git pull --rebase origin main`
-→ **git worktree** (`git worktree add ../destiny-gun-roulette-wt-<N> -b <type>/<N>-desc`,
+→ **git worktree** (`git worktree add ../rerolled-wt-<N> -b <type>/<N>-desc`,
 NOT `checkout -b`) → implement with `Closes #N` commits → `git fetch && git rebase origin/main`
 before push → open PR mirroring the issue's assignee + labels (minus `doing`) → after merge,
 swap `doing`→`completed` and `git worktree remove` the worktree. The skill references
@@ -297,8 +297,8 @@ compact prebuilt set of tables, read at import time as instant in-memory maps vi
 ## Local bootstrap (fresh device)
 
 ```bash
-git clone https://github.com/liamcrettol/destiny-gun-roulette.git
-cd destiny-gun-roulette
+git clone https://github.com/liamcrettol/rerolled.git
+cd rerolled
 npm install
 npx vercel login
 npx vercel env pull .env.local   # sensitive values come back empty

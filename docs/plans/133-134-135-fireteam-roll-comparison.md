@@ -113,7 +113,7 @@ Today the "Your Roll" block (~lines 200-216) renders only `myChosen`'s sockets a
 
 1. `git fetch origin && git checkout main && git pull --rebase origin main`.
 2. Claim: `gh issue edit 133 --add-assignee @me --add-label doing` (and 134, 135).
-3. Worktree: `git worktree add ../destiny-gun-roulette-wt-133 -b feature/133-fireteam-roll-comparison`.
+3. Worktree: `git worktree add ../rerolled-wt-133 -b feature/133-fireteam-roll-comparison`.
 4. Implement Steps 1-4; commit with `Closes #133` / `Closes #134` / `Closes #135` in the body.
 5. `git fetch origin && git rebase origin/main`, then push.
 6. Open ONE PR (assignee + labels mirrored, minus `doing`), closing all three issues.

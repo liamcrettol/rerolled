@@ -2,7 +2,7 @@
 // Get your token at: Vercel Dashboard → Settings → Tokens
 
 const token = process.argv[2];
-const projectName = "destiny-gun-roulette";
+const projectName = "rerolled";
 
 if (!token) {
   console.error("Usage: node scripts/delete-errored-deployments.mjs <VERCEL_TOKEN>");

@@ -1,5 +1,5 @@
 -- ============================================================
--- Destiny Gun Roulette - Initial Schema
+-- Rerolled - Initial Schema
 -- Run this in Supabase SQL Editor or via psql
 -- ============================================================
 
