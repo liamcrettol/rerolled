@@ -76,12 +76,12 @@ export const MODES: Record<ModeId, ModeDefinition> = {
   },
 };
 
-/** The cards shown in the home mode grid, in display order (#243). */
+/** The cards shown in the home mode grid, in display order (#243). Score
+ * Attack was removed from the grid (#295); Endgame Roulette took its slot. */
 export const HOME_MODE_GRID: ModeDefinition[] = [
   MODES.gun_roulette,
-  MODES.score_attack,
-  MODES.draft,
   MODES.ironman,
+  MODES.draft,
 ];
 
 export function getMode(id: ModeId): ModeDefinition {
