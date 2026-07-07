@@ -52,7 +52,37 @@ export type EndgameArmorProfile = Pick<
   "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
 >;
 
-const ARMOR_BUCKET_HASHES = new Set([3448274439, 3551918588, 14239492, 20886954, 1585787867]);
+// Labeled the same way WEAPON_BUCKET_HASHES is in types/bungie.ts, rather than
+// an anonymous membership-only Set - the fireteam roll needs to pick and name
+// a specific slot ("everyone rolls a Chest exotic"), not just recognize "is
+// this any armor piece". Not verified against a live manifest fetch in this
+// repo (nothing here previously keyed off them individually) - this is the
+// well-established Destiny API bucket-hash convention.
+export const ARMOR_BUCKET_HASHES = {
+  HELMET: 3448274439,
+  GAUNTLETS: 3551918588,
+  CHEST: 14239492,
+  LEGS: 20886954,
+  CLASS_ITEM: 1585787867,
+} as const;
+
+const ALL_ARMOR_BUCKETS: Set<number> = new Set(Object.values(ARMOR_BUCKET_HASHES));
+
+export const ARMOR_SLOT_LABELS: Record<number, string> = {
+  [ARMOR_BUCKET_HASHES.HELMET]: "Helmet",
+  [ARMOR_BUCKET_HASHES.GAUNTLETS]: "Gauntlets",
+  [ARMOR_BUCKET_HASHES.CHEST]: "Chest",
+  [ARMOR_BUCKET_HASHES.LEGS]: "Legs",
+  [ARMOR_BUCKET_HASHES.CLASS_ITEM]: "Class Item",
+};
+
+// Real Destiny sandbox knowledge, not derived from anything in this app's
+// data model - activity-catalog.json carries no fireteam-size field.
+export const ENDGAME_KIND_FIRETEAM_SIZE: Record<EndgameActivityKind, number> = {
+  raid: 6,
+  dungeon: 3,
+  grandmaster: 3,
+};
 
 const BUNGIE_CDN = "https://www.bungie.net";
 const SLOTS: WeaponSlot[] = ["kinetic", "energy", "power"];
@@ -198,15 +228,17 @@ function armorChoiceRank(choice: ExoticArmorChoice, selectedCharacterId: string)
 }
 
 function uniqueCharacterItemRows(
-  rows: Array<{ itemHash: number; itemInstanceId: string }>,
+  rows: Array<{ itemHash: number; itemInstanceId: string; bucketHash?: number }>,
   manifestItems: Record<string, ManifestItemLike>,
   classType: number,
   location: "character" | "vault",
   characterId?: string,
-  isEquipped = false
+  isEquipped = false,
+  targetBucketHash?: number
 ): ExoticArmorChoice[] {
   const result: ExoticArmorChoice[] = [];
   for (const item of rows) {
+    if (targetBucketHash != null && item.bucketHash !== targetBucketHash) continue;
     const def = manifestItems[item.itemHash.toString()];
     if (!def) continue;
     if (def.itemType !== 2) continue;
@@ -232,7 +264,8 @@ function uniqueCharacterItemRows(
 export function selectExoticArmorOptions(
   profile: EndgameArmorProfile,
   manifestItems: Record<string, ManifestItemLike>,
-  characterId: string
+  characterId: string,
+  targetBucketHash?: number
 ): { character: DestinyCharacter; options: ExoticArmorChoice[] } {
   const character = profile.characters.data[characterId];
   if (!character) {
@@ -258,7 +291,8 @@ export function selectExoticArmorOptions(
       classType,
       "character",
       characterId,
-      true
+      true,
+      targetBucketHash
     )
   );
   absorb(
@@ -268,18 +302,19 @@ export function selectExoticArmorOptions(
       classType,
       "character",
       characterId,
-      false
+      false,
+      targetBucketHash
     )
   );
 
   for (const [otherCharacterId, equipment] of Object.entries(profile.characterEquipment?.data ?? {})) {
     if (otherCharacterId === characterId) continue;
-    absorb(uniqueCharacterItemRows(equipment.items ?? [], manifestItems, classType, "character", otherCharacterId, true));
+    absorb(uniqueCharacterItemRows(equipment.items ?? [], manifestItems, classType, "character", otherCharacterId, true, targetBucketHash));
   }
 
   for (const [otherCharacterId, inventory] of Object.entries(profile.characterInventories?.data ?? {})) {
     if (otherCharacterId === characterId) continue;
-    absorb(uniqueCharacterItemRows(inventory.items ?? [], manifestItems, classType, "character", otherCharacterId, false));
+    absorb(uniqueCharacterItemRows(inventory.items ?? [], manifestItems, classType, "character", otherCharacterId, false, targetBucketHash));
   }
 
   absorb(
@@ -287,7 +322,10 @@ export function selectExoticArmorOptions(
       profile.profileInventory?.data?.items ?? [],
       manifestItems,
       classType,
-      "vault"
+      "vault",
+      undefined,
+      false,
+      targetBucketHash
     )
   );
 
@@ -300,17 +338,22 @@ export function selectExoticArmorOptions(
   return { character, options };
 }
 
-function collectItemHashes(items: DestinyItemComponent[] | undefined, target: Set<number>) {
+function collectItemHashes(
+  items: DestinyItemComponent[] | undefined,
+  target: Set<number>,
+  targetBucketHash?: number
+) {
   for (const item of items ?? []) {
     if (bucketToSlot(item.bucketHash)) continue;
-    if (!ARMOR_BUCKET_HASHES.has(item.bucketHash)) continue;
+    if (targetBucketHash != null ? item.bucketHash !== targetBucketHash : !ALL_ARMOR_BUCKETS.has(item.bucketHash)) continue;
     if (item.itemHash > 0) target.add(item.itemHash);
   }
 }
 
 export function collectEndgameArmorCandidateHashes(
   profile: EndgameArmorProfile,
-  characterId: string
+  characterId: string,
+  targetBucketHash?: number
 ): number[] {
   const hashes = new Set<number>();
   const selectedCharacter = profile.characters.data[characterId];
@@ -321,16 +364,16 @@ export function collectEndgameArmorCandidateHashes(
   for (const [candidateCharacterId, inventory] of Object.entries(profile.characterInventories?.data ?? {})) {
     const candidateCharacter = profile.characters.data[candidateCharacterId];
     if (!candidateCharacter || candidateCharacter.classType !== selectedCharacter.classType) continue;
-    collectItemHashes(inventory.items, hashes);
+    collectItemHashes(inventory.items, hashes, targetBucketHash);
   }
 
   for (const [candidateCharacterId, equipment] of Object.entries(profile.characterEquipment?.data ?? {})) {
     const candidateCharacter = profile.characters.data[candidateCharacterId];
     if (!candidateCharacter || candidateCharacter.classType !== selectedCharacter.classType) continue;
-    collectItemHashes(equipment.items, hashes);
+    collectItemHashes(equipment.items, hashes, targetBucketHash);
   }
 
-  collectItemHashes(profile.profileInventory?.data?.items, hashes);
+  collectItemHashes(profile.profileInventory?.data?.items, hashes, targetBucketHash);
 
   return [...hashes];
 }

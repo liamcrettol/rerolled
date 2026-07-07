@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Skull } from "lucide-react";
 import PlatformShell from "@/components/platform/PlatformShell";
 import EndgameRandomizer from "@/components/endgame/EndgameRandomizer";
+import EndgameModeSwitch from "@/components/endgame/EndgameModeSwitch";
+import LobbyControls from "@/components/LobbyControls";
 import { getMode } from "@/lib/modes/modes";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +36,22 @@ export default async function EndgamePage() {
           </p>
 
           <div className="mt-6">
-            <EndgameRandomizer />
+            <EndgameModeSwitch
+              solo={<EndgameRandomizer />}
+              fireteam={
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-300">
+                    Create a lobby, have everyone pick their character, then roll a shared raid,
+                    dungeon, or Grandmaster loadout plus an exotic slot for the whole fireteam.
+                  </p>
+                  <LobbyControls
+                    createHref="/endgame/lobby/new/create"
+                    createLabel="Create Fireteam Lobby"
+                    joinBasePath="/endgame/lobby"
+                  />
+                </div>
+              }
+            />
           </div>
         </section>
       </div>

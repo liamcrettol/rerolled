@@ -4,6 +4,9 @@ import {
   collectEndgameArmorCandidateHashes,
   pickEndgameActivity,
   selectExoticArmorOptions,
+  ARMOR_BUCKET_HASHES,
+  ARMOR_SLOT_LABELS,
+  ENDGAME_KIND_FIRETEAM_SIZE,
 } from "@/lib/endgame/randomizer";
 import type { ScoreAttackActivity } from "@/lib/scoreAttack/activityPool";
 import type { ResolvedWeapon } from "@/types/weapon";
@@ -205,5 +208,82 @@ describe("collectEndgameArmorCandidateHashes", () => {
     };
 
     expect(collectEndgameArmorCandidateHashes(profile, "hunter")).toEqual([333, 111, 444]);
+  });
+
+  it("filters to only the target bucket hash when one is given", () => {
+    const profile: Pick<
+      BungieProfileResponse,
+      "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
+    > = {
+      characters: { data: { hunter: makeCharacter("hunter", 1) } },
+      characterEquipment: { data: { hunter: { items: [] } } },
+      characterInventories: {
+        data: {
+          hunter: {
+            items: [
+              { itemHash: 111, itemInstanceId: "a", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3448274439, transferStatus: 0, lockable: false, state: 0 },
+              { itemHash: 333, itemInstanceId: "c", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3551918588, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
+        },
+      },
+      profileInventory: { data: { items: [] } },
+    };
+
+    expect(collectEndgameArmorCandidateHashes(profile, "hunter", ARMOR_BUCKET_HASHES.HELMET)).toEqual([111]);
+    expect(collectEndgameArmorCandidateHashes(profile, "hunter", ARMOR_BUCKET_HASHES.GAUNTLETS)).toEqual([333]);
+    expect(collectEndgameArmorCandidateHashes(profile, "hunter", ARMOR_BUCKET_HASHES.CHEST)).toEqual([]);
+  });
+});
+
+describe("selectExoticArmorOptions — bucket hash filter", () => {
+  it("only returns options matching the target slot", () => {
+    const profile: Pick<
+      BungieProfileResponse,
+      "characters" | "characterEquipment" | "characterInventories" | "profileInventory"
+    > = {
+      characters: { data: { hunter: makeCharacter("hunter", 1) } },
+      characterEquipment: { data: { hunter: { items: [] } } },
+      characterInventories: {
+        data: {
+          hunter: {
+            items: [
+              { itemHash: 101, itemInstanceId: "a", quantity: 1, bindStatus: 0, location: 1, bucketHash: 3448274439, transferStatus: 0, lockable: false, state: 0 },
+              { itemHash: 102, itemInstanceId: "b", quantity: 1, bindStatus: 0, location: 1, bucketHash: 14239492, transferStatus: 0, lockable: false, state: 0 },
+            ],
+          },
+        },
+      },
+      profileInventory: { data: { items: [] } },
+    };
+    const manifestItems = {
+      "101": { itemType: 2, classType: 1, itemTypeDisplayName: "Helmet", inventory: { tierType: 6 }, displayProperties: { name: "Wormhusk Crown", icon: "/wormhusk.png" } },
+      "102": { itemType: 2, classType: 1, itemTypeDisplayName: "Chest Armor", inventory: { tierType: 6 }, displayProperties: { name: "Gyrfalcon's Hauberk", icon: "/gyrfalcon.png" } },
+    };
+
+    const helmetOnly = selectExoticArmorOptions(profile, manifestItems, "hunter", ARMOR_BUCKET_HASHES.HELMET);
+    expect(helmetOnly.options.map((o) => o.name)).toEqual(["Wormhusk Crown"]);
+
+    const chestOnly = selectExoticArmorOptions(profile, manifestItems, "hunter", ARMOR_BUCKET_HASHES.CHEST);
+    expect(chestOnly.options.map((o) => o.name)).toEqual(["Gyrfalcon's Hauberk"]);
+
+    const legsOnly = selectExoticArmorOptions(profile, manifestItems, "hunter", ARMOR_BUCKET_HASHES.LEGS);
+    expect(legsOnly.options).toEqual([]);
+
+    // No filter at all - existing solo behavior, unchanged.
+    const unfiltered = selectExoticArmorOptions(profile, manifestItems, "hunter");
+    expect(unfiltered.options).toHaveLength(2);
+  });
+});
+
+describe("ENDGAME_KIND_FIRETEAM_SIZE / ARMOR_BUCKET_HASHES", () => {
+  it("has a fireteam size for every endgame activity kind", () => {
+    expect(ENDGAME_KIND_FIRETEAM_SIZE).toEqual({ raid: 6, dungeon: 3, grandmaster: 3 });
+  });
+
+  it("has a display label for every armor bucket hash", () => {
+    for (const hash of Object.values(ARMOR_BUCKET_HASHES)) {
+      expect(ARMOR_SLOT_LABELS[hash]).toBeTruthy();
+    }
   });
 });
