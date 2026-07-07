@@ -248,7 +248,6 @@ export default function EndgameLobbyBoard({ lobby, members: initialMembers, curr
                     }`}
                   >
                     <span className="font-bold uppercase tracking-wider">{CLASS_NAMES[c.classType] ?? "Guardian"}</span>
-                    <span className="font-mono slashed-zero text-gray-500">LL {c.light}</span>
                   </button>
                 );
               })}

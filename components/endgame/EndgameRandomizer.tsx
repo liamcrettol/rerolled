@@ -169,7 +169,6 @@ export default function EndgameRandomizer() {
                       <span className="font-bold uppercase tracking-wider">
                         {CLASS_NAMES[character.classType] ?? "Guardian"}
                       </span>
-                      <span className="font-mono slashed-zero text-gray-500">LL {character.light}</span>
                     </button>
                   );
                 })}
