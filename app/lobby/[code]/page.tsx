@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getLobbyByCode, getLobbyMembers } from "@/lib/lobby";
+import { getUsersBadges } from "@/lib/badges/data";
 import LobbyRoom from "@/components/LobbyRoom";
 
 export default async function LobbyPage({
@@ -19,6 +20,8 @@ export default async function LobbyPage({
   const isMember = members.some((m) => m.user_id === session.userId);
   if (!isMember) redirect("/dashboard");
 
+  const memberBadges = await getUsersBadges(members.map((m) => m.user_id));
+
   return (
     <main className="min-h-screen p-6 w-full">
       <LobbyRoom
@@ -28,6 +31,7 @@ export default async function LobbyPage({
         currentUserDisplayName={session.displayName}
         bungieMembershipType={session.bungieMembershipType}
         bungieMembershipId={session.bungieMembershipId}
+        memberBadges={memberBadges}
       />
     </main>
   );

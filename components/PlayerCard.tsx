@@ -4,14 +4,20 @@ import { useState } from "react";
 import { Crown, Check } from "lucide-react";
 import { trimBungieName } from "@/lib/utils";
 import type { LobbyMember } from "@/types/lobby";
+import EquippedBadges from "@/components/badges/EquippedBadges";
+import type { DisplayBadge } from "@/lib/badges/data";
 
 interface Props {
   member: LobbyMember;
   compact?: boolean;
   variant?: "default" | "sidebar";
+  /** Up to 3 shown as small icons in the bottom-right corner (default variant
+   * only) — the "default" nameplate card is what Roll Comparison renders per
+   * member, so this is where a Trials-Report-style badge strip belongs. */
+  badges?: DisplayBadge[];
 }
 
-export default function PlayerCard({ member, compact, variant = "default" }: Props) {
+export default function PlayerCard({ member, compact, variant = "default", badges }: Props) {
   const [bgFailed, setBgFailed] = useState(false);
   const [iconFailed, setIconFailed] = useState(false);
 
@@ -119,6 +125,14 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
           <Check size={15} />
         </span>
+      )}
+
+      {/* Equipped badges, bottom-right corner — icon-only so it doesn't
+          compete with the name/clan text on the emblem banner. */}
+      {badges && badges.length > 0 && (
+        <div className="absolute bottom-1 right-1.5 z-10">
+          <EquippedBadges badges={badges} max={3} size="icon" />
+        </div>
       )}
     </div>
   );

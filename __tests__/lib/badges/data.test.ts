@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { getUserBadges, getBadgeCatalog } from "@/lib/badges/data";
+import { getUserBadges, getBadgeCatalog, getUsersBadges } from "@/lib/badges/data";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let playerBadgesResult: any = { data: [], error: null };
@@ -13,6 +13,7 @@ jest.mock("@/lib/supabase/admin", () => ({
       const builder: any = {
         select: () => builder,
         eq: () => builder,
+        in: () => builder,
         order: () => Promise.resolve(table === "player_badges" ? playerBadgesResult : catalogResult),
       };
       return builder;
@@ -137,5 +138,49 @@ describe("getBadgeCatalog", () => {
     expect(result).toEqual([
       expect.objectContaining({ slug: "crucible_writ", earned: false, earnedAt: null }),
     ]);
+  });
+});
+
+describe("getUsersBadges", () => {
+  afterEach(() => {
+    playerBadgesResult = { data: [], error: null };
+  });
+
+  it("returns an empty map without querying when given no user ids", async () => {
+    const result = await getUsersBadges([]);
+    expect(result).toEqual({});
+  });
+
+  it("groups badges by user_id", async () => {
+    playerBadgesResult = {
+      data: [
+        { user_id: "user1", earned_at: "2026-01-01T00:00:00Z", source_run_id: null, source_weekly_challenge_id: null, season_id: null, badges: badgeRow({ slug: "core_drawn" }) },
+        { user_id: "user1", earned_at: "2026-01-02T00:00:00Z", source_run_id: null, source_weekly_challenge_id: null, season_id: null, badges: badgeRow({ slug: "core_bound", sort_order: 110 }) },
+        { user_id: "user2", earned_at: "2026-01-01T00:00:00Z", source_run_id: null, source_weekly_challenge_id: null, season_id: null, badges: badgeRow({ slug: "core_drawn" }) },
+      ],
+      error: null,
+    };
+
+    const result = await getUsersBadges(["user1", "user2", "user3"]);
+    expect(result.user1.map((b) => b.slug).sort()).toEqual(["core_bound", "core_drawn"]);
+    expect(result.user2.map((b) => b.slug)).toEqual(["core_drawn"]);
+    expect(result.user3).toBeUndefined();
+  });
+
+  it("drops rows whose badge has been deactivated, per user", async () => {
+    playerBadgesResult = {
+      data: [
+        { user_id: "user1", earned_at: "2026-01-01T00:00:00Z", source_run_id: null, source_weekly_challenge_id: null, season_id: null, badges: badgeRow({ is_active: false }) },
+      ],
+      error: null,
+    };
+    const result = await getUsersBadges(["user1"]);
+    expect(result.user1).toBeUndefined();
+  });
+
+  it("degrades to an empty map on a query error", async () => {
+    playerBadgesResult = { data: null, error: { message: "boom" } };
+    const result = await getUsersBadges(["user1"]);
+    expect(result).toEqual({});
   });
 });
