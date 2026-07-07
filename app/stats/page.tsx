@@ -1,9 +1,10 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 import PlatformShell from "@/components/platform/PlatformShell";
 import SeasonPanel from "@/components/platform/SeasonPanel";
-import BadgeShelf from "@/components/platform/BadgeShelf";
+import BadgeShelf from "@/components/badges/BadgeShelf";
 import DashboardStats from "@/components/DashboardStats";
 import Spinner from "@/components/Spinner";
 import { getSeasonStats } from "@/lib/stats/season";
@@ -28,7 +29,15 @@ export default async function StatsPage() {
       <div className="space-y-8">
         <div className="grid md:grid-cols-2 gap-6 items-start max-w-3xl">
           <SeasonPanel stats={season} />
-          <BadgeShelf badges={badges} />
+          <div className="space-y-2">
+            <BadgeShelf badges={badges} />
+            <Link
+              href="/badges"
+              className="inline-block text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-bungie-blue"
+            >
+              View full Badge Case &gt;
+            </Link>
+          </div>
         </div>
 
         <div>
