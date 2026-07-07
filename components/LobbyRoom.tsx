@@ -579,6 +579,7 @@ export default function LobbyRoom({
       onSelectWeapon={handleSelectWeapon}
       onLoadIntersection={handleLoadIntersection}
       onHide={() => setRightOpen(false)}
+      showMetaFilter={rollMode !== "meta"}
     />
   );
 
