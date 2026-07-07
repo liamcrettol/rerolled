@@ -2,22 +2,16 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignInButton from "@/components/SignInButton";
 import HeroReel from "@/components/HeroReel";
+import ModeSpotlight from "@/components/ModeSpotlight";
+import FireteamMoment from "@/components/FireteamMoment";
+import LandingFaq from "@/components/LandingFaq";
 import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { MODES } from "@/lib/modes/modes";
-import type { ModeAccent } from "@/types/platform";
 import Link from "next/link";
 import BrandWordmark from "@/components/BrandWordmark";
 
-// Signed-out landing. Pitches the whole activity hub (mode strip below the
-// sign-in), not just roulette — each mode wears its accent from the registry.
-const MODE_ACCENT_TEXT: Record<ModeAccent, string> = {
-  green: "text-green-400",
-  amber: "text-amber-400",
-  blue: "text-bungie-blue",
-  purple: "text-purple-400",
-  red: "text-red-400",
-};
-
+// Signed-out landing. Pitches the whole activity hub (spotlight below the
+// hero), not just roulette — each mode wears its accent from the registry.
 const LANDING_MODES = [
   MODES.gun_roulette,
   MODES.score_attack,
@@ -43,23 +37,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         <h1 className="text-5xl md:text-6xl">
           <BrandWordmark />
         </h1>
-        <p className="text-gray-400 mt-3">
-          PvP loadout chaos, scored PvE runs, weekly challenges, and endgame randomizers.
-        </p>
       </div>
 
       <HeroReel weaponsBySlot={heroWeaponsBySlot} />
 
-      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 max-w-2xl">
-        {LANDING_MODES.map((mode) => (
-          <span key={mode.id} className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest">
-            <span className={mode.enabled ? MODE_ACCENT_TEXT[mode.accent] : "text-gray-600"}>
-              {mode.title}
-            </span>
-            {!mode.enabled && <span className="text-[9px] text-gray-700">soon</span>}
-          </span>
-        ))}
-      </div>
+      <ModeSpotlight modes={LANDING_MODES} />
+
+      <FireteamMoment weaponsBySlot={heroWeaponsBySlot} />
+
+      <LandingFaq />
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         {code && (

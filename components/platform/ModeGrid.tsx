@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Dices, Crosshair, Swords, Skull, CalendarClock } from "lucide-react";
-import type { ModeAccent, ModeDefinition, ModeId, ModeStatus } from "@/types/platform";
+import { ArrowRight } from "lucide-react";
+import type { ModeDefinition, ModeStatus } from "@/types/platform";
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
+import { MODE_ICONS, ACCENT_CLS } from "./modeVisuals";
 
 // Home mode grid (#243/#244/#253). Every card is driven by the mode registry —
 // no per-card conditionals here. Each mode carries its own accent + icon.
@@ -11,23 +12,6 @@ const STATUS_CLS: Record<ModeStatus, string> = {
   live: "text-green-400 border-green-400/40",
   new: "text-bungie-blue border-bungie-blue/40",
   soon: "text-gray-500 border-bungie-border",
-};
-
-// Static class sets per accent — Tailwind can't see dynamic class names.
-const ACCENT_CLS: Record<ModeAccent, { border: string; icon: string; hover: string; action: string }> = {
-  green: { border: "border-l-green-400", icon: "text-green-400", hover: "hover:border-green-400", action: "text-green-300" },
-  amber: { border: "border-l-amber-400", icon: "text-amber-400", hover: "hover:border-amber-400", action: "text-amber-300" },
-  blue: { border: "border-l-bungie-blue", icon: "text-bungie-blue", hover: "hover:border-bungie-blue", action: "text-bungie-blue" },
-  purple: { border: "border-l-purple-400", icon: "text-purple-400", hover: "hover:border-purple-400", action: "text-purple-300" },
-  red: { border: "border-l-red-400", icon: "text-red-400", hover: "hover:border-red-400", action: "text-red-300" },
-};
-
-const MODE_ICONS: Record<ModeId, typeof Dices> = {
-  gun_roulette: Dices,
-  score_attack: Crosshair,
-  weekly_challenge: CalendarClock,
-  draft: Swords,
-  ironman: Skull,
 };
 
 function StatusBadge({ status }: { status: ModeStatus }) {

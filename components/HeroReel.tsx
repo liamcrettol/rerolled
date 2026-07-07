@@ -34,7 +34,9 @@ const SPIN_MS = 950;
 const INITIAL_DELAY_MS = 250;
 const EXOTIC_TIER = 6;
 // Flat rarity edge while a weapon sits landed — in-game item-tile colors.
-const EDGE = {
+// Exported so other static "landed weapon" visuals (e.g. the landing page's
+// fireteam-intersection moment) reuse the same rarity-edge colors.
+export const EDGE = {
   exotic: "rgba(199, 166, 74, 0.9)",
   legendary: "rgba(120, 81, 145, 0.9)",
 };
