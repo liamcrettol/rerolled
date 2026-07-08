@@ -38,7 +38,7 @@ describe("BadgeChip", () => {
       <BadgeChip
         slug="trials_lighthouse_writ"
         name="Immaculate"
-        description="Go Flawless while using valid Rerolled loadouts for every tracked match."
+        description="Go without a loss on your card."
         tier="platinum"
         mode="trials"
         iconKey="ring"
@@ -50,7 +50,7 @@ describe("BadgeChip", () => {
     // bespoke art draws its own label inside the SVG.
     expect(screen.queryByText("Immaculate")).not.toBeInTheDocument();
     expect(container.querySelector(".sr-only")?.textContent).toBe(
-      "Immaculate. Go Flawless while using valid Rerolled loadouts for every tracked match."
+      "Immaculate. Go without a loss on your card."
     );
   });
 
@@ -59,7 +59,7 @@ describe("BadgeChip", () => {
       <BadgeChip
         slug="trials_lighthouse_writ"
         name="Immaculate"
-        description="Go Flawless while using valid Rerolled loadouts for every tracked match."
+        description="Go without a loss on your card."
         tier="platinum"
         mode="trials"
         iconKey="ring"
