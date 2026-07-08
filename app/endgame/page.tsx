@@ -16,7 +16,7 @@ export default async function EndgamePage() {
 
   const mode = getMode("ironman");
   const activeSession = await getActiveSessionForUser(session.userId).catch(() => null);
-  const hasActiveEndgameLobby = activeSession?.mode === "ironman";
+  const hasActiveEndgameLobby = activeSession?.mode === "endgame";
 
   return (
     <PlatformShell displayName={session.displayName}>
