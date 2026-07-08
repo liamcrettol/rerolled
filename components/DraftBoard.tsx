@@ -216,6 +216,12 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const [options, setOptions] = useState<Partial<Record<WeaponSlot, DraftOption[]>>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // The intersection call that primes lobby_pools does live Bungie API
+  // fetches and typically takes a couple seconds - without this gate, a
+  // captain landing straight on the board (#279) could hit Reveal before the
+  // pool finished caching and get "no shared weapon pool cached yet" for a
+  // pool that was actually fine, just not written yet (#313).
+  const [poolReady, setPoolReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickingHash, setPickingHash] = useState<number | null>(null);
   const [characters, setCharacters] = useState<{ characterId: string; classType: number }[]>([]);
@@ -258,12 +264,18 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   useEffect(() => {
     // Ensures the shared weapon pool is cached (lobby_pools) so the reveal has
-    // something to draw from — same call the roulette flow makes.
+    // something to draw from — same call the roulette flow makes. Reveal stays
+    // disabled until this resolves (see poolReady) so the captain can't race it.
     fetch("/api/roulette/intersection", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lobbyId: lobby.id }),
-    }).catch(() => setError("Failed to load the shared weapon pool"));
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load the shared weapon pool");
+        setPoolReady(true);
+      })
+      .catch(() => setError("Failed to load the shared weapon pool"));
     loadRound().finally(() => setLoading(false));
   }, [lobby.id, loadRound]);
 
@@ -453,7 +465,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
               <p className="mt-1 text-sm text-gray-400">
                 {activeOptions.length === 0
                   ? isCaptain
-                    ? "Spin up three candidates and pick one for the fireteam."
+                    ? poolReady
+                      ? "Spin up three candidates and pick one for the fireteam."
+                      : "Loading the fireteam's shared weapon pool…"
                     : `Waiting for ${nameFor(lobby.captain_user_id)} to spin the ${SLOT_LABELS[activeSlot]} slot…`
                   : isCaptain
                     ? "Tap the weapon to lock it in."
@@ -472,10 +486,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   <button
                     type="button"
                     onClick={() => reveal(activeSlot)}
-                    disabled={busy}
+                    disabled={busy || !poolReady}
                     className="mx-auto flex items-center gap-2 bg-bungie-blue px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#26bcf3] disabled:opacity-50"
                   >
-                    {busy ? "Spinning…" : `Reveal ${SLOT_LABELS[activeSlot]}`}
+                    {!poolReady && <Spinner size={14} />}
+                    {busy ? "Spinning…" : !poolReady ? "Loading weapon pool…" : `Reveal ${SLOT_LABELS[activeSlot]}`}
                   </button>
                 )}
               </>
