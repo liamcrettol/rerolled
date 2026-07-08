@@ -1,0 +1,19 @@
+name: Cleanup idle lobbies
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger cleanup-lobbies
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/cleanup-lobbies" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body
