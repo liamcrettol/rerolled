@@ -7,7 +7,9 @@
 
 import type { ComponentType } from "react";
 import Immaculate from "@/components/badges/bespoke/Immaculate";
+import Invict from "@/components/badges/bespoke/Invict";
 
 export const BESPOKE_BADGES: Record<string, ComponentType> = {
   trials_lighthouse_writ: Immaculate,
+  status_invict: Invict,
 };
