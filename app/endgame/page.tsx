@@ -16,6 +16,7 @@ export default async function EndgamePage() {
 
   const mode = getMode("ironman");
   const activeSession = await getActiveSessionForUser(session.userId).catch(() => null);
+  const hasActiveEndgameLobby = activeSession?.mode === "ironman";
 
   return (
     <PlatformShell displayName={session.displayName}>
@@ -39,6 +40,7 @@ export default async function EndgamePage() {
 
           <div className="mt-6">
             <EndgameModeSwitch
+              initialMode={hasActiveEndgameLobby ? "fireteam" : "solo"}
               solo={<EndgameRandomizer />}
               fireteam={
                 <div className="space-y-4">
@@ -47,7 +49,7 @@ export default async function EndgamePage() {
                     dungeon, or Grandmaster loadout plus an exotic slot for the whole fireteam.
                   </p>
                   <LobbyControls
-                    activeSession={activeSession}
+                    activeSession={hasActiveEndgameLobby ? activeSession : null}
                     createHref="/endgame/lobby/new/create"
                     createLabel="Create Fireteam Lobby"
                     joinBasePath="/endgame/lobby"
