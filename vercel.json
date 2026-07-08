@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/cleanup-lobbies",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/detect-games",
       "schedule": "0 0 * * *"
     }
