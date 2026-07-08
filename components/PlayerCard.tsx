@@ -32,11 +32,17 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       : null;
 
   const bannerUrl = bgUrl ?? iconUrl;
+  const bannerStyle = bannerUrl
+    ? {
+        backgroundImage: `url(${bannerUrl})`,
+        backgroundSize: "100% 100%",
+      }
+    : undefined;
 
   if (variant === "sidebar") {
     return (
       <div
-        className={`relative flex h-11 w-full items-center overflow-hidden border ${
+        className={`relative flex h-12 w-full items-center overflow-hidden border ${
           member.is_captain
             ? "border-yellow-500/60"
             : member.is_spectator
@@ -53,8 +59,8 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
             />
             <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${bannerUrl})` }}
+              className="absolute inset-0 bg-center bg-no-repeat"
+              style={bannerStyle}
             />
             <div className="absolute inset-0 bg-black/45" />
           </>
@@ -89,7 +95,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   // Captain gets a yellow border, not a crown.
   return (
     <div
-      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-11" : "h-14"}
+      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-12" : "h-14"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator
@@ -107,8 +113,8 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
           />
           <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${bannerUrl})` }}
+            className="absolute inset-0 bg-center bg-no-repeat"
+            style={bannerStyle}
           />
           <div className="absolute inset-0 bg-black/40" />
         </>
