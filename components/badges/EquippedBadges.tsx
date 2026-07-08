@@ -39,6 +39,7 @@ export default function EquippedBadges({ badges, max = 3, size = "tiny" }: Props
       {shown.map((b) => (
         <BadgeChip
           key={b.slug + b.earnedAt}
+          slug={b.slug}
           name={b.name}
           description={b.description}
           tier={b.tier}

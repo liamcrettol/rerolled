@@ -19,6 +19,7 @@ export default function BadgeShelf({ badges }: { badges: DisplayBadge[] }) {
             {badges.map((b) => (
               <BadgeChip
                 key={b.slug + b.earnedAt}
+                slug={b.slug}
                 name={b.name}
                 description={b.description}
                 tier={b.tier}
