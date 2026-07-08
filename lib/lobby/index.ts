@@ -1,5 +1,5 @@
 import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
-import type { Lobby, LobbyMember, LobbyRollSettings } from "@/types/lobby";
+import type { Lobby, LobbyMember, LobbyMode, LobbyRollSettings } from "@/types/lobby";
 
 function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -10,7 +10,8 @@ export async function createLobby(
   displayName: string,
   bungieMembershipType: number,
   bungieMembershipId: string,
-  initialSettings?: Partial<LobbyRollSettings> | null
+  initialSettings?: Partial<LobbyRollSettings> | null,
+  mode: LobbyMode = "roulette"
 ): Promise<{ lobby: Lobby; member: LobbyMember }> {
   const code = generateCode();
 
@@ -31,6 +32,7 @@ export async function createLobby(
       host_user_id: hostUserId,
       captain_user_id: hostUserId,
       status: "waiting",
+      mode,
       current_round: 1,
       ...(rollSettings ? { roll_settings: rollSettings } : {}),
     })
@@ -112,7 +114,7 @@ export async function joinLobby(
 
 export async function getActiveSessionForUser(
   userId: string
-): Promise<{ code: string; status: Lobby["status"] } | null> {
+): Promise<{ code: string; status: Lobby["status"]; mode: LobbyMode } | null> {
   try {
     const { data: memberships } = await withSupabaseTimeout(
       adminSupabase
@@ -128,7 +130,7 @@ export async function getActiveSessionForUser(
     const { data: lobby } = await withSupabaseTimeout(
       adminSupabase
         .from("lobbies")
-        .select("code, status")
+        .select("code, status, mode")
         .in("id", lobbyIds)
         .neq("status", "done")
         .order("last_active_at", { ascending: false })
@@ -137,7 +139,11 @@ export async function getActiveSessionForUser(
     );
 
     if (!lobby) return null;
-    return { code: lobby.code, status: lobby.status as Lobby["status"] };
+    return {
+      code: lobby.code,
+      status: lobby.status as Lobby["status"],
+      mode: (lobby.mode as LobbyMode) ?? "roulette",
+    };
   } catch {
     return null;
   }

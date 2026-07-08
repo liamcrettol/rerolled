@@ -12,9 +12,10 @@ export async function POST(req: NextRequest) {
       session.displayName,
       session.bungieMembershipType,
       session.bungieMembershipId,
-      body.settings ?? null
+      body.settings ?? null,
+      "roulette"
     );
-    return NextResponse.json({ code: lobby.code, lobbyId: lobby.id });
+    return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
     if (isDatabaseUnavailableError(err)) {
       return NextResponse.json(

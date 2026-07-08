@@ -17,7 +17,9 @@ export default async function CreateEndgameLobbyPage() {
       session.userId,
       session.displayName,
       session.bungieMembershipType,
-      session.bungieMembershipId
+      session.bungieMembershipId,
+      null,
+      "endgame"
     );
     lobbyCode = lobby.code;
   } catch (err) {

@@ -12,6 +12,7 @@ function lobby(overrides: Partial<Lobby> = {}): Lobby {
     host_user_id: "u-host",
     captain_user_id: "u-captain",
     status: "waiting",
+    mode: "roulette",
     current_round: 1,
     created_at: "2026-01-01",
     ...overrides,

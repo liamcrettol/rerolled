@@ -6,6 +6,7 @@ import EndgameRandomizer from "@/components/endgame/EndgameRandomizer";
 import EndgameModeSwitch from "@/components/endgame/EndgameModeSwitch";
 import LobbyControls from "@/components/LobbyControls";
 import { getMode } from "@/lib/modes/modes";
+import { getActiveSessionForUser } from "@/lib/lobby";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function EndgamePage() {
   if (!session?.userId) redirect("/");
 
   const mode = getMode("ironman");
+  const activeSession = await getActiveSessionForUser(session.userId).catch(() => null);
 
   return (
     <PlatformShell displayName={session.displayName}>
@@ -45,6 +47,7 @@ export default async function EndgamePage() {
                     dungeon, or Grandmaster loadout plus an exotic slot for the whole fireteam.
                   </p>
                   <LobbyControls
+                    activeSession={activeSession}
                     createHref="/endgame/lobby/new/create"
                     createLabel="Create Fireteam Lobby"
                     joinBasePath="/endgame/lobby"

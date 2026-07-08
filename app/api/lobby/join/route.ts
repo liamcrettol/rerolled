@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       session.bungieMembershipType,
       session.bungieMembershipId
     );
-    return NextResponse.json({ code: lobby.code, lobbyId: lobby.id });
+    return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
     if (isDatabaseUnavailableError(err)) {
       return NextResponse.json({ error: DATABASE_UNAVAILABLE_MESSAGE }, { status: 503 });

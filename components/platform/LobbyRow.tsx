@@ -1,11 +1,11 @@
 import LobbyControls from "@/components/LobbyControls";
-import type { Lobby } from "@/types/lobby";
+import type { Lobby, LobbyMode } from "@/types/lobby";
 
 // Compact lobby utility for resuming an active lobby or joining a friend's code.
 export default function LobbyRow({
   activeSession,
 }: {
-  activeSession?: { code: string; status: Lobby["status"] } | null;
+  activeSession?: { code: string; status: Lobby["status"]; mode: LobbyMode } | null;
 }) {
   return (
     <section>

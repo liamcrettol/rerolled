@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import Spinner from "./Spinner";
-import type { Lobby } from "@/types/lobby";
+import type { Lobby, LobbyMode } from "@/types/lobby";
 
 const STATUS_LABELS: Record<Lobby["status"], string> = {
   waiting: "Waiting for players",
@@ -15,12 +15,22 @@ const STATUS_LABELS: Record<Lobby["status"], string> = {
   done: "Ended",
 };
 
+// A lobby's mode determines which board it lives on. Rejoin and post-join
+// routing derive from this rather than trusting the page's own joinBasePath,
+// since your active lobby (or the code you just typed in) isn't necessarily
+// the same mode as whatever page you're standing on.
+const MODE_BASE_PATH: Record<LobbyMode, string> = {
+  roulette: "/lobby",
+  draft: "/draft",
+  endgame: "/endgame/lobby",
+};
+
 interface Props {
-  activeSession?: { code: string; status: Lobby["status"] } | null;
+  activeSession?: { code: string; status: Lobby["status"]; mode: LobbyMode } | null;
   showCreate?: boolean;
   createHref?: string;
   createLabel?: string;
-  /** Where the join form and "Rejoin" button route to, e.g. "/draft" for Draft mode. */
+  /** Fallback join-target if the API response doesn't carry a mode, e.g. "/draft" for Draft mode. */
   joinBasePath?: string;
 }
 
@@ -52,7 +62,8 @@ export default function LobbyControls({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      router.push(`${joinBasePath}/${data.code}`);
+      const base = (data.mode && MODE_BASE_PATH[data.mode as LobbyMode]) || joinBasePath;
+      router.push(`${base}/${data.code}`);
     } catch (e) {
       const timedOut = e instanceof DOMException && e.name === "AbortError";
       setError(
@@ -78,7 +89,7 @@ export default function LobbyControls({
             {STATUS_LABELS[activeSession.status]}
           </p>
           <button
-            onClick={() => router.push(`${joinBasePath}/${activeSession.code}`)}
+            onClick={() => router.push(`${MODE_BASE_PATH[activeSession.mode]}/${activeSession.code}`)}
             className="shrink-0 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-4 py-2 transition-colors"
           >
             Rejoin

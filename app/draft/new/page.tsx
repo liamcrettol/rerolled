@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import LobbyControls from "@/components/LobbyControls";
+import { getActiveSessionForUser } from "@/lib/lobby";
 
 // Draft (#266) reuses the same lobby create/join primitives as roulette — a
 // draft round is a normal lobby round, just filled in via a captain-chosen
@@ -9,6 +10,8 @@ import LobbyControls from "@/components/LobbyControls";
 export default async function DraftNewPage() {
   const session = await auth();
   if (!session?.userId) redirect("/");
+
+  const activeSession = await getActiveSessionForUser(session.userId).catch(() => null);
 
   return (
     <main className="min-h-screen p-6 w-full max-w-lg mx-auto space-y-6">
@@ -20,6 +23,7 @@ export default async function DraftNewPage() {
         one for the whole fireteam.
       </p>
       <LobbyControls
+        activeSession={activeSession}
         createHref="/draft/new/create"
         createLabel="Create Draft Lobby"
         joinBasePath="/draft"

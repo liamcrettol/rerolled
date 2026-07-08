@@ -16,7 +16,9 @@ export default async function CreateDraftLobbyPage() {
       session.userId,
       session.displayName,
       session.bungieMembershipType,
-      session.bungieMembershipId
+      session.bungieMembershipId,
+      null,
+      "draft"
     );
     lobbyCode = lobby.code;
   } catch (err) {
