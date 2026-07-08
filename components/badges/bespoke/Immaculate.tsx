@@ -12,7 +12,7 @@ export default function Immaculate() {
       viewBox="0 0 160 48"
       className="w-full h-full block"
       role="img"
-      aria-label="Immaculate badge. Go Flawless while using valid Rerolled loadouts for every tracked match."
+      aria-label="Immaculate badge. Go without a loss on your card."
     >
       {/* base: cut-corner silhouette, platinum */}
       <path d="M0.5 0.5 H146.5 L159.5 13.5 V47.5 H0.5 Z" fill="#12151a" stroke="#2a2e36" strokeWidth={1} />
