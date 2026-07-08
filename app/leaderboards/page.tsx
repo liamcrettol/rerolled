@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import PlatformShell from "@/components/platform/PlatformShell";
 import StandingsPreview from "@/components/platform/StandingsPreview";
 import Leaderboard from "@/components/Leaderboard";
+import WeaponHallOfFame from "@/components/WeaponHallOfFame";
 import Spinner from "@/components/Spinner";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
 import { getStandingsPreview } from "@/lib/weekly/leaderboard";
@@ -37,11 +38,19 @@ export default async function LeaderboardsPage() {
           )}
         </div>
 
-        <div>
-          <p className="section-label mb-3">All-Time Roulette</p>
-          <Suspense fallback={<Loading />}>
-            <Leaderboard />
-          </Suspense>
+        <div className="grid lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2">
+            <p className="section-label mb-3">All-Time Roulette</p>
+            <Suspense fallback={<Loading />}>
+              <Leaderboard />
+            </Suspense>
+          </div>
+          <div>
+            <p className="section-label mb-3">Weapon Hall of Fame</p>
+            <Suspense fallback={<Loading />}>
+              <WeaponHallOfFame />
+            </Suspense>
+          </div>
         </div>
       </div>
     </PlatformShell>
