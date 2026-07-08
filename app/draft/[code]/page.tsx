@@ -48,7 +48,7 @@ export default async function DraftPage({
   }
 
   return (
-    <main className="min-h-screen p-6 w-full">
+    <main className="min-h-screen p-6 w-full [&_.w-48]:w-80 [&_.w-48]:max-w-full [&_.flex.flex-wrap.gap-2]:justify-center">
       <DraftLeaveButton lobbyId={lobby.id} />
       <DraftBoard lobby={lobby} members={members} currentUserId={session.userId} />
     </main>
