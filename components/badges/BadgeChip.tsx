@@ -1,5 +1,5 @@
 import BadgeIcon from "@/components/badges/BadgeIcon";
-import { BESPOKE_BADGES } from "@/components/badges/bespoke";
+import { BESPOKE_BADGES, BESPOKE_BADGE_MARKS } from "@/components/badges/bespoke";
 import { TIER_ACCENT, MODE_ACCENT } from "@/lib/badges/style";
 import type { BadgeMode, BadgeTier } from "@/types/badges";
 
@@ -53,9 +53,7 @@ export default function BadgeChip({
   const modeColor = mode ? MODE_ACCENT[mode] : null;
   const srText = locked ? `Not yet earned. ${description}` : `${name}. ${description}`;
 
-  // Bespoke art is hand-drawn at the full 160x48 viewBox — only viable at
-  // BadgeChip's "full" size. Every other size falls back to the generic
-  // motif frame below, even for a slug with a bespoke entry.
+  // Full bespoke badge art is hand-drawn at the full 160x48 viewBox.
   const Bespoke = size === "full" ? BESPOKE_BADGES[slug] : undefined;
   if (Bespoke) {
     return (
@@ -64,6 +62,21 @@ export default function BadgeChip({
         className={`relative ${s.box} ${locked ? "opacity-45 grayscale" : ""} ${className}`}
       >
         <Bespoke />
+        <span className="sr-only">{srText}</span>
+      </div>
+    );
+  }
+
+  // Player cards and other tight surfaces need a square mark, not the full
+  // horizontal badge. Bespoke marks keep status badges recognizable at 24x24.
+  const BespokeMark = iconOnly ? BESPOKE_BADGE_MARKS[slug] : undefined;
+  if (BespokeMark) {
+    return (
+      <div
+        title={description}
+        className={`relative ${s.box} ${locked ? "opacity-45 grayscale" : ""} ${className}`}
+      >
+        <BespokeMark />
         <span className="sr-only">{srText}</span>
       </div>
     );
