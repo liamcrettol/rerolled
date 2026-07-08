@@ -6,6 +6,10 @@ import Link from "next/link";
 
 // Draft reuses the roulette lobby primitive (#266) — creating here is just
 // createLobby() followed by a redirect into /draft/[code] instead of /lobby/[code].
+// This is the entire Draft entry point (#279): the dashboard's Draft card
+// links straight here instead of through a separate setup page, so clicking
+// it lands the captain directly on the board. Joining an existing draft
+// lobby by code goes through the dashboard's shared join form instead.
 export default async function CreateDraftLobbyPage() {
   const session = await auth();
   if (!session?.userId) redirect("/");
@@ -31,10 +35,10 @@ export default async function CreateDraftLobbyPage() {
         </h1>
         <p className="text-sm text-gray-400">{DATABASE_UNAVAILABLE_MESSAGE}</p>
         <Link
-          href="/draft/new"
+          href="/dashboard"
           className="bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors text-center"
         >
-          Back to draft
+          Back to dashboard
         </Link>
       </main>
     );

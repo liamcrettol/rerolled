@@ -74,21 +74,30 @@ function DraftCard({
   onPick: () => void;
 }) {
   const reelRef = useRef<HTMLDivElement>(null);
-  const [landed, setLanded] = useState(!spin);
+  // Captured once at mount rather than tracking the live `spin` prop: this
+  // card stays mounted (stable key) for the rest of the reveal, and a
+  // realtime refetch (options insert echoing back over the lobby_draft_options
+  // subscription) re-renders the parent mid-animation, which flips `spin`
+  // back to false once the slot is marked "already animated". If the effect
+  // below depended on that live prop, React's dependency-change cleanup would
+  // cancel the pending landed-timer before it fires, leaving the card
+  // permanently blurred and unclickable.
+  const [spinAtMount] = useState(spin);
+  const [landed, setLanded] = useState(!spinAtMount);
 
   // [ ...blurred fillers, the real weapon ]. Rebuilt only when the reel arms.
   const items = useMemo(() => {
-    if (!spin) return [option.icon];
+    if (!spinAtMount) return [option.icon];
     const pool = fillers.length ? fillers : [option.icon];
     const scroll = Array.from(
       { length: 14 },
       () => pool[Math.floor(Math.random() * pool.length)]
     );
     return [...scroll, option.icon];
-  }, [spin, option.icon, fillers]);
+  }, [spinAtMount, option.icon, fillers]);
 
   useEffect(() => {
-    if (!spin) return;
+    if (!spinAtMount) return;
     const reel = reelRef.current;
     if (!reel) return;
     reel.style.transition = "none";
@@ -103,7 +112,8 @@ function DraftCard({
       clearTimeout(start);
       clearTimeout(done);
     };
-  }, [spin, items.length, delay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const color = damageColor(option.damageType);
   const glow = selected

@@ -59,7 +59,7 @@ export const MODES: Record<ModeId, ModeDefinition> = {
     description: "Choose 1 of 3 for each slot.",
     status: "new",
     enabled: true,
-    href: "/draft/new",
+    href: "/draft/new/create",
     ctaLabel: "Start Draft",
     accent: "purple",
   },
