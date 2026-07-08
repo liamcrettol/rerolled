@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getLobbyByCode, getLobbyMembers } from "@/lib/lobby";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { getCharacters } from "@/lib/bungie/inventory";
+import { getClan } from "@/lib/bungie/clan";
 import DraftBoard from "@/components/DraftBoard";
 import DraftLeaveButton from "@/components/draft/DraftLeaveButton";
 import type { DestinyCharacter } from "@/types/bungie";
@@ -31,16 +32,22 @@ export default async function DraftPage({
 
   try {
     const token = await getBungieToken(session.userId, session.bungieMembershipId);
-    const latest = lastPlayedCharacter(
-      await getCharacters(session.bungieMembershipType, session.bungieMembershipId, token)
-    );
+    const [characters, clan] = await Promise.all([
+      getCharacters(session.bungieMembershipType, session.bungieMembershipId, token),
+      getClan(session.bungieMembershipType, session.bungieMembershipId, token).catch(() => null),
+    ]);
+    const latest = lastPlayedCharacter(characters);
+    const current = members.find((m) => m.user_id === session.userId);
 
-    if (latest) {
-      const current = members.find((m) => m.user_id === session.userId);
-      if (current) {
+    if (current) {
+      if (latest) {
         current.selected_character_id = latest.characterId;
         current.emblem_path = latest.emblemPath;
         current.emblem_background_path = latest.emblemBackgroundPath;
+      }
+      if (clan) {
+        current.clan_name = clan.name;
+        current.clan_tag = clan.tag;
       }
     }
   } catch {
