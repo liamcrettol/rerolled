@@ -11,6 +11,9 @@ export async function GET() {
       session.bungieMembershipId,
       token
     );
+    characters.sort(
+      (a, b) => new Date(b.dateLastPlayed).getTime() - new Date(a.dateLastPlayed).getTime()
+    );
     return NextResponse.json({ characters });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
