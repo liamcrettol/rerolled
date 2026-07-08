@@ -64,6 +64,7 @@ function DraftCard({
   disabled,
   selected,
   dimmed,
+  voteCount,
   onPick,
 }: {
   option: DraftOption;
@@ -73,6 +74,9 @@ function DraftCard({
   disabled: boolean;
   selected: boolean;
   dimmed: boolean;
+  /** Vote tally for this option in a multi-member lobby (#315) - omitted entirely
+   * in solo lobbies, which keep the old instant-pick behavior with no voting. */
+  voteCount?: number;
   onPick: () => void;
 }) {
   const reelRef = useRef<HTMLDivElement>(null);
@@ -136,6 +140,11 @@ function DraftCard({
       }`}
       style={{ boxShadow: glow }}
     >
+      {!!voteCount && (
+        <span className="absolute top-1.5 left-1.5 z-10 bg-bungie-blue px-1.5 py-0.5 text-[10px] font-bold text-white">
+          {voteCount}
+        </span>
+      )}
       <div
         className="relative overflow-hidden"
         style={{ width: CARD_ICON, height: CARD_WINDOW }}
@@ -230,9 +239,23 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const [pickingHash, setPickingHash] = useState<number | null>(null);
   const [characters, setCharacters] = useState<{ characterId: string; classType: number }[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
+  // Votes per slot for the current round (#315) - only meaningful in
+  // multi-member lobbies; solo lobbies keep the old captain-taps-to-lock flow.
+  const [votes, setVotes] = useState<Partial<Record<WeaponSlot, { voterUserId: string; itemHash: number }[]>>>({});
+  // Earliest lobby_draft_options.created_at per slot, the clock the 30s
+  // auto-pick timer counts down from - server-owned so a page reload doesn't
+  // reset it.
+  const [revealedAt, setRevealedAt] = useState<Partial<Record<WeaponSlot, string>>>({});
+  const [nowTick, setNowTick] = useState(() => Date.now());
   // Slots whose reveal animation has already fired, so re-renders (realtime
   // refetches) don't replay the reel every time.
   const animatedRef = useRef<Set<WeaponSlot>>(new Set());
+
+  const nonSpectatorMembers = useMemo(() => members.filter((m) => !m.is_spectator), [members]);
+  // A lobby of just the captain has nothing to vote on - keep the original
+  // instant tap-to-lock behavior instead of running a pointless vote/timer.
+  const isSolo = nonSpectatorMembers.length <= 1;
+  const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
 
   const nameFor = useCallback(
     (userId: string) => members.find((m) => m.user_id === userId)?.display_name ?? userId,
@@ -266,21 +289,35 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     if (!round) return;
     setRoundId(round.id);
 
-    const [{ data: existingSlots }, { data: existingOptions }] = await Promise.all([
+    const [{ data: existingSlots }, { data: existingOptions }, { data: existingVotes }] = await Promise.all([
       supabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id),
       supabase.from("lobby_draft_options").select("*").eq("round_id", round.id),
+      supabase.from("lobby_draft_votes").select("*").eq("round_id", round.id),
     ]);
     setSlots(existingSlots ?? []);
 
     const grouped: Partial<Record<WeaponSlot, DraftOption[]>> = {};
+    const revealed: Partial<Record<WeaponSlot, string>> = {};
     for (const row of existingOptions ?? []) {
       const slot = row.slot as WeaponSlot;
       grouped[slot] = [
         ...(grouped[slot] ?? []),
         { position: row.position, itemHash: row.item_hash, name: row.weapon_name, icon: row.weapon_icon, weaponType: row.weapon_type, damageType: row.damage_type },
       ].sort((a, b) => a.position - b.position);
+      if (!revealed[slot] || row.created_at < revealed[slot]!) revealed[slot] = row.created_at;
     }
     setOptions(grouped);
+    setRevealedAt(revealed);
+
+    const votesGrouped: Partial<Record<WeaponSlot, { voterUserId: string; itemHash: number }[]>> = {};
+    for (const row of existingVotes ?? []) {
+      const slot = row.slot as WeaponSlot;
+      votesGrouped[slot] = [
+        ...(votesGrouped[slot] ?? []),
+        { voterUserId: row.voter_user_id, itemHash: row.item_hash },
+      ];
+    }
+    setVotes(votesGrouped);
   }, [supabase, lobby.id, lobby.current_round]);
 
   useEffect(() => {
@@ -312,6 +349,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           "postgres_changes",
           { event: "*", schema: "public", table: "lobby_loadout_slots" },
           () => loadRound()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "lobby_draft_votes" },
+          () => loadRound()
         );
     },
     [loadRound]
@@ -341,6 +383,34 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   useEffect(() => {
     if (shouldSpin && activeSlot) animatedRef.current.add(activeSlot);
   }, [shouldSpin, activeSlot]);
+
+  // 30s auto-pick fallback for multi-member lobbies (#315): every member's
+  // client runs this same timer independently and calls /api/draft/resolve,
+  // which is idempotent against an already-committed slot, so whichever
+  // client's timer fires first just wins and the rest are no-ops. The 1s
+  // interval only drives the visible countdown text.
+  useEffect(() => {
+    if (isSolo || !activeSlot || activeOptions.length === 0 || !roundId) return;
+    const revealedIso = revealedAt[activeSlot];
+    if (!revealedIso) return;
+    const deadline = new Date(revealedIso).getTime() + 30_000;
+
+    const tickInterval = setInterval(() => setNowTick(Date.now()), 1000);
+    const resolveTimeout = setTimeout(() => {
+      fetch("/api/draft/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, slot: activeSlot }),
+      })
+        .then(() => loadRound())
+        .catch(() => {});
+    }, Math.max(deadline - Date.now(), 0));
+
+    return () => {
+      clearInterval(tickInterval);
+      clearTimeout(resolveTimeout);
+    };
+  }, [isSolo, activeSlot, activeOptions.length, revealedAt, roundId, lobby.id, loadRound]);
 
   useEffect(() => {
     if (!complete) return;
@@ -397,6 +467,23 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     }
   }
 
+  async function vote(slot: WeaponSlot, itemHash: number) {
+    if (!roundId) return;
+    setError(null);
+    try {
+      const res = await fetch("/api/draft/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id, roundId, slot, itemHash }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await loadRound();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to vote");
+    }
+  }
+
   async function applyLoadout() {
     if (!roundId || !selectedCharacterId) return;
     setBusy(true);
@@ -424,6 +511,15 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       </div>
     );
   }
+
+  const activeVotes = activeSlot ? votes[activeSlot] ?? [] : [];
+  const myVote = activeVotes.find((v) => v.voterUserId === currentUserId)?.itemHash;
+  const voteCounts: Record<number, number> = {};
+  for (const v of activeVotes) voteCounts[v.itemHash] = (voteCounts[v.itemHash] ?? 0) + 1;
+  const secondsLeft =
+    activeSlot && revealedAt[activeSlot]
+      ? Math.max(0, 30 - Math.floor((nowTick - new Date(revealedAt[activeSlot]!).getTime()) / 1000))
+      : null;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl flex-col gap-6">
@@ -514,10 +610,21 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                       ? "Spin up three candidates and pick one for the fireteam."
                       : "Loading the fireteam's shared weapon pool…"
                     : `Waiting for ${nameFor(lobby.captain_user_id)} to spin the ${SLOT_LABELS[activeSlot]} slot…`
-                  : isCaptain
-                    ? "Tap the weapon to lock it in."
-                    : `${nameFor(lobby.captain_user_id)} is choosing…`}
+                  : isSolo
+                    ? isCaptain
+                      ? "Tap the weapon to lock it in."
+                      : `${nameFor(lobby.captain_user_id)} is choosing…`
+                    : isSpectator
+                      ? "Watching the fireteam vote…"
+                      : myVote != null
+                        ? "Vote cast. Tap another to change it."
+                        : "Tap a weapon to vote."}
               </p>
+              {!isSolo && activeOptions.length > 0 && secondsLeft !== null && (
+                <p className="mt-1 text-xs text-gray-500">
+                  {activeVotes.length}/{nonSpectatorMembers.length} voted · auto-picks in {secondsLeft}s
+                </p>
+              )}
             </div>
 
             {activeOptions.length === 0 ? (
@@ -548,10 +655,17 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     fillers={fillerIcons}
                     spin={shouldSpin}
                     delay={i * 220}
-                    disabled={busy || !isCaptain}
-                    selected={pickingHash === opt.itemHash}
-                    dimmed={pickingHash !== null && pickingHash !== opt.itemHash}
-                    onPick={() => isCaptain && pick(activeSlot, opt.itemHash)}
+                    disabled={isSolo ? busy || !isCaptain : isSpectator}
+                    selected={isSolo ? pickingHash === opt.itemHash : myVote === opt.itemHash}
+                    dimmed={isSolo && pickingHash !== null && pickingHash !== opt.itemHash}
+                    voteCount={isSolo ? undefined : voteCounts[opt.itemHash]}
+                    onPick={() => {
+                      if (isSolo) {
+                        if (isCaptain) pick(activeSlot, opt.itemHash);
+                      } else {
+                        vote(activeSlot, opt.itemHash);
+                      }
+                    }}
                   />
                 ))}
               </div>

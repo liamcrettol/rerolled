@@ -139,29 +139,43 @@ export interface CommitPickResult {
   error?: string;
 }
 
-export async function commitSlotPick(
-  lobbyId: string,
+interface OfferedOption {
+  item_hash: number;
+  weapon_name: string;
+  weapon_icon: string;
+  weapon_type: string;
+  damage_type: string;
+}
+
+export async function getOfferedOptions(
   roundId: string,
   slot: WeaponSlot,
-  itemHash: number,
-  userId: string,
   db: Db = adminSupabase
-): Promise<CommitPickResult> {
-  const captainCheck = await requireCaptain(lobbyId, userId, db);
-  if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
-
-  const { data: offered } = await db
+): Promise<OfferedOption[]> {
+  const { data } = await db
     .from("lobby_draft_options")
     .select("item_hash, weapon_name, weapon_icon, weapon_type, damage_type")
     .eq("round_id", roundId)
     .eq("slot", slot);
+  return data ?? [];
+}
 
-  const offeredHashes = (offered ?? []).map((o) => o.item_hash);
-  if (!isValidPick(offeredHashes, itemHash)) {
+// Shared by the captain-only instant-pick path (solo lobbies) and the vote
+// resolution path (lib/draft/voteService.ts, #315) - both end up writing the
+// same winning candidate into lobby_loadout_slots the same way.
+export async function commitOfferedOption(
+  roundId: string,
+  slot: WeaponSlot,
+  itemHash: number,
+  offered: OfferedOption[],
+  lockedByUserId: string,
+  db: Db = adminSupabase
+): Promise<CommitPickResult> {
+  if (!isValidPick(offered.map((o) => o.item_hash), itemHash)) {
     return { ok: false, error: "That weapon wasn't one of the revealed options" };
   }
 
-  const picked = offered?.find((o) => o.item_hash === itemHash);
+  const picked = offered.find((o) => o.item_hash === itemHash);
   if (!picked) return { ok: false, error: "That weapon wasn't one of the revealed options" };
 
   const { error } = await db.from("lobby_loadout_slots").upsert(
@@ -173,11 +187,26 @@ export async function commitSlotPick(
       weapon_icon: picked.weapon_icon,
       weapon_type: picked.weapon_type,
       damage_type: picked.damage_type,
-      locked_by_user_id: userId,
+      locked_by_user_id: lockedByUserId,
     },
     { onConflict: "round_id,slot" }
   );
   if (error) return { ok: false, error: error.message };
 
   return { ok: true };
+}
+
+export async function commitSlotPick(
+  lobbyId: string,
+  roundId: string,
+  slot: WeaponSlot,
+  itemHash: number,
+  userId: string,
+  db: Db = adminSupabase
+): Promise<CommitPickResult> {
+  const captainCheck = await requireCaptain(lobbyId, userId, db);
+  if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
+
+  const offered = await getOfferedOptions(roundId, slot, db);
+  return commitOfferedOption(roundId, slot, itemHash, offered, userId, db);
 }
