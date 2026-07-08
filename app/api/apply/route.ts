@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { getCharacters } from "@/lib/bungie/inventory";
 import { getRawWeapons } from "@/lib/bungie/rawInventory";
 import {
   applyWeapons,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/bungie/equip";
 import { getWeaponDefinition } from "@/lib/bungie/definitions";
 import type { ApplyResult } from "@/types/lobby";
-import type { WeaponSlot } from "@/types/bungie";
+import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
 import { createLogger } from "@/lib/logger";
 import { z } from "zod";
@@ -24,6 +25,14 @@ const schema = z.object({
   preferredInstances: z.record(z.string(), z.string()).optional(),
 });
 
+function mostRecentlyPlayedCharacter(characters: DestinyCharacter[]): DestinyCharacter | null {
+  return [...characters].sort((a, b) => {
+    const aTime = new Date(a.dateLastPlayed).getTime();
+    const bTime = new Date(b.dateLastPlayed).getTime();
+    return bTime - aTime;
+  })[0] ?? null;
+}
+
 export async function POST(req: NextRequest) {
   const t = Date.now();
   let log: ReturnType<typeof createLogger> = createLogger(req);
@@ -32,7 +41,6 @@ export async function POST(req: NextRequest) {
     log = createLogger(req, session.userId);
     const body = schema.parse(await req.json());
     const preferredInstances = body.preferredInstances ?? {};
-    log.info("apply.start", { lobbyId: body.lobbyId, roundId: body.roundId, characterId: body.characterId });
 
     const { data: slots } = await adminSupabase
       .from("lobby_loadout_slots")
@@ -45,6 +53,38 @@ export async function POST(req: NextRequest) {
     }
 
     const token = await getBungieToken(session.userId, session.bungieMembershipId);
+    const characters = await getCharacters(
+      session.bungieMembershipType,
+      session.bungieMembershipId,
+      token
+    );
+    const latestCharacter = mostRecentlyPlayedCharacter(characters);
+    const characterId = latestCharacter?.characterId ?? body.characterId;
+
+    log.info("apply.start", {
+      lobbyId: body.lobbyId,
+      roundId: body.roundId,
+      requestedCharacterId: body.characterId,
+      characterId,
+    });
+
+    // The client may have selected a character before the user switched in-game.
+    // Apply should follow Bungie's fresh most-recently-played character and then
+    // persist that selection back onto the lobby member row for the UI/stat path.
+    const memberPatch = latestCharacter
+      ? {
+          is_ready: true,
+          selected_character_id: characterId,
+          emblem_path: latestCharacter.emblemPath,
+          emblem_background_path: latestCharacter.emblemBackgroundPath,
+        }
+      : { is_ready: true, selected_character_id: characterId };
+    await adminSupabase
+      .from("lobby_members")
+      .update(memberPatch)
+      .eq("lobby_id", body.lobbyId)
+      .eq("user_id", session.userId);
+
     const myWeapons = await getRawWeapons(
       session.bungieMembershipType,
       session.bungieMembershipId,
@@ -55,12 +95,12 @@ export async function POST(req: NextRequest) {
     // Slots whose weapon isn't in this player's inventory/vault. The only way
     // that happens here is a Collections-only exotic (the intersection lets the
     // captain pick those). Bungie has no "pull from Collections" API, so we
-    // can't auto-equip it - surface a clear message instead of silently
+    // can't auto-equip it. Surface a clear message instead of silently
     // skipping the slot.
     const missing: ApplyResult[] = [];
     for (const slot of slots) {
       if (slot.item_hash === 0) continue; // wildcard - player keeps their own weapon
-      const best = findBestInstance(slot.item_hash, myWeapons, body.characterId, preferredInstances[slot.slot]);
+      const best = findBestInstance(slot.item_hash, myWeapons, characterId, preferredInstances[slot.slot]);
       if (!best) {
         missing.push({
           user_id: session.userId,
@@ -90,7 +130,7 @@ export async function POST(req: NextRequest) {
     // If this fails, applyWeapons still has fallback retry logic to vault additional items.
     // Non-fatal failures here are reported in the response but don't block equipping.
     const clearResults = await ensureInventorySpace(
-      body.characterId,
+      characterId,
       token,
       session.bungieMembershipType,
       myWeapons,
@@ -109,7 +149,7 @@ export async function POST(req: NextRequest) {
 
     const equipResults = await applyWeapons(
       weaponsToApply,
-      body.characterId,
+      characterId,
       session.bungieMembershipType,
       token,
       session.userId,
@@ -118,7 +158,7 @@ export async function POST(req: NextRequest) {
     );
 
     const clearResultsEnriched = await Promise.all(
-      clearResults.map(async (r) => {
+      clearResults.map(async (r: InventoryClearResult) => {
         const def = await getWeaponDefinition(r.itemHash);
         return {
           user_id: session.userId,
