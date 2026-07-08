@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Copy } from "lucide-react";
 import Spinner from "./Spinner";
+import PlayerCard from "./PlayerCard";
 import { createClient } from "@/lib/supabase/client";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
@@ -223,6 +225,8 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // pool that was actually fine, just not written yet (#313).
   const [poolReady, setPoolReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [pickingHash, setPickingHash] = useState<number | null>(null);
   const [characters, setCharacters] = useState<{ characterId: string; classType: number }[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
@@ -234,6 +238,23 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     (userId: string) => members.find((m) => m.user_id === userId)?.display_name ?? userId,
     [members]
   );
+
+  // Same copy-to-clipboard pattern LobbyRoom uses for its lobby code (#314).
+  const copyCode = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(lobby.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard unavailable; ignore */ }
+  }, [lobby.code]);
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/join/${lobby.code}`);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1500);
+    } catch { /* clipboard unavailable; ignore */ }
+  }, [lobby.code]);
 
   const loadRound = useCallback(async () => {
     const { data: round } = await supabase
@@ -406,12 +427,25 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl flex-col gap-6">
-      {/* Header: title + progress stepper */}
+      {/* Header: title, join code + invite, progress stepper */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="section-label">
-          Draft <span className="text-gray-600">·</span>{" "}
-          <span className="font-mono slashed-zero text-bungie-blue">{lobby.code}</span>
-        </h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="section-label">Draft</h1>
+          <button
+            onClick={copyCode}
+            aria-label="Copy lobby code"
+            className="font-mono slashed-zero text-bungie-blue hover:opacity-75 transition inline-flex items-center gap-1"
+          >
+            {copied ? <Check size={12} /> : lobby.code}
+          </button>
+          <button
+            onClick={copyLink}
+            className="text-[10px] px-2 py-0.5 border border-bungie-border/40 text-gray-500 hover:border-gray-500 transition inline-flex items-center gap-1"
+          >
+            {copiedLink ? <Check size={10} /> : <Copy size={10} />}
+            {copiedLink ? "Copied" : "Invite"}
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           {SLOT_ORDER.map((slot) => {
             const isDone = committedSlots.has(slot);
@@ -444,6 +478,17 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           })}
         </div>
       </div>
+
+      {/* Fireteam roster — compact PlayerCard, same one Roll Comparison uses */}
+      {members.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {members.map((m) => (
+            <div key={m.id} className="w-48">
+              <PlayerCard member={m} compact />
+            </div>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
