@@ -14,6 +14,8 @@ interface Props {
   badges?: DisplayBadge[];
 }
 
+type BadgeBackedMember = LobbyMember & { badges?: DisplayBadge[] };
+
 export default function PlayerCard({ member, compact, variant = "default", badges }: Props) {
   const [bgFailed, setBgFailed] = useState(false);
   const [iconFailed, setIconFailed] = useState(false);
@@ -30,6 +32,10 @@ export default function PlayerCard({ member, compact, variant = "default", badge
 
   const bannerUrl = bgUrl ?? iconUrl;
   const showSeparateIcon = !bgUrl && !!iconUrl;
+  const resolvedBadges = badges ?? (member as BadgeBackedMember).badges;
+  const badgeStrip = resolvedBadges?.length ? (
+    <EquippedBadges badges={resolvedBadges} max={compact ? 2 : 3} size="icon" />
+  ) : null;
 
   function handleBannerError() {
     if (bgUrl) setBgFailed(true);
@@ -79,9 +85,10 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             </span>
             {member.is_spectator ? (
               <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
-            ) : member.clan_name ? (
-              <span className="text-[10px] text-gray-300/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                {member.clan_name}
+            ) : member.clan_name || badgeStrip ? (
+              <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                {member.clan_name && <span className="truncate">{member.clan_name}</span>}
+                {badgeStrip && <span className="shrink-0">{badgeStrip}</span>}
               </span>
             ) : null}
           </div>
@@ -137,9 +144,10 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         </span>
         {member.is_spectator ? (
           <span className="text-[11px] text-gray-300 leading-tight drop-shadow">spectating</span>
-        ) : member.clan_name ? (
-          <span className="text-[11px] text-gray-200/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {member.clan_name}
+        ) : member.clan_name || badgeStrip ? (
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-gray-200/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {member.clan_name && <span className="truncate">{member.clan_name}</span>}
+            {badgeStrip && <span className="shrink-0">{badgeStrip}</span>}
           </span>
         ) : null}
       </div>
@@ -148,12 +156,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
           <Check size={14} />
         </span>
-      )}
-
-      {badges && badges.length > 0 && (
-        <div className="absolute bottom-1 right-1.5 z-10">
-          <EquippedBadges badges={badges} max={3} size="icon" />
-        </div>
       )}
     </div>
   );
