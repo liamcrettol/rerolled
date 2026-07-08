@@ -1,4 +1,5 @@
 import BadgeIcon from "@/components/badges/BadgeIcon";
+import { BESPOKE_BADGES } from "@/components/badges/bespoke";
 import { TIER_ACCENT, MODE_ACCENT } from "@/lib/badges/style";
 import type { BadgeMode, BadgeTier } from "@/types/badges";
 
@@ -21,6 +22,9 @@ const SIZE_CLS: Record<BadgeChipSize, { box: string; icon: number; text: string 
 };
 
 interface Props {
+  /** Stable badge identifier — looked up in the bespoke-art registry
+   * (components/badges/bespoke) before falling back to the generic frame. */
+  slug: string;
   name: string;
   description: string;
   tier: BadgeTier;
@@ -33,6 +37,7 @@ interface Props {
 }
 
 export default function BadgeChip({
+  slug,
   name,
   description,
   tier,
@@ -47,6 +52,22 @@ export default function BadgeChip({
   const tierColor = locked ? "#4b5158" : TIER_ACCENT[tier];
   const modeColor = mode ? MODE_ACCENT[mode] : null;
   const srText = locked ? `Not yet earned. ${description}` : `${name}. ${description}`;
+
+  // Bespoke art is hand-drawn at the full 160x48 viewBox — only viable at
+  // BadgeChip's "full" size. Every other size falls back to the generic
+  // motif frame below, even for a slug with a bespoke entry.
+  const Bespoke = size === "full" ? BESPOKE_BADGES[slug] : undefined;
+  if (Bespoke) {
+    return (
+      <div
+        title={description}
+        className={`relative ${s.box} ${locked ? "opacity-45 grayscale" : ""} ${className}`}
+      >
+        <Bespoke />
+        <span className="sr-only">{srText}</span>
+      </div>
+    );
+  }
 
   return (
     <div

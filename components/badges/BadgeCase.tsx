@@ -43,6 +43,7 @@ export default function BadgeCase({ badges }: { badges: CatalogBadge[] }) {
             {entries.map((b) => (
               <BadgeChip
                 key={b.slug}
+                slug={b.slug}
                 name={b.name}
                 description={b.description}
                 tier={b.tier}
