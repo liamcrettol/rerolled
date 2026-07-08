@@ -31,20 +31,21 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
 
   return (
     <main className="min-h-screen flex flex-col items-center p-8">
-      <section className="flex flex-1 w-full flex-col items-center justify-center gap-10">
-        <div className="text-center">
-          <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
-          <h1 className="text-5xl md:text-6xl">
-            <BrandWordmark />
-          </h1>
+      <section className="flex flex-1 w-full flex-col items-center justify-center gap-9">
+        <div className="text-center space-y-5">
+          <div>
+            <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
+            <h1 className="text-5xl md:text-6xl">
+              <BrandWordmark />
+            </h1>
+          </div>
+          <FireteamMoment />
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
           <HeroReel weaponsBySlot={heroWeaponsBySlot} />
           <FireteamReadyPanel />
         </div>
-
-        <FireteamMoment />
 
         <div className="flex flex-col items-center gap-4 w-full max-w-sm">
           {code && (
