@@ -11,7 +11,7 @@ import Link from "next/link";
 import BrandWordmark from "@/components/BrandWordmark";
 
 // Signed-out landing. Pitches the whole activity hub (spotlight below the
-// hero), not just roulette — each mode wears its accent from the registry.
+// hero), not just roulette. Each mode wears its accent from the registry.
 const LANDING_MODES = [
   MODES.gun_roulette,
   MODES.weekly_challenge,
@@ -30,38 +30,42 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   const heroWeaponsBySlot = getRandomWeaponSample(60);
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-10 p-8">
-      <div className="text-center">
-        <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
-        <h1 className="text-5xl md:text-6xl">
-          <BrandWordmark />
-        </h1>
-      </div>
+    <main className="min-h-screen flex flex-col items-center p-8">
+      <section className="flex flex-1 w-full flex-col items-center justify-center gap-10">
+        <div className="text-center">
+          <p className="section-label text-bungie-blue mb-3">Destiny 2</p>
+          <h1 className="text-5xl md:text-6xl">
+            <BrandWordmark />
+          </h1>
+        </div>
 
-      <div className="flex flex-col sm:flex-row items-center gap-6">
-        <HeroReel weaponsBySlot={heroWeaponsBySlot} />
-        <FireteamReadyPanel />
-      </div>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
+          <HeroReel weaponsBySlot={heroWeaponsBySlot} />
+          <FireteamReadyPanel />
+        </div>
 
-      <FireteamMoment />
+        <FireteamMoment />
 
-      <div className="flex flex-col items-center gap-4 w-full max-w-sm">
-        {code && (
-          <p className="text-sm text-bungie-blue text-center">
-            Invited to lobby <span className="font-mono font-bold slashed-zero">{code}</span>. Sign in to join.
-          </p>
-        )}
-        <SignInButton returnTo={code ? `/join/${code}` : undefined} />
-      </div>
+        <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+          {code && (
+            <p className="text-sm text-bungie-blue text-center">
+              Invited to lobby <span className="font-mono font-bold slashed-zero">{code}</span>. Sign in to join.
+            </p>
+          )}
+          <SignInButton returnTo={code ? `/join/${code}` : undefined} />
+        </div>
+      </section>
 
-      <ModeSpotlight modes={LANDING_MODES} />
+      <div className="w-full flex flex-col items-center gap-6 pt-8">
+        <ModeSpotlight modes={LANDING_MODES} />
 
-      <div className="flex items-center gap-3 text-xs text-gray-600">
-        <span>Made by Invict Software Solutions</span>
-        <span aria-hidden="true">·</span>
-        <Link href="/privacy" className="hover:text-gray-400">
-          Privacy Policy
-        </Link>
+        <div className="flex items-center gap-3 text-xs text-gray-600">
+          <span>Made by Invict Software Solutions</span>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy" className="hover:text-gray-400">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </main>
   );
