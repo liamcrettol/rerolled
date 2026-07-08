@@ -2,8 +2,9 @@ import BadgeChip from "@/components/badges/BadgeChip";
 import type { DisplayBadge } from "@/lib/badges/data";
 
 // Profile/stats badge shelf (#257, rebuilt on the chip system #297) — every
-// badge the player has earned, as real badge chips instead of plain-text
-// tier-tinted pills.
+// badge the player has earned, as real badge chips. This shelf has enough room
+// for full badge art, so bespoke badges like Invict should use their full SVG
+// instead of the compact generic frame used on tight surfaces.
 
 export default function BadgeShelf({ badges }: { badges: DisplayBadge[] }) {
   return (
@@ -25,7 +26,7 @@ export default function BadgeShelf({ badges }: { badges: DisplayBadge[] }) {
                 tier={b.tier}
                 mode={b.mode}
                 iconKey={b.iconKey}
-                size="compact"
+                size="full"
               />
             ))}
           </div>
