@@ -32,17 +32,16 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       : null;
 
   const bannerUrl = bgUrl ?? iconUrl;
-  const bannerStyle = bannerUrl
-    ? {
-        backgroundImage: `url(${bannerUrl})`,
-        backgroundSize: "100% 100%",
-      }
-    : undefined;
+
+  function handleBannerError() {
+    if (bgUrl) setBgFailed(true);
+    else setIconFailed(true);
+  }
 
   if (variant === "sidebar") {
     return (
       <div
-        className={`relative flex h-12 w-full items-center overflow-hidden border ${
+        className={`relative flex h-14 w-full items-center overflow-hidden border bg-bungie-dark ${
           member.is_captain
             ? "border-yellow-500/60"
             : member.is_spectator
@@ -55,12 +54,8 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             <img
               src={bannerUrl}
               alt=""
-              className="hidden"
-              onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
-            />
-            <div
-              className="absolute inset-0 bg-center bg-no-repeat"
-              style={bannerStyle}
+              className="absolute inset-0 h-full w-full object-contain object-left"
+              onError={handleBannerError}
             />
             <div className="absolute inset-0 bg-black/45" />
           </>
@@ -69,7 +64,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         )}
 
         <div className="relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2">
-          <div className="shrink-0 w-7 h-7 overflow-hidden border border-white/15 bg-bungie-border/30">
+          <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
             {iconUrl && (
               <img
                 src={iconUrl}
@@ -91,11 +86,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
     );
   }
 
-  // Destiny nameplate: long, thin emblem banner with a small square icon.
-  // Captain gets a yellow border, not a crown.
+  // Destiny nameplate: preserve the Bungie emblem aspect ratio instead of
+  // stretching it to whatever card size the lobby happens to use.
   return (
     <div
-      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-12" : "h-14"}
+      className={`relative flex items-center overflow-hidden border bg-bungie-dark w-full ${compact ? "h-14" : "h-16"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator
@@ -109,12 +104,8 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           <img
             src={bannerUrl}
             alt=""
-            className="hidden"
-            onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
-          />
-          <div
-            className="absolute inset-0 bg-center bg-no-repeat"
-            style={bannerStyle}
+            className="absolute inset-0 h-full w-full object-contain object-left"
+            onError={handleBannerError}
           />
           <div className="absolute inset-0 bg-black/40" />
         </>
@@ -123,7 +114,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       )}
 
       {/* Emblem icon */}
-      <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-8 h-8" : "w-11 h-11"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
+      <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-9 h-9" : "w-12 h-12"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
         {iconUrl && (
           <img
             src={iconUrl}
