@@ -32,6 +32,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       : null;
 
   const bannerUrl = bgUrl ?? iconUrl;
+  const showSeparateIcon = !bgUrl && !!iconUrl;
 
   function handleBannerError() {
     if (bgUrl) setBgFailed(true);
@@ -63,17 +64,17 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           <div className="absolute inset-0 bg-bungie-dark" />
         )}
 
-        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2">
-          <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
-            {iconUrl && (
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-16" : ""}`}>
+          {showSeparateIcon && (
+            <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
               <img
                 src={iconUrl}
                 alt=""
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 onError={() => setIconFailed(true)}
               />
-            )}
-          </div>
+            </div>
+          )}
           <span className="text-xs font-semibold truncate flex-1 min-w-0 flex items-center gap-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
             <span className="truncate">{trimBungieName(member.display_name)}</span>
@@ -86,8 +87,9 @@ export default function PlayerCard({ member, compact, variant = "default", badge
     );
   }
 
-  // Destiny nameplate: preserve the Bungie emblem aspect ratio instead of
-  // stretching it to whatever card size the lobby happens to use.
+  // Bungie's emblem background already contains the left-side emblem art. Do
+  // not stack a second square icon on top of it unless the background failed and
+  // we are falling back to the standalone emblem icon.
   return (
     <div
       className={`relative flex items-center overflow-hidden border bg-bungie-dark w-full ${compact ? "h-14" : "h-16"}
@@ -113,20 +115,21 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         <div className="absolute inset-0 bg-bungie-dark" />
       )}
 
-      {/* Emblem icon */}
-      <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-9 h-9" : "w-12 h-12"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
-        {iconUrl && (
+      {/* Fallback icon only. Full emblem backgrounds already include this zone. */}
+      {showSeparateIcon && (
+        <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-9 h-9" : "w-12 h-12"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
           <img
             src={iconUrl}
             alt=""
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={() => setIconFailed(true)}
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Name + clan, left-aligned beside the icon. */}
-      <div className="relative z-10 flex-1 min-w-0 px-2.5 flex flex-col justify-center">
+      {/* Name + clan. Full emblem backgrounds reserve a left emblem zone, so the
+          text starts after that zone instead of covering or clipping it. */}
+      <div className={`relative z-10 flex-1 min-w-0 pr-2.5 flex flex-col justify-center ${bgUrl ? "pl-16" : "px-2.5"}`}>
         <span
           className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
