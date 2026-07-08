@@ -12,7 +12,7 @@ interface Props {
   compact?: boolean;
   variant?: "default" | "sidebar";
   /** Up to 3 shown as small icons in the bottom-right corner (default variant
-   * only) — the "default" nameplate card is what Roll Comparison renders per
+   * only). The default nameplate card is what Roll Comparison renders per
    * member, so this is where a Trials-Report-style badge strip belongs. */
   badges?: DisplayBadge[];
 }
@@ -31,36 +31,65 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       ? `https://www.bungie.net${member.emblem_path}`
       : null;
 
+  const bannerUrl = bgUrl ?? iconUrl;
+
   if (variant === "sidebar") {
     return (
       <div
-        className={`flex items-center gap-2 px-1 py-1.5 ${
-          member.is_captain ? "text-yellow-400" : member.is_spectator ? "text-gray-600 opacity-60" : "text-gray-300"
+        className={`relative flex h-11 w-full items-center overflow-hidden border ${
+          member.is_captain
+            ? "border-yellow-500/60"
+            : member.is_spectator
+            ? "border-bungie-border opacity-60"
+            : "border-bungie-border/70"
         }`}
       >
-        <div className="relative shrink-0 w-[26px] h-[26px] overflow-hidden border border-white/10">
-          {iconUrl ? (
-            <img src={iconUrl} alt="" className="w-full h-full object-cover" onError={() => setIconFailed(true)} />
-          ) : (
-            <div className="w-full h-full bg-bungie-border/30" />
+        {bannerUrl ? (
+          <>
+            <img
+              src={bannerUrl}
+              alt=""
+              className="hidden"
+              onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
+            />
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${bannerUrl})` }}
+            />
+            <div className="absolute inset-0 bg-black/45" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-bungie-dark" />
+        )}
+
+        <div className="relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2">
+          <div className="shrink-0 w-7 h-7 overflow-hidden border border-white/15 bg-bungie-border/30">
+            {iconUrl && (
+              <img
+                src={iconUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={() => setIconFailed(true)}
+              />
+            )}
+          </div>
+          <span className="text-xs font-semibold truncate flex-1 min-w-0 flex items-center gap-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
+            <span className="truncate">{trimBungieName(member.display_name)}</span>
+          </span>
+          {!member.is_spectator && member.selected_character_id && (
+            <Check size={13} className="text-green-400 shrink-0 animate-fade-in drop-shadow" />
           )}
         </div>
-        <span className="text-xs font-medium truncate flex-1 min-w-0 flex items-center gap-1">
-          {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
-          <span className="truncate">{trimBungieName(member.display_name)}</span>
-        </span>
-        {!member.is_spectator && member.selected_character_id && (
-          <Check size={13} className="text-green-400 shrink-0 animate-fade-in" />
-        )}
       </div>
     );
   }
 
-  // Destiny nameplate: square emblem icon on the left, name (top) + clan (below)
-  // left-aligned beside it, over the emblem banner. Captain = yellow border, no crown.
+  // Destiny nameplate: long, thin emblem banner with a small square icon.
+  // Captain gets a yellow border, not a crown.
   return (
     <div
-      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-14" : "h-20"}
+      className={`relative flex items-center overflow-hidden border w-full ${compact ? "h-11" : "h-14"}
         ${member.is_captain
           ? "border-yellow-500/60"
           : member.is_spectator
@@ -69,42 +98,38 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         }`}
     >
       {/* Emblem banner */}
-      {bgUrl ? (
+      {bannerUrl ? (
         <>
-          {/* Hidden img to detect load failure */}
           <img
-            src={bgUrl}
+            src={bannerUrl}
             alt=""
             className="hidden"
-            onError={() => setBgFailed(true)}
+            onError={() => (bgUrl ? setBgFailed(true) : setIconFailed(true))}
           />
           <div
-            className="absolute inset-0 bg-cover bg-left"
-            style={{ backgroundImage: `url(${bgUrl})` }}
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${bannerUrl})` }}
           />
-          {/* Legibility gradient over the text side (left → right). */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/45 to-black/65" />
+          <div className="absolute inset-0 bg-black/40" />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
       )}
 
-      {/* Emblem icon — left square, full height */}
-      <div className={`relative z-10 shrink-0 ${compact ? "w-14 h-14" : "w-20 h-20"} border-r border-black/30`}>
-        {iconUrl ? (
+      {/* Emblem icon */}
+      <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-8 h-8" : "w-11 h-11"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
+        {iconUrl && (
           <img
             src={iconUrl}
             alt=""
             className="w-full h-full object-cover"
             onError={() => setIconFailed(true)}
           />
-        ) : (
-          <div className="w-full h-full bg-bungie-border/30" />
         )}
       </div>
 
       {/* Name + clan, left-aligned beside the icon. */}
-      <div className="relative z-10 flex-1 min-w-0 px-3 flex flex-col justify-center">
+      <div className="relative z-10 flex-1 min-w-0 px-2.5 flex flex-col justify-center">
         <span
           className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
@@ -114,7 +139,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         {member.is_spectator ? (
           <span className="text-[11px] text-gray-300 leading-tight drop-shadow">spectating</span>
         ) : member.clan_name ? (
-          <span className="text-[12px] text-gray-200/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <span className="text-[11px] text-gray-200/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             {member.clan_name}
           </span>
         ) : null}
@@ -123,11 +148,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
-          <Check size={15} />
+          <Check size={14} />
         </span>
       )}
 
-      {/* Equipped badges, bottom-right corner — icon-only so it doesn't
+      {/* Equipped badges, bottom-right corner. Icon-only so it does not
           compete with the name/clan text on the emblem banner. */}
       {badges && badges.length > 0 && (
         <div className="absolute bottom-1 right-1.5 z-10">
