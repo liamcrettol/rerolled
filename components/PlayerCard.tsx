@@ -11,9 +11,6 @@ interface Props {
   member: LobbyMember;
   compact?: boolean;
   variant?: "default" | "sidebar";
-  /** Up to 3 shown as small icons in the bottom-right corner (default variant
-   * only). The default nameplate card is what Roll Comparison renders per
-   * member, so this is where a Trials-Report-style badge strip belongs. */
   badges?: DisplayBadge[];
 }
 
@@ -64,7 +61,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           <div className="absolute inset-0 bg-bungie-dark" />
         )}
 
-        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-16" : ""}`}>
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[4.35rem]" : ""}`}>
           {showSeparateIcon && (
             <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
               <img
@@ -75,10 +72,19 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               />
             </div>
           )}
-          <span className="text-xs font-semibold truncate flex-1 min-w-0 flex items-center gap-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
-            <span className="truncate">{trimBungieName(member.display_name)}</span>
-          </span>
+          <div className="flex min-w-0 flex-1 translate-y-[1px] flex-col justify-center">
+            <span className="text-xs font-semibold truncate leading-tight flex items-center gap-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
+              <span className="truncate">{trimBungieName(member.display_name)}</span>
+            </span>
+            {member.is_spectator ? (
+              <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
+            ) : member.clan_name ? (
+              <span className="text-[10px] text-gray-300/90 truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                {member.clan_name}
+              </span>
+            ) : null}
+          </div>
           {!member.is_spectator && member.selected_character_id && (
             <Check size={13} className="text-green-400 shrink-0 animate-fade-in drop-shadow" />
           )}
@@ -87,9 +93,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
     );
   }
 
-  // Bungie's emblem background already contains the left-side emblem art. Do
-  // not stack a second square icon on top of it unless the background failed and
-  // we are falling back to the standalone emblem icon.
   return (
     <div
       className={`relative flex items-center overflow-hidden border bg-bungie-dark w-full ${compact ? "h-14" : "h-16"}
@@ -100,7 +103,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           : "border-bungie-border"
         }`}
     >
-      {/* Emblem banner */}
       {bannerUrl ? (
         <>
           <img
@@ -115,7 +117,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         <div className="absolute inset-0 bg-bungie-dark" />
       )}
 
-      {/* Fallback icon only. Full emblem backgrounds already include this zone. */}
       {showSeparateIcon && (
         <div className={`relative z-10 shrink-0 ml-1.5 ${compact ? "w-9 h-9" : "w-12 h-12"} overflow-hidden border border-white/15 bg-bungie-border/30`}>
           <img
@@ -127,9 +128,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         </div>
       )}
 
-      {/* Name + clan. Full emblem backgrounds reserve a left emblem zone, so the
-          text starts after that zone instead of covering or clipping it. */}
-      <div className={`relative z-10 flex-1 min-w-0 pr-2.5 flex flex-col justify-center ${bgUrl ? "pl-16" : "px-2.5"}`}>
+      <div className={`relative z-10 flex-1 min-w-0 pr-2.5 flex translate-y-[1px] flex-col justify-center ${bgUrl ? "pl-[4.35rem]" : "px-2.5"}`}>
         <span
           className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
@@ -145,15 +144,12 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         ) : null}
       </div>
 
-      {/* Guardian-selected check, top-right corner */}
       {!member.is_spectator && member.selected_character_id && (
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
           <Check size={14} />
         </span>
       )}
 
-      {/* Equipped badges, bottom-right corner. Icon-only so it does not
-          compete with the name/clan text on the emblem banner. */}
       {badges && badges.length > 0 && (
         <div className="absolute bottom-1 right-1.5 z-10">
           <EquippedBadges badges={badges} max={3} size="icon" />
