@@ -4,16 +4,18 @@ Rerolled is a web app for creating random weapon loadouts and challenge runs wit
 
 Users can sign in with their Bungie account, view their Destiny 2 weapons, join a shared lobby, and generate or queue roulette-style weapon loadouts. The app is intended for private group use between matches while players are in orbit.
 
-## Planned Features
+## Features
 
 - Bungie OAuth sign-in
 - Destiny 2 character, inventory, and vault lookup
 - Weapon cards with icons, perks, and roll details
 - Shared lobby system for friends
-- Three-slot loadout queue
-- Random weapon selection
-- Rotating captain system
-- Transfer and equip support through the Bungie API where allowed
+- Three-slot loadout queue with a rotating "captain" who rolls from the weapons
+  the fireteam owns in common
+- Draft mode, endgame lobbies, and a spectator/watch view
+- Transfer and equip through the Bungie API where allowed
+- Automatic match detection (PGCR) that records per-game and per-weapon stats
+- Weekly PvE and PvP challenges, leaderboards, and a hall of fame
 
 ## Bungie API Usage
 
@@ -33,7 +35,7 @@ report a vulnerability.
 ### Prerequisites
 - Node.js and npm installed
 - A Bungie account
-- ngrok installed (`brew install ngrok` on macOS)
+- ngrok installed — `brew install ngrok` (macOS), `choco install ngrok` or `winget install ngrok.ngrok` (Windows), or download from https://ngrok.com/download
 
 ### Steps
 
@@ -114,7 +116,8 @@ Local development uses:
 
 ## Status
 
-Early development / personal project.
+Live and in active development. Production runs at https://d2roulette.app for a
+private group of players; new work lands on staging first (see Deployment URLs).
 
 ## Developer docs
 
@@ -144,6 +147,11 @@ Early development / personal project.
 ### QA / Testing
 
 - [@Oboluss](https://github.com/Oboluss)
+
+## License
+
+Proprietary — all rights reserved. See [`LICENSE`](LICENSE). This is a private
+project; no permission is granted to use, copy, or distribute the source.
 
 ## Disclaimer
 
