@@ -63,7 +63,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         <div className="flex items-center gap-3 text-xs text-gray-600">
           <span>Made by Invict Software Solutions</span>
           <span aria-hidden="true">·</span>
-          <Link href="/privacy" className="hover:text-gray-400">
+          <Link href="/privacy" className="inline-flex items-center min-h-[44px] hover:text-gray-400">
             Privacy Policy
           </Link>
         </div>

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+// Root layout applies the "%s | Rerolled" title template.
 export const metadata: Metadata = {
-  title: "Privacy Policy | Rerolled",
+  title: "Privacy Policy",
 };
 
 export default function PrivacyPage() {
