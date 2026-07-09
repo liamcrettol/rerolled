@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import BrandWordmark from "@/components/BrandWordmark";
+import NavPlayerCard from "./NavPlayerCard";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
@@ -16,7 +17,17 @@ const LINKS = [
   { href: "/stats", label: "STATS" },
 ];
 
-export default function TopNav({ displayName }: { displayName?: string }) {
+export default function TopNav({
+  displayName,
+  emblemPath,
+  emblemBackgroundPath,
+  clanTag,
+}: {
+  displayName?: string;
+  emblemPath?: string | null;
+  emblemBackgroundPath?: string | null;
+  clanTag?: string | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -46,7 +57,12 @@ export default function TopNav({ displayName }: { displayName?: string }) {
 
         {displayName && (
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            <span className="text-xs text-gray-400 truncate max-w-[10rem]">{displayName}</span>
+            <NavPlayerCard
+              displayName={displayName}
+              emblemPath={emblemPath}
+              emblemBackgroundPath={emblemBackgroundPath}
+              clanTag={clanTag}
+            />
             <SignOutButton />
           </div>
         )}

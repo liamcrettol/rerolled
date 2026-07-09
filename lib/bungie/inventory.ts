@@ -55,6 +55,25 @@ export async function getCharacters(
   return Object.values(profile.characters.data);
 }
 
+// Characters-only fetch (no inventory components) for chrome that just needs
+// an emblem, e.g. the nav player card — avoids the full PROFILE_COMPONENTS
+// pull on every page load.
+export async function getPrimaryCharacterEmblem(
+  membershipType: number,
+  membershipId: string,
+  accessToken: string
+): Promise<{ emblemPath: string; emblemBackgroundPath: string } | null> {
+  const profile = await bungieGet<{ characters: BungieProfileResponse["characters"] }>(
+    `/Destiny2/${membershipType}/Profile/${membershipId}/?components=200`,
+    accessToken
+  );
+  const characters = Object.values(profile.characters.data);
+  if (!characters.length) return null;
+
+  const latest = characters.reduce((a, b) => (a.dateLastPlayed > b.dateLastPlayed ? a : b));
+  return { emblemPath: latest.emblemPath, emblemBackgroundPath: latest.emblemBackgroundPath };
+}
+
 interface RawItem {
   itemHash: number;
   itemInstanceId: string;
