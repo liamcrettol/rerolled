@@ -43,10 +43,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   }
 
   if (variant === "nav") {
-    const navBadgeStrip = resolvedBadges?.length ? (
-      <EquippedBadges badges={resolvedBadges} max={2} size="tiny" />
-    ) : null;
-
     // Bungie's wide nameplate art (emblem_background_path) is a real ~4.9:1
     // banner, safe to cover-fill and sit the name on top of like in-game. The
     // small square emblem icon is NOT that shape — stretching it into a wide
@@ -72,7 +68,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
                   {member.clan_name}
                 </span>
               )}
-              {navBadgeStrip}
+              {badgeStrip}
             </div>
           </div>
         </div>
@@ -92,7 +88,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           </span>
           <div className="flex min-w-0 items-center gap-1.5">
             {member.clan_name && <span className="truncate text-[10px] leading-tight text-gray-400">{member.clan_name}</span>}
-            {navBadgeStrip}
+            {badgeStrip}
           </div>
         </div>
       </div>

@@ -91,6 +91,7 @@ export default function TopNav({
             <PlayerCard
               member={navMember(displayName, emblemPath, emblemBackgroundPath, clanName)}
               variant="nav"
+              compact
               badges={badges}
             />
             <SignOutButton />
