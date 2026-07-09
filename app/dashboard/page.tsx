@@ -3,17 +3,16 @@ import { redirect } from "next/navigation";
 import PlatformShell from "@/components/platform/PlatformShell";
 import WeeklyHero from "@/components/platform/WeeklyHero";
 import ModeGrid from "@/components/platform/ModeGrid";
-import LobbyRow from "@/components/platform/LobbyRow";
-import StandingsPreview from "@/components/platform/StandingsPreview";
 import SeasonPanel from "@/components/platform/SeasonPanel";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
 import { getActiveSessionForUser } from "@/lib/lobby";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
-import { getUserWeeklyPlacement, getStandingsPreview, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
+import { getUserWeeklyPlacement, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
 import { getSeasonStats } from "@/lib/stats/season";
 
-// Game-night platform home shell (#243): weekly challenges, mode grid, lobby
-// row, week standings, and the Your Season panel — all reading live data.
+// Game-night platform home shell (#243): weekly challenges, the Your Season
+// panel, and the mode grid (whose fourth tile is join/rejoin) — all reading
+// live data.
 export const dynamic = "force-dynamic";
 
 const EMPTY_PLACEMENT = { rank: null, bestScore: null, totalRuns: 0 };
@@ -38,11 +37,10 @@ export default async function Dashboard() {
     getActiveWeeklyChallenge("pvp").catch(() => null),
   ]);
 
-  const [activeSession, placement, pvpPlacement, standings, season, runCount, pvpRunCount] = await Promise.all([
+  const [activeSession, placement, pvpPlacement, season, runCount, pvpRunCount] = await Promise.all([
     activeSessionPromise,
     getUserWeeklyPlacement(session.userId, challenge?.id ?? null).catch(() => EMPTY_PLACEMENT),
     getUserWeeklyPlacement(session.userId, pvpChallenge?.id ?? null).catch(() => EMPTY_PLACEMENT),
-    challenge ? getStandingsPreview(challenge.id, session.userId).catch(() => []) : Promise.resolve([]),
     seasonPromise,
     getWeeklyRunCount(challenge?.id ?? null).catch(() => 0),
     getWeeklyRunCount(pvpChallenge?.id ?? null).catch(() => 0),
@@ -78,11 +76,7 @@ export default async function Dashboard() {
 
         <SeasonPanel stats={season} />
 
-        <ModeGrid />
-
-        <LobbyRow activeSession={activeSession} />
-
-        <StandingsPreview entries={standings} />
+        <ModeGrid activeSession={activeSession} />
       </div>
     </PlatformShell>
   );

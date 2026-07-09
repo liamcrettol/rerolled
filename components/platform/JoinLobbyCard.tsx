@@ -1,0 +1,78 @@
+"use client";
+
+import { KeyRound } from "lucide-react";
+import Spinner from "@/components/Spinner";
+import { useJoinLobby, MODE_BASE_PATH } from "@/hooks/useJoinLobby";
+import type { Lobby, LobbyMode } from "@/types/lobby";
+
+// The fourth cell of the home mode grid. Deliberately shaped like a ModeCard
+// (same panel frame, accent rail, eyebrow, title) so it reads as a peer of the
+// three modes rather than a stray form bolted to the bottom of the page.
+
+const STATUS_LABELS: Record<Lobby["status"], string> = {
+  waiting: "Waiting for players",
+  rolling: "Rolling weapons",
+  applying: "Applying loadout",
+  in_game: "In game",
+  done: "Ended",
+};
+
+export default function JoinLobbyCard({
+  activeSession,
+}: {
+  activeSession?: { code: string; status: Lobby["status"]; mode: LobbyMode } | null;
+}) {
+  const { code, onCodeChange, loading, error, join, router } = useJoinLobby();
+
+  return (
+    <div className="panel border-l-2 border-l-bungie-blue p-4 flex flex-col">
+      <div className="flex items-center gap-2 min-w-0">
+        <KeyRound size={16} className="shrink-0 text-bungie-blue" aria-hidden="true" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-bungie-blue">Fireteam</p>
+      </div>
+      <h3 className="text-base font-bold uppercase tracking-wider text-white mt-3">
+        Enter a code or rejoin
+      </h3>
+
+      {activeSession && (
+        <button
+          onClick={() => router.push(`${MODE_BASE_PATH[activeSession.mode]}/${activeSession.code}`)}
+          className="mt-4 w-full bg-bungie-blue hover:bg-[#26bcf3] text-white px-3 py-2 transition-colors flex items-center justify-between gap-2"
+        >
+          <span className="font-mono text-sm font-bold slashed-zero">{activeSession.code}</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest shrink-0">Rejoin</span>
+        </button>
+      )}
+      {activeSession && (
+        <p className="mt-1 text-[11px] text-gray-500 truncate">{STATUS_LABELS[activeSession.status]}</p>
+      )}
+
+      <form onSubmit={join} className={`flex gap-2 ${activeSession ? "mt-3" : "mt-4"}`}>
+        <label className="flex-1 min-w-0">
+          <span className="sr-only">Lobby code</span>
+          <input
+            value={code}
+            onChange={(e) => onCodeChange(e.target.value)}
+            placeholder="LOBBY CODE"
+            maxLength={8}
+            className="w-full bg-bungie-dark border border-bungie-border px-2 py-2 text-white font-mono text-sm text-center uppercase tracking-widest slashed-zero placeholder:text-gray-600 placeholder:font-sans placeholder:tracking-wider placeholder:text-xs focus:outline-none focus:border-bungie-blue"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={loading || !code.trim()}
+          className={`text-[11px] font-bold uppercase tracking-widest px-3 transition-colors inline-flex items-center justify-center gap-1.5 shrink-0 ${
+            code.trim()
+              ? "bg-bungie-blue hover:bg-[#26bcf3] text-white"
+              : "bg-bungie-dark border border-bungie-border text-gray-500"
+          } disabled:opacity-50`}
+        >
+          {loading && <Spinner size={12} />}
+          {loading ? "Joining" : "Join"}
+        </button>
+      </form>
+
+      {error && <p className="mt-2 text-[11px] text-red-400">{error}</p>}
+    </div>
+  );
+}

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import type { ModeDefinition, ModeStatus } from "@/types/platform";
+import type { Lobby, LobbyMode } from "@/types/lobby";
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
+import JoinLobbyCard from "./JoinLobbyCard";
 import { MODE_ICONS, ACCENT_CLS } from "./modeVisuals";
 
 // Home mode grid (#243/#244/#253). Every card is driven by the mode registry —
@@ -70,7 +72,14 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
   );
 }
 
-export default function ModeGrid() {
+// The grid is four columns wide and the registry holds three modes, so the
+// join/rejoin tile fills the cell that was sitting empty rather than living in
+// its own section below the fold.
+export default function ModeGrid({
+  activeSession,
+}: {
+  activeSession?: { code: string; status: Lobby["status"]; mode: LobbyMode } | null;
+}) {
   return (
     <section>
       <p className="section-label mb-3">Modes</p>
@@ -78,6 +87,7 @@ export default function ModeGrid() {
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />
         ))}
+        <JoinLobbyCard activeSession={activeSession} />
       </div>
     </section>
   );

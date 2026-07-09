@@ -63,20 +63,20 @@ export default function TopNav({
 
   return (
     <header className="border-b border-bungie-border">
-      <div className="max-w-7xl mx-auto flex items-center gap-6 px-6 h-14">
+      <div className="max-w-7xl mx-auto flex items-center gap-8 px-6 h-[4.5rem]">
         <Link href="/dashboard" className="flex items-baseline gap-2 shrink-0">
-          <BrandWordmark className="text-lg" />
-          <span className="text-[9px] font-bold uppercase tracking-widest text-gray-600">beta</span>
+          <BrandWordmark className="text-xl" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
         </Link>
 
-        <nav className="flex items-center gap-5 flex-1 min-w-0 overflow-x-auto">
+        <nav className="flex items-center gap-6 flex-1 min-w-0 overflow-x-auto">
           {LINKS.map((l) => {
             const active = pathname === l.href || pathname.startsWith(l.href + "/");
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`text-[11px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors ${
+                className={`text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-colors ${
                   active ? "text-bungie-blue" : "text-gray-400 hover:text-white"
                 }`}
               >

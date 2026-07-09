@@ -58,9 +58,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
 
   if (variant === "nav") {
     // Same layout as the sidebar variant below, scaled down to fit the nav's
-    // h-10 slot instead of h-14.
+    // h-12 slot instead of h-14. Width and the pl floor move together with the
+    // height: at h-12 the banner's baked-in icon renders 48px wide, so a
+    // narrower card or a smaller floor would slide the name on top of it.
     return (
-      <div className="relative flex h-10 w-52 shrink-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark">
+      <div className="relative flex h-12 w-56 shrink-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark">
         {bannerUrl ? (
           <>
             <img
@@ -75,9 +77,9 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           <div className="absolute inset-0 bg-bungie-dark" />
         )}
 
-        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[max(22%,2.75rem)]" : ""}`}>
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[max(22%,3.25rem)]" : ""}`}>
           {showSeparateIcon && (
-            <div className="shrink-0 w-7 h-7 overflow-hidden border border-white/15 bg-bungie-border/30">
+            <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
               <img
                 src={iconUrl}
                 alt=""
@@ -87,11 +89,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className="text-xs font-bold truncate leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            <span className="text-sm font-bold truncate leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
               {trimBungieName(member.display_name)}
             </span>
             {member.clan_name && (
-              <span className="truncate text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              <span className="truncate text-[11px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                 {member.clan_name}
               </span>
             )}
