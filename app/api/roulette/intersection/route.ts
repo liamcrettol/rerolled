@@ -13,6 +13,7 @@ import { bungieGet } from "@/lib/bungie/client";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { bucketToSlot } from "@/types/bungie";
+import { createLogger } from "@/lib/logger";
 
 const schema = z.object({
   lobbyId: z.string().uuid(),
@@ -86,8 +87,10 @@ function buildVariantGroups(
 }
 
 export async function POST(req: NextRequest) {
+  let log = createLogger(req);
   try {
     const session = await requireSession();
+    log = createLogger(req, session.userId);
     const { lobbyId, characterId } = schema.parse(await req.json());
 
     const { data: members, error: membersError } = await adminSupabase
@@ -277,10 +280,21 @@ export async function POST(req: NextRequest) {
         ? await getWeaponDefinitions([...allVaultHashes])
         : new Map();
 
+    // Vault items whose hash isn't in the static weapons table (stale/missing
+    // manifest sync) or whose bucket doesn't resolve to a weapon slot get
+    // silently dropped from the pool - track how many so #283 can be diagnosed
+    // from logs instead of guessed at.
+    let vaultUnresolvedCount = 0;
+    const vaultUnresolvedSample: number[] = [];
+
     for (const data of memberDataMap.values()) {
       for (const item of data.vaultItems) {
         const def = vaultDefMap.get(item.itemHash);
-        if (!def) continue;
+        if (!def) {
+          vaultUnresolvedCount++;
+          if (vaultUnresolvedSample.length < 10) vaultUnresolvedSample.push(item.itemHash);
+          continue;
+        }
         const slot = bucketToSlot(def.defaultBucketHash);
         if (!slot) continue;
         data.weapons.push({
@@ -363,6 +377,28 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Diagnostics for #283 ("small pool" reports, most visible in solo lobbies
+    // where the raw union IS the whole reported pool). Compares each member's
+    // raw owned-hash count per slot against the post-grouping intersection size,
+    // and surfaces vault items that got silently dropped, so a real occurrence
+    // can be root-caused from Axiom instead of guessed at.
+    log.info("intersection.pool_built", {
+      lobbyId,
+      memberCount: memberDataMap.size,
+      rawOwnedBySlot: {
+        kinetic: allHashesBySlot.kinetic.size,
+        energy: allHashesBySlot.energy.size,
+        power: allHashesBySlot.power.size,
+      },
+      intersectionBySlot: {
+        kinetic: intersection.kinetic.size,
+        energy: intersection.energy.size,
+        power: intersection.power.size,
+      },
+      vaultUnresolvedCount,
+      vaultUnresolvedSample,
+    });
 
     // ── Phase 5: Exotic collection expansion ─────────────────────────────────
 
@@ -674,6 +710,7 @@ export async function POST(req: NextRequest) {
       console.warn("[intersection] failed to cache lobby pool:", e instanceof Error ? e.message : e);
     }
 
+    await log.flush();
     return NextResponse.json({
       intersection: intersectionArrays,
       weaponDetails,
@@ -686,6 +723,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    log.error("intersection.error", { error: msg });
+    await log.flush();
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -25,6 +25,11 @@ jest.mock("@/lib/auth/helpers", () => ({
   getBungieToken: jest.fn().mockResolvedValue("token"),
 }));
 
+const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), flush: jest.fn() };
+jest.mock("@/lib/logger", () => ({
+  createLogger: jest.fn(() => mockLogger),
+}));
+
 // ── Definitions fixture ─────────────────────────────────────────────────────
 // hash → def. defaultBucketHash decides the slot for vault/collection items.
 const DEFS: Record<
@@ -329,6 +334,61 @@ describe("POST /api/roulette/intersection — pool semantics", () => {
 
     const body = await (await POST(makeRequest())).json();
     expect(body.intersection.energy).not.toContain(90);
+  });
+});
+
+describe("POST /api/roulette/intersection — solo lobby pool (#283)", () => {
+  it("returns the caller's full owned pool across characters and vault, not a shrunk subset", async () => {
+    membersResult = { data: [member("user-1", "111")], error: null };
+    setProfiles({
+      "111": makeProfile({
+        characters: {
+          "char-a": { lastPlayed: "2026-01-01" },
+          "char-b": { lastPlayed: "2026-06-01" },
+        },
+        equipped: {
+          "char-a": [{ hash: 10, instanceId: "i-1", bucket: KINETIC_BUCKET }],
+          "char-b": [{ hash: 30, instanceId: "i-2", bucket: ENERGY_BUCKET }],
+        },
+        inventory: {
+          "char-a": [{ hash: 20, instanceId: "i-3", bucket: ENERGY_BUCKET }],
+        },
+        vault: [{ hash: 40, instanceId: "i-4" }],
+      }),
+    });
+
+    const body = await (await POST(makeRequest())).json();
+    // Solo pool = everything the one member owns: equipped on both
+    // characters, bagged, and vaulted - nothing should be filtered out
+    // just because there's no one else to intersect against.
+    expect(body.intersection.kinetic).toEqual([10, 40]);
+    expect(body.intersection.energy).toEqual(expect.arrayContaining([20, 30]));
+    expect(body.intersection.energy).toHaveLength(2);
+    expect(body.memberCount).toBe(1);
+  });
+
+  it("logs pool-build diagnostics with raw vs. final counts and vault-unresolved hashes", async () => {
+    membersResult = { data: [member("user-1", "111")], error: null };
+    setProfiles({
+      "111": makeProfile({
+        equipped: { "char-a": [{ hash: 10, instanceId: "i-1", bucket: KINETIC_BUCKET }] },
+        // 999 isn't in the DEFS fixture - simulates a vault item missing from
+        // the static weapons table (stale manifest sync), which gets dropped
+        // from the pool silently. The diagnostics log should surface it.
+        vault: [{ hash: 999, instanceId: "i-2" }],
+      }),
+    });
+
+    await POST(makeRequest());
+
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      "intersection.pool_built",
+      expect.objectContaining({
+        memberCount: 1,
+        vaultUnresolvedCount: 1,
+        vaultUnresolvedSample: [999],
+      })
+    );
   });
 });
 
