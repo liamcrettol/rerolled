@@ -113,7 +113,12 @@ export async function joinLobby(
 }
 
 export async function getActiveSessionForUser(
-  userId: string
+  userId: string,
+  // Restrict to a single mode. Without this, the most-recently-active lobby
+  // across ALL modes wins - fine for the dashboard's generic "resume" banner,
+  // but a mode-specific page (e.g. Endgame auto-routing) needs its own active
+  // lobby even when a different-mode lobby was touched more recently (#292).
+  mode?: LobbyMode
 ): Promise<{ code: string; status: Lobby["status"]; mode: LobbyMode } | null> {
   try {
     const { data: memberships } = await withSupabaseTimeout(
@@ -127,15 +132,15 @@ export async function getActiveSessionForUser(
 
     const lobbyIds = memberships.map((m) => m.lobby_id);
 
+    let query = adminSupabase
+      .from("lobbies")
+      .select("code, status, mode")
+      .in("id", lobbyIds)
+      .neq("status", "done");
+    if (mode) query = query.eq("mode", mode);
+
     const { data: lobby } = await withSupabaseTimeout(
-      adminSupabase
-        .from("lobbies")
-        .select("code, status, mode")
-        .in("id", lobbyIds)
-        .neq("status", "done")
-        .order("last_active_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      query.order("last_active_at", { ascending: false }).limit(1).maybeSingle()
     );
 
     if (!lobby) return null;

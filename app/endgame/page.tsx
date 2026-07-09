@@ -15,8 +15,12 @@ export default async function EndgamePage() {
   if (!session?.userId) redirect("/");
 
   const mode = getMode("ironman");
-  const activeSession = await getActiveSessionForUser(session.userId).catch(() => null);
-  const hasActiveEndgameLobby = activeSession?.mode === "endgame";
+  // Filtered to "endgame" specifically - the generic getActiveSessionForUser
+  // lookup returns the single most-recently-active lobby across ALL modes, so
+  // an active Endgame lobby could be masked by a more-recently-touched
+  // roulette/draft lobby and this page would wrongly default to solo (#292).
+  const activeSession = await getActiveSessionForUser(session.userId, "endgame").catch(() => null);
+  const hasActiveEndgameLobby = activeSession != null;
 
   return (
     <PlatformShell displayName={session.displayName}>
@@ -49,7 +53,7 @@ export default async function EndgamePage() {
                     dungeon, or Grandmaster loadout plus an exotic slot for the whole fireteam.
                   </p>
                   <LobbyControls
-                    activeSession={hasActiveEndgameLobby ? activeSession : null}
+                    activeSession={activeSession}
                     createHref="/endgame/lobby/new/create"
                     createLabel="Create Fireteam Lobby"
                     joinBasePath="/endgame/lobby"
