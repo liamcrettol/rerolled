@@ -8,7 +8,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import BrandWordmark from "@/components/BrandWordmark";
-import NavPlayerCard from "./NavPlayerCard";
+import PlayerCard from "@/components/PlayerCard";
+import type { LobbyMember } from "@/types/lobby";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
@@ -16,6 +17,33 @@ const LINKS = [
   { href: "/leaderboards", label: "LEADERBOARDS" },
   { href: "/stats", label: "STATS" },
 ];
+
+// PlayerCard (#318) wants a full LobbyMember — the nav only has a name, an
+// emblem, and a clan tag, so stub the lobby-specific fields it doesn't render.
+function navMember(
+  displayName: string,
+  emblemPath?: string | null,
+  emblemBackgroundPath?: string | null,
+  clanTag?: string | null
+): LobbyMember {
+  return {
+    id: "nav",
+    lobby_id: "",
+    user_id: "",
+    display_name: displayName,
+    bungie_membership_type: 0,
+    bungie_membership_id: "",
+    selected_character_id: null,
+    emblem_path: emblemPath ?? null,
+    emblem_background_path: emblemBackgroundPath ?? null,
+    clan_name: clanTag ?? null,
+    clan_tag: null,
+    is_ready: false,
+    is_captain: false,
+    is_spectator: false,
+    joined_at: "",
+  };
+}
 
 export default function TopNav({
   displayName,
@@ -57,12 +85,9 @@ export default function TopNav({
 
         {displayName && (
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            <NavPlayerCard
-              displayName={displayName}
-              emblemPath={emblemPath}
-              emblemBackgroundPath={emblemBackgroundPath}
-              clanTag={clanTag}
-            />
+            <div className="w-48 shrink-0">
+              <PlayerCard member={navMember(displayName, emblemPath, emblemBackgroundPath, clanTag)} compact />
+            </div>
             <SignOutButton />
           </div>
         )}
