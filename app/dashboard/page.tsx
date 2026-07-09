@@ -30,6 +30,7 @@ export default async function Dashboard() {
     weeklyChallengesCleared: 0,
     bestWeeklyPlacement: null,
     bestWeapon: null,
+    matchHistory: [],
   }));
 
   const [challenge, pvpChallenge] = await Promise.all([

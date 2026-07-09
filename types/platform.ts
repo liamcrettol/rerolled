@@ -98,6 +98,43 @@ export interface UserPlacement {
   totalRuns: number;
 }
 
+export interface SeasonMatchPlayer {
+  membershipId: string;
+  membershipType: number | null;
+  displayName: string;
+  kills: number | null;
+  deaths: number | null;
+  assists: number | null;
+  kd: number | null;
+  isCurrentUser: boolean;
+  isOnViewerTeam: boolean;
+  trialsReportUrl: string | null;
+}
+
+export interface SeasonMatchLoadoutSlot {
+  slot: "kinetic" | "energy" | "power";
+  name: string;
+  icon: string | null;
+}
+
+export interface SeasonMatch {
+  runId: string;
+  mode: "score_attack" | "weekly_challenge";
+  playedAt: string;
+  result: "win" | "loss" | "unknown";
+  activityName: string;
+  challengeTitle: string | null;
+  featuredPlayer: SeasonMatchPlayer | null;
+  featuredPlayerLabel: string | null;
+  teamLabel: string;
+  opponentLabel: string | null;
+  teamScore: number | null;
+  opponentScore: number | null;
+  team: SeasonMatchPlayer[];
+  opponents: SeasonMatchPlayer[];
+  loadout: SeasonMatchLoadoutSlot[];
+}
+
 /** The persistent "Your Season" summary panel data (#250). */
 export interface SeasonStats {
   seasonKey: string;
@@ -107,4 +144,5 @@ export interface SeasonStats {
   weeklyChallengesCleared: number;
   bestWeeklyPlacement: number | null;
   bestWeapon: { name: string; kills: number } | null;
+  matchHistory: SeasonMatch[];
 }

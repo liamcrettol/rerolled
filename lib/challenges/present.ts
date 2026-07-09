@@ -104,6 +104,7 @@ export function emptySeasonStats(season: SeasonRow): SeasonStats {
     weeklyChallengesCleared: 0,
     bestWeeklyPlacement: null,
     bestWeapon: null,
+    matchHistory: [],
   };
 }
 
@@ -122,5 +123,6 @@ export function toPlatformSeasonStats(
     weeklyChallengesCleared: row.weekly_clears,
     bestWeeklyPlacement: row.best_weekly_rank ?? null,
     bestWeapon,
+    matchHistory: [],
   };
 }

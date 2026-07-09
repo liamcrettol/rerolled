@@ -132,6 +132,7 @@ describe("toPlatformSeasonStats", () => {
       weeklyChallengesCleared: 3,
       bestWeeklyPlacement: 37,
       bestWeapon: { name: "The Immortal", kills: 214 },
+      matchHistory: [],
     });
   });
 });

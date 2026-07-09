@@ -14,6 +14,14 @@ import {
   type SeasonRow,
   type PlayerSeasonStatsRow,
 } from "@/lib/challenges/present";
+import {
+  buildSeasonMatchHistory,
+  type SeasonRunHistoryRow,
+  type SeasonRunLoadoutRow,
+  type SeasonRunParticipantRow,
+  type SeasonWeeklyChallengeRow,
+} from "@/lib/stats/history";
+import type { NormalizedPgcr } from "@/lib/scoreAttack/types";
 
 const FALLBACK_SEASON: SeasonRow = { season_key: "", display_name: "Season" };
 
@@ -54,7 +62,7 @@ export async function getSeasonStats(userId: string): Promise<SeasonStats> {
     const s = season as any;
     if (!s) return emptySeasonStats(FALLBACK_SEASON);
 
-    const [{ data: statsRow }, bestWeapon] = await Promise.all([
+    const [{ data: statsRow }, bestWeapon, { data: participantRows }] = await Promise.all([
       withSupabaseTimeout(
         adminSupabase
           .from("player_season_stats")
@@ -64,13 +72,87 @@ export async function getSeasonStats(userId: string): Promise<SeasonStats> {
           .maybeSingle()
       ),
       resolveFavoriteWeapon(userId),
+      withSupabaseTimeout(
+        adminSupabase
+          .from("challenge_run_participants")
+          .select("run_id, user_id, bungie_membership_id, bungie_membership_type")
+          .eq("user_id", userId)
+      ),
     ]);
 
-    return toPlatformSeasonStats(
+    const baseStats = toPlatformSeasonStats(
       (statsRow as PlayerSeasonStatsRow | null) ?? null,
       { season_key: s.season_key, display_name: s.display_name },
       bestWeapon,
     );
+
+    const runIds = [...new Set((participantRows ?? []).map((row) => row.run_id))];
+    if (runIds.length === 0) return baseStats;
+
+    const [{ data: runs }, { data: allParticipants }, { data: loadoutRows }] = await Promise.all([
+      withSupabaseTimeout(
+        adminSupabase
+          .from("challenge_runs")
+          .select("id, mode, status, pgcr_instance_id, completed_at, created_at, weekly_challenge_id")
+          .eq("season_id", s.id)
+          .in("id", runIds)
+          .order("completed_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+      ),
+      withSupabaseTimeout(
+        adminSupabase
+          .from("challenge_run_participants")
+          .select("run_id, user_id, bungie_membership_id, bungie_membership_type")
+          .in("run_id", runIds)
+      ),
+      withSupabaseTimeout(
+        adminSupabase
+          .from("challenge_run_loadout_slots")
+          .select("run_id, slot, weapon_name, weapon_icon")
+          .in("run_id", runIds)
+      ),
+    ]);
+
+    const weeklyChallengeIds = [...new Set((runs ?? []).flatMap((run) => run.weekly_challenge_id ? [run.weekly_challenge_id] : []))];
+    const pgcrInstanceIds = [...new Set((runs ?? []).flatMap((run) => run.pgcr_instance_id ? [run.pgcr_instance_id] : []))];
+
+    const [{ data: weeklyChallenges }, { data: pgcrRows }] = await Promise.all([
+      weeklyChallengeIds.length > 0
+        ? withSupabaseTimeout(
+            adminSupabase
+              .from("weekly_challenges")
+              .select("id, title, activity_name_snapshot")
+              .in("id", weeklyChallengeIds)
+          )
+        : Promise.resolve({ data: [] }),
+      pgcrInstanceIds.length > 0
+        ? withSupabaseTimeout(
+            adminSupabase
+              .from("pgcr_cache")
+              .select("instance_id, normalized_pgcr")
+              .in("instance_id", pgcrInstanceIds)
+          )
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const pgcrByInstanceId = new Map<string, NormalizedPgcr>();
+    for (const row of pgcrRows ?? []) {
+      if (row.instance_id && row.normalized_pgcr) {
+        pgcrByInstanceId.set(row.instance_id, row.normalized_pgcr as unknown as NormalizedPgcr);
+      }
+    }
+
+    return {
+      ...baseStats,
+      matchHistory: buildSeasonMatchHistory({
+        runs: (runs ?? []) as SeasonRunHistoryRow[],
+        participants: (allParticipants ?? []) as SeasonRunParticipantRow[],
+        loadoutRows: (loadoutRows ?? []) as SeasonRunLoadoutRow[],
+        weeklyChallenges: (weeklyChallenges ?? []) as SeasonWeeklyChallengeRow[],
+        pgcrByInstanceId,
+        viewerUserId: userId,
+      }),
+    };
   } catch {
     return emptySeasonStats(FALLBACK_SEASON);
   }
