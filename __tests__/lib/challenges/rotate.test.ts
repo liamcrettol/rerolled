@@ -200,4 +200,29 @@ describe("rotateWeeklyChallenges — pillar independence (#296)", () => {
     // the case if the "latest week number" query read PvE's counter).
     expect(mockGenerate).toHaveBeenCalledWith(db, expect.objectContaining({ weekNumber: 3 }));
   });
+
+  it("publishes PvP with the same Tuesday reset boundary as PvE", async () => {
+    const db = makeFakeSupabase({
+      weekly_challenges: [],
+      seasons: [{ id: "s1", season_key: "season-0", status: "active", ends_at: "2027-01-01T00:00:00.000Z" }],
+    });
+    mockGenerate.mockResolvedValue({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draft: {} as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      challenge: { id: "pvp-new", slug: "season-0-week-1-pvp" } as any,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockPublish.mockResolvedValue({ challenge: {} as any, versionId: "v1" });
+
+    await rotateWeeklyChallenges(db, now, "pvp");
+
+    expect(mockPublish).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        slug: "season-0-week-1-pvp",
+        endsAt: "2026-07-07T17:00:00.000Z",
+      })
+    );
+  });
 });

@@ -25,6 +25,16 @@ function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): b
   return aStart < bEnd && bStart < aEnd;
 }
 
+function isTuesdayResetInstant(date: Date): boolean {
+  return (
+    date.getUTCDay() === 2 &&
+    date.getUTCHours() === 17 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  );
+}
+
 /**
  * Full pre-publish validation for a weekly challenge draft (#256). Checks
  * rule consistency plus the challenge-level requirements (time window,
@@ -45,6 +55,8 @@ export function validatePublishableChallenge(
     errors.push("starts_at/ends_at must be valid dates");
   } else if (startsAt >= endsAt) {
     errors.push("challenge ends before (or at the same time as) it starts");
+  } else if (!isTuesdayResetInstant(new Date(endsAt))) {
+    errors.push("weekly challenges must end at the Tuesday 17:00 UTC reset");
   }
 
   if (input.activityHash == null) {

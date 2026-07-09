@@ -25,7 +25,7 @@ export default async function DraftPage({
 
   const { code } = await params;
   const lobby = await getLobbyByCode(code);
-  if (!lobby) redirect("/dashboard");
+  if (!lobby || lobby.status === "done") redirect("/dashboard");
 
   const members = await getLobbyMembers(lobby.id);
   const isMember = members.some((m) => m.user_id === session.userId);

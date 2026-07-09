@@ -11,7 +11,7 @@ export default function DraftLeaveButton({ lobbyId }: { lobbyId: string }) {
   async function leaveDraft() {
     setLeaving(true);
     try {
-      await fetch("/api/lobby/leave", {
+      await fetch("/api/draft/leave", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lobbyId }),

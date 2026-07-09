@@ -14,8 +14,8 @@ const scoringConfig: ScoringConfig = {
 const validInput = {
   slug: "season-0-week-1",
   activityHash: 123,
-  startsAt: "2026-01-01T17:00:00Z",
-  endsAt: "2026-01-08T17:00:00Z",
+  startsAt: "2025-12-31T17:00:00Z",
+  endsAt: "2026-01-06T17:00:00Z",
   rules: [requiredWeaponTypeRule("Sidearm")],
   scoringConfig,
 };
@@ -34,6 +34,15 @@ describe("validatePublishableChallenge", () => {
     });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain("challenge ends before (or at the same time as) it starts");
+  });
+
+  it("rejects an end time that is not Tuesday reset", () => {
+    const result = validatePublishableChallenge({
+      ...validInput,
+      endsAt: "2026-01-05T17:00:00Z",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("weekly challenges must end at the Tuesday 17:00 UTC reset");
   });
 
   it("rejects a missing activity hash", () => {
@@ -68,7 +77,7 @@ describe("validatePublishableChallenge", () => {
   it("rejects a window that overlaps an already-active challenge", () => {
     const result = validatePublishableChallenge(validInput, {
       existingActiveWindows: [
-        { slug: "season-0-week-0", startsAt: "2025-12-29T17:00:00Z", endsAt: "2026-01-05T17:00:00Z" },
+        { slug: "season-0-week-0", startsAt: "2025-12-30T17:00:00Z", endsAt: "2026-01-06T17:00:00Z" },
       ],
     });
     expect(result.valid).toBe(false);
@@ -78,7 +87,7 @@ describe("validatePublishableChallenge", () => {
   it("allows a back-to-back window that does not overlap (touching boundary)", () => {
     const result = validatePublishableChallenge(validInput, {
       existingActiveWindows: [
-        { slug: "season-0-week-0", startsAt: "2025-12-25T17:00:00Z", endsAt: "2026-01-01T17:00:00Z" },
+        { slug: "season-0-week-0", startsAt: "2025-12-24T17:00:00Z", endsAt: "2025-12-31T17:00:00Z" },
       ],
     });
     expect(result.valid).toBe(true);
