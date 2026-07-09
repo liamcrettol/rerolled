@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import TopNav from "./TopNav";
 import { auth } from "@/lib/auth";
+import { getBungieToken } from "@/lib/auth/helpers";
 import { getClan } from "@/lib/bungie/clan";
 import { getPrimaryCharacterEmblem } from "@/lib/bungie/inventory";
 
@@ -17,14 +18,18 @@ export default async function PlatformShell({
   const session = await auth();
 
   // Emblem/clan are cosmetic chrome for the nav player card (#318) — best
-  // effort only, never block the page on a Bungie hiccup.
-  const [emblem, clan] = session?.bungieAccessToken
-    ? await Promise.all([
-        getPrimaryCharacterEmblem(session.bungieMembershipType, session.bungieMembershipId, session.bungieAccessToken).catch(
-          () => null
-        ),
-        getClan(session.bungieMembershipType, session.bungieMembershipId, session.bungieAccessToken).catch(() => null),
-      ])
+  // effort only, never block the page on a Bungie hiccup. session.bungieAccessToken
+  // is the raw token from login and goes stale; getBungieToken() decrypts the
+  // stored token and auto-refreshes it, same as every other Bungie call in the app.
+  const [emblem, clan] = session?.userId
+    ? await getBungieToken(session.userId, session.bungieMembershipId)
+        .then((token) =>
+          Promise.all([
+            getPrimaryCharacterEmblem(session.bungieMembershipType, session.bungieMembershipId, token).catch(() => null),
+            getClan(session.bungieMembershipType, session.bungieMembershipId, token).catch(() => null),
+          ])
+        )
+        .catch(() => [null, null])
     : [null, null];
 
   return (
