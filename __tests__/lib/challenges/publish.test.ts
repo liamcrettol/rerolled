@@ -109,8 +109,8 @@ describe("publishWeeklyChallenge — pillar-scoped overlap check (#296)", () => 
       slug: "season-0-week-1",
       pillar: "pve",
       status: "active",
-      starts_at: "2026-07-01T17:00:00.000Z",
-      ends_at: "2026-07-08T17:00:00.000Z",
+      starts_at: "2026-06-30T17:00:00.000Z",
+      ends_at: "2026-07-07T17:00:00.000Z",
     };
     const db = makeFakeSupabase({
       weekly_challenges: [pveActive, draftRow()],
@@ -120,8 +120,8 @@ describe("publishWeeklyChallenge — pillar-scoped overlap check (#296)", () => 
     const result = await publishWeeklyChallenge(db, {
       slug: "season-0-week-1-pvp",
       // Deliberately the exact same window as the active PvE week.
-      startsAt: "2026-07-01T17:00:00.000Z",
-      endsAt: "2026-07-08T17:00:00.000Z",
+      startsAt: "2026-06-30T17:00:00.000Z",
+      endsAt: "2026-07-07T17:00:00.000Z",
     });
 
     expect(result.challenge.status).toBe("scheduled");
@@ -144,8 +144,8 @@ describe("publishWeeklyChallenge — pillar-scoped overlap check (#296)", () => 
     await expect(
       publishWeeklyChallenge(db, {
         slug: "season-0-week-1-pvp",
-        startsAt: "2026-07-01T17:00:00.000Z", // overlaps pvpActive's window
-        endsAt: "2026-07-08T17:00:00.000Z",
+        startsAt: "2026-06-30T17:00:00.000Z", // overlaps pvpActive's window
+        endsAt: "2026-07-07T17:00:00.000Z",
       })
     ).rejects.toThrow(/overlaps/);
   });

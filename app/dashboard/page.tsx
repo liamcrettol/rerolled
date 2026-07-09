@@ -9,6 +9,7 @@ import { getActiveSessionForUser } from "@/lib/lobby";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
 import { getUserWeeklyPlacement, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
 import { getSeasonStats } from "@/lib/stats/season";
+import { queueCrucibleSync } from "@/lib/crucible/queueSync";
 
 // Game-night platform home shell (#243): weekly challenges, the Your Season
 // panel, and the mode grid (whose fourth tile is join/rejoin) — all reading
@@ -22,6 +23,7 @@ export default async function Dashboard() {
   if (!session?.userId) redirect("/");
 
   const activeSessionPromise = getActiveSessionForUser(session.userId).catch(() => null);
+  const syncQueuePromise = queueCrucibleSync(session.userId).catch(() => null);
   const seasonPromise = getSeasonStats(session.userId).catch(() => ({
     seasonKey: "",
     seasonName: "Season",
@@ -31,6 +33,7 @@ export default async function Dashboard() {
     bestWeeklyPlacement: null,
     bestWeapon: null,
     matchHistory: [],
+    historySyncStatus: "idle" as const,
   }));
 
   const [challenge, pvpChallenge] = await Promise.all([
@@ -45,6 +48,7 @@ export default async function Dashboard() {
     seasonPromise,
     getWeeklyRunCount(challenge?.id ?? null).catch(() => 0),
     getWeeklyRunCount(pvpChallenge?.id ?? null).catch(() => 0),
+    syncQueuePromise,
   ]);
 
   return (

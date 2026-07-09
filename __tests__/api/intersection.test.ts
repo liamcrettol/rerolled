@@ -102,7 +102,7 @@ let membersResult: { data: MemberRow[] | null; error: { message: string } | null
 jest.mock("@/lib/supabase/admin", () => ({
   adminSupabase: {
     from: jest.fn(() => {
-      // eslint-disable-next-line @jest/no-conditional-in-test, @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const chain: any = {};
       for (const m of ["select", "eq", "neq"]) chain[m] = jest.fn(() => chain);
       chain.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>

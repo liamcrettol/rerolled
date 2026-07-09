@@ -158,6 +158,7 @@ function buildPvpMatch(
 
   return {
     runId: run.id,
+    instanceId: pgcr.instanceId,
     mode: run.mode,
     playedAt: run.completed_at ?? run.created_at,
     result: viewerResult === true ? "win" : viewerResult === false ? "loss" : "unknown",
@@ -208,6 +209,7 @@ function buildNonPvpMatch(
 
   return {
     runId: run.id,
+    instanceId: pgcr.instanceId,
     mode: run.mode,
     playedAt: run.completed_at ?? run.created_at,
     result: "unknown",

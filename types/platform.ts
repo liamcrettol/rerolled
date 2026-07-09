@@ -109,6 +109,7 @@ export interface SeasonMatchPlayer {
   isCurrentUser: boolean;
   isOnViewerTeam: boolean;
   trialsReportUrl: string | null;
+  headToHead?: import("@/lib/crucible/types").HeadToHeadSummary | null;
 }
 
 export interface SeasonMatchLoadoutSlot {
@@ -119,7 +120,9 @@ export interface SeasonMatchLoadoutSlot {
 
 export interface SeasonMatch {
   runId: string;
-  mode: "score_attack" | "weekly_challenge";
+  instanceId?: string | null;
+  mode: "score_attack" | "weekly_challenge" | "crucible";
+  modeBucket?: import("@/lib/crucible/types").CrucibleModeBucket | null;
   playedAt: string;
   result: "win" | "loss" | "unknown";
   activityName: string;
@@ -145,4 +148,5 @@ export interface SeasonStats {
   bestWeeklyPlacement: number | null;
   bestWeapon: { name: string; kills: number } | null;
   matchHistory: SeasonMatch[];
+  historySyncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }

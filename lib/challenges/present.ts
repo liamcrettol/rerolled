@@ -105,6 +105,7 @@ export function emptySeasonStats(season: SeasonRow): SeasonStats {
     bestWeeklyPlacement: null,
     bestWeapon: null,
     matchHistory: [],
+    historySyncStatus: "idle",
   };
 }
 
@@ -124,5 +125,6 @@ export function toPlatformSeasonStats(
     bestWeeklyPlacement: row.best_weekly_rank ?? null,
     bestWeapon,
     matchHistory: [],
+    historySyncStatus: "idle",
   };
 }

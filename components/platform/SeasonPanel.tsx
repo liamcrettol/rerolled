@@ -1,5 +1,7 @@
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
 import type { SeasonMatch, SeasonMatchPlayer, SeasonStats } from "@/types/platform";
+import HeadToHeadChip from "@/components/crucible/HeadToHeadChip";
+import { crucibleModeLabel } from "@/lib/crucible/modes";
 
 function formatKd(value: number | null) {
   return value === null ? "-" : value.toFixed(2);
@@ -53,46 +55,42 @@ function StatTile({
   );
 }
 
-function RosterRow({ player }: { player: SeasonMatchPlayer }) {
-  const content = (
-    <>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>
-            {player.displayName}
-          </p>
-          {player.trialsReportUrl && (
-            <ArrowUpRight size={12} className="shrink-0 text-gray-500 transition group-hover:text-bungie-blue" />
+function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStatus: SeasonStats["historySyncStatus"] }) {
+  return (
+    <div className="relative flex items-center justify-between gap-3 px-3 py-2 transition hover:bg-bungie-dark/55">
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          {player.trialsReportUrl ? (
+            <a
+              href={player.trialsReportUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={`group flex min-w-0 items-center gap-1.5 font-semibold transition hover:text-bungie-blue ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}
+              aria-label={`Open ${player.displayName} on Trials Report`}
+            >
+              <span className="truncate text-sm">{player.displayName}</span>
+              <ArrowUpRight size={11} className="shrink-0 text-gray-600 transition group-hover:text-bungie-blue" />
+            </a>
+          ) : (
+            <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
+          )}
+          {player.headToHead && (
+            <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
           )}
         </div>
         <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.18em] text-gray-500">
           {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
         </p>
       </div>
-      <div className="text-right">
+      <div className="shrink-0 text-right">
         <p className="font-mono text-sm text-white">{formatKd(player.kd)}</p>
         <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">K/D</p>
       </div>
-    </>
-  );
-
-  if (!player.trialsReportUrl) {
-    return <div className="flex items-center justify-between gap-3 px-3 py-2">{content}</div>;
-  }
-
-  return (
-    <a
-      href={player.trialsReportUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="group flex items-center justify-between gap-3 px-3 py-2 transition hover:bg-bungie-dark/55"
-    >
-      {content}
-    </a>
+    </div>
   );
 }
 
-function MatchCard({ match }: { match: SeasonMatch }) {
+function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: SeasonStats["historySyncStatus"] }) {
   const loadout = match.loadout.filter((slot) => slot.icon || slot.name);
 
   return (
@@ -104,7 +102,9 @@ function MatchCard({ match }: { match: SeasonMatch }) {
               {match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report"}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
-              {match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack"}
+              {match.mode === "crucible" && match.modeBucket
+                ? crucibleModeLabel(match.modeBucket)
+                : match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack"}
             </span>
           </div>
           <h3 className="mt-3 text-lg font-semibold uppercase tracking-[0.03em] text-white">
@@ -112,7 +112,7 @@ function MatchCard({ match }: { match: SeasonMatch }) {
           </h3>
           <p className="mt-1 text-xs uppercase tracking-[0.22em] text-gray-500">
             {formatPlayedAt(match.playedAt)}
-            {match.challengeTitle ? ` · ${match.challengeTitle}` : ""}
+            {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
           </p>
           {match.featuredPlayerLabel && (
             <p className="mt-3 text-sm text-gray-300">{match.featuredPlayerLabel}</p>
@@ -158,7 +158,7 @@ function MatchCard({ match }: { match: SeasonMatch }) {
             <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">{match.team.length} players</p>
           </div>
           <div className="divide-y divide-bungie-border/35">
-            {match.team.map((player) => <RosterRow key={player.membershipId} player={player} />)}
+            {match.team.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
           </div>
         </section>
 
@@ -169,7 +169,7 @@ function MatchCard({ match }: { match: SeasonMatch }) {
               <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">{match.opponents.length} players</p>
             </div>
             <div className="divide-y divide-bungie-border/35">
-              {match.opponents.map((player) => <RosterRow key={player.membershipId} player={player} />)}
+              {match.opponents.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
             </div>
           </section>
         )}
@@ -185,7 +185,7 @@ export default function SeasonPanel({
   stats: SeasonStats;
   variant?: "default" | "dashboard";
 }) {
-  const isEmpty = stats.totalRuns === 0;
+  const isEmpty = stats.totalRuns === 0 && stats.matchHistory.length === 0;
 
   if (variant === "dashboard") {
     return (
@@ -233,22 +233,29 @@ export default function SeasonPanel({
 
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="section-label">Historical Match Reports</p>
+                  <div>
+                    <p className="section-label">Historical Match Reports</p>
+                    {(stats.historySyncStatus === "queued" || stats.historySyncStatus === "syncing") && (
+                      <p className="mt-1 flex items-center gap-1.5 text-[9px] uppercase tracking-[0.15em] text-bungie-blue/75">
+                        <RefreshCw size={9} className="animate-spin" /> Importing Crucible history
+                      </p>
+                    )}
+                  </div>
                   <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
-                    {stats.matchHistory.length} recorded
+                    {stats.matchHistory.length} recent
                   </p>
                 </div>
 
                 {stats.matchHistory.length === 0 ? (
                   <div className="flex flex-1 items-center justify-center border border-dashed border-bungie-border/70 bg-bungie-dark/25 px-5 text-center">
                     <p className="max-w-[18rem] text-sm leading-relaxed text-gray-500">
-                      Historical reports will appear here once runs finish and their PGCRs are parsed.
+                      Historical reports will appear as your Crucible history is imported and Rerolled runs finish.
                     </p>
                   </div>
                 ) : (
-                  <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+                  <div className="flex-1 space-y-3 pr-1">
                     {stats.matchHistory.map((match) => (
-                      <MatchCard key={match.runId} match={match} />
+                      <MatchCard key={match.instanceId ?? match.runId} match={match} syncStatus={stats.historySyncStatus} />
                     ))}
                   </div>
                 )}

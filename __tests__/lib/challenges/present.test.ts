@@ -133,6 +133,7 @@ describe("toPlatformSeasonStats", () => {
       bestWeeklyPlacement: 37,
       bestWeapon: { name: "The Immortal", kills: 214 },
       matchHistory: [],
+      historySyncStatus: "idle",
     });
   });
 });

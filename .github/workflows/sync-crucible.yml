@@ -1,0 +1,19 @@
+name: Sync Crucible history
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync-crucible
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/sync-crucible" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body

@@ -1,0 +1,46 @@
+import { summarizeEncounterRows, type EncounterRow } from "@/lib/crucible/headToHead";
+
+const row = (overrides: Partial<EncounterRow> = {}): EncounterRow => ({
+  opponent_membership_id: "opp-1",
+  opponent_membership_type: 3,
+  opponent_display_name: "Rival",
+  instance_id: "match-1",
+  mode_bucket: "control",
+  viewer_won: true,
+  played_at: "2026-07-09T20:00:00Z",
+  ...overrides,
+});
+
+describe("summarizeEncounterRows", () => {
+  it("builds viewer-perspective totals, mode records, and recent meetings", () => {
+    const summaries = summarizeEncounterRows([
+      row(),
+      row({ instance_id: "match-2", mode_bucket: "trials", viewer_won: false, played_at: "2026-07-08T20:00:00Z" }),
+      row({ instance_id: "match-3", mode_bucket: "trials", viewer_won: null, played_at: "2026-07-07T20:00:00Z" }),
+    ], new Map([["match-1", "Endless Vale"]]));
+
+    expect(summaries["opp-1"]).toMatchObject({
+      encounters: 3,
+      wins: 1,
+      losses: 1,
+      unknown: 1,
+      lastPlayedAt: "2026-07-09T20:00:00Z",
+      byMode: {
+        control: { encounters: 1, wins: 1, losses: 0, unknown: 0 },
+        trials: { encounters: 2, wins: 0, losses: 1, unknown: 1 },
+      },
+    });
+    expect(summaries["opp-1"].recentMeetings[0].activityName).toBe("Endless Vale");
+  });
+
+  it("keeps opponents separate and uses the newest display-name snapshot", () => {
+    const summaries = summarizeEncounterRows([
+      row({ opponent_display_name: "New Name" }),
+      row({ instance_id: "older", opponent_display_name: "Old Name", played_at: "2026-01-01T00:00:00Z" }),
+      row({ opponent_membership_id: "opp-2", opponent_display_name: "Other" }),
+    ]);
+    expect(summaries["opp-1"].opponentDisplayName).toBe("New Name");
+    expect(summaries["opp-2"].encounters).toBe(1);
+  });
+});
+
