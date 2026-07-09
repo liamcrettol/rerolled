@@ -4,7 +4,6 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
 import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
 import { getSocketRolePlugHash } from "@/lib/bungie/socketRoles";
-import { getBestRoll, scoreBestRoll, type BestRoll } from "@/lib/bestRolls";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -62,9 +61,6 @@ interface RollInstance {
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
-  isBestRoll?: boolean;
-  bestRollMatched?: number;
-  bestRollTotal?: number;
   baseStats?: Record<string, number>;
   stats: Record<string, number>;
   lightLevel: number;
@@ -266,7 +262,6 @@ export async function POST(req: NextRequest) {
         catalystPerkIcon?: string;
         catalystPerkDescription?: string;
         catalystPerkCommunityDescription?: string;
-        bestRoll?: BestRoll;
         members: MemberRolls[];
       }
     > = {};
@@ -275,10 +270,6 @@ export async function POST(req: NextRequest) {
       const intrinsicInfo = intrinsicHash ? perkInfoMap.get(intrinsicHash) : undefined;
       const catalystHash = defs.get(hash)?.catalystPerkHash;
       const catalystInfo = catalystHash ? perkInfoMap.get(catalystHash) : undefined;
-      // Community-curated "ideal roll" for this weapon's archetype (unverified
-      // provisional baseline - see data/best-rolls/README.md), keyed by weapon
-      // type + the same frame name shown as the intrinsic perk above.
-      const bestRoll = getBestRoll(defs.get(hash)?.weaponType ?? "", intrinsicInfo?.name);
 
       const memberRolls: MemberRolls[] = [];
       for (const m of perMember) {
@@ -311,47 +302,10 @@ export async function POST(req: NextRequest) {
             masterworkName,
             masterworkIcon: inst.masterworkHash ? iconOf(inst.masterworkHash) : undefined,
             masterworkStats: inst.masterworkHash ? perkInfoMap.get(inst.masterworkHash)?.stats : undefined,
-            isBestRoll: false,
-            bestRollMatched: 0,
-            bestRollTotal: 0,
             baseStats: instanceDef?.stats,
           };
         });
         memberRolls.push({ userId: m.userId, displayName: m.displayName, isMe: m.isMe, instances, failed: m.failed });
-      }
-      if (bestRoll) {
-        const scored = memberRolls.flatMap((member, memberIndex) =>
-          member.instances.map((inst, instanceIndex) => ({
-            memberIndex,
-            instanceIndex,
-            score: scoreBestRoll(bestRoll, {
-              barrelName: inst.barrelName,
-              magazineName: inst.magazineName,
-              perkNames: inst.perks.map((p) => p.name),
-              masterworkName: inst.masterworkName,
-            }),
-          }))
-        );
-        // An exact match (every populated field hit) is always worth flagging.
-        // A partial "closest" match is only worth flagging once it's hit at
-        // least 2 curated fields; 0-1 matches is too weak a signal (#216).
-        // Only one roll per slot gets the badge across the whole lobby (#222).
-        const eligible = scored.filter(({ score }) =>
-          score.total > 0 && (score.matched === score.total || score.matched >= 2)
-        );
-        if (eligible.length > 0) {
-          const bestMatched = Math.max(...eligible.map(({ score }) => score.matched));
-          const tied = eligible.filter(({ score }) => score.matched === bestMatched);
-          const chosen = tied[Math.floor(Math.random() * tied.length)];
-          const member = memberRolls[chosen.memberIndex];
-          member.instances[chosen.instanceIndex] = {
-            ...member.instances[chosen.instanceIndex],
-            isBestRoll: true,
-            bestRollMatched: chosen.score.matched,
-            bestRollTotal: chosen.score.total,
-          };
-          member.instances.sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
-        }
       }
       // Put the caller first.
       memberRolls.sort((a, b) => (a.isMe === b.isMe ? 0 : a.isMe ? -1 : 1));
@@ -371,7 +325,6 @@ export async function POST(req: NextRequest) {
         catalystPerkIcon: catalystHash ? iconOf(catalystHash) : undefined,
         catalystPerkDescription: catalystInfo?.description,
         catalystPerkCommunityDescription: catalystInfo?.communityDescription,
-        bestRoll: bestRoll ?? undefined,
         members: memberRolls,
       };
     }

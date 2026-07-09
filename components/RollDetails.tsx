@@ -37,9 +37,6 @@ interface RollInstance {
   masterworkIcon?: string;
   masterworkStats?: Record<string, number>;
   catalystUnlocked?: boolean;
-  isBestRoll?: boolean;
-  bestRollMatched?: number;
-  bestRollTotal?: number;
   baseStats?: Record<string, number>;
   stats: Record<string, number>;
   lightLevel: number;
@@ -67,16 +64,6 @@ export interface SlotRolls {
   catalystPerkIcon?: string;
   catalystPerkDescription?: string;
   catalystPerkCommunityDescription?: string;
-  bestRoll?: {
-    barrel: string | null;
-    magazine: string | null;
-    perk1: string | null;
-    perk2: string | null;
-    priorityMasterwork: string | null;
-    priorityStat1: string | null;
-    priorityStat2: string | null;
-    notes: string | null;
-  };
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
@@ -142,11 +129,7 @@ export default function RollDetails({
   const members = slot.members;
   const scrollMemberCards = members.length > 3;
   const me = members.find((m) => m.isMe);
-  // Best-roll matches float to the top so, with several rolls of the same
-  // gun, the one matching the curated archetype pick is the obvious choice
-  // instead of something you have to hunt for. Stable sort - order is
-  // otherwise unchanged.
-  const myInstances = [...(me?.instances ?? [])].sort((a, b) => Number(b.isBestRoll) - Number(a.isBestRoll));
+  const myInstances = [...(me?.instances ?? [])];
   const chosenId = chosenInstances[activeTab];
   const myChosen = myInstances.find((i) => i.instanceId === chosenId) ?? myInstances[0];
   // Which of your rolls drives your card — picked from the left rail.
@@ -187,7 +170,6 @@ export default function RollDetails({
     onChooseInstance(activeTab, inst.instanceId);
   };
 
-  const preferredStats = [slot.bestRoll?.priorityStat1, slot.bestRoll?.priorityStat2].filter((s): s is string => Boolean(s));
   const normalizeSocketName = (name: string | null | undefined) =>
     (name ?? "")
       .toLowerCase()
@@ -196,27 +178,12 @@ export default function RollDetails({
       .replace(/[^a-z0-9]+/g, " ")
       .trim()
       .replace(/\s+/g, " ");
-  const socketMatches = (actual: string | undefined, expected: string | null | undefined) =>
-    Boolean(expected && normalizeSocketName(actual) === normalizeSocketName(expected));
-  const hurtsPreferredStat = (stats: Record<string, number> | undefined) =>
-    Boolean(stats && preferredStats.some((stat) => (stats[stat] ?? 0) < 0));
-  const socketClass = (baseClass: string, stats: Record<string, number> | undefined, recommended: boolean) => {
-    if (hurtsPreferredStat(stats)) return `${baseClass} border-red-400 hover:border-red-300 bg-red-500/10`;
-    if (recommended) return `${baseClass} border-amber-300 hover:border-amber-200 bg-amber-400/10`;
-    return `${baseClass} border-bungie-blue/40 hover:border-bungie-blue`;
-  };
   const masterworkStatFromName = (name: string | undefined, stat: string) => {
     if (!name) return 0;
     const normalizedName = normalizeSocketName(name);
     const normalizedStat = normalizeSocketName(stat === "Reload" ? "Reload Speed" : stat);
     return normalizedName.includes(normalizedStat) ? 10 : 0;
   };
-  const bestRollLabel = (inst: RollInstance | undefined) =>
-    inst?.bestRollTotal && inst.bestRollMatched === inst.bestRollTotal ? "GOD ROLL" : "CLOSEST GOD ROLL";
-  const bestRollTooltip = (inst: RollInstance | undefined) =>
-    bestRollLabel(inst) === "GOD ROLL"
-      ? "God roll match"
-      : "Closest match to the god roll";
   const weaponDisplayFor = (inst: RollInstance | undefined) => ({
     icon: inst?.weaponIcon ?? slot.weaponIcon,
     watermark: inst?.weaponWatermark ?? slot.weaponWatermark,
@@ -231,7 +198,7 @@ export default function RollDetails({
     const cls = large
       ? "w-10 h-10 border transition"
       : "w-8 h-8 border";
-    const neutralCls = socketClass(cls, undefined, false);
+    const neutralCls = `${cls} border-bungie-blue/40 hover:border-bungie-blue`;
     const noTip = !large;
     // The weapon's fixed intrinsic frame/archetype perk (e.g. a legendary's
     // "Rapid-Fire Frame", or an exotic's unique named mechanic like Ace of
@@ -270,7 +237,7 @@ export default function RollDetails({
         icon={inst.barrelIcon}
         name={inst.barrelName}
         stats={inst.barrelStats}
-        className={socketClass(cls, inst.barrelStats, socketMatches(inst.barrelName, slot.bestRoll?.barrel))}
+        className={neutralCls}
         noTooltip={noTip}
       />
     );
@@ -279,7 +246,7 @@ export default function RollDetails({
         icon={inst.magazineIcon}
         name={inst.magazineName}
         stats={inst.magazineStats}
-        className={socketClass(cls, inst.magazineStats, socketMatches(inst.magazineName, slot.bestRoll?.magazine))}
+        className={neutralCls}
         noTooltip={noTip}
       />
     );
@@ -291,11 +258,7 @@ export default function RollDetails({
         description={inst.perks[i]?.description}
         communityDescription={inst.perks[i]?.communityDescription}
         stats={inst.perks[i]?.stats}
-        className={socketClass(
-          cls,
-          inst.perks[i]?.stats,
-          socketMatches(inst.perks[i]?.name, slot.bestRoll?.perk1) || socketMatches(inst.perks[i]?.name, slot.bestRoll?.perk2)
-        )}
+        className={neutralCls}
         noTooltip={noTip}
       />
     ));
@@ -304,7 +267,7 @@ export default function RollDetails({
         icon={inst.masterworkIcon}
         name={inst.masterworkName}
         stats={inst.masterworkStats}
-        className={socketClass(cls, inst.masterworkStats, socketMatches(inst.masterworkName, slot.bestRoll?.priorityMasterwork))}
+        className={neutralCls}
         noTooltip={noTip}
       />
     );
@@ -337,14 +300,12 @@ export default function RollDetails({
     const card = memberCards?.[m.userId];
     const badges = memberBadges?.[m.userId];
     const inst = shownFor(m);
-    const isBest = Boolean(inst?.isBestRoll);
     const weaponDisplay = weaponDisplayFor(inst);
     return (
       <div
         key={m.userId}
-        aria-label={isBest ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
         className={`relative overflow-hidden flex flex-col w-full max-w-[26rem] ${
-          isBest ? "border border-amber-400/60" : m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
+          m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
         {/* Own-card indicator, shown regardless of whether an emblem card or the
@@ -523,13 +484,10 @@ export default function RollDetails({
                 <div
                   key={inst.instanceId}
                   onClick={() => selectRoll(inst)}
-                  aria-label={inst.isBestRoll ? `${bestRollTooltip(inst)}${slot.bestRoll?.notes ? `. ${slot.bestRoll.notes}` : ""}` : undefined}
                   className={`group relative grid grid-cols-[1fr_1.75rem] items-center gap-2 pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
-                    inst.isBestRoll
-                      ? `border-amber-400 bg-amber-400/10 ${isSel ? "ring-1 ring-amber-400 shadow-sm" : "hover:bg-amber-400/15"}`
-                      : isSel
-                        ? `${theme.border} ${theme.bg} shadow-sm`
-                        : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25"
+                    isSel
+                      ? `${theme.border} ${theme.bg} shadow-sm`
+                      : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25"
                   }`}
                 >
                   {/* Accent bar that grows in on selection */}

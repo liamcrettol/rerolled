@@ -283,12 +283,10 @@ compact prebuilt set of tables, read at import time as instant in-memory maps vi
   **"Perk data: Clarity" attribution credit — don't strip it.**
   [Usage terms](https://www.d2clarity.com/partnerships): free under ~150 users
   provided the data is credited; past that, Clarity wants a licensing conversation.
-- `lib/bestRolls.ts` — matches a rolled instance's barrel/magazine/perks against the
-  group's curated "ideal roll" per archetype (`data/best-rolls/best-rolls.json`, keyed by
-  `"<Weapon Type>|<Frame name>"` — same frame name as `intrinsicPerkHash` above), badged
-  in `RollDetails.tsx`. **Current data is an unverified provisional baseline**, not the
-  real multi-person reviewed data the workflow in `data/best-rolls/README.md` describes —
-  don't present it as vetted community consensus.
+- **There is no "best roll" / "god roll" feature.** It was removed (#323): the
+  dataset behind it was an unverified provisional baseline, and the badge presented
+  it to players as vetted community consensus. Don't reintroduce a god-roll badge
+  without real reviewed data and visible provenance.
 - `.github/workflows/refresh-weapons.yml` — runs both scripts every Tuesday (after
   weekly reset) plus on manual dispatch, and auto-commits + pushes
   `lib/bungie/data/*.json` only if something actually changed (so quiet weeks don't

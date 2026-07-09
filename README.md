@@ -133,9 +133,6 @@ private group of players; new work lands on staging first (see Deployment URLs).
 - [Database migrations](supabase/migrations/README.md) — migrations are applied
   **by hand**, not automatically. Check the status table before assuming a
   migration is live.
-- [Best rolls dataset](data/best-rolls/README.md) — crowd-sourced ideal
-  perk/stat combos per weapon archetype, feeding a future "best roll" badge on
-  the Roll Comparison screen.
 
 ## Contributors
 
