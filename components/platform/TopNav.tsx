@@ -19,12 +19,12 @@ const LINKS = [
 ];
 
 // PlayerCard (#318) wants a full LobbyMember — the nav only has a name, an
-// emblem, and a clan tag, so stub the lobby-specific fields it doesn't render.
+// emblem, and a clan name, so stub the lobby-specific fields it doesn't render.
 function navMember(
   displayName: string,
   emblemPath?: string | null,
   emblemBackgroundPath?: string | null,
-  clanTag?: string | null
+  clanName?: string | null
 ): LobbyMember {
   return {
     id: "nav",
@@ -36,7 +36,7 @@ function navMember(
     selected_character_id: null,
     emblem_path: emblemPath ?? null,
     emblem_background_path: emblemBackgroundPath ?? null,
-    clan_name: clanTag ?? null,
+    clan_name: clanName ?? null,
     clan_tag: null,
     is_ready: false,
     is_captain: false,
@@ -49,12 +49,12 @@ export default function TopNav({
   displayName,
   emblemPath,
   emblemBackgroundPath,
-  clanTag,
+  clanName,
 }: {
   displayName?: string;
   emblemPath?: string | null;
   emblemBackgroundPath?: string | null;
-  clanTag?: string | null;
+  clanName?: string | null;
 }) {
   const pathname = usePathname();
 
@@ -85,8 +85,8 @@ export default function TopNav({
 
         {displayName && (
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            <div className="w-48 shrink-0">
-              <PlayerCard member={navMember(displayName, emblemPath, emblemBackgroundPath, clanTag)} compact />
+            <div className="w-52 shrink-0">
+              <PlayerCard member={navMember(displayName, emblemPath, emblemBackgroundPath, clanName)} variant="nav" />
             </div>
             <SignOutButton />
           </div>

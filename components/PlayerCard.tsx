@@ -10,7 +10,7 @@ import type { DisplayBadge } from "@/lib/badges/data";
 interface Props {
   member: LobbyMember;
   compact?: boolean;
-  variant?: "default" | "sidebar";
+  variant?: "default" | "sidebar" | "nav";
   badges?: DisplayBadge[];
 }
 
@@ -40,6 +40,34 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   function handleBannerError() {
     if (bgUrl) setBgFailed(true);
     else setIconFailed(true);
+  }
+
+  if (variant === "nav") {
+    return (
+      <div className="relative flex h-14 w-full flex-col justify-end overflow-hidden border border-bungie-border bg-bungie-dark px-2 pb-1">
+        {bannerUrl && (
+          <>
+            <img
+              src={bannerUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={handleBannerError}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+          </>
+        )}
+        <div className="relative z-10 min-w-0">
+          <span className="block truncate text-sm font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {trimBungieName(member.display_name)}
+          </span>
+          {member.clan_name && (
+            <span className="block truncate text-[10px] leading-tight text-gray-300/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {member.clan_name}
+            </span>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (variant === "sidebar") {

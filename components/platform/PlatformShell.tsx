@@ -38,7 +38,7 @@ export default async function PlatformShell({
         displayName={session?.displayName ?? displayName}
         emblemPath={emblem?.emblemPath}
         emblemBackgroundPath={emblem?.emblemBackgroundPath}
-        clanTag={clan?.tag || clan?.name}
+        clanName={clan?.name}
       />
       <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
     </div>
