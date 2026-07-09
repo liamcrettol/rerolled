@@ -10,6 +10,7 @@ import SignOutButton from "@/components/SignOutButton";
 import BrandWordmark from "@/components/BrandWordmark";
 import PlayerCard from "@/components/PlayerCard";
 import type { LobbyMember } from "@/types/lobby";
+import type { DisplayBadge } from "@/lib/badges/data";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
@@ -50,11 +51,13 @@ export default function TopNav({
   emblemPath,
   emblemBackgroundPath,
   clanName,
+  badges,
 }: {
   displayName?: string;
   emblemPath?: string | null;
   emblemBackgroundPath?: string | null;
   clanName?: string | null;
+  badges?: DisplayBadge[];
 }) {
   const pathname = usePathname();
 
@@ -85,9 +88,11 @@ export default function TopNav({
 
         {displayName && (
           <div className="flex items-center gap-3 min-w-0 shrink-0">
-            <div className="w-52 shrink-0">
-              <PlayerCard member={navMember(displayName, emblemPath, emblemBackgroundPath, clanName)} variant="nav" />
-            </div>
+            <PlayerCard
+              member={navMember(displayName, emblemPath, emblemBackgroundPath, clanName)}
+              variant="nav"
+              badges={badges}
+            />
             <SignOutButton />
           </div>
         )}

@@ -43,28 +43,57 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   }
 
   if (variant === "nav") {
+    const navBadgeStrip = resolvedBadges?.length ? (
+      <EquippedBadges badges={resolvedBadges} max={2} size="tiny" />
+    ) : null;
+
+    // Bungie's wide nameplate art (emblem_background_path) is a real ~4.9:1
+    // banner, safe to cover-fill and sit the name on top of like in-game. The
+    // small square emblem icon is NOT that shape — stretching it into a wide
+    // banner box crops it into an unrecognizable sliver, so when only the icon
+    // is available, fall back to a plain icon-chip layout instead (#318).
+    if (bgUrl) {
+      return (
+        <div className="relative flex h-10 w-44 shrink-0 flex-col justify-end overflow-hidden border border-bungie-border bg-bungie-dark px-2 pb-1">
+          <img
+            src={bgUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={() => setBgFailed(true)}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+          <div className="relative z-10 min-w-0">
+            <span className="block truncate text-sm font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              {trimBungieName(member.display_name)}
+            </span>
+            <div className="flex min-w-0 items-center gap-1.5">
+              {member.clan_name && (
+                <span className="truncate text-[10px] leading-tight text-gray-300/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  {member.clan_name}
+                </span>
+              )}
+              {navBadgeStrip}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="relative flex h-14 w-full flex-col justify-end overflow-hidden border border-bungie-border bg-bungie-dark px-2 pb-1">
-        {bannerUrl && (
-          <>
-            <img
-              src={bannerUrl}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
-              onError={handleBannerError}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          </>
+      <div className="flex h-10 shrink-0 items-center gap-2 overflow-hidden border border-bungie-border bg-bungie-dark px-2">
+        {iconUrl && (
+          <div className="h-7 w-7 shrink-0 overflow-hidden border border-white/15 bg-bungie-border/30">
+            <img src={iconUrl} alt="" className="h-full w-full object-contain" onError={() => setIconFailed(true)} />
+          </div>
         )}
-        <div className="relative z-10 min-w-0">
-          <span className="block truncate text-sm font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-bold leading-tight text-white">
             {trimBungieName(member.display_name)}
           </span>
-          {member.clan_name && (
-            <span className="block truncate text-[10px] leading-tight text-gray-300/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-              {member.clan_name}
-            </span>
-          )}
+          <div className="flex min-w-0 items-center gap-1.5">
+            {member.clan_name && <span className="truncate text-[10px] leading-tight text-gray-400">{member.clan_name}</span>}
+            {navBadgeStrip}
+          </div>
         </div>
       </div>
     );
