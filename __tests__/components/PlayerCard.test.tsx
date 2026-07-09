@@ -60,3 +60,56 @@ describe("PlayerCard", () => {
     expect(screen.getByText("a. a description")).toBeInTheDocument();
   });
 });
+
+// The emblem banner is 474x96 with the 96x96 icon baked into its left edge.
+// object-contain letterboxed it (a dead strip of flat background on every card
+// wide enough to matter), so it's object-cover now. But cover scales the banner
+// by width on wide cards, which grows that baked-in icon past any fixed px
+// indent and slides the name on top of it - hence the percentage-aware
+// pl-[max(22%,...)]. Both halves have to hold together or the card breaks.
+describe("PlayerCard emblem banner geometry", () => {
+  const withEmblem = makeMember({
+    emblem_background_path: "/common/destiny2_content/icons/banner.jpg",
+  });
+
+  const variants = ["default", "sidebar", "nav"] as const;
+
+  it.each(variants)("fills the card with the banner on the %s variant", (variant) => {
+    const { container } = render(<PlayerCard member={withEmblem} variant={variant} />);
+    const banner = container.querySelector('img[src*="banner.jpg"]');
+
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveClass("object-cover");
+    // object-contain leaves flat background showing wherever the card's aspect
+    // ratio doesn't match the banner's 474:96.
+    expect(banner).not.toHaveClass("object-contain");
+  });
+
+  it.each(variants)("indents the name past the baked-in icon on the %s variant", (variant) => {
+    const { container } = render(<PlayerCard member={withEmblem} variant={variant} />);
+
+    // A fixed px indent is only correct while the banner scales by height. The
+    // max() keeps the name clear of the icon in the width-scaled regime too.
+    const indent = [...container.querySelectorAll("div")].find((d) =>
+      /pl-\[max\(22%,[\d.]+rem\)\]/.test(d.className)
+    );
+
+    expect(indent).toBeDefined();
+    expect(indent).toHaveTextContent("Guardian");
+  });
+
+  it("does not draw a separate icon when the banner already bakes one in", () => {
+    const both = makeMember({ emblem_path: "/icon.jpg", emblem_background_path: "/banner.jpg" });
+    const { container } = render(<PlayerCard member={both} />);
+
+    expect(container.querySelectorAll("img")).toHaveLength(1);
+    expect(container.querySelector("img")).toHaveAttribute("src", expect.stringContaining("banner.jpg"));
+  });
+
+  it("falls back to the bare icon as both backdrop and square when there is no banner", () => {
+    const iconOnly = makeMember({ emblem_path: "/icon.jpg", emblem_background_path: null });
+    const { container } = render(<PlayerCard member={iconOnly} />);
+
+    expect(container.querySelectorAll('img[src*="icon.jpg"]')).toHaveLength(2);
+  });
+});

@@ -30,6 +30,12 @@ export default function PlayerCard({ member, compact, variant = "default", badge
       ? `https://www.bungie.net${member.emblem_path}`
       : null;
 
+  // emblem_background_path is Bungie's 474x96 nameplate, which has the 96x96
+  // emblem icon baked into its left edge - so when it's present we don't draw a
+  // separate icon, we just indent the text past it. object-cover means the
+  // banner is scaled by width on wide cards and by height on narrow ones, so
+  // that baked-in icon lands at either 20.25% of the card width or exactly the
+  // card height. The pl-[max(22%,...)] below clears whichever is larger.
   const bannerUrl = bgUrl ?? iconUrl;
   const showSeparateIcon = !bgUrl && !!iconUrl;
   const resolvedBadges = badges ?? (member as BadgeBackedMember).badges;
@@ -43,9 +49,8 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   }
 
   if (variant === "nav") {
-    // Same proven layout as the sidebar variant below (banner behind, icon +
-    // name/clan column on top, object-contain so nothing gets stretched or
-    // cropped) just scaled down to fit the nav's h-10 slot instead of h-14.
+    // Same layout as the sidebar variant below, scaled down to fit the nav's
+    // h-10 slot instead of h-14.
     return (
       <div className="relative flex h-10 w-52 shrink-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark">
         {bannerUrl ? (
@@ -53,16 +58,16 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             <img
               src={bannerUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-contain object-left"
+              className="absolute inset-0 h-full w-full object-cover object-left"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-black/45" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
         )}
 
-        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-12" : ""}`}>
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[max(22%,2.75rem)]" : ""}`}>
           {showSeparateIcon && (
             <div className="shrink-0 w-7 h-7 overflow-hidden border border-white/15 bg-bungie-border/30">
               <img
@@ -105,16 +110,16 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             <img
               src={bannerUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-contain object-left"
+              className="absolute inset-0 h-full w-full object-cover object-left"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-black/45" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
         )}
 
-        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[4.35rem]" : ""}`}>
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-[max(22%,4rem)]" : ""}`}>
           {showSeparateIcon && (
             <div className="shrink-0 w-8 h-8 overflow-hidden border border-white/15 bg-bungie-border/30">
               <img
@@ -162,10 +167,10 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           <img
             src={bannerUrl}
             alt=""
-            className="absolute inset-0 h-full w-full object-contain object-left"
+            className="absolute inset-0 h-full w-full object-cover object-left"
             onError={handleBannerError}
           />
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
@@ -182,7 +187,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         </div>
       )}
 
-      <div className={`relative z-10 flex-1 min-w-0 pr-2.5 flex translate-y-[1px] flex-col justify-center ${bgUrl ? "pl-[4.35rem]" : "px-2.5"}`}>
+      <div
+        className={`relative z-10 flex-1 min-w-0 pr-2.5 flex translate-y-[1px] flex-col justify-center ${
+          bgUrl ? (compact ? "pl-[max(22%,4rem)]" : "pl-[max(22%,4.5rem)]") : "px-2.5"
+        }`}
+      >
         <span
           className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
