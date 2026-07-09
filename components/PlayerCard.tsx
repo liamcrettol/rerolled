@@ -43,52 +43,46 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   }
 
   if (variant === "nav") {
-    // Bungie's wide nameplate art (emblem_background_path) is a real ~4.9:1
-    // banner, safe to cover-fill and sit the name on top of like in-game. The
-    // small square emblem icon is NOT that shape — stretching it into a wide
-    // banner box crops it into an unrecognizable sliver, so when only the icon
-    // is available, fall back to a plain icon-chip layout instead (#318).
-    if (bgUrl) {
-      return (
-        <div className="relative flex h-10 w-44 shrink-0 flex-col justify-end overflow-hidden border border-bungie-border bg-bungie-dark px-2 pb-1">
-          <img
-            src={bgUrl}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            onError={() => setBgFailed(true)}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-          <div className="relative z-10 min-w-0">
-            <span className="block truncate text-sm font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+    // Same proven layout as the sidebar variant below (banner behind, icon +
+    // name/clan column on top, object-contain so nothing gets stretched or
+    // cropped) just scaled down to fit the nav's h-10 slot instead of h-14.
+    return (
+      <div className="relative flex h-10 w-52 shrink-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark">
+        {bannerUrl ? (
+          <>
+            <img
+              src={bannerUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain object-left"
+              onError={handleBannerError}
+            />
+            <div className="absolute inset-0 bg-black/45" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-bungie-dark" />
+        )}
+
+        <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-2 px-2 ${bgUrl ? "pl-12" : ""}`}>
+          {showSeparateIcon && (
+            <div className="shrink-0 w-7 h-7 overflow-hidden border border-white/15 bg-bungie-border/30">
+              <img
+                src={iconUrl}
+                alt=""
+                className="w-full h-full object-contain"
+                onError={() => setIconFailed(true)}
+              />
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className="text-xs font-bold truncate leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
               {trimBungieName(member.display_name)}
             </span>
-            <div className="flex min-w-0 items-center gap-1.5">
-              {member.clan_name && (
-                <span className="truncate text-[10px] leading-tight text-gray-300/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                  {member.clan_name}
-                </span>
-              )}
-              {badgeStrip}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex h-10 shrink-0 items-center gap-2 overflow-hidden border border-bungie-border bg-bungie-dark px-2">
-        {iconUrl && (
-          <div className="h-7 w-7 shrink-0 overflow-hidden border border-white/15 bg-bungie-border/30">
-            <img src={iconUrl} alt="" className="h-full w-full object-contain" onError={() => setIconFailed(true)} />
-          </div>
-        )}
-        <div className="min-w-0">
-          <span className="block truncate text-sm font-bold leading-tight text-white">
-            {trimBungieName(member.display_name)}
-          </span>
-          <div className="flex min-w-0 items-center gap-1.5">
-            {member.clan_name && <span className="truncate text-[10px] leading-tight text-gray-400">{member.clan_name}</span>}
-            {badgeStrip}
+            {(member.clan_name || badgeStrip) && (
+              <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                {member.clan_name && <span className="truncate">{member.clan_name}</span>}
+                {badgeStrip}
+              </span>
+            )}
           </div>
         </div>
       </div>
