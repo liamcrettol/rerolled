@@ -113,3 +113,42 @@ describe("PlayerCard emblem banner geometry", () => {
     expect(container.querySelectorAll('img[src*="icon.jpg"]')).toHaveLength(2);
   });
 });
+
+// A 24px badge mark nested inside the 10px clan text row crushed the line box
+// and shoved the mark onto the emblem art. It belongs in its own trailing slot.
+describe("PlayerCard badge placement", () => {
+  const clanned = makeMember({ clan_name: "Invictus" });
+  const variants = ["default", "sidebar", "nav"] as const;
+
+  it.each(variants)("keeps the badge out of the clan text row on the %s variant", (variant) => {
+    const { container } = render(
+      <PlayerCard member={clanned} badges={[makeBadge("a")]} variant={variant} />
+    );
+
+    const badgeSr = [...container.querySelectorAll(".sr-only")].find(
+      (el) => el.textContent === "a. a description"
+    );
+    expect(badgeSr).toBeDefined();
+
+    // Every text row in this card is a <span>. The badge chip is a <div>, so if
+    // any <span> is an ancestor of it, the mark is nested in a text line again.
+    expect(badgeSr!.parentElement?.closest("span")).toBeNull();
+
+    // And the clan line still renders, unpolluted by the badge's sr-only text.
+    const clanLine = [...container.querySelectorAll("span")].find(
+      (el) => el.children.length === 0 && el.textContent === "Invictus"
+    );
+    expect(clanLine).toBeDefined();
+    expect(clanLine!.closest("div")?.textContent).not.toContain("a. a description");
+  });
+
+  it("hides the badge for spectators, who have no nameplate to decorate", () => {
+    const spectator = makeMember({ is_spectator: true });
+    const { container } = render(
+      <PlayerCard member={spectator} badges={[makeBadge("a")]} variant="sidebar" />
+    );
+
+    expect(container.querySelector(".sr-only")).toBeNull();
+    expect(screen.getByText("spectating")).toBeInTheDocument();
+  });
+});

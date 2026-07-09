@@ -39,8 +39,17 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   const bannerUrl = bgUrl ?? iconUrl;
   const showSeparateIcon = !bgUrl && !!iconUrl;
   const resolvedBadges = badges ?? (member as BadgeBackedMember).badges;
+  // Badge marks are 24px squares. They used to sit inline in the clan line - a
+  // 10px text row - which crushed the layout and pushed the mark onto the
+  // emblem art. They get their own slot at the trailing edge instead, centered
+  // against the card's full height and never squeezed by a long display name.
   const badgeStrip = resolvedBadges?.length ? (
-    <EquippedBadges badges={resolvedBadges} max={compact ? 2 : 3} size="icon" />
+    // The scrim fades to transparent at the trailing edge, so the mark can land
+    // on bright emblem art with nothing behind it - the shadow keeps its
+    // silhouette readable without boxing it in.
+    <div className="relative z-10 flex shrink-0 items-center self-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+      <EquippedBadges badges={resolvedBadges} max={compact ? 2 : 3} size="icon" />
+    </div>
   ) : null;
 
   function handleBannerError() {
@@ -61,7 +70,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               className="absolute inset-0 h-full w-full object-cover object-left"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
@@ -82,13 +91,13 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             <span className="text-xs font-bold truncate leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
               {trimBungieName(member.display_name)}
             </span>
-            {(member.clan_name || badgeStrip) && (
-              <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                {member.clan_name && <span className="truncate">{member.clan_name}</span>}
-                {badgeStrip}
+            {member.clan_name && (
+              <span className="truncate text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                {member.clan_name}
               </span>
             )}
           </div>
+          {badgeStrip}
         </div>
       </div>
     );
@@ -113,7 +122,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               className="absolute inset-0 h-full w-full object-cover object-left"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
@@ -137,13 +146,13 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             </span>
             {member.is_spectator ? (
               <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
-            ) : member.clan_name || badgeStrip ? (
-              <span className="flex min-w-0 items-center gap-1.5 text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                {member.clan_name && <span className="truncate">{member.clan_name}</span>}
-                {badgeStrip && <span className="shrink-0">{badgeStrip}</span>}
+            ) : member.clan_name ? (
+              <span className="truncate text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                {member.clan_name}
               </span>
             ) : null}
           </div>
+          {!member.is_spectator && badgeStrip}
           {!member.is_spectator && member.selected_character_id && (
             <Check size={13} className="text-green-400 shrink-0 animate-fade-in drop-shadow" />
           )}
@@ -170,7 +179,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
             className="absolute inset-0 h-full w-full object-cover object-left"
             onError={handleBannerError}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
@@ -200,13 +209,21 @@ export default function PlayerCard({ member, compact, variant = "default", badge
         </span>
         {member.is_spectator ? (
           <span className="text-[11px] text-gray-300 leading-tight drop-shadow">spectating</span>
-        ) : member.clan_name || badgeStrip ? (
-          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-gray-200/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-            {member.clan_name && <span className="truncate">{member.clan_name}</span>}
-            {badgeStrip && <span className="shrink-0">{badgeStrip}</span>}
+        ) : member.clan_name ? (
+          <span className="mt-0.5 truncate text-[11px] text-gray-200/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            {member.clan_name}
           </span>
         ) : null}
       </div>
+
+      {/* The trailing check is absolutely positioned in the top-right corner, so
+          the badge has to reserve extra room for it - a centered 24px mark
+          clips its lower-left corner at the compact height otherwise. */}
+      {!member.is_spectator && badgeStrip && (
+        <div className={`relative z-10 shrink-0 ${member.selected_character_id ? "pr-6" : "pr-2.5"}`}>
+          {badgeStrip}
+        </div>
+      )}
 
       {!member.is_spectator && member.selected_character_id && (
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
