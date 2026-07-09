@@ -24,30 +24,82 @@ function buildErrorMessage(status: number, path: string, responseBody?: string):
   return message;
 }
 
-export async function bungieGet<T>(
+// Bungie throttles per *application key*, not per user, so every player of this
+// app shares one budget. A bare fetch turns that throttling into a hard 500 for
+// whoever happened to click. Retry the statuses Bungie uses to say "later", and
+// honor the ThrottleSeconds it hands back. Mirrors lib/bungie/workerClient.ts,
+// which has always done this; the user-facing client simply never got it.
+const MAX_ATTEMPTS = Number(process.env.BUNGIE_MAX_ATTEMPTS ?? 4);
+const BASE_BACKOFF_MS = 400;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface BungieEnvelope {
+  ErrorCode?: number;
+  ErrorStatus?: string;
+  Message?: string;
+  ThrottleSeconds?: number;
+  Response?: unknown;
+}
+
+function throttleDelayMs(json: BungieEnvelope): number {
+  return Math.max(0, (json.ThrottleSeconds ?? 0) * 1000);
+}
+
+function isThrottled(json: BungieEnvelope): boolean {
+  return throttleDelayMs(json) > 0 || json.ErrorStatus === "DestinyThrottledByGameServer";
+}
+
+async function bungieRequest<T>(
   path: string,
-  accessToken: string
+  accessToken: string,
+  init: RequestInit,
+  // A 5xx on a POST is ambiguous: the equip or transfer may already have
+  // applied, so replaying it could act twice. 429 and explicit throttles are
+  // safe to replay because Bungie never processed the request.
+  { retryServerErrors }: { retryServerErrors: boolean }
 ): Promise<T> {
-  const res = await fetch(`${BUNGIE_ROOT}${path}`, {
-    headers: {
-      "X-API-Key": process.env.BUNGIE_API_KEY!,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    next: { revalidate: 0 }, // always fresh
-  });
+  let lastError: Error | null = null;
 
-  const json = await res.json();
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch(`${BUNGIE_ROOT}${path}`, {
+      ...init,
+      headers: {
+        "X-API-Key": process.env.BUNGIE_API_KEY!,
+        Authorization: `Bearer ${accessToken}`,
+        ...(init.headers ?? {}),
+      },
+      next: { revalidate: 0 }, // always fresh
+    });
 
-  if (!res.ok) {
-    const responseBody = JSON.stringify(json);
-    throw new Error(buildErrorMessage(res.status, path, responseBody));
+    const json = (await res.json().catch(() => ({}))) as BungieEnvelope;
+
+    if (res.ok && (!json.ErrorCode || json.ErrorCode === 1)) {
+      return json.Response as T;
+    }
+
+    lastError = !res.ok
+      ? new Error(buildErrorMessage(res.status, path, JSON.stringify(json)))
+      : new Error(`Bungie error ${json.ErrorCode}: ${json.Message}`);
+
+    const retryable =
+      isThrottled(json) ||
+      res.status === 429 ||
+      res.status === 408 ||
+      (retryServerErrors && res.status >= 500);
+
+    if (!retryable || attempt === MAX_ATTEMPTS) throw lastError;
+
+    // Prefer Bungie's own backoff hint over our exponential guess.
+    const backoff = BASE_BACKOFF_MS * 2 ** (attempt - 1);
+    await sleep(Math.max(throttleDelayMs(json), backoff));
   }
 
-  if (json.ErrorCode && json.ErrorCode !== 1) {
-    throw new Error(`Bungie error ${json.ErrorCode}: ${json.Message}`);
-  }
+  throw lastError ?? new Error(`Bungie request failed on ${path}`);
+}
 
-  return json.Response as T;
+export async function bungieGet<T>(path: string, accessToken: string): Promise<T> {
+  return bungieRequest<T>(path, accessToken, { method: "GET" }, { retryServerErrors: true });
 }
 
 export async function bungiePost<T>(
@@ -55,28 +107,16 @@ export async function bungiePost<T>(
   accessToken: string,
   body: unknown
 ): Promise<T> {
-  const res = await fetch(`${BUNGIE_ROOT}${path}`, {
-    method: "POST",
-    headers: {
-      "X-API-Key": process.env.BUNGIE_API_KEY!,
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
+  return bungieRequest<T>(
+    path,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    const responseBody = JSON.stringify(json);
-    throw new Error(buildErrorMessage(res.status, path, responseBody));
-  }
-
-  if (json.ErrorCode && json.ErrorCode !== 1) {
-    throw new Error(`Bungie error ${json.ErrorCode}: ${json.Message}`);
-  }
-
-  return json.Response as T;
+    { retryServerErrors: false }
+  );
 }
 
 async function getInventoryItemDefinition(

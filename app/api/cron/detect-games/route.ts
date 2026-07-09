@@ -8,6 +8,15 @@ import { assertCronAuth } from "@/lib/auth/cron";
 // Authorization: Bearer CRON_SECRET. It finds lobbies that have a pending apply
 // but no saved game session and runs PGCR detection for each - so stats get
 // captured even when nobody has the page open.
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+// How many lobbies to detect at once. Bungie throttles per app key, so this is
+// deliberately small: past a handful, extra parallelism buys 429s, not speed.
+const LOBBY_CONCURRENCY = 4;
+// Stop picking up new lobbies with headroom left, so in-flight writes finish
+// instead of being killed mid-request. Leftovers are retried next run.
+const DEADLINE_MS = 50_000;
 
 export async function GET(req: NextRequest) {
   const denied = assertCronAuth(req);
@@ -79,15 +88,30 @@ export async function GET(req: NextRequest) {
 
   let processed = 0;
   const errors: string[] = [];
+  let timedOut = false;
 
-  for (const { lobbyId, roundId, appliedAt } of activeStuck) {
+  // Work is linear in active lobbies but the function timeout is constant, so a
+  // serial loop silently truncates as the app grows. Run a few lobbies at a
+  // time (Bungie throttles per app key, so unbounded fan-out would just trade
+  // timeouts for 429s) and stop starting new ones before the deadline.
+  const deadline = Date.now() + DEADLINE_MS;
+
+  async function processLobby({
+    lobbyId,
+    roundId,
+    appliedAt,
+  }: {
+    lobbyId: string;
+    roundId: string;
+    appliedAt: string;
+  }): Promise<void> {
     try {
       const { data: members } = await adminSupabase
         .from("lobby_members")
         .select("user_id, display_name, bungie_membership_type, bungie_membership_id, selected_character_id")
         .eq("lobby_id", lobbyId);
 
-      if (!members?.length) continue;
+      if (!members?.length) return;
 
       const memberInputs = members
         .filter((m) => m.selected_character_id)
@@ -99,7 +123,7 @@ export async function GET(req: NextRequest) {
           characterId: m.selected_character_id!,
         }));
 
-      if (memberInputs.length < 2) continue;
+      if (memberInputs.length < 2) return;
 
       const { data: slots } = await adminSupabase
         .from("lobby_loadout_slots")
@@ -110,7 +134,7 @@ export async function GET(req: NextRequest) {
         (slots ?? []).map((s) => s.item_hash).filter((h: number) => h !== 0)
       )];
 
-      if (!rouletteHashes.length) continue;
+      if (!rouletteHashes.length) return;
 
       // Pick a fireteam member whose token we can actually use as the activity-
       // history source. It must be someone in memberInputs (so the token matches
@@ -129,7 +153,7 @@ export async function GET(req: NextRequest) {
 
       if (!token || !tokenOwnerUserId) {
         errors.push(`${lobbyId}: no usable member token`);
-        continue;
+        return;
       }
 
       // Same shared pipeline the client detect route uses, so recording stays
@@ -145,12 +169,35 @@ export async function GET(req: NextRequest) {
         tokenOwnerUserId,
       });
 
-      if (outcome.status === "no_game") continue;
+      if (outcome.status === "no_game") return;
       processed++;
     } catch (e) {
       errors.push(`${lobbyId}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
-  return NextResponse.json({ processed, stuck: activeStuck.length, errors });
+  const queue = [...activeStuck];
+  const workers = Array.from(
+    { length: Math.min(LOBBY_CONCURRENCY, queue.length) },
+    async () => {
+      for (;;) {
+        if (Date.now() > deadline) {
+          timedOut = true;
+          return;
+        }
+        const next = queue.shift();
+        if (!next) return;
+        await processLobby(next);
+      }
+    }
+  );
+  await Promise.all(workers);
+
+  return NextResponse.json({
+    processed,
+    stuck: activeStuck.length,
+    skipped: queue.length,
+    timedOut,
+    errors,
+  });
 }

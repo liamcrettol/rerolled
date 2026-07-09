@@ -1,3 +1,5 @@
+import { adminSupabase } from "@/lib/supabase/admin";
+
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
 
 interface ActivityHistoryEntry {
@@ -65,7 +67,50 @@ export async function resolveActivityName(hash: number): Promise<string | null> 
   }
 }
 
-async function getPGCR(instanceId: string): Promise<PGCR | null> {
+// A PGCR is immutable once the match ends, so it is worth caching forever. The
+// score-attack worker (lib/scoreAttack/worker/detection.ts) already fills the
+// same `pgcr_cache` table; reading it here means the lobby detection path stops
+// re-fetching reports the worker has already pulled. Bungie throttles per app
+// key, so every avoided fetch is budget back for user-facing calls.
+async function readCachedPGCR(instanceId: string): Promise<PGCR | null> {
+  try {
+    const { data } = await adminSupabase
+      .from("pgcr_cache")
+      .select("raw_pgcr")
+      .eq("instance_id", instanceId)
+      .maybeSingle();
+    return (data?.raw_pgcr as PGCR | undefined) ?? null;
+  } catch {
+    // A cache miss and a cache outage are the same thing to the caller: go to
+    // Bungie. Never fail detection because the cache was slow.
+    return null;
+  }
+}
+
+async function writeCachedPGCR(instanceId: string, pgcr: PGCR): Promise<void> {
+  try {
+    const now = new Date().toISOString();
+    await adminSupabase.from("pgcr_cache").upsert(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {
+        instance_id: instanceId,
+        raw_pgcr: pgcr,
+        status: "fetched",
+        fetched_at: now,
+        updated_at: now,
+      } as any,
+      { onConflict: "instance_id" }
+    );
+  } catch {
+    // Caching is an optimization; a failed write must not fail the detection.
+  }
+}
+
+// Exported for tests; callers inside this module use it directly.
+export async function getPGCR(instanceId: string): Promise<PGCR | null> {
+  const cached = await readCachedPGCR(instanceId);
+  if (cached) return cached;
+
   const res = await fetch(
     `${BUNGIE_ROOT}/Destiny2/Stats/PostGameCarnageReport/${instanceId}/`,
     { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
@@ -73,7 +118,10 @@ async function getPGCR(instanceId: string): Promise<PGCR | null> {
   if (!res.ok) return null;
   const json = await res.json();
   if (json.ErrorCode && json.ErrorCode !== 1) return null;
-  return json.Response ?? null;
+
+  const pgcr: PGCR | null = json.Response ?? null;
+  if (pgcr) await writeCachedPGCR(instanceId, pgcr);
+  return pgcr;
 }
 
 export interface MemberStatInput {
