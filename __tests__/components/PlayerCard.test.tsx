@@ -54,9 +54,9 @@ describe("PlayerCard", () => {
     expect(srTexts).toContain("b. b description");
   });
 
-  it("never shows badges on the compact sidebar variant, even if passed", () => {
+  it("shows badges on the compact sidebar variant too (#eff5ff9)", () => {
     const badges = [makeBadge("a")];
     render(<PlayerCard member={makeMember()} badges={badges} variant="sidebar" />);
-    expect(screen.queryByText(/a description/)).not.toBeInTheDocument();
+    expect(screen.getByText("a. a description")).toBeInTheDocument();
   });
 });

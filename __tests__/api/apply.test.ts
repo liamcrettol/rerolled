@@ -46,6 +46,10 @@ jest.mock("@/lib/bungie/rawInventory", () => ({
   getRawWeapons: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock("@/lib/bungie/inventory", () => ({
+  getCharacters: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock("@/lib/bungie/equip", () => ({
   applyWeapons: jest.fn().mockResolvedValue([]),
   ensureInventorySpace: jest.fn().mockResolvedValue([]),
