@@ -204,7 +204,10 @@ export function generateWeeklyChallengeDraft(input: GenerateWeeklyChallengeInput
     weekNumber: input.weekNumber,
     pillar,
     seed,
-    title: `Week ${input.weekNumber}: ${titleSubject}`,
+    // No "Week N:" prefix - every display surface already shows the week
+    // number in its own eyebrow line right next to the title (WeeklyHero,
+    // /weekly, /weekly/leaderboard), so baking it into the title duplicated it.
+    title: titleSubject,
     slug: slugifyWeeklyChallenge(input.seasonKey, input.weekNumber, pillar),
     activityHash: activity.activityHash,
     activityNameSnapshot: activity.name,
