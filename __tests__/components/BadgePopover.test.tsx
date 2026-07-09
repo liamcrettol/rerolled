@@ -64,6 +64,14 @@ describe("BadgePopover", () => {
     expect(panel()).not.toBeNull();
   });
 
+  it("shows just the badge list, without a count header", () => {
+    const { container } = render(<BadgePopover badges={[makeBadge("a")]}>strip</BadgePopover>);
+    fireEvent.mouseEnter(trigger(container));
+
+    expect(screen.queryByText("1 Badge")).not.toBeInTheDocument();
+    expect(screen.getByText("a description")).toBeInTheDocument();
+  });
+
   it("renders nothing at all when the player has no badges", () => {
     const { container } = render(<BadgePopover badges={[]}>strip</BadgePopover>);
     expect(container).toBeEmptyDOMElement();

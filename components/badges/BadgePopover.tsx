@@ -113,9 +113,6 @@ export default function BadgePopover({ badges, children }: Props) {
       }}
       className="fixed z-50 border border-bungie-border bg-bungie-dark shadow-[0_8px_24px_rgba(0,0,0,0.7)]"
     >
-      <p className="section-label border-b border-bungie-border px-3 py-2">
-        {ordered.length} {ordered.length === 1 ? "Badge" : "Badges"}
-      </p>
       <ul className="max-h-80 overflow-y-auto">
         {ordered.map((b) => (
           <li
