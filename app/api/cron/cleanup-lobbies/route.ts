@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { assertCronAuth } from "@/lib/auth/cron";
 
 const IDLE_CLOSE_MS = 2 * 60 * 60 * 1000;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = assertCronAuth(req);
+  if (denied) return denied;
 
   const now = new Date().toISOString();
   const idleCutoff = new Date(Date.now() - IDLE_CLOSE_MS).toISOString();

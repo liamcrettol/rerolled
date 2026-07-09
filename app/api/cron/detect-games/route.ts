@@ -2,19 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { detectAndRecordGame } from "@/lib/stats/record";
+import { assertCronAuth } from "@/lib/auth/cron";
 
-// Vercel Cron calls this every 5 minutes with Authorization: Bearer CRON_SECRET.
-// It finds lobbies that have a pending apply but no saved game session and runs
-// PGCR detection for each - so stats get captured even when nobody has the page open.
+// Triggered by GitHub Actions (see .github/workflows/detect-games.yml) with
+// Authorization: Bearer CRON_SECRET. It finds lobbies that have a pending apply
+// but no saved game session and runs PGCR detection for each - so stats get
+// captured even when nobody has the page open.
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = assertCronAuth(req);
+  if (denied) return denied;
 
   // Mark lobbies idle for >2 hours as done so they stop accumulating.
   const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();

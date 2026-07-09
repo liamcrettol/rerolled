@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { rotateWeeklyChallenges } from "@/lib/challenges/rotate";
+import { assertCronAuth } from "@/lib/auth/cron";
 
 // Rotates the weekly challenge (expire → activate → generate next week).
 // Scheduled from GitHub Actions after Tuesday reset — same protected-endpoint
@@ -10,13 +11,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = assertCronAuth(req);
+  if (denied) return denied;
 
   try {
     const now = new Date();

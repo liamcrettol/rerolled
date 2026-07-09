@@ -110,7 +110,7 @@ by merging `main` into `release`.
 ### Development
 Local development uses:
 
-`http://localhost:3000/api/auth/callback/bungie`
+`http://localhost:3000/api/auth/bungie/callback`
 
 ## Status
 

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import Leaderboard from "@/components/Leaderboard";
 import SeedButton from "./SeedButton";
 import LobbyMockup from "./LobbyMockup";
@@ -6,6 +7,13 @@ import LobbyMockup from "./LobbyMockup";
 export const dynamic = "force-dynamic";
 
 export default function PreviewPage() {
+  // Internal "fake test environment" harness (seed button + UI mockups). Never
+  // expose it on the production domain - same production lockout as
+  // /api/cron and /api/dev/seed. It stays reachable on preview and local.
+  if (process.env.VERCEL_ENV === "production") {
+    notFound();
+  }
+
   return (
     <div className="min-h-screen bg-bungie-dark">
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
