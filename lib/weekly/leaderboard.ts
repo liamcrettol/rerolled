@@ -9,6 +9,8 @@ import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import type { LeaderboardEntry, UserPlacement } from "@/types/platform";
 import { toPlatformLeaderboardEntry, type LeaderboardRow } from "@/lib/challenges/present";
 
+const COMPLETED_WEEKLY_RUN_STATES = ["scored", "finalized"];
+
 /** Full standings for a weekly challenge, ranked by score desc (#249). */
 export async function getWeeklyStandings(
   weeklyChallengeId: string,
@@ -47,6 +49,7 @@ export async function getWeeklyRunCount(weeklyChallengeId: string | null): Promi
         .from("challenge_runs")
         .select("id", { count: "exact", head: true })
         .eq("weekly_challenge_id", weeklyChallengeId)
+        .in("status", COMPLETED_WEEKLY_RUN_STATES)
     );
     return count ?? 0;
   } catch {
@@ -76,6 +79,7 @@ export async function getUserWeeklyPlacement(
           .select("id", { count: "exact", head: true })
           .eq("weekly_challenge_id", weeklyChallengeId)
           .eq("created_by", userId)
+          .in("status", COMPLETED_WEEKLY_RUN_STATES)
       ),
     ]);
 
