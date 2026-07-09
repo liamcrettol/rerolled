@@ -6,6 +6,14 @@ import { motifForIconKey } from "@/lib/badges/assets";
 // stays a single flat-line glyph, consistent with the app's zero-gradient,
 // zero-3D design system. Purely decorative: BadgeChip supplies the
 // accessible name/description, so this is always aria-hidden.
+//
+// Be aware of what this costs: migration 043 assigns icon_key by *category*,
+// and the biggest categories hold 15 and 14 badges. So every completion badge
+// draws the same laurel and every performance badge the same ring, separated
+// only by a 2px tier border that is invisible at 24px. Two badges on a player
+// card routinely render as the same glyph twice. That is why the strip alone
+// reads as generic, and why the hover popover (BadgePopover) carries the name
+// and description — it's the only thing telling badges apart on that surface.
 
 interface Props {
   iconKey: string | null;

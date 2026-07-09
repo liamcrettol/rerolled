@@ -67,13 +67,19 @@ export default function BadgeChip({
     );
   }
 
+  // The icon size only ever renders inside the player card's badge strip, which
+  // wraps it in BadgePopover. A native title tooltip would race that popover on
+  // hover and win, so the description reaches the pointer through the popover
+  // and screen readers through the sr-only span below.
+  const tooltip = iconOnly ? undefined : description;
+
   // Player cards and other tight surfaces need a square mark, not the full
   // horizontal badge. Bespoke marks keep status badges recognizable at 24x24.
   const BespokeMark = iconOnly ? BESPOKE_BADGE_MARKS[slug] : undefined;
   if (BespokeMark) {
     return (
       <div
-        title={description}
+        title={tooltip}
         className={`relative ${s.box} ${locked ? "opacity-45 grayscale" : ""} ${className}`}
       >
         <BespokeMark />
@@ -84,7 +90,7 @@ export default function BadgeChip({
 
   return (
     <div
-      title={description}
+      title={tooltip}
       className={`group relative flex items-stretch bg-bungie-surface border border-bungie-border ${s.box} ${
         locked ? "opacity-45 grayscale" : ""
       } ${className}`}

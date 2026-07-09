@@ -38,3 +38,25 @@ export const MODE_LABEL: Record<BadgeMode, string> = {
 
 // Display order for Badge Case mode tabs/groups.
 export const MODE_ORDER: BadgeMode[] = ["core", "crucible", "trials", "iron_banner", "pve", "status_legacy"];
+
+const TIER_RANK: Record<BadgeTier, number> = {
+  special: 4,
+  platinum: 3,
+  gold: 2,
+  silver: 1,
+  bronze: 0,
+};
+
+// Rarest tier first, then most recently earned. The equipped strip shows only
+// the first 2-3 of these while the hover popover lists all of them, so both
+// have to agree on the order or the strip reads as an arbitrary sample of the
+// popover. Takes a structural param rather than DisplayBadge so this module
+// stays free of the server-side badge data layer.
+export function compareBadgePriority(
+  a: { tier: BadgeTier; earnedAt: string },
+  b: { tier: BadgeTier; earnedAt: string }
+): number {
+  const tierDiff = TIER_RANK[b.tier] - TIER_RANK[a.tier];
+  if (tierDiff !== 0) return tierDiff;
+  return new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime();
+}

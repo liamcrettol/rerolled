@@ -5,6 +5,7 @@ import { Crown, Check } from "lucide-react";
 import { trimBungieName } from "@/lib/utils";
 import type { LobbyMember } from "@/types/lobby";
 import EquippedBadges from "@/components/badges/EquippedBadges";
+import BadgePopover from "@/components/badges/BadgePopover";
 import type { DisplayBadge } from "@/lib/badges/data";
 
 interface Props {
@@ -43,13 +44,11 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   // 10px text row - which crushed the layout and pushed the mark onto the
   // emblem art. They get their own slot at the trailing edge instead, centered
   // against the card's full height and never squeezed by a long display name.
+  // BadgePopover supplies that slot's styling along with the hover disclosure.
   const badgeStrip = resolvedBadges?.length ? (
-    // The scrim fades to transparent at the trailing edge, so the mark can land
-    // on bright emblem art with nothing behind it - the shadow keeps its
-    // silhouette readable without boxing it in.
-    <div className="relative z-10 flex shrink-0 items-center self-center drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]">
+    <BadgePopover badges={resolvedBadges}>
       <EquippedBadges badges={resolvedBadges} max={compact ? 2 : 3} size="icon" />
-    </div>
+    </BadgePopover>
   ) : null;
 
   function handleBannerError() {
