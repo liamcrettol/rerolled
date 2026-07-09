@@ -103,6 +103,19 @@ export function activityCompletionRequiredRule(required: boolean): WeeklyChallen
   };
 }
 
+// Same rule key/value shape as activityCompletionRequiredRule - compliance
+// and scoring code only ever reads `key`/`value`, never the copy - but "the
+// activity must be completed" reads wrong for a Crucible match. PvP weekly
+// challenges use this instead so the chip/display text matches the context.
+export function matchCompletionRequiredRule(required: boolean): WeeklyChallengeRule<"activity_completion_required"> {
+  return {
+    key: "activity_completion_required",
+    value: required,
+    chip: required ? "No early leaves" : "Leaving early OK",
+    display: required ? "The match must be played to completion to count" : "The run counts even if you leave the match early",
+  };
+}
+
 export function freshRequiredRule(required: boolean): WeeklyChallengeRule<"fresh_required"> {
   return {
     key: "fresh_required",

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { WeeklyChallengePillar } from "@/types/challenges";
 import { generateWeeklyChallengeAndStoreDraft, publishWeeklyChallenge } from "./publish";
 
 // Weekly challenge rotation (#256 follow-up). One idempotent pass, safe to run
@@ -10,6 +11,9 @@ import { generateWeeklyChallengeAndStoreDraft, publishWeeklyChallenge } from "./
 //
 // Called from /api/cron/rotate-weekly (GitHub Actions, Tuesday after reset,
 // with an hourly-later retry) and `npm run weekly:rotate` for manual use.
+// Scoped to a single `pillar` (#296) - every query is filtered so a PvE and
+// a PvP pass are fully independent (separate week-number counters, separate
+// active/expired lifecycles). The caller runs one pass per pillar.
 
 export interface RotateResult {
   expired: string[];
@@ -32,6 +36,7 @@ export function nextWeeklyReset(now: Date): Date {
 export async function rotateWeeklyChallenges(
   supabase: SupabaseClient,
   now: Date = new Date(),
+  pillar: WeeklyChallengePillar = "pve",
 ): Promise<RotateResult> {
   const nowIso = now.toISOString();
   const result: RotateResult = { expired: [], activated: [], generated: null, skipped: null };
@@ -41,6 +46,7 @@ export async function rotateWeeklyChallenges(
     .from("weekly_challenges")
     .select("id, slug")
     .eq("status", "active")
+    .eq("pillar", pillar)
     .lte("ends_at", nowIso);
   for (const c of toExpire ?? []) {
     await supabase
@@ -55,6 +61,7 @@ export async function rotateWeeklyChallenges(
     .from("weekly_challenges")
     .select("id, slug")
     .eq("status", "scheduled")
+    .eq("pillar", pillar)
     .lte("starts_at", nowIso)
     .gt("ends_at", nowIso);
   for (const c of toActivate ?? []) {
@@ -67,11 +74,12 @@ export async function rotateWeeklyChallenges(
     if (!error) result.activated.push(c.slug);
   }
 
-  // 3. If a week is live now, we're done.
+  // 3. If a week is live now for this pillar, we're done.
   const { data: active } = await supabase
     .from("weekly_challenges")
     .select("slug")
     .eq("status", "active")
+    .eq("pillar", pillar)
     .limit(1)
     .maybeSingle();
   if (active) {
@@ -96,10 +104,13 @@ export async function rotateWeeklyChallenges(
     return result;
   }
 
+  // Week numbers are independent per (season, pillar) - without this filter
+  // PvP's counter would read/collide with PvE's.
   const { data: latest } = await supabase
     .from("weekly_challenges")
     .select("week_number")
     .eq("season_id", season.id)
+    .eq("pillar", pillar)
     .order("week_number", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -108,6 +119,7 @@ export async function rotateWeeklyChallenges(
   const { challenge } = await generateWeeklyChallengeAndStoreDraft(supabase, {
     seasonKey: season.season_key as string,
     weekNumber,
+    pillar,
     seasonId: season.id as string,
   });
 

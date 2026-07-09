@@ -32,6 +32,14 @@ export interface NormalizedPvpPgcrPlayer extends NormalizedPgcrPlayer {
   score: number | null;
   medalKeys: string[];
   scoreboardValues: Record<string, number>;
+  // This player's own per-entry completion flag - NOT the same as the base
+  // NormalizedPgcrBase's `completed`, which is a whole-match aggregate
+  // requiring every player's entry to show completed (readCompleted() in
+  // pgcr.ts) and is unreliable for PvP: a match where an unrelated teammate
+  // or opponent quit early would report completed=false for everyone, even
+  // players who played the whole match themselves. Use this field for any
+  // PvP per-player "did they leave early" check (#296).
+  completed: boolean | null;
 }
 
 export interface NormalizedPvpPgcrTeam {

@@ -1,9 +1,13 @@
 // Weekly challenge authoring CLI (#256).
 //
 // Usage:
-//   npm run weekly:generate -- --week 42 --season season-0
-//   npm run weekly:preview  -- --week 42 --season season-0
+//   npm run weekly:generate -- --week 42 --season season-0 [--pillar pve|pvp]
+//   npm run weekly:preview  -- --week 42 --season season-0 [--pillar pve|pvp]
 //   npm run weekly:publish  -- --slug season-0-week-42 --starts 2026-10-13T17:00:00Z --ends 2026-10-20T17:00:00Z
+//   npm run weekly:rotate   -- [--pillar pve|pvp]
+//
+// --pillar defaults to pve. publish doesn't take --pillar - the slug (already
+// pillar-suffixed by generate, e.g. "season-0-week-42-pvp") identifies it.
 //
 // Requires DATABASE_URL-adjacent Supabase env (NEXT_PUBLIC_SUPABASE_URL,
 // SUPABASE_SERVICE_ROLE_KEY) in .env.local — same as scripts/db-query.mjs.
@@ -43,6 +47,8 @@ async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
 
+  const pillar = args.pillar === "pvp" ? "pvp" : "pve";
+
   if (command === "generate") {
     const { generateWeeklyChallengeAndStoreDraft } = await import("../lib/challenges/publish");
     const { adminSupabase } = await import("../lib/supabase/admin");
@@ -60,9 +66,10 @@ async function main() {
     const { draft, challenge } = await generateWeeklyChallengeAndStoreDraft(adminSupabase, {
       seasonKey,
       weekNumber: week,
+      pillar,
       seasonId: season.id as string,
     });
-    console.log(`Stored draft "${challenge.slug}" (id=${challenge.id}, week=${challenge.week_number})`);
+    console.log(`Stored draft "${challenge.slug}" (id=${challenge.id}, week=${challenge.week_number}, pillar=${challenge.pillar})`);
     console.log(JSON.stringify(draft, null, 2));
     return;
   }
@@ -73,7 +80,7 @@ async function main() {
     const seasonKey = args.season ?? "season-0";
     if (!Number.isFinite(week)) throw new Error("--week is required, e.g. --week 42");
 
-    const { draft, validation } = previewWeeklyChallengeDraft({ seasonKey, weekNumber: week });
+    const { draft, validation } = previewWeeklyChallengeDraft({ seasonKey, weekNumber: week, pillar });
     console.log(JSON.stringify(draft, null, 2));
     console.log(validation.valid ? "\nValid: no warnings." : `\nWarnings:\n- ${validation.errors.join("\n- ")}`);
     return;
@@ -82,7 +89,7 @@ async function main() {
   if (command === "rotate") {
     const { rotateWeeklyChallenges } = await import("../lib/challenges/rotate");
     const { adminSupabase } = await import("../lib/supabase/admin");
-    const result = await rotateWeeklyChallenges(adminSupabase);
+    const result = await rotateWeeklyChallenges(adminSupabase, new Date(), pillar);
     console.log(JSON.stringify(result, null, 2));
     return;
   }

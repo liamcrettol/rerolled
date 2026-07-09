@@ -12,9 +12,11 @@ import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
 import { getUserWeeklyPlacement, getStandingsPreview, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
 import { getSeasonStats } from "@/lib/stats/season";
 
-// Game-night platform home shell (#243): weekly hero, mode grid, lobby row,
-// week standings, and the Your Season panel — all reading live data.
+// Game-night platform home shell (#243): weekly challenges, mode grid, lobby
+// row, week standings, and the Your Season panel — all reading live data.
 export const dynamic = "force-dynamic";
+
+const EMPTY_PLACEMENT = { rank: null, bestScore: null, totalRuns: 0 };
 
 export default async function Dashboard() {
   const session = await auth();
@@ -31,17 +33,19 @@ export default async function Dashboard() {
     bestWeapon: null,
   }));
 
-  const challenge = await getActiveWeeklyChallenge().catch(() => null);
-  const [activeSession, placement, standings, season, runCount] = await Promise.all([
+  const [challenge, pvpChallenge] = await Promise.all([
+    getActiveWeeklyChallenge("pve").catch(() => null),
+    getActiveWeeklyChallenge("pvp").catch(() => null),
+  ]);
+
+  const [activeSession, placement, pvpPlacement, standings, season, runCount, pvpRunCount] = await Promise.all([
     activeSessionPromise,
-    getUserWeeklyPlacement(session.userId, challenge?.id ?? null).catch(() => ({
-      rank: null,
-      bestScore: null,
-      totalRuns: 0,
-    })),
+    getUserWeeklyPlacement(session.userId, challenge?.id ?? null).catch(() => EMPTY_PLACEMENT),
+    getUserWeeklyPlacement(session.userId, pvpChallenge?.id ?? null).catch(() => EMPTY_PLACEMENT),
     challenge ? getStandingsPreview(challenge.id, session.userId).catch(() => []) : Promise.resolve([]),
     seasonPromise,
     getWeeklyRunCount(challenge?.id ?? null).catch(() => 0),
+    getWeeklyRunCount(pvpChallenge?.id ?? null).catch(() => 0),
   ]);
 
   return (
@@ -49,12 +53,30 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
 
       <div className="space-y-8">
-        <div className="grid lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2"><WeeklyHero challenge={challenge} placement={placement} runCount={runCount} /></div>
-          <div>
-            <SeasonPanel stats={season} />
+        <section>
+          <p className="section-label mb-3">Weekly Challenges</p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <WeeklyHero
+              challenge={challenge}
+              placement={placement}
+              runCount={runCount}
+              accent="blue"
+              label="PvE Weekly"
+              size="compact"
+            />
+            <WeeklyHero
+              challenge={pvpChallenge}
+              placement={pvpPlacement}
+              runCount={pvpRunCount}
+              accent="red"
+              label="PvP Weekly"
+              href="/weekly/pvp"
+              size="compact"
+            />
           </div>
-        </div>
+        </section>
+
+        <SeasonPanel stats={season} />
 
         <ModeGrid />
 

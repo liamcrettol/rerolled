@@ -13,7 +13,7 @@ import WeaponIcon from "@/components/WeaponIcon";
 import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import type { WeaponSlot } from "@/types/bungie";
 
-type Accent = "amber" | "blue";
+type Accent = "amber" | "blue" | "red";
 
 const ACCENT = {
   amber: {
@@ -27,6 +27,14 @@ const ACCENT = {
     borderL: "border-l-bungie-blue/40",
     button: "bg-bungie-blue hover:bg-[#26bcf3] text-white",
     ring: "border-bungie-blue",
+  },
+  // PvP Weekly Challenge (#296) - matches the existing Endgame/Ironman red
+  // treatment so PvP content reads as consistently "high-stakes" app-wide.
+  red: {
+    text: "text-red-400",
+    borderL: "border-l-red-400/40",
+    button: "bg-red-500 hover:bg-red-400 text-white",
+    ring: "border-red-400",
   },
 } as const;
 

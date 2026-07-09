@@ -120,4 +120,47 @@ describe("parsePvpPgcr", () => {
     expect(pgcr.kind).toBe("pvp");
     expect(pgcr.players).toHaveLength(3);
   });
+
+  it("tracks completion per-player, not as a whole-match aggregate (#296)", () => {
+    // One player finished the match, the other left early - a real scenario
+    // readCompleted()'s old aggregate (`.every()` across all entries) would
+    // have reported completed=false for BOTH players. Each player's own
+    // NormalizedPvpPgcrPlayer.completed must reflect only their own entry.
+    const mixedCompletion = {
+      period: "2026-07-05T20:00:00Z",
+      activityDetails: { instanceId: "pgcr-201", referenceId: 654321, mode: 10, modes: [5, 10] },
+      teams: [],
+      entries: [
+        {
+          characterId: "char-finished",
+          player: { destinyUserInfo: { membershipId: "1111", membershipType: 3 } },
+          values: {
+            kills: { basic: { value: 10 } },
+            deaths: { basic: { value: 2 } },
+            team: { basic: { value: 1 } },
+            standing: { basic: { value: 0 } },
+            completed: { basic: { value: 1 } },
+          },
+        },
+        {
+          characterId: "char-left-early",
+          player: { destinyUserInfo: { membershipId: "2222", membershipType: 3 } },
+          values: {
+            kills: { basic: { value: 3 } },
+            deaths: { basic: { value: 1 } },
+            team: { basic: { value: 2 } },
+            standing: { basic: { value: 1 } },
+            completed: { basic: { value: 0 } },
+          },
+        },
+      ],
+    };
+
+    const pgcr = parsePvpPgcr(mixedCompletion);
+    const finished = pgcr.players.find((p) => p.membershipId === "1111");
+    const leftEarly = pgcr.players.find((p) => p.membershipId === "2222");
+
+    expect(finished?.completed).toBe(true);
+    expect(leftEarly?.completed).toBe(false);
+  });
 });

@@ -7,15 +7,19 @@
 
 import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import type { WeeklyChallenge } from "@/types/platform";
+import type { WeeklyChallengePillar } from "@/types/challenges";
 import { toPlatformChallenge } from "@/lib/challenges/present";
 
-export async function getActiveWeeklyChallenge(): Promise<WeeklyChallenge | null> {
+export async function getActiveWeeklyChallenge(
+  pillar: WeeklyChallengePillar = "pve"
+): Promise<WeeklyChallenge | null> {
   try {
     const { data, error } = await withSupabaseTimeout(
       adminSupabase
         .from("weekly_challenges")
         .select("*, seasons(season_key)")
         .eq("status", "active")
+        .eq("pillar", pillar)
         .order("starts_at", { ascending: false })
         .limit(1)
         .maybeSingle()

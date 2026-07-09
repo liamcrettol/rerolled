@@ -17,6 +17,7 @@ export interface Season {
 }
 
 export type WeeklyChallengeStatus = "draft" | "scheduled" | "active" | "expired" | "archived";
+export type WeeklyChallengePillar = "pve" | "pvp";
 export type ActivityFamily =
   | "gm"
   | "nightfall"
@@ -72,6 +73,7 @@ export interface WeeklyChallenge {
   title: string;
   slug: string;
   description: string | null;
+  pillar: WeeklyChallengePillar;
   activity_hash: number | null;
   activity_name_snapshot: string | null;
   activity_mode: number | null;

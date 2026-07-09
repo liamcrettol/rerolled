@@ -15,7 +15,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { BungieWorkerClient } from "@/lib/bungie/workerClient";
 import { parsePgcr } from "@/lib/scoreAttack/pgcr";
-import { scoreAttackRun } from "@/lib/scoreAttack/scoring";
+import { scoreAttackRun, pvpScoreAttackRun } from "@/lib/scoreAttack/scoring";
 import { getActivityDifficultyMultiplier } from "@/lib/scoreAttack/activityPool";
 import { computeRunEligibility, type WeeklyWeaponRequirement } from "@/lib/scoreAttack/compliance";
 import { computeRunLegality } from "@/lib/scoreAttack/legality";
@@ -318,12 +318,22 @@ export async function computeScoreHandler(job: WorkerJobRow, d: DetectionDeps = 
     .filter((h): h is number => typeof h === "number");
 
   const difficultyMultiplier = getActivityDifficultyMultiplier(run.activity_hash);
-  const result = scoreAttackRun({
-    pgcr,
-    playerMembershipId: p.playerMembershipId,
-    rolledWeaponHashes,
-    config: { difficultyMultiplier },
-  });
+  // PvE's clear-time/completion formula doesn't map to a Crucible match
+  // (#296) - dispatch on the same NormalizedPgcr discriminated union the
+  // rest of the pipeline already uses.
+  const result = pgcr.kind === "pvp"
+    ? pvpScoreAttackRun({
+        pgcr,
+        playerMembershipId: p.playerMembershipId,
+        rolledWeaponHashes,
+        config: { difficultyMultiplier },
+      })
+    : scoreAttackRun({
+        pgcr,
+        playerMembershipId: p.playerMembershipId,
+        rolledWeaponHashes,
+        config: { difficultyMultiplier },
+      });
 
   await db.from("challenge_runs").update({
     score: result.totalScore,

@@ -70,19 +70,24 @@ ever public.
 - **`seasons`** — top-level time period (`season_key` unique, `starts_at <
   ends_at`). At most one row may have `status = 'active'` (partial unique
   index on a constant expression). Depends on: #258.
-- **`weekly_challenges`** — one global challenge definition per week. Belongs
-  to a season, unique `slug`, unique `(season_id, week_number)`. `status`
-  moves `draft → scheduled → active → expired → archived`. A check constraint
+- **`weekly_challenges`** — one challenge definition per week *per pillar*
+  (`047_weekly_challenge_pillar.sql`, #296). `pillar` (`'pve' | 'pvp'`,
+  default `'pve'`) lets a PvE and a PvP challenge run concurrently — belongs
+  to a season, unique `(slug)`, unique `(season_id, week_number, pillar)` so
+  each pillar has its own independent week counter. `status` moves
+  `draft → scheduled → active → expired → archived`. A check constraint
   requires `published_at`/`activity_hash`/`scoring_config`/non-empty `rules`
   once status leaves `draft` — mirrors
   `lib/challenges/validate.ts#validatePublishableChallenge`, which runs the
   same check in application code *before* the update, so the constraint is a
   backstop, not the primary UX. An exclusion constraint
-  (`weekly_challenges_no_overlapping_active`, needs `btree_gist`) stops two
-  `active` challenges from having overlapping `[starts_at, ends_at)` windows.
-  `rules` is `WeeklyChallengeRuleSet` JSONB (see `types/challenges.ts` /
+  (`weekly_challenges_no_overlapping_active`, needs `btree_gist`),
+  partitioned by `pillar`, stops two `active` challenges *of the same
+  pillar* from having overlapping `[starts_at, ends_at)` windows — a PvE and
+  a PvP challenge may share the exact same window. `rules` is
+  `WeeklyChallengeRuleSet` JSONB (see `types/challenges.ts` /
   `lib/challenges/rules.ts`); `scoring_config` is `ScoringConfig` JSONB, owned
-  by Codex's scoring code. Depends on: #256, #258.
+  by Codex's scoring code. Depends on: #256, #258, #296.
 - **`weekly_challenge_versions`** — immutable snapshot taken at publish time
   (`lib/challenges/publish.ts#publishWeeklyChallenge`). `challenge_runs`
   references a specific version, so a later edit/archive/replace of the

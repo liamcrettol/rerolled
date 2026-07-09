@@ -34,6 +34,7 @@ interface PvpPlayerAccumulator extends PlayerAccumulator {
   score: NullableAccumulator;
   medalKeys: Set<string>;
   scoreboardValues: Record<string, number>;
+  completed: boolean | null;
 }
 
 interface NullableAccumulator {
@@ -218,6 +219,7 @@ function getOrCreatePvpPlayer(
   base.score = makeNullableAccumulator();
   base.medalKeys = new Set<string>();
   base.scoreboardValues = {};
+  base.completed = null;
   players.set(membershipId, base);
   return base;
 }
@@ -282,6 +284,7 @@ function finalizePvpPlayer(acc: PvpPlayerAccumulator): NormalizedPvpPgcrPlayer {
     score: finishNullable(acc.score),
     medalKeys: [...acc.medalKeys].sort(),
     scoreboardValues: Object.fromEntries(Object.entries(acc.scoreboardValues).sort(([a], [b]) => a.localeCompare(b))),
+    completed: acc.completed,
   };
 }
 
@@ -596,6 +599,12 @@ export function parsePvpPgcr(raw: unknown): NormalizedPvpPgcr {
     if (team !== null) acc.team = team;
     if (standing !== null) acc.standing = standing;
     acc.isWin = determineWin(acc.team, acc.standing, teams);
+
+    // Per-entry completion, kept per-player (unlike the base
+    // NormalizedPgcrBase.completed aggregate, which requires every player's
+    // entry to show completed - see the NormalizedPvpPgcrPlayer doc comment).
+    const completed = readBasicNumber(values, "completed");
+    if (completed !== null) acc.completed = completed > 0;
 
     const extended = asRecord(readPath(entry, ["extended"]));
     if (extended && Array.isArray(extended.weapons)) {

@@ -64,4 +64,49 @@ describe("generateWeeklyChallengeDraft", () => {
     expect(draft.activityHash).toBeGreaterThan(1000);
     expect(["raid", "dungeon", "gm"]).toContain(draft.activityFamily);
   });
+
+  it("defaults pillar to pve", () => {
+    const draft = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 1 });
+    expect(draft.pillar).toBe("pve");
+  });
+});
+
+describe("generateWeeklyChallengeDraft — PvP pillar (#296)", () => {
+  it("picks only from the curated always-available Control/Clash allowlist, never Private Match or event playlists", () => {
+    for (let week = 1; week <= 30; week++) {
+      const draft = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: week, pillar: "pvp" });
+      expect(["Control", "Clash"]).toContain(draft.activityNameSnapshot);
+      expect(draft.activityFamily).toBe("crucible");
+      expect(draft.pillar).toBe("pvp");
+    }
+  });
+
+  it("suffixes the slug with -pvp so it never collides with the PvE slug for the same week", () => {
+    const pve = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 5 });
+    const pvp = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 5, pillar: "pvp" });
+
+    expect(pve.slug).toBe("season-0-week-5");
+    expect(pvp.slug).toBe("season-0-week-5-pvp");
+    expect(pvp.slug).not.toBe(pve.slug);
+  });
+
+  it("produces distinct slugs for every week, so repeat generation never collides", () => {
+    const slugs = new Set<string>();
+    for (let week = 1; week <= 20; week++) {
+      slugs.add(generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: week, pillar: "pvp" }).slug);
+    }
+    expect(slugs.size).toBe(20);
+  });
+
+  it("uses match-completion copy instead of the PvE 'complete the activity' copy", () => {
+    const draft = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 1, pillar: "pvp" });
+    const completionRule = draft.rules.find((r) => r.key === "activity_completion_required");
+    expect(completionRule?.display).toMatch(/match/i);
+    expect(completionRule?.display).not.toMatch(/activity must be completed/i);
+  });
+
+  it("stores a null activity_mode (no guessed Bungie mode-type constants)", () => {
+    const draft = generateWeeklyChallengeDraft({ seasonKey: "season-0", weekNumber: 1, pillar: "pvp" });
+    expect(draft.activityMode).toBeNull();
+  });
 });

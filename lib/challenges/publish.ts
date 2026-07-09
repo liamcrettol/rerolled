@@ -26,6 +26,7 @@ export async function generateWeeklyChallengeAndStoreDraft(
       {
         season_id: input.seasonId,
         week_number: draft.weekNumber,
+        pillar: draft.pillar,
         title: draft.title,
         slug: draft.slug,
         activity_hash: draft.activityHash,
@@ -99,10 +100,14 @@ export async function publishWeeklyChallenge(
 
   const challenge = existing as WeeklyChallenge;
 
+  // Scoped to the challenge's own pillar - PvE and PvP run concurrently by
+  // design (#296), so an unscoped query would false-positive every PvP
+  // publish as "overlapping" the always-active PvE week (and vice versa).
   const { data: activeWindows, error: activeError } = await supabase
     .from("weekly_challenges")
     .select("slug, starts_at, ends_at")
-    .eq("status", "active");
+    .eq("status", "active")
+    .eq("pillar", challenge.pillar);
   if (activeError) throw new Error(`failed to load active challenge windows: ${activeError.message}`);
 
   const existingActiveWindows: ExistingActiveWindow[] = (activeWindows ?? []).map((row) => ({

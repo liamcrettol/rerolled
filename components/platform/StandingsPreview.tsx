@@ -11,7 +11,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function StandingsRow({ entry }: { entry: LeaderboardEntry }) {
+export function StandingsRow({ entry, showTime = true }: { entry: LeaderboardEntry; showTime?: boolean }) {
   return (
     <div
       className={`flex items-center gap-3 px-3 py-2 border-b border-bungie-border/55 last:border-b-0 ${
@@ -23,9 +23,11 @@ export function StandingsRow({ entry }: { entry: LeaderboardEntry }) {
         {entry.displayName}
         {entry.isCurrentUser && <span className="text-bungie-blue text-[10px] font-bold uppercase ml-2">You</span>}
       </span>
-      <span className="font-mono slashed-zero text-xs text-gray-500 w-14 text-right shrink-0 hidden sm:block">
-        {formatTime(entry.clearTimeSeconds)}
-      </span>
+      {showTime && (
+        <span className="font-mono slashed-zero text-xs text-gray-500 w-14 text-right shrink-0 hidden sm:block">
+          {formatTime(entry.clearTimeSeconds)}
+        </span>
+      )}
       <span className="font-mono slashed-zero text-sm text-white w-16 text-right shrink-0">
         {entry.score.toLocaleString()}
       </span>
@@ -37,9 +39,11 @@ interface Props {
   entries: LeaderboardEntry[];
   /** Show the "view full leaderboard" footer link (home preview only). */
   showViewAll?: boolean;
+  /** clearTimeSeconds is meaningless for PvP entries (#296) - hides the "Time" column when false. */
+  showTime?: boolean;
 }
 
-export default function StandingsPreview({ entries, showViewAll = true }: Props) {
+export default function StandingsPreview({ entries, showViewAll = true, showTime = true }: Props) {
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
@@ -54,13 +58,13 @@ export default function StandingsPreview({ entries, showViewAll = true }: Props)
         <div className="flex items-center gap-3 px-3 py-2 border-b border-bungie-border">
           <span className="section-label w-8 shrink-0">#</span>
           <span className="section-label flex-1">Guardian</span>
-          <span className="section-label w-14 text-right shrink-0 hidden sm:block">Time</span>
+          {showTime && <span className="section-label w-14 text-right shrink-0 hidden sm:block">Time</span>}
           <span className="section-label w-16 text-right shrink-0">Score</span>
         </div>
         {entries.length === 0 ? (
           <p className="text-sm text-gray-500 px-3 py-6 text-center">No runs yet this week.</p>
         ) : (
-          entries.map((e) => <StandingsRow key={`${e.rank}-${e.userId}`} entry={e} />)
+          entries.map((e) => <StandingsRow key={`${e.rank}-${e.userId}`} entry={e} showTime={showTime} />)
         )}
       </div>
     </section>

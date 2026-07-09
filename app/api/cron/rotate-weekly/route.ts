@@ -19,8 +19,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await rotateWeeklyChallenges(adminSupabase);
-    return NextResponse.json({ ok: true, ...result });
+    const now = new Date();
+    // Two independent rotations - PvE and PvP each track their own
+    // active/scheduled/expired lifecycle and week-number counter (#296).
+    const pve = await rotateWeeklyChallenges(adminSupabase, now, "pve");
+    const pvp = await rotateWeeklyChallenges(adminSupabase, now, "pvp");
+    return NextResponse.json({ ok: true, pve, pvp });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[cron/rotate-weekly] failed:", msg);
