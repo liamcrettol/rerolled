@@ -8,9 +8,6 @@ export default function FireteamMoment() {
       <h2 className="text-xl md:text-2xl font-bold text-white">
         Built from what your fireteam actually owns
       </h2>
-      <p className="text-gray-400 text-sm mt-2">
-        Every roll only draws from weapons everyone in the lobby has unlocked.
-      </p>
     </div>
   );
 }
