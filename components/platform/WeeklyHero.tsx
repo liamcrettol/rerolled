@@ -32,7 +32,7 @@ function Stat({ label, compact, children }: { label: string; compact?: boolean; 
   return (
     <div>
       <p className="section-label mb-1">{label}</p>
-      <p className={`font-bold text-white leading-none ${compact ? "text-sm" : "text-lg"}`}>{children}</p>
+      <p className={`font-bold leading-none text-white ${compact ? "text-sm" : "text-lg"}`}>{children}</p>
     </div>
   );
 }
@@ -71,12 +71,16 @@ export default function WeeklyHero({
   // leaderboard, just this same "no active week" state (#296).
   if (!challenge) {
     return (
-      <section className={`panel border-l-2 border-l-bungie-border ${compact ? "p-4" : "p-6"}`}>
-        <p className={`section-label text-gray-500 mb-2 ${compact ? "text-[10px]" : ""}`}>{label}</p>
+      <section
+        className={`panel border-l-2 border-l-bungie-border flex flex-col ${
+          compact ? "min-h-[240px] p-5" : "p-6"
+        }`}
+      >
+        <p className={`section-label mb-2 text-gray-500 ${compact ? "text-[10px]" : ""}`}>{label}</p>
         <h2 className={`font-bold uppercase tracking-tight text-white ${compact ? "text-base" : "text-2xl"}`}>
           No active week
         </h2>
-        <p className="text-sm text-gray-400 mt-2">
+        <p className="mt-3 max-w-[28rem] text-sm text-gray-400">
           The next weekly challenge hasn&apos;t been published yet. Check back after reset.
         </p>
       </section>
@@ -84,25 +88,29 @@ export default function WeeklyHero({
   }
 
   return (
-    <section className={`panel border-l-2 ${a.borderL} ${compact ? "p-4" : "p-6"}`}>
+    <section
+      className={`panel border-l-2 ${a.borderL} flex flex-col ${
+        compact ? "min-h-[240px] p-5" : "p-6"
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className={`section-label ${a.text} mb-2 ${compact ? "text-[10px]" : ""}`}>
-            {label} · Week {challenge.weekNumber}
+          <p className={`section-label mb-2 ${a.text} ${compact ? "text-[10px]" : ""}`}>
+            {label} / Week {challenge.weekNumber}
           </p>
           <h2
             className={`font-bold uppercase tracking-tight text-white ${
-              compact ? "text-lg" : "text-2xl md:text-3xl"
+              compact ? "max-w-[14ch] text-[1.65rem] leading-[1.05]" : "text-2xl md:text-3xl"
             }`}
           >
             {challenge.title}
           </h2>
-          <p className="text-sm text-gray-400 mt-1">{challenge.activityName}</p>
+          <p className={`mt-2 text-gray-400 ${compact ? "text-[15px]" : "text-sm"}`}>{challenge.activityName}</p>
         </div>
         <Link
           href={href}
-          className={`shrink-0 ${a.button} font-bold uppercase tracking-wider transition-colors ${
-            compact ? "text-[11px] px-3 py-1.5" : "text-xs px-5 py-3"
+          className={`shrink-0 font-bold uppercase tracking-wider transition-colors ${a.button} ${
+            compact ? "px-4 py-2 text-[11px]" : "px-5 py-3 text-xs"
           }`}
         >
           Run the Weekly
@@ -116,8 +124,8 @@ export default function WeeklyHero({
       )}
 
       <div
-        className={`grid grid-cols-2 sm:grid-cols-3 gap-6 border-t border-bungie-border ${
-          compact ? "mt-3 pt-3" : "mt-6 pt-4"
+        className={`grid grid-cols-2 gap-6 border-t border-bungie-border sm:grid-cols-3 ${
+          compact ? "mt-auto pt-5" : "mt-6 pt-4"
         }`}
       >
         <Stat label="Resets in" compact={compact}>

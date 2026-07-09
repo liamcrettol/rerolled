@@ -37,13 +37,19 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
     <>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Icon size={16} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
+          <Icon size={18} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
           <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
         </div>
         <StatusBadge status={mode.status} />
       </div>
-      <h3 className="text-base font-bold uppercase tracking-wider text-white mt-3">{mode.title}</h3>
-      <div className={`mt-4 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${mode.enabled ? accent.action : "text-gray-600"}`}>
+      <h3 className="mt-4 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
+        {mode.title}
+      </h3>
+      <div
+        className={`mt-auto pt-6 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${
+          mode.enabled ? accent.action : "text-gray-600"
+        }`}
+      >
         {mode.ctaLabel}
         {mode.enabled && <ArrowRight size={12} aria-hidden="true" />}
       </div>
@@ -55,7 +61,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
     return (
       <div
         aria-disabled="true"
-        className={`panel border-l-2 ${accent.border} p-4 opacity-50 cursor-not-allowed select-none`}
+        className={`panel border-l-2 ${accent.border} flex min-h-[190px] flex-col p-5 opacity-50 cursor-not-allowed select-none`}
       >
         {body}
       </div>
@@ -65,7 +71,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
   return (
     <Link
       href={mode.href}
-      className={`panel border-l-2 ${accent.border} p-4 block ${accent.hover} transition-colors`}
+      className={`panel border-l-2 ${accent.border} block min-h-[190px] p-5 transition-colors ${accent.hover}`}
     >
       {body}
     </Link>
@@ -82,8 +88,8 @@ export default function ModeGrid({
 }) {
   return (
     <section>
-      <p className="section-label mb-3">Modes</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <p className="section-label mb-4">Modes</p>
+      <div className="grid grid-cols-1 gap-4 md:auto-rows-fr md:grid-cols-2">
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />
         ))}

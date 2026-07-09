@@ -50,10 +50,10 @@ export default async function Dashboard() {
     <PlatformShell displayName={session.displayName}>
       <DashboardLiveRefresh />
 
-      <div className="space-y-8">
+      <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
         <section>
-          <p className="section-label mb-3">Weekly Challenges</p>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <p className="section-label mb-4">Weekly Challenges</p>
+          <div className="grid gap-4 lg:grid-cols-2">
             <WeeklyHero
               challenge={challenge}
               placement={placement}
@@ -74,7 +74,9 @@ export default async function Dashboard() {
           </div>
         </section>
 
-        <SeasonPanel stats={season} />
+        <div className="xl:row-span-2">
+          <SeasonPanel stats={season} variant="dashboard" />
+        </div>
 
         <ModeGrid activeSession={activeSession} />
       </div>
