@@ -81,6 +81,7 @@ export async function importCrucibleMatch(input: {
     membership_id: player.membershipId,
     membership_type: player.membershipType,
     display_name: player.displayName ?? "Guardian",
+    emblem_path: player.emblemPath ?? null,
     team_id: player.team,
     is_win: player.isWin,
     completed: player.completed,
@@ -119,4 +120,3 @@ export async function importCrucibleMatch(input: {
 
   return { imported: true, encounterCount: encounters.length };
 }
-

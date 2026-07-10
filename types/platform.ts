@@ -102,6 +102,7 @@ export interface SeasonMatchPlayer {
   membershipId: string;
   membershipType: number | null;
   displayName: string;
+  emblemPath: string | null;
   kills: number | null;
   deaths: number | null;
   assists: number | null;

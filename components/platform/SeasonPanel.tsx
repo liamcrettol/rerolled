@@ -38,14 +38,22 @@ function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 
 function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStatus: SeasonStats["historySyncStatus"] }) {
+  const emblemUrl = player.emblemPath
+    ? (player.emblemPath.startsWith("http") ? player.emblemPath : `https://www.bungie.net${player.emblemPath}`)
+    : null;
+
   return (
-    <div className="relative flex min-h-[4.25rem] flex-col justify-center px-3 py-2.5 transition hover:bg-bungie-dark/55">
+    <div className="relative isolate flex min-h-[4.25rem] items-center justify-between gap-3 overflow-hidden border-b border-bungie-border/35 px-3 py-2.5 transition last:border-b-0 hover:bg-bungie-dark/55">
+      {emblemUrl && (
+        <div aria-hidden="true" className="absolute inset-y-0 left-0 -z-10 w-28 bg-cover bg-center opacity-65" style={{ backgroundImage: `url(${emblemUrl})` }} />
+      )}
+      <div className="absolute inset-y-0 left-0 -z-10 w-40 bg-gradient-to-r from-bungie-dark via-bungie-dark/90 to-transparent" />
       {player.headToHead && (
         <div className="absolute right-2 top-2 z-10">
           <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
         </div>
       )}
-      <div className="pr-12">
+      <div className="min-w-0 flex-1 pr-12">
         {player.trialsReportUrl ? (
           <a
             href={player.trialsReportUrl}
@@ -62,10 +70,8 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
         )}
       </div>
       <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="font-mono text-sm text-white">{formatKd(player.kd)}</span>
-        <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-500">
-          {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
-        </span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-500">{player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A</span>
+        <span className="font-mono text-sm text-white">{formatKd(player.kd)} K/D</span>
       </div>
     </div>
   );

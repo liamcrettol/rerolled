@@ -15,6 +15,7 @@ interface PlayerAccumulator {
   membershipId: string;
   membershipType: number | null;
   displayName?: string;
+  emblemPath?: string;
   characterIds: Set<string>;
   kills: NullableAccumulator;
   assists: NullableAccumulator;
@@ -176,6 +177,7 @@ function getOrCreatePlayer(
   membershipId: string,
   membershipType: number | null,
   displayName?: string,
+  emblemPath?: string,
 ): PlayerAccumulator {
   const existing = players.get(membershipId);
   if (existing) return existing;
@@ -184,6 +186,7 @@ function getOrCreatePlayer(
     membershipId,
     membershipType,
     displayName,
+    emblemPath,
     characterIds: new Set<string>(),
     kills: makeNullableAccumulator(),
     assists: makeNullableAccumulator(),
@@ -208,11 +211,12 @@ function getOrCreatePvpPlayer(
   membershipId: string,
   membershipType: number | null,
   displayName?: string,
+  emblemPath?: string,
 ): PvpPlayerAccumulator {
   const existing = players.get(membershipId);
   if (existing) return existing;
 
-  const base = getOrCreatePlayer(players as unknown as Map<string, PlayerAccumulator>, entry, membershipId, membershipType, displayName) as PvpPlayerAccumulator;
+  const base = getOrCreatePlayer(players as unknown as Map<string, PlayerAccumulator>, entry, membershipId, membershipType, displayName, emblemPath) as PvpPlayerAccumulator;
   base.team = null;
   base.standing = null;
   base.isWin = null;
@@ -262,6 +266,7 @@ function finalizePlayer(acc: PlayerAccumulator): NormalizedPgcrPlayer {
     membershipId: acc.membershipId,
     membershipType: acc.membershipType,
     displayName: acc.displayName,
+    emblemPath: acc.emblemPath,
     characterIds: [...acc.characterIds],
     kills: finishNullable(acc.kills),
     assists: finishNullable(acc.assists),
@@ -473,8 +478,14 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
       ["player", "destinyUserInfo", "bungieGlobalDisplayName"],
       ["player", "displayName"],
     ]) ?? undefined;
+    const emblemPath = readFirstString(entry, [
+      ["player", "destinyUserInfo", "emblemPath"],
+      ["player", "destinyUserInfo", "iconPath"],
+      ["emblemPath"],
+    ]) ?? undefined;
 
-    const acc = getOrCreatePlayer(players, entry, membershipId, membershipType, displayName);
+    const acc = getOrCreatePlayer(players, entry, membershipId, membershipType, displayName, emblemPath);
+    acc.emblemPath ??= emblemPath;
     const characterId = readFirstString(entry, [["characterId"]]);
     if (characterId) acc.characterIds.add(characterId);
 
@@ -577,8 +588,14 @@ export function parsePvpPgcr(raw: unknown): NormalizedPvpPgcr {
       ["player", "destinyUserInfo", "bungieGlobalDisplayName"],
       ["player", "displayName"],
     ]) ?? undefined;
+    const emblemPath = readFirstString(entry, [
+      ["player", "destinyUserInfo", "emblemPath"],
+      ["player", "destinyUserInfo", "iconPath"],
+      ["emblemPath"],
+    ]) ?? undefined;
 
-    const acc = getOrCreatePvpPlayer(players, entry, membershipId, membershipType, displayName);
+    const acc = getOrCreatePvpPlayer(players, entry, membershipId, membershipType, displayName, emblemPath);
+    acc.emblemPath ??= emblemPath;
     const characterId = readFirstString(entry, [["characterId"]]);
     if (characterId) acc.characterIds.add(characterId);
 

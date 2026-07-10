@@ -57,7 +57,7 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
       <CrucibleHistorySync />
 
-      <div className="mx-auto grid max-w-6xl items-start gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
+      <div className="mx-auto grid max-w-[1600px] items-start gap-6 xl:grid-cols-[minmax(300px,0.72fr)_minmax(0,1.8fr)]">
         <section>
           <p className="section-label mb-4">Weekly Challenges</p>
           <div className="grid gap-4 lg:grid-cols-2">

@@ -13,6 +13,7 @@ export interface NormalizedPgcrPlayer {
   membershipId: string;
   membershipType: number | null;
   displayName?: string;
+  emblemPath?: string;
   characterIds: string[];
   kills: NullableNumber;
   assists: NullableNumber;

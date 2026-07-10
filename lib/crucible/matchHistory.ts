@@ -25,6 +25,7 @@ interface PlayerRow {
   membership_id: string;
   membership_type: number | null;
   display_name: string;
+  emblem_path: string | null;
   team_id: number | null;
   is_win: boolean | null;
   kills: number | null;
@@ -86,7 +87,7 @@ export async function getCrucibleMatchHistory(
   const { data: matchRows, error: matchError } = matchSelect;
 
   const [{ data: playerRows, error: playerError }, { data: runRows }] = await Promise.all([
-    db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
+    db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, emblem_path, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
     db.from("challenge_runs").select("id, pgcr_instance_id, weekly_challenge_id").in("pgcr_instance_id", instanceIds),
   ]);
   if (matchError) throw new Error(`Crucible match lookup failed: ${matchError.message}`);
@@ -127,6 +128,7 @@ export async function getCrucibleMatchHistory(
       membershipId: row.membership_id,
       membershipType: row.membership_type,
       displayName: row.display_name,
+      emblemPath: row.emblem_path,
       kills: row.kills,
       deaths: row.deaths,
       assists: row.assists,

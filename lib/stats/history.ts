@@ -84,6 +84,7 @@ function toSeasonPlayer(
     membershipId: player.membershipId,
     membershipType: player.membershipType,
     displayName: player.displayName ?? "Guardian",
+    emblemPath: player.emblemPath ?? null,
     kills: player.kills,
     deaths: player.deaths,
     assists: player.assists,
