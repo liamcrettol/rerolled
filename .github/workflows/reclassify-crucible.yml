@@ -1,0 +1,20 @@
+name: Reclassify Crucible modes
+
+# One-time, manually dispatched job to recompute mode_bucket for matches
+# imported before classification consulted the activity definition. Idempotent;
+# safe to re-run. Remove once done.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  reclassify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger reclassify
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/reclassify-crucible" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body
