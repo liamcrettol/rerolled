@@ -1,5 +1,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
+import { resolveActivity } from "@/lib/bungie/pgcr";
 import { crucibleModeName } from "./modes";
+import { classifyCrucibleMode } from "./modes";
 import type {
   CrucibleModeBucket,
   HeadToHeadMeeting,
@@ -29,6 +31,7 @@ interface MatchMetadata {
 
 interface MatchMetadataRow {
   instance_id: string;
+  activity_hash: number | null;
   activity_name: string | null;
   activity_mode: number | null;
   activity_modes: number[] | null;
@@ -46,15 +49,45 @@ function addResult(record: HeadToHeadModeRecord, won: boolean | null) {
   else record.unknown++;
 }
 
-function metadataForRow(row: MatchMetadataRow): MatchMetadata {
+function metadataForRow(row: MatchMetadataRow, modeBucket = row.mode_bucket, activityModes = row.activity_modes ?? []): MatchMetadata {
   return {
     activityName: row.activity_name,
     modeName: crucibleModeName({
       activityMode: row.activity_mode,
-      activityModes: row.activity_modes ?? [],
-      modeBucket: row.mode_bucket,
+      activityModes,
+      modeBucket,
     }),
   };
+}
+
+async function loadMatchMetadata(db: Db, instanceIds: string[]): Promise<Map<string, MatchMetadata>> {
+  const metadata = new Map<string, MatchMetadata>();
+  if (instanceIds.length === 0) return metadata;
+  const { data, error } = await db
+    .from("crucible_matches")
+    .select("instance_id, activity_hash, activity_name, activity_mode, activity_modes, mode_bucket")
+    .in("instance_id", instanceIds);
+  if (error) throw new Error(`Head-to-head match lookup failed: ${error.message}`);
+
+  await Promise.all((data ?? []).map(async (match: MatchMetadataRow) => {
+    const storedModes = match.activity_modes ?? [];
+    let activityModes = storedModes;
+    let modeBucket = match.mode_bucket;
+    // Older imports did not merge activity-definition modes, so a competitive
+    // Clash can arrive with only the generic Clash mode (71) and be mislabeled.
+    if (match.activity_hash != null && modeBucket === "other") {
+      const definition = await resolveActivity(Number(match.activity_hash));
+      activityModes = [...new Set([...storedModes, ...definition.modes])];
+      modeBucket = classifyCrucibleMode({
+        activityMode: match.activity_mode,
+        activityModes,
+        activityHash: Number(match.activity_hash),
+        activityName: match.activity_name,
+      });
+    }
+    metadata.set(match.instance_id, metadataForRow(match, modeBucket, activityModes));
+  }));
+  return metadata;
 }
 
 function fallbackModeName(mode: CrucibleModeBucket): string {
@@ -123,15 +156,9 @@ export async function getHeadToHeadSummaries(input: {
   const matchMetadata = new Map<string, MatchMetadata>();
   if (instanceIds.length > 0) {
     const matchBatches = Array.from({ length: Math.ceil(instanceIds.length / 100) }, (_, index) => instanceIds.slice(index * 100, (index + 1) * 100));
-    const matchResults = await Promise.all(matchBatches.map((batch) => db
-      .from("crucible_matches")
-      .select("instance_id, activity_name, activity_mode, activity_modes, mode_bucket")
-      .in("instance_id", batch)));
-    for (const result of matchResults) {
-      if (result.error) throw new Error(`Head-to-head match lookup failed: ${result.error.message}`);
-      for (const match of (result.data ?? []) as MatchMetadataRow[]) {
-        matchMetadata.set(match.instance_id, metadataForRow(match));
-      }
+    for (const batch of matchBatches) {
+      const batchMetadata = await loadMatchMetadata(db, batch);
+      for (const [instanceId, metadata] of batchMetadata) matchMetadata.set(instanceId, metadata);
     }
   }
   return summarizeEncounterRows(rows, matchMetadata);
@@ -182,13 +209,8 @@ export async function getHeadToHeadMatches(input: {
   const ids = page.map((row) => row.instance_id);
   const metadata = new Map<string, MatchMetadata>();
   if (ids.length > 0) {
-    const { data: matches } = await db
-      .from("crucible_matches")
-      .select("instance_id, activity_name, activity_mode, activity_modes, mode_bucket")
-      .in("instance_id", ids);
-    for (const match of (matches ?? []) as MatchMetadataRow[]) {
-      metadata.set(match.instance_id, metadataForRow(match));
-    }
+    const loaded = await loadMatchMetadata(db, ids);
+    for (const [instanceId, matchMetadata] of loaded) metadata.set(instanceId, matchMetadata);
   }
   const meetings = page.map((row) => {
     const match = metadata.get(row.instance_id);
