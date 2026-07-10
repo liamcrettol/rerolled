@@ -277,7 +277,9 @@ export async function GET(req: NextRequest) {
   }
 
   if (!skipDependentDbWrites && !accountErr) {
-    queueCrucibleSync(userId).catch((error) => {
+    // fromSignIn: fresh tokens were just stored, so this may revive a user who
+    // was parked for a dead refresh token.
+    queueCrucibleSync(userId, undefined, { fromSignIn: true }).catch((error) => {
       console.error("[bungie/callback] Crucible sync queue failed:", error instanceof Error ? error.message : error);
     });
   }

@@ -1,4 +1,5 @@
 import { adminSupabase } from "@/lib/supabase/admin";
+import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { getPGCR, resolveActivity } from "@/lib/bungie/pgcr";
 import { importCrucibleMatch } from "./importMatch";
@@ -267,16 +268,20 @@ export async function claimCrucibleSync(
   return row?.user_id ? row as CrucibleSyncState : null;
 }
 
-// Record a per-user backfill failure without failing the whole cron run. Retries
-// with backoff up to a few times, then parks the user as failed.
+// Record a per-user backfill failure without failing the whole cron run.
+// Transient failures retry with backoff up to a few times, then park the user
+// as failed. Auth failures (dead or cross-app refresh token) are deterministic:
+// no retry ever fixes them, only the user signing in again, so park immediately
+// instead of burning the retry budget one alert at a time.
 export async function failCrucibleSync(userId: string, error: unknown, db: Db = adminSupabase) {
+  const message = errorMessage(error);
   const { data: state } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
-  const terminal = (state?.attempts ?? 0) >= 5;
+  const terminal = isBungieAuthErrorMessage(message) || (state?.attempts ?? 0) >= 5;
   await db.from("crucible_sync_state").update({
     status: terminal ? "failed" : "queued",
     locked_by: null,
     locked_until: null,
-    last_error: errorMessage(error),
+    last_error: message,
     requested_at: new Date(Date.now() + Math.min((state?.attempts ?? 1) * 60_000, 15 * 60_000)).toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);

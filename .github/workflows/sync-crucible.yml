@@ -85,7 +85,7 @@ jobs:
               exit 1
             fi
 
-            jq -r '"state=\(.state) queued_before=\(.queuedBefore // 0) queued_remaining=\(.queuedRemaining // 0) claimed=\(.claimed // 0) completed=\(.completed // 0) failed=\(.failed // 0) activities=\(.activities // 0) matches=\(.matches // 0) duration_ms=\(.durationMs // 0)"' "$response_file"
+            jq -r '"state=\(.state) queued_before=\(.queuedBefore // 0) queued_remaining=\(.queuedRemaining // 0) claimed=\(.claimed // 0) completed=\(.completed // 0) failed=\(.failed // 0) needs_reauth=\(.needsReauth // [] | length) activities=\(.activities // 0) matches=\(.matches // 0) duration_ms=\(.durationMs // 0)"' "$response_file"
 
             queued_remaining="$(jq -r '.queuedRemaining // 0' "$response_file")"
             if [ "$queued_remaining" -le 0 ]; then

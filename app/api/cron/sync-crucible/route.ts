@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertCronAuth } from "@/lib/auth/cron";
+import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import { adminSupabase } from "@/lib/supabase/admin";
 import {
   evaluateCrucibleSyncHealth,
@@ -64,6 +65,11 @@ export async function GET(req: NextRequest) {
     matches: 0,
   };
   const failures: SyncFailure[] = [];
+  // Users whose sync failed because their Bungie sign-in is dead. That is a
+  // user problem, not an infra problem: they are parked until they sign in
+  // again, reported here so someone can ping them, and deliberately kept out
+  // of `failed` so a dead token cannot keep the scheduled run permanently red.
+  const needsReauth: SyncFailure[] = [];
 
   try {
     const queuedBefore = await countDueQueuedSyncs(new Date().toISOString());
@@ -93,9 +99,14 @@ export async function GET(req: NextRequest) {
             errorMessage(parkError),
           );
         });
-        result.failed++;
-        failures.push({ userId: state.user_id, error: message });
-        console.error("[cron/sync-crucible] user sync failed:", state.user_id, message);
+        if (isBungieAuthErrorMessage(message)) {
+          needsReauth.push({ userId: state.user_id, error: message });
+          console.warn("[cron/sync-crucible] user parked until re-auth:", state.user_id, message);
+        } else {
+          result.failed++;
+          failures.push({ userId: state.user_id, error: message });
+          console.error("[cron/sync-crucible] user sync failed:", state.user_id, message);
+        }
       }
     }
 
@@ -112,6 +123,21 @@ export async function GET(req: NextRequest) {
       // ignore; the next run retries
     }
 
+    // Name the parked users so the run summary says who to ping, not just ids.
+    let needsReauthNamed: Array<SyncFailure & { displayName?: string }> = needsReauth;
+    if (needsReauth.length > 0) {
+      try {
+        const { data: userRows } = await adminSupabase
+          .from("users")
+          .select("id, display_name")
+          .in("id", needsReauth.map((entry) => entry.userId));
+        const names = new Map((userRows ?? []).map((row: { id: string; display_name: string | null }) => [row.id, row.display_name]));
+        needsReauthNamed = needsReauth.map((entry) => ({ ...entry, displayName: names.get(entry.userId) ?? undefined }));
+      } catch {
+        // Names are a nicety; the ids already identify the users.
+      }
+    }
+
     const health = evaluateCrucibleSyncHealth(result, queuedBefore);
     const payload = {
       ok: health.ok,
@@ -123,6 +149,7 @@ export async function GET(req: NextRequest) {
       pruned,
       ...result,
       failures,
+      needsReauth: needsReauthNamed,
       durationMs: Date.now() - startedAt,
     };
 
@@ -138,6 +165,7 @@ export async function GET(req: NextRequest) {
       workerId,
       ...result,
       failures,
+      needsReauth,
       durationMs: Date.now() - startedAt,
     };
 
