@@ -27,10 +27,6 @@ function parseCharacterIds(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
-function errorMessage(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
-}
-
 // On-view sync: pull just the newest page of Crucible activity for the viewer
 // and import anything we have not seen yet, so recent matches appear the moment
 // they open the dashboard instead of waiting for the backfill cron. This never
@@ -223,33 +219,6 @@ export async function syncNextCrucibleHistoryPage(
     importedMatches,
     hasMore: !allFinished,
   };
-}
-
-export async function claimCrucibleSync(
-  workerId: string,
-  lockSeconds = 55,
-  db: Db = adminSupabase,
-): Promise<CrucibleSyncState | null> {
-  const { data, error } = await db.rpc("claim_crucible_sync", {
-    p_worker_id: workerId,
-    p_lock_seconds: lockSeconds,
-  });
-  if (error) throw new Error(`claim_crucible_sync failed: ${error.message}`);
-  const row = Array.isArray(data) ? data[0] : data;
-  return row?.user_id ? row as CrucibleSyncState : null;
-}
-
-export async function failCrucibleSync(userId: string, error: unknown, db: Db = adminSupabase) {
-  const { data: state } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
-  const terminal = (state?.attempts ?? 0) >= 5;
-  await db.from("crucible_sync_state").update({
-    status: terminal ? "failed" : "queued",
-    locked_by: null,
-    locked_until: null,
-    last_error: errorMessage(error),
-    requested_at: new Date(Date.now() + Math.min((state?.attempts ?? 1) * 60_000, 15 * 60_000)).toISOString(),
-    updated_at: new Date().toISOString(),
-  }).eq("user_id", userId);
 }
 
 export type { CrucibleActivityHistoryEntry };
