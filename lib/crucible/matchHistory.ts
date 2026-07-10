@@ -1,7 +1,8 @@
 import { adminSupabase } from "@/lib/supabase/admin";
+import { resolveActivity } from "@/lib/bungie/pgcr";
 import { buildTrialsReportUrl } from "@/lib/stats/history";
 import type { SeasonMatch, SeasonMatchLoadoutSlot, SeasonMatchPlayer } from "@/types/platform";
-import { crucibleModeName } from "./modes";
+import { classifyCrucibleMode, crucibleModeName } from "./modes";
 import { getHeadToHeadSummaries } from "./headToHead";
 import type { CrucibleModeBucket, CrucibleSyncState } from "./types";
 
@@ -10,6 +11,7 @@ type Db = any;
 
 interface MatchRow {
   instance_id: string;
+  activity_hash: number | null;
   activity_name: string | null;
   activity_image?: string | null;
   activity_mode: number | null;
@@ -55,11 +57,70 @@ function sortPlayers(players: SeasonMatchPlayer[]) {
   return players.sort((a, b) => (b.kills ?? -1) - (a.kills ?? -1));
 }
 
+async function repairStaleModeBuckets(
+  rows: MatchRow[],
+  db: Db,
+  resolveDef: typeof resolveActivity,
+): Promise<MatchRow[]> {
+  const hashes = [...new Set(rows
+    .filter((row) => row.mode_bucket === "other" && row.activity_hash !== null)
+    .map((row) => Number(row.activity_hash)))];
+  if (hashes.length === 0) return rows;
+
+  const definitionModes = new Map<number, number[]>();
+  await Promise.all(hashes.map(async (hash) => {
+    definitionModes.set(hash, (await resolveDef(hash)).modes);
+  }));
+
+  return Promise.all(rows.map(async (row) => {
+    if (row.mode_bucket !== "other" || row.activity_hash === null) return row;
+
+    const activityModes = [...new Set([
+      ...(row.activity_modes ?? []),
+      ...(definitionModes.get(Number(row.activity_hash)) ?? []),
+    ])];
+    const modeBucket = classifyCrucibleMode({
+      activityMode: row.activity_mode,
+      activityModes,
+      activityHash: Number(row.activity_hash),
+      activityName: row.activity_name,
+    });
+    const modesChanged = activityModes.length !== (row.activity_modes ?? []).length
+      || activityModes.some((mode) => !(row.activity_modes ?? []).includes(mode));
+    if (modeBucket === row.mode_bucket && !modesChanged) return row;
+
+    const repaired = { ...row, activity_modes: activityModes, mode_bucket: modeBucket };
+    try {
+      const now = new Date().toISOString();
+      const updates = [
+        db.from("crucible_matches").update({
+          activity_modes: activityModes,
+          mode_bucket: modeBucket,
+          updated_at: now,
+        }).eq("instance_id", row.instance_id),
+      ];
+      if (modeBucket !== row.mode_bucket) {
+        updates.push(
+          db.from("crucible_encounters").update({ mode_bucket: modeBucket }).eq("instance_id", row.instance_id),
+        );
+      }
+      await Promise.all(updates);
+    } catch (error) {
+      console.warn(
+        `[crucible/history] failed to persist repaired mode for ${row.instance_id}:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+    return repaired;
+  }));
+}
+
 export async function getCrucibleMatchHistory(
   userId: string,
-  options: { limit?: number; db?: Db } = {},
+  options: { limit?: number; db?: Db; resolveActivityDef?: typeof resolveActivity } = {},
 ): Promise<{ matches: SeasonMatch[]; syncStatus: SeasonStatsSyncStatus }> {
   const db = options.db ?? adminSupabase;
+  const resolveDef = options.resolveActivityDef ?? resolveActivity;
   const limit = Math.min(Math.max(options.limit ?? 8, 1), 50);
   const [{ data: account, error: accountError }, { data: syncState }] = await Promise.all([
     db.from("bungie_accounts").select("membership_id").eq("user_id", userId).maybeSingle(),
@@ -79,12 +140,12 @@ export async function getCrucibleMatchHistory(
 
   // activity_image (migration 050) is additive; if it hasn't been applied yet,
   // fall back to a select without it rather than failing the whole report.
-  const matchCols = "instance_id, activity_name, activity_mode, activity_modes, mode_bucket, period, team_data, is_private";
+  const matchCols = "instance_id, activity_hash, activity_name, activity_mode, activity_modes, mode_bucket, period, team_data, is_private";
   let matchSelect = await db.from("crucible_matches").select(`${matchCols}, activity_image`).in("instance_id", instanceIds).eq("is_private", false);
   if (matchSelect.error && /activity_image/.test(matchSelect.error.message ?? "")) {
     matchSelect = await db.from("crucible_matches").select(matchCols).in("instance_id", instanceIds).eq("is_private", false);
   }
-  const { data: matchRows, error: matchError } = matchSelect;
+  const { data: rawMatchRows, error: matchError } = matchSelect;
 
   const [{ data: playerRows, error: playerError }, { data: runRows }] = await Promise.all([
     db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, emblem_path, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
@@ -93,6 +154,7 @@ export async function getCrucibleMatchHistory(
   if (matchError) throw new Error(`Crucible match lookup failed: ${matchError.message}`);
   if (playerError) throw new Error(`Crucible roster lookup failed: ${playerError.message}`);
 
+  const matchRows = await repairStaleModeBuckets((rawMatchRows ?? []) as MatchRow[], db, resolveDef);
   const linkedRuns = (runRows ?? []) as LinkedRunRow[];
   const runIds = linkedRuns.map((row) => row.id);
   const challengeIds = linkedRuns.flatMap((row) => row.weekly_challenge_id ? [row.weekly_challenge_id] : []);
@@ -120,7 +182,7 @@ export async function getCrucibleMatchHistory(
     .map((row: PlayerRow) => row.membership_id))];
   const h2h = await getHeadToHeadSummaries({ viewerUserId: userId, opponentMembershipIds: opponentIds, db });
 
-  const matches = ((matchRows ?? []) as MatchRow[]).map((match): SeasonMatch | null => {
+  const matches = matchRows.map((match): SeasonMatch | null => {
     const rows = playersByInstance.get(match.instance_id) ?? [];
     const viewer = rows.find((row) => row.membership_id === account.membership_id);
     if (!viewer || viewer.team_id === null) return null;
@@ -163,16 +225,21 @@ export async function getCrucibleMatchHistory(
     const run = runByInstance.get(match.instance_id);
     const challengeTitle = run?.weekly_challenge_id ? challengeById.get(run.weekly_challenge_id) ?? null : null;
     const loadout = run ? loadoutByRun.get(run.id) ?? [] : [];
+    const modeName = crucibleModeName({
+      activityMode: match.activity_mode ?? null,
+      activityModes: match.activity_modes ?? [],
+      modeBucket: match.mode_bucket,
+    });
     return {
       runId: run?.id ?? match.instance_id,
       instanceId: match.instance_id,
       mode: "crucible",
       modeBucket: match.mode_bucket,
-      modeName: crucibleModeName({ activityMode: match.activity_mode ?? null, activityModes: match.activity_modes ?? [], modeBucket: match.mode_bucket }),
+      modeName,
       mapImage: match.activity_image ?? null,
       playedAt: match.period,
       result: viewer.is_win === true ? "win" : viewer.is_win === false ? "loss" : "unknown",
-      activityName: match.activity_name ?? crucibleModeName({ activityMode: match.activity_mode ?? null, activityModes: match.activity_modes ?? [], modeBucket: match.mode_bucket }),
+      activityName: match.activity_name ?? modeName,
       challengeTitle,
       featuredPlayer: viewer ? toPlayer(viewer) : null,
       featuredPlayerLabel: viewer ? `${viewer.kills ?? 0} defeats / ${viewer.deaths ?? 0} deaths` : null,
