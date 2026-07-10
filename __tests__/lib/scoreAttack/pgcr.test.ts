@@ -121,6 +121,16 @@ describe("parsePvpPgcr", () => {
     expect(pgcr.players).toHaveLength(3);
   });
 
+  it("prefers the cross-platform Bungie global name over a stale platform name", () => {
+    const raw = structuredClone(successfulPvpPgcrWithTeams);
+    raw.entries[0].player.destinyUserInfo.displayName = "Equinox8585";
+    (raw.entries[0].player.destinyUserInfo as typeof raw.entries[0]["player"]["destinyUserInfo"] & { bungieGlobalDisplayName: string }).bungieGlobalDisplayName = "♡VΛLΣ♡";
+
+    const pgcr = parsePvpPgcr(raw);
+
+    expect(pgcr.players[0].displayName).toBe("♡VΛLΣ♡");
+  });
+
   it("tracks completion per-player, not as a whole-match aggregate (#296)", () => {
     // One player finished the match, the other left early - a real scenario
     // readCompleted()'s old aggregate (`.every()` across all entries) would

@@ -474,8 +474,8 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
       ["membershipType"],
     ]);
     const displayName = readFirstString(entry, [
-      ["player", "destinyUserInfo", "displayName"],
       ["player", "destinyUserInfo", "bungieGlobalDisplayName"],
+      ["player", "destinyUserInfo", "displayName"],
       ["player", "displayName"],
     ]) ?? undefined;
     const emblemPath = readFirstString(entry, [
@@ -584,8 +584,8 @@ export function parsePvpPgcr(raw: unknown): NormalizedPvpPgcr {
       ["membershipType"],
     ]);
     const displayName = readFirstString(entry, [
-      ["player", "destinyUserInfo", "displayName"],
       ["player", "destinyUserInfo", "bungieGlobalDisplayName"],
+      ["player", "destinyUserInfo", "displayName"],
       ["player", "displayName"],
     ]) ?? undefined;
     const emblemPath = readFirstString(entry, [
