@@ -174,7 +174,9 @@ export default function HeadToHeadChip({
                     <span className={`h-1.5 w-1.5 ${meeting.viewerWon === true ? "bg-green-400" : meeting.viewerWon === false ? "bg-red-400" : "bg-gray-500"}`} />
                     <div className="min-w-0">
                       <p className="truncate text-[11px] font-medium text-gray-200">{meeting.activityName ?? crucibleModeLabel(meeting.mode)}</p>
-                      <p className="text-[9px] uppercase tracking-[0.14em] text-gray-600">{crucibleModeLabel(meeting.mode)}</p>
+                      <p className="text-[9px] uppercase tracking-[0.14em] text-gray-600">
+                        {crucibleModeLabel(meeting.mode)} / {formatDate(meeting.playedAt)}
+                      </p>
                     </div>
                     <span className={`font-mono text-[10px] font-bold ${meeting.viewerWon === true ? "text-green-300" : meeting.viewerWon === false ? "text-red-300" : "text-gray-500"}`}>
                       {meeting.viewerWon === true ? "W" : meeting.viewerWon === false ? "L" : "-"}

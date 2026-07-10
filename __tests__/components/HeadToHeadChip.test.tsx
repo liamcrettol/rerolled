@@ -31,6 +31,7 @@ describe("HeadToHeadChip", () => {
     expect(trigger).toHaveTextContent("4-3");
     fireEvent.click(trigger);
     expect(screen.getByText("Importing older Crucible history")).toBeInTheDocument();
+    expect(screen.getByText(/Control \/ Jul 9/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Trials 2/ }));
     expect(screen.getAllByText("1", { selector: "p.font-mono" })).toHaveLength(2);
     fireEvent.keyDown(trigger, { key: "Escape" });
