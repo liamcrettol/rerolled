@@ -45,6 +45,25 @@ describe("importCrucibleMatch", () => {
     });
   });
 
+  it("persists activity-definition mode markers for exact playlist labels", async () => {
+    const db = fakeDb();
+    await importCrucibleMatch({
+      viewerUserId: "user-1",
+      viewerMembershipId: "4611686018429000001",
+      rawPgcr: successfulPvpPgcrWithTeams,
+      activityName: "The Anomaly",
+      activityDefModes: [69, 72],
+      db,
+    });
+
+    const match = [...db.rows.crucible_matches.values()][0];
+    expect(match.activity_modes).toEqual(expect.arrayContaining([69, 72]));
+    expect(match.mode_bucket).toBe("competitive");
+    expect([...db.rows.crucible_encounters.values()][0]).toMatchObject({
+      mode_bucket: "competitive",
+    });
+  });
+
   it("is idempotent when the same PGCR is imported again", async () => {
     const db = fakeDb();
     const input = {
