@@ -101,6 +101,9 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
     : match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack";
   const hasScore = match.teamScore !== null || match.opponentScore !== null;
   const scoreText = `${match.teamScore ?? "-"}${match.opponentScore !== null ? `-${match.opponentScore}` : ""}`;
+  const fullReportUrl = match.mode === "crucible" && match.instanceId
+    ? `https://destinytracker.com/destiny-2/pgcr/${encodeURIComponent(match.instanceId)}`
+    : null;
 
   return (
     <article className="border border-bungie-border/80 bg-bungie-dark/35">
@@ -145,13 +148,27 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
           </div>
         )}
 
-        <p className="text-xs uppercase tracking-[0.22em] text-gray-500">
-          {formatPlayedAt(match.playedAt)}
-          {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
-        </p>
-        {match.featuredPlayerLabel && (
-          <p className="mt-3 text-sm text-gray-300">{match.featuredPlayerLabel}</p>
-        )}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-gray-500">
+              {formatPlayedAt(match.playedAt)}
+              {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
+            </p>
+            {match.featuredPlayerLabel && (
+              <p className="mt-3 text-sm text-gray-300">{match.featuredPlayerLabel}</p>
+            )}
+          </div>
+          {fullReportUrl && (
+            <a
+              href={fullReportUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 border border-bungie-border/70 bg-bungie-dark/55 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400 transition hover:border-bungie-blue/60 hover:text-bungie-blue"
+            >
+              Full match report <ArrowUpRight size={11} />
+            </a>
+          )}
+        </div>
 
       {loadout.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -212,9 +229,9 @@ export default function SeasonPanel({
 
   if (variant === "dashboard") {
     return (
-      <section className="h-full">
-        <p className="section-label mb-4">Your Season / {stats.seasonName}</p>
-        <div className="panel flex min-h-[240px] flex-col p-5 xl:h-[calc(100vh-7rem)]">
+      <section className="flex h-full min-h-0 flex-col">
+        <p className="section-label mb-4 shrink-0">Your Season / {stats.seasonName}</p>
+        <div className="panel flex min-h-[240px] flex-1 flex-col p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="section-label">Historical Match Reports</p>

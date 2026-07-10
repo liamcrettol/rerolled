@@ -57,35 +57,39 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
       <CrucibleHistorySync />
 
-      <div className="mx-auto grid items-start gap-6 xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
-        <section>
-          <p className="section-label mb-4">Weekly Challenges</p>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <WeeklyHero
-              challenge={challenge}
-              placement={placement}
-              runCount={runCount}
-              accent="blue"
-              label="PvE Weekly"
-              size="compact"
-            />
-            <WeeklyHero
-              challenge={pvpChallenge}
-              placement={pvpPlacement}
-              runCount={pvpRunCount}
-              accent="red"
-              label="PvP Weekly"
-              href="/weekly/pvp"
-              size="compact"
-            />
-          </div>
-        </section>
+      <div className="mx-auto grid items-stretch gap-6 xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
+          <section>
+            <p className="section-label mb-4">Weekly Challenges</p>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <WeeklyHero
+                challenge={challenge}
+                placement={placement}
+                runCount={runCount}
+                accent="blue"
+                label="PvE Weekly"
+                size="compact"
+              />
+              <WeeklyHero
+                challenge={pvpChallenge}
+                placement={pvpPlacement}
+                runCount={pvpRunCount}
+                accent="red"
+                label="PvP Weekly"
+                href="/weekly/pvp"
+                size="compact"
+              />
+            </div>
+          </section>
 
-        <div className="xl:row-span-2">
-          <SeasonPanel stats={season} variant="dashboard" />
+          <ModeGrid activeSession={activeSession} />
         </div>
 
-        <ModeGrid activeSession={activeSession} />
+        <div className="min-h-0 xl:relative">
+          <div className="xl:absolute xl:inset-0">
+            <SeasonPanel stats={season} variant="dashboard" />
+          </div>
+        </div>
       </div>
     </PlatformShell>
   );
