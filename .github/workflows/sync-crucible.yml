@@ -3,8 +3,8 @@ name: Sync Crucible history
 # Background backfill of each signed-in user's Crucible history. Recent matches
 # are topped up instantly on page view (POST /api/crucible/refresh); this job
 # pre-loads the deep back-catalogue so head-to-head is ready without the user
-# waiting. The endpoint returns 200 even on transient errors, so this stays green
-# instead of emailing on every hiccup.
+# waiting. Every run prints its queue/import counts and fails visibly when the
+# endpoint reports a stalled or failed worker.
 on:
   schedule:
     - cron: "*/10 * * * *"
@@ -19,6 +19,53 @@ jobs:
           APP_URL: ${{ secrets.APP_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -sS -X GET "$APP_URL/api/cron/sync-crucible" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            --fail-with-body
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          set +e
+          http_status="$(
+            curl -sS \
+              --connect-timeout 15 \
+              --max-time 70 \
+              -o "$response_file" \
+              -w "%{http_code}" \
+              -X GET "${APP_URL%/}/api/cron/sync-crucible" \
+              -H "Authorization: Bearer $CRON_SECRET"
+          )"
+          curl_exit=$?
+          set -e
+
+          echo "sync-crucible HTTP status: $http_status"
+          if jq . "$response_file" >/dev/null 2>&1; then
+            jq . "$response_file"
+          else
+            cat "$response_file"
+          fi
+
+          {
+            echo "### Crucible history sync"
+            echo
+            echo "- HTTP status: \`$http_status\`"
+            echo "- curl exit code: \`$curl_exit\`"
+            echo
+            echo '```json'
+            jq . "$response_file" 2>/dev/null || cat "$response_file"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "sync-crucible request failed before a valid response was received" >&2
+            exit "$curl_exit"
+          fi
+
+          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+            echo "sync-crucible returned a failing HTTP status" >&2
+            exit 1
+          fi
+
+          if ! jq -e '.ok == true' "$response_file" >/dev/null 2>&1; then
+            echo "sync-crucible response did not report ok=true" >&2
+            exit 1
+          fi
+
+          jq -r '"state=\(.state) queued_before=\(.queuedBefore // 0) queued_remaining=\(.queuedRemaining // 0) claimed=\(.claimed // 0) completed=\(.completed // 0) failed=\(.failed // 0) activities=\(.activities // 0) matches=\(.matches // 0) duration_ms=\(.durationMs // 0)"' "$response_file"
