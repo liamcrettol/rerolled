@@ -2,18 +2,10 @@ import { ArrowUpRight, RefreshCw } from "lucide-react";
 import type { SeasonMatch, SeasonMatchPlayer, SeasonStats } from "@/types/platform";
 import HeadToHeadChip from "@/components/crucible/HeadToHeadChip";
 import { crucibleModeLabel } from "@/lib/crucible/modes";
+import LocalDateTime from "./LocalDateTime";
 
 function formatKd(value: number | null) {
   return value === null ? "-" : value.toFixed(2);
-}
-
-function formatPlayedAt(value: string) {
-  return new Date(value).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 function normalizeBungieImage(path: string | null) {
@@ -151,7 +143,7 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-gray-500">
-              {formatPlayedAt(match.playedAt)}
+              <LocalDateTime value={match.playedAt} />
               {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
             </p>
             {match.featuredPlayerLabel && (
