@@ -77,7 +77,8 @@ export async function GET(req: NextRequest) {
       name: rm.activity_name,
       kind: parsed.kind,
       rawTeams: raw?.Response?.teams ?? raw?.teams ?? null,
-      players: (parsed.players ?? []).slice(0, 3).map((p) => ({ team: p.team, standing: p.standing, isWin: p.isWin })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      players: (parsed.players ?? []).slice(0, 3).map((p: any) => ({ team: p.team, standing: p.standing, isWin: p.isWin })),
     });
   }
 
