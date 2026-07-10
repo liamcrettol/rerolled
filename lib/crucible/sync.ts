@@ -195,7 +195,10 @@ export async function syncNextCrucibleHistoryPage(
   let importedMatches = 0;
   const resolve = makeActivityResolver(resolveDef);
   await processConcurrently(uniqueActivities, PGCR_CONCURRENCY, async (activity) => {
-    const rawPgcr = await getPgcr(activity.activityDetails.instanceId);
+    // The backfill cursor advances past this whole page below, so a throttled
+    // PGCR fetch must fail the page (retried later with backoff) rather than
+    // silently skip the match forever. A genuinely missing PGCR still skips.
+    const rawPgcr = await getPgcr(activity.activityDetails.instanceId, { throwOnTransient: true });
     if (!rawPgcr) return;
     const def = await resolve(activity.activityDetails.referenceId);
     const result = await importer({

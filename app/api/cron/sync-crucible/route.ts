@@ -100,6 +100,18 @@ export async function GET(req: NextRequest) {
     }
 
     const queuedRemaining = await countDueQueuedSyncs(new Date().toISOString());
+
+    // Bound pgcr_cache growth: raw PGCRs already extracted into
+    // crucible_matches are pruned after 24h (migration 052). Maintenance only;
+    // never fail the run for it.
+    let pruned = 0;
+    try {
+      const { data: prunedRows, error: pruneError } = await adminSupabase.rpc("prune_pgcr_cache");
+      if (!pruneError && typeof prunedRows === "number") pruned = prunedRows;
+    } catch {
+      // ignore; the next run retries
+    }
+
     const health = evaluateCrucibleSyncHealth(result, queuedBefore);
     const payload = {
       ok: health.ok,
@@ -108,6 +120,7 @@ export async function GET(req: NextRequest) {
       workerId,
       queuedBefore,
       queuedRemaining,
+      pruned,
       ...result,
       failures,
       durationMs: Date.now() - startedAt,

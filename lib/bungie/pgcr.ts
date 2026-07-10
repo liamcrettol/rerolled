@@ -120,8 +120,17 @@ async function writeCachedPGCR(instanceId: string, pgcr: PGCR): Promise<void> {
   }
 }
 
+// A throttled or failed-upstream PGCR fetch is not the same as a PGCR that
+// does not exist. Callers that advance a cursor past everything they process
+// (the Crucible backfill) must be able to tell the difference, or a 429 leaves
+// a permanent hole in the imported history.
+export class TransientPgcrError extends Error {}
+
 // Exported for tests; callers inside this module use it directly.
-export async function getPGCR(instanceId: string): Promise<PGCR | null> {
+export async function getPGCR(
+  instanceId: string,
+  options: { throwOnTransient?: boolean } = {}
+): Promise<PGCR | null> {
   const cached = await readCachedPGCR(instanceId);
   if (cached) return cached;
 
@@ -129,7 +138,16 @@ export async function getPGCR(instanceId: string): Promise<PGCR | null> {
     `${BUNGIE_ROOT}/Destiny2/Stats/PostGameCarnageReport/${instanceId}/`,
     { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // 429/5xx are retryable; anything else (404, privacy) is a permanent miss.
+    if (options.throwOnTransient && (res.status === 429 || res.status >= 500)) {
+      const retryAfter = res.headers.get("retry-after");
+      throw new TransientPgcrError(
+        `PGCR ${instanceId} fetch failed (${res.status})${retryAfter ? `; retry after ${retryAfter}s` : ""}`
+      );
+    }
+    return null;
+  }
   const json = await res.json();
   if (json.ErrorCode && json.ErrorCode !== 1) return null;
 

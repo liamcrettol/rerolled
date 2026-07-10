@@ -257,6 +257,10 @@ export async function GET(req: NextRequest) {
             access_token_enc: encryptedAccess,
             refresh_token_enc: encryptedRefresh,
             expires_at: expiresAt,
+            // Which Bungie OAuth app issued these tokens. Preview and prod are
+            // different apps sharing this table, and refresh tokens are only
+            // redeemable by their issuer (see lib/auth/helpers.ts).
+            oauth_client_id: process.env.BUNGIE_CLIENT_ID ?? null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" }
