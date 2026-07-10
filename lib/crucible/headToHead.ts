@@ -1,4 +1,5 @@
 import { adminSupabase } from "@/lib/supabase/admin";
+import { crucibleModeName } from "./modes";
 import type {
   CrucibleModeBucket,
   HeadToHeadMeeting,
@@ -19,6 +20,19 @@ export interface EncounterRow {
   played_at: string;
 }
 
+interface MatchMetadata {
+  activityName: string | null;
+  modeName: string;
+}
+
+interface MatchMetadataRow {
+  instance_id: string;
+  activity_name: string | null;
+  activity_mode: number | null;
+  activity_modes: number[] | null;
+  mode_bucket: CrucibleModeBucket;
+}
+
 function emptyRecord(): HeadToHeadModeRecord {
   return { encounters: 0, wins: 0, losses: 0, unknown: 0 };
 }
@@ -30,9 +44,24 @@ function addResult(record: HeadToHeadModeRecord, won: boolean | null) {
   else record.unknown++;
 }
 
+function metadataForRow(row: MatchMetadataRow): MatchMetadata {
+  return {
+    activityName: row.activity_name,
+    modeName: crucibleModeName({
+      activityMode: row.activity_mode,
+      activityModes: row.activity_modes ?? [],
+      modeBucket: row.mode_bucket,
+    }),
+  };
+}
+
+function fallbackModeName(mode: CrucibleModeBucket): string {
+  return crucibleModeName({ activityMode: null, activityModes: [], modeBucket: mode });
+}
+
 export function summarizeEncounterRows(
   rows: EncounterRow[],
-  matchNames: Map<string, string | null> = new Map(),
+  matchMetadata: Map<string, MatchMetadata> = new Map(),
 ): Record<string, HeadToHeadSummary> {
   const summaries: Record<string, HeadToHeadSummary> = {};
   const sorted = [...rows].sort((a, b) => new Date(b.played_at).getTime() - new Date(a.played_at).getTime());
@@ -51,12 +80,14 @@ export function summarizeEncounterRows(
     const modeRecord = summary.byMode[row.mode_bucket] ??= emptyRecord();
     addResult(modeRecord, row.viewer_won);
     if (summary.recentMeetings.length < 3) {
+      const metadata = matchMetadata.get(row.instance_id);
       summary.recentMeetings.push({
         instanceId: row.instance_id,
         playedAt: row.played_at,
         mode: row.mode_bucket,
+        modeName: metadata?.modeName ?? fallbackModeName(row.mode_bucket),
         viewerWon: row.viewer_won,
-        activityName: matchNames.get(row.instance_id) ?? null,
+        activityName: metadata?.activityName ?? null,
       });
     }
   }
@@ -87,19 +118,21 @@ export async function getHeadToHeadSummaries(input: {
   }));
   const rows = results.flat();
   const instanceIds = [...new Set(rows.map((row) => row.instance_id))];
-  const matchNames = new Map<string, string | null>();
+  const matchMetadata = new Map<string, MatchMetadata>();
   if (instanceIds.length > 0) {
     const matchBatches = Array.from({ length: Math.ceil(instanceIds.length / 100) }, (_, index) => instanceIds.slice(index * 100, (index + 1) * 100));
     const matchResults = await Promise.all(matchBatches.map((batch) => db
       .from("crucible_matches")
-      .select("instance_id, activity_name")
+      .select("instance_id, activity_name, activity_mode, activity_modes, mode_bucket")
       .in("instance_id", batch)));
     for (const result of matchResults) {
       if (result.error) throw new Error(`Head-to-head match lookup failed: ${result.error.message}`);
-      for (const match of result.data ?? []) matchNames.set(match.instance_id, match.activity_name);
+      for (const match of (result.data ?? []) as MatchMetadataRow[]) {
+        matchMetadata.set(match.instance_id, metadataForRow(match));
+      }
     }
   }
-  return summarizeEncounterRows(rows, matchNames);
+  return summarizeEncounterRows(rows, matchMetadata);
 }
 
 export async function getHeadToHeadSummary(input: {
@@ -145,18 +178,27 @@ export async function getHeadToHeadMatches(input: {
   const rows = (data ?? []) as EncounterRow[];
   const page = rows.slice(0, limit);
   const ids = page.map((row) => row.instance_id);
-  const names = new Map<string, string | null>();
+  const metadata = new Map<string, MatchMetadata>();
   if (ids.length > 0) {
-    const { data: matches } = await db.from("crucible_matches").select("instance_id, activity_name").in("instance_id", ids);
-    for (const match of matches ?? []) names.set(match.instance_id, match.activity_name);
+    const { data: matches } = await db
+      .from("crucible_matches")
+      .select("instance_id, activity_name, activity_mode, activity_modes, mode_bucket")
+      .in("instance_id", ids);
+    for (const match of (matches ?? []) as MatchMetadataRow[]) {
+      metadata.set(match.instance_id, metadataForRow(match));
+    }
   }
-  const meetings = page.map((row) => ({
-    instanceId: row.instance_id,
-    playedAt: row.played_at,
-    mode: row.mode_bucket,
-    viewerWon: row.viewer_won,
-    activityName: names.get(row.instance_id) ?? null,
-  }));
+  const meetings = page.map((row) => {
+    const match = metadata.get(row.instance_id);
+    return {
+      instanceId: row.instance_id,
+      playedAt: row.played_at,
+      mode: row.mode_bucket,
+      modeName: match?.modeName ?? fallbackModeName(row.mode_bucket),
+      viewerWon: row.viewer_won,
+      activityName: match?.activityName ?? null,
+    };
+  });
   const last = page[page.length - 1];
   const nextCursor = rows.length > limit && last
     ? Buffer.from(`${last.played_at}|${last.instance_id}`, "utf8").toString("base64url")

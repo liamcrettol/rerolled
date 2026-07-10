@@ -14,10 +14,13 @@ const row = (overrides: Partial<EncounterRow> = {}): EncounterRow => ({
 describe("summarizeEncounterRows", () => {
   it("builds viewer-perspective totals, mode records, and recent meetings", () => {
     const summaries = summarizeEncounterRows([
-      row(),
+      row({ mode_bucket: "competitive" }),
       row({ instance_id: "match-2", mode_bucket: "trials", viewer_won: false, played_at: "2026-07-08T20:00:00Z" }),
       row({ instance_id: "match-3", mode_bucket: "trials", viewer_won: null, played_at: "2026-07-07T20:00:00Z" }),
-    ], new Map([["match-1", "Endless Vale"]]));
+    ], new Map([[
+      "match-1",
+      { activityName: "Endless Vale", modeName: "Competitive Clash" },
+    ]]));
 
     expect(summaries["opp-1"]).toMatchObject({
       encounters: 3,
@@ -26,11 +29,14 @@ describe("summarizeEncounterRows", () => {
       unknown: 1,
       lastPlayedAt: "2026-07-09T20:00:00Z",
       byMode: {
-        control: { encounters: 1, wins: 1, losses: 0, unknown: 0 },
+        competitive: { encounters: 1, wins: 1, losses: 0, unknown: 0 },
         trials: { encounters: 2, wins: 0, losses: 1, unknown: 1 },
       },
     });
-    expect(summaries["opp-1"].recentMeetings[0].activityName).toBe("Endless Vale");
+    expect(summaries["opp-1"].recentMeetings[0]).toMatchObject({
+      activityName: "Endless Vale",
+      modeName: "Competitive Clash",
+    });
   });
 
   it("keeps opponents separate and uses the newest display-name snapshot", () => {
@@ -68,7 +74,13 @@ describe("getHeadToHeadSummaries", () => {
           then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
             const data = table === "crucible_encounters"
               ? encounters.filter((entry) => ids.includes(entry.opponent_membership_id))
-              : ids.map((instanceId) => ({ instance_id: instanceId, activity_name: "Control" }));
+              : ids.map((instanceId) => ({
+                  instance_id: instanceId,
+                  activity_name: "Control",
+                  activity_mode: 10,
+                  activity_modes: [10],
+                  mode_bucket: "control",
+                }));
             return Promise.resolve({ data, error: null }).then(resolve, reject);
           },
         };
@@ -84,6 +96,6 @@ describe("getHeadToHeadSummaries", () => {
 
     expect(requestedBatches.map((batch) => batch.length)).toEqual([50, 1]);
     expect(summaries["opp-50"]).toMatchObject({ encounters: 1, wins: 1, losses: 0 });
+    expect(summaries["opp-50"].recentMeetings[0].modeName).toBe("Control");
   });
 });
-
