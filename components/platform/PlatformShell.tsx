@@ -12,9 +12,11 @@ import { getUserBadges } from "@/lib/badges/data";
 export default async function PlatformShell({
   displayName,
   children,
+  wide = false,
 }: {
   displayName?: string;
   children: ReactNode;
+  wide?: boolean;
 }) {
   const session = await auth();
 
@@ -44,7 +46,7 @@ export default async function PlatformShell({
         clanName={clan?.name}
         badges={badges}
       />
-      <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
+      <main className={`${wide ? "max-w-[1400px]" : "max-w-7xl"} mx-auto px-6 py-8`}>{children}</main>
     </div>
   );
 }

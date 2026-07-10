@@ -47,16 +47,16 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
       {emblemUrl && (
         <div
           aria-hidden="true"
-          className="absolute inset-y-0 left-0 -z-10 w-14 border-r border-white/10 bg-cover bg-center"
+          className="absolute left-1.5 top-1/2 -z-10 h-11 w-11 -translate-y-1/2 border border-white/10 bg-cover bg-center"
           style={{ backgroundImage: `url(${emblemUrl})` }}
         />
       )}
       {!emblemUrl && (
-        <div aria-hidden="true" className="absolute inset-y-0 left-0 -z-10 flex w-14 items-center justify-center border-r border-white/10 bg-bungie-surface text-lg font-semibold text-gray-600">
+        <div aria-hidden="true" className="absolute left-1.5 top-1/2 -z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-white/10 bg-bungie-surface text-lg font-semibold text-gray-600">
           {player.displayName.slice(0, 1).toUpperCase()}
         </div>
       )}
-      <div className="absolute inset-y-0 left-14 -z-10 w-6 bg-gradient-to-r from-bungie-dark/45 to-transparent" />
+      <div className="absolute inset-y-0 left-14 -z-10 w-6 bg-gradient-to-r from-bungie-dark/25 to-transparent" />
       {player.headToHead && (
         <div className="absolute right-2 top-2 z-10">
           <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
@@ -78,7 +78,7 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
           <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
         )}
         <div className="mt-1.5 flex items-baseline justify-between gap-2">
-          <span className="truncate font-mono text-[9px] uppercase tracking-[0.1em] text-gray-500">
+          <span className="whitespace-nowrap font-mono text-[10px] uppercase text-gray-500">
             {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
           </span>
           <span className="shrink-0 font-mono text-xs text-white">{formatKd(player.kd)} K/D</span>
