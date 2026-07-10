@@ -43,17 +43,26 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
     : null;
 
   return (
-    <div className="relative isolate flex min-h-[4.25rem] items-center justify-between gap-3 overflow-hidden border-b border-bungie-border/35 px-3 py-2.5 transition last:border-b-0 hover:bg-bungie-dark/55">
+    <div className="relative isolate flex min-h-[4.25rem] items-center overflow-hidden border-b border-bungie-border/35 bg-bungie-dark/25 py-2.5 pl-16 pr-3 transition last:border-b-0 hover:bg-bungie-dark/55">
       {emblemUrl && (
-        <div aria-hidden="true" className="absolute inset-y-0 left-0 -z-10 w-28 bg-cover bg-center opacity-65" style={{ backgroundImage: `url(${emblemUrl})` }} />
+        <div
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 -z-10 w-14 border-r border-white/10 bg-cover bg-center"
+          style={{ backgroundImage: `url(${emblemUrl})` }}
+        />
       )}
-      <div className="absolute inset-y-0 left-0 -z-10 w-40 bg-gradient-to-r from-bungie-dark via-bungie-dark/90 to-transparent" />
+      {!emblemUrl && (
+        <div aria-hidden="true" className="absolute inset-y-0 left-0 -z-10 flex w-14 items-center justify-center border-r border-white/10 bg-bungie-surface text-lg font-semibold text-gray-600">
+          {player.displayName.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      <div className="absolute inset-y-0 left-14 -z-10 w-6 bg-gradient-to-r from-bungie-dark/45 to-transparent" />
       {player.headToHead && (
         <div className="absolute right-2 top-2 z-10">
           <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
         </div>
       )}
-      <div className="min-w-0 flex-1 pr-12">
+      <div className="min-w-0 flex-1 pr-8">
         {player.trialsReportUrl ? (
           <a
             href={player.trialsReportUrl}
@@ -68,10 +77,12 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
         ) : (
           <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
         )}
-      </div>
-      <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-500">{player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A</span>
-        <span className="font-mono text-sm text-white">{formatKd(player.kd)} K/D</span>
+        <div className="mt-1.5 flex items-baseline justify-between gap-2">
+          <span className="truncate font-mono text-[9px] uppercase tracking-[0.1em] text-gray-500">
+            {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
+          </span>
+          <span className="shrink-0 font-mono text-xs text-white">{formatKd(player.kd)} K/D</span>
+        </div>
       </div>
     </div>
   );
