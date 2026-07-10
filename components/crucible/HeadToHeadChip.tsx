@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Crosshair } from "lucide-react";
+import { ArrowUpRight, Crosshair, LoaderCircle } from "lucide-react";
 import type { CrucibleModeBucket, HeadToHeadModeRecord, HeadToHeadSummary } from "@/lib/crucible/types";
 
 const FILTERS: Array<{ key: "all" | CrucibleModeBucket; label: string }> = [
@@ -24,6 +24,13 @@ function recordFor(summary: HeadToHeadSummary, filter: "all" | CrucibleModeBucke
     : summary.byMode[filter] ?? { encounters: 0, wins: 0, losses: 0, unknown: 0 };
 }
 
+function cursorAfter(meeting: { playedAt: string; instanceId: string }): string {
+  const value = `${meeting.playedAt}|${meeting.instanceId}`;
+  return typeof window === "undefined"
+    ? Buffer.from(value, "utf8").toString("base64url")
+    : window.btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 export default function HeadToHeadChip({
   summary,
   opponentName,
@@ -36,13 +43,44 @@ export default function HeadToHeadChip({
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; width: number; maxHeight: number; top?: number; bottom?: number }>({ left: 0, width: 384, maxHeight: 480 });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
+  const [meetings, setMeetings] = useState(summary.recentMeetings);
+  const [nextCursors, setNextCursors] = useState<Partial<Record<"all" | CrucibleModeBucket, string | null>>>({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const record = recordFor(summary, filter);
-  const meetings = summary.recentMeetings.filter((meeting) => filter === "all" || meeting.mode === filter);
+  const visibleMeetings = meetings.filter((meeting) => filter === "all" || meeting.mode === filter);
   const importing = syncStatus === "queued" || syncStatus === "syncing";
+
+  useEffect(() => {
+    setMeetings(summary.recentMeetings);
+    setNextCursors({});
+    setOlderError(false);
+  }, [summary]);
+
+  const loadOlder = async () => {
+    const filtered = meetings.filter((meeting) => filter === "all" || meeting.mode === filter);
+    const last = filtered[filtered.length - 1];
+    if (!last || loadingOlder) return;
+    setLoadingOlder(true);
+    setOlderError(false);
+    try {
+      const params = new URLSearchParams({ mode: filter, cursor: nextCursors[filter] ?? cursorAfter(last) });
+      const response = await fetch(`/api/crucible/head-to-head/${encodeURIComponent(summary.opponentMembershipId)}?${params.toString()}`);
+      if (!response.ok) throw new Error("Unable to load older meetings");
+      const data = await response.json() as { matches?: typeof meetings; nextCursor?: string | null };
+      const existing = new Set(meetings.map((meeting) => meeting.instanceId));
+      setMeetings((current) => [...current, ...(data.matches ?? []).filter((meeting) => !existing.has(meeting.instanceId))]);
+      setNextCursors((current) => ({ ...current, [filter]: data.nextCursor ?? null }));
+    } catch {
+      setOlderError(true);
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
   // Badge tone reflects the overall record: green ahead, red behind, blue even.
   const badgeTone =
     summary.wins > summary.losses
@@ -170,10 +208,17 @@ export default function HeadToHeadChip({
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Recent meetings</p>
               <p className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Last {formatDate(summary.lastPlayedAt)}</p>
             </div>
-            {meetings.length > 0 ? (
+            {visibleMeetings.length > 0 ? (
               <div className="divide-y divide-bungie-border/45 border-y border-bungie-border/55">
-                {meetings.map((meeting) => (
-                  <div key={meeting.instanceId} className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 py-2.5">
+                {visibleMeetings.map((meeting) => (
+                  <a
+                    key={meeting.instanceId}
+                    href={`https://destinytracker.com/destiny-2/pgcr/${encodeURIComponent(meeting.instanceId)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Open ${meeting.activityName ?? meeting.modeName} game report`}
+                    className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 py-2.5 transition hover:bg-bungie-dark/50"
+                  >
                     <span className={`h-1.5 w-1.5 ${meeting.viewerWon === true ? "bg-green-400" : meeting.viewerWon === false ? "bg-red-400" : "bg-gray-500"}`} />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-semibold text-gray-100">{meeting.activityName ?? meeting.modeName}</p>
@@ -181,15 +226,30 @@ export default function HeadToHeadChip({
                         {meeting.modeName} / {formatDate(meeting.playedAt)}
                       </p>
                     </div>
-                    <span className={`font-mono text-[11px] font-bold ${meeting.viewerWon === true ? "text-green-300" : meeting.viewerWon === false ? "text-red-300" : "text-gray-400"}`}>
-                      {meeting.viewerWon === true ? "W" : meeting.viewerWon === false ? "L" : "-"}
+                    <span className="flex items-center gap-1.5">
+                      <span className={`font-mono text-[11px] font-bold ${meeting.viewerWon === true ? "text-green-300" : meeting.viewerWon === false ? "text-red-300" : "text-gray-400"}`}>
+                        {meeting.viewerWon === true ? "W" : meeting.viewerWon === false ? "L" : "-"}
+                      </span>
+                      <ArrowUpRight size={11} className="text-gray-600" />
                     </span>
-                  </div>
+                  </a>
                 ))}
               </div>
             ) : (
               <p className="border border-dashed border-bungie-border/60 px-3 py-4 text-center text-xs leading-relaxed text-gray-500">No recorded meetings in this playlist.</p>
             )}
+            {visibleMeetings.length > 0 && nextCursors[filter] !== null && (
+              <button
+                type="button"
+                onClick={loadOlder}
+                disabled={loadingOlder}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 border border-bungie-border/65 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 transition hover:border-bungie-blue/60 hover:text-bungie-blue disabled:cursor-wait disabled:opacity-60"
+              >
+                {loadingOlder && <LoaderCircle size={11} className="animate-spin" />}
+                {loadingOlder ? "Loading older meetings" : "Load older meetings"}
+              </button>
+            )}
+            {olderError && <p className="mt-2 text-center text-[10px] uppercase tracking-[0.1em] text-red-300">Unable to load older meetings</p>}
             <p className="mt-3.5 text-[10px] uppercase tracking-[0.12em] text-gray-500">
               {importing ? "Importing older Crucible history" : "Based on recorded Bungie history"}
             </p>
