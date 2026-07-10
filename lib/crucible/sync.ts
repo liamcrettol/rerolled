@@ -27,6 +27,40 @@ function parseCharacterIds(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
 }
 
+function errorMessage(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
+}
+
+// Bungie throttles per app key, so a handful of concurrent PGCR fetches is the
+// sweet spot: past that you buy 429s, not speed (same ceiling detect-games uses).
+const PGCR_CONCURRENCY = 4;
+
+async function processConcurrently<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const runners = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    for (;;) {
+      const item = queue.shift();
+      if (item === undefined) return;
+      await worker(item);
+    }
+  });
+  await Promise.all(runners);
+}
+
+// Resolve an activity's name + map image once per hash, deduping concurrent
+// lookups of the same hash by caching the in-flight promise.
+function makeActivityResolver(resolveDef: typeof resolveActivity) {
+  const cache = new Map<number, Promise<{ name: string | null; image: string | null }>>();
+  return (hash: number) => {
+    let entry = cache.get(hash);
+    if (!entry) {
+      entry = resolveDef(hash);
+      cache.set(hash, entry);
+    }
+    return entry;
+  };
+}
+
 // On-view sync: pull just the newest page of Crucible activity for the viewer
 // and import anything we have not seen yet, so recent matches appear the moment
 // they open the dashboard instead of waiting for the backfill cron. This never
@@ -79,17 +113,12 @@ export async function syncRecentCrucibleHistory(
   const existing = new Set((existingRows ?? []).map((row: { instance_id: string }) => row.instance_id));
 
   let imported = 0;
-  const defByHash = new Map<number, { name: string | null; image: string | null }>();
-  for (const [instanceId, activity] of candidates) {
-    if (existing.has(instanceId)) continue;
-    const rawPgcr = await getPgcr(instanceId);
-    if (!rawPgcr) continue;
-    const activityHash = activity.activityDetails.referenceId;
-    let def = defByHash.get(activityHash);
-    if (def === undefined) {
-      def = await resolveDef(activityHash);
-      defByHash.set(activityHash, def);
-    }
+  const resolve = makeActivityResolver(resolveDef);
+  const toImport = [...candidates.values()].filter((a) => !existing.has(a.activityDetails.instanceId));
+  await processConcurrently(toImport, PGCR_CONCURRENCY, async (activity) => {
+    const rawPgcr = await getPgcr(activity.activityDetails.instanceId);
+    if (!rawPgcr) return;
+    const def = await resolve(activity.activityDetails.referenceId);
     const result = await importer({
       viewerUserId: userId,
       viewerMembershipId: account.membership_id,
@@ -99,7 +128,7 @@ export async function syncRecentCrucibleHistory(
       db,
     });
     if (result.imported) imported++;
-  }
+  });
 
   return { imported };
 }
@@ -163,16 +192,11 @@ export async function syncNextCrucibleHistoryPage(
   });
 
   let importedMatches = 0;
-  const defByHash = new Map<number, { name: string | null; image: string | null }>();
-  for (const activity of uniqueActivities) {
+  const resolve = makeActivityResolver(resolveDef);
+  await processConcurrently(uniqueActivities, PGCR_CONCURRENCY, async (activity) => {
     const rawPgcr = await getPgcr(activity.activityDetails.instanceId);
-    if (!rawPgcr) continue;
-    const activityHash = activity.activityDetails.referenceId;
-    let def = defByHash.get(activityHash);
-    if (def === undefined) {
-      def = await resolveDef(activityHash);
-      defByHash.set(activityHash, def);
-    }
+    if (!rawPgcr) return;
+    const def = await resolve(activity.activityDetails.referenceId);
     const result = await importer({
       viewerUserId: userId,
       viewerMembershipId: account.membership_id,
@@ -182,7 +206,7 @@ export async function syncNextCrucibleHistoryPage(
       db,
     });
     if (result.imported) importedMatches++;
-  }
+  });
 
   const characterFinished = reachedCutoff || activities.length < HISTORY_PAGE_SIZE;
   const nextCharacterIndex = characterFinished ? characterIndex + 1 : characterIndex;
@@ -219,6 +243,38 @@ export async function syncNextCrucibleHistoryPage(
     importedMatches,
     hasMore: !allFinished,
   };
+}
+
+// Claim the next queued (or lock-expired) sync-state row for the background
+// backfill worker, atomically marking it in-progress. Returns null when the
+// queue is empty.
+export async function claimCrucibleSync(
+  workerId: string,
+  lockSeconds = 55,
+  db: Db = adminSupabase,
+): Promise<CrucibleSyncState | null> {
+  const { data, error } = await db.rpc("claim_crucible_sync", {
+    p_worker_id: workerId,
+    p_lock_seconds: lockSeconds,
+  });
+  if (error) throw new Error(`claim_crucible_sync failed: ${error.message}`);
+  const row = Array.isArray(data) ? data[0] : data;
+  return row?.user_id ? row as CrucibleSyncState : null;
+}
+
+// Record a per-user backfill failure without failing the whole cron run. Retries
+// with backoff up to a few times, then parks the user as failed.
+export async function failCrucibleSync(userId: string, error: unknown, db: Db = adminSupabase) {
+  const { data: state } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
+  const terminal = (state?.attempts ?? 0) >= 5;
+  await db.from("crucible_sync_state").update({
+    status: terminal ? "failed" : "queued",
+    locked_by: null,
+    locked_until: null,
+    last_error: errorMessage(error),
+    requested_at: new Date(Date.now() + Math.min((state?.attempts ?? 1) * 60_000, 15 * 60_000)).toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("user_id", userId);
 }
 
 export type { CrucibleActivityHistoryEntry };

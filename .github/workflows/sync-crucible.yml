@@ -1,0 +1,24 @@
+name: Sync Crucible history
+
+# Background backfill of each signed-in user's Crucible history. Recent matches
+# are topped up instantly on page view (POST /api/crucible/refresh); this job
+# pre-loads the deep back-catalogue so head-to-head is ready without the user
+# waiting. The endpoint returns 200 even on transient errors, so this stays green
+# instead of emailing on every hiccup.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync-crucible
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -sS -X GET "$APP_URL/api/cron/sync-crucible" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            --fail-with-body

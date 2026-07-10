@@ -1,5 +1,7 @@
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
-const HISTORY_PAGE_SIZE = 20;
+// Bungie allows up to 250 activities per page; 50 keeps each backfill page's PGCR
+// fan-out bounded while cutting the number of round-trips vs. the old size of 20.
+const HISTORY_PAGE_SIZE = 50;
 const ALL_PVP_MODE = 5;
 
 interface BungieEnvelope<T> {

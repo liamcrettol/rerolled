@@ -30,6 +30,6 @@ describe("Crucible Bungie history client", () => {
 
     const activities = await getCrucibleActivityPage(3, "member", "char1", 4, "token");
     expect(activities).toHaveLength(1);
-    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/count=20&mode=5&page=4/), expect.any(Object));
+    expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/count=50&mode=5&page=4/), expect.any(Object));
   });
 });

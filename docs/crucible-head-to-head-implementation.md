@@ -6,6 +6,99 @@ Build a Trials Report-style head-to-head counter for every supported Destiny 2 C
 
 This document is written as an execution guide for a coding model with little prior knowledge of the repository. Follow the phases in order. Do not begin the UI until the database, ingestion, and query tests pass.
 
+---
+
+## As-Built Architecture (updated 2026-07-10)
+
+The phased spec below describes the original build. This section documents how the
+feature actually works in production now, including changes made after the first
+ship. When the two disagree, this section wins.
+
+### How head-to-head is derived (important mental model)
+
+We never fetch an opponent's history. A PGCR is the full match scoreboard, so
+importing one signed-in user's matches already tells us every opponent they faced
+and whether they won. Head-to-head is computed purely from the viewer's own
+imported matches. Consequences:
+
+- The only Bungie histories we ever fetch are those of signed-in Rerolled users
+  (a small set). Every opponent falls out of those PGCRs for free.
+- You have a record against an opponent only as far back as your own imported
+  history reaches, and only for opponents you have actually played. A brand-new
+  opponent is correctly 0-0.
+
+### Two-track sync
+
+Sync is split so recent matches feel instant while the deep back-catalogue loads
+in the background (Trials-Report-style pre-loading, scoped to our signed-in
+users):
+
+1. **On-view recent top-up** (instant). `components/CrucibleHistorySync.tsx`
+   mounts on the dashboard and POSTs `/api/crucible/refresh`, which calls
+   `syncRecentCrucibleHistory(userId)`. That fetches only page 0 (newest ~50) per
+   character, skips already-imported matches, imports the delta, and the client
+   `router.refresh()`es if anything landed. It is throttled to once per 90s via
+   `sessionStorage`, and it never touches the backfill cursor, so it cannot race
+   the cron.
+2. **Background deep backfill** (pre-load). `.github/workflows/sync-crucible.yml`
+   hits `GET /api/cron/sync-crucible` every 15 min. The route claims queued users
+   via the `claim_crucible_sync` RPC (row lock, so two runs never sync the same
+   user) and calls `syncNextCrucibleHistoryPage(userId)`, walking one activity
+   page per claim, advancing the cursor across pages and characters until
+   `status = 'complete'`. This is the sole authority for the backfill cursor.
+
+Both paths share `importCrucibleMatch` (idempotent upserts) and fetch PGCRs with
+bounded concurrency (`PGCR_CONCURRENCY = 4` in `lib/crucible/sync.ts`) because
+Bungie throttles per app key. History pages are size 50 (`HISTORY_PAGE_SIZE`).
+
+### Reliability (no failure-email spam)
+
+The original blind cron emailed on every failure. Now:
+
+- The cron route isolates per-user failures (`failCrucibleSync` parks the user and
+  the run continues) and wraps the whole handler so a transient error still
+  returns HTTP 200. The scheduled job stays green; a genuinely broken deploy
+  (404/401) still surfaces to the workflow via `--fail-with-body`.
+- The DB reads/writes tolerate a not-yet-applied migration (see map images) so a
+  deploy that lands before its migration cannot break the sync.
+
+### Map images
+
+Each match report shows the map. The map comes from the activity's Bungie
+`pgcrImage`:
+
+- `resolveActivity(hash)` in `lib/bungie/pgcr.ts` returns `{ name, image }`;
+  `resolveActivityName` wraps it. Sync passes `activityImage` to
+  `importCrucibleMatch`, stored in `crucible_matches.activity_image`
+  (migration `050_crucible_activity_image.sql`, nullable).
+- `components/platform/SeasonPanel.tsx` `MatchCard` renders a full-width darkened
+  banner with result/mode/name/score overlaid when an image exists, and falls
+  back to the flat header when it does not. `SeasonMatch.mapImage` carries it.
+- The write in `importMatch` and the read in `matchHistory` both degrade
+  gracefully if `activity_image` is missing, so deploy order does not matter.
+- One-time backfill of images for matches imported before the feature:
+  `scripts/backfill-crucible-images.mjs` (run locally with `DATABASE_URL` +
+  `BUNGIE_API_KEY`). It resolves each distinct `activity_hash` once and bulk
+  updates. This was run on 2026-07-10 (42 activities, 80 matches).
+
+### Endpoints and files (current)
+
+- `POST /api/crucible/refresh` -> `syncRecentCrucibleHistory` (on-view recent).
+- `GET /api/cron/sync-crucible` -> background backfill (cron only).
+- `POST /api/crucible/sync` -> `queueCrucibleSync` (enroll/refresh sync state).
+- `GET /api/crucible/head-to-head`, `/head-to-head/[membershipId]`,
+  `/api/crucible/matches` -> read APIs (unchanged from the spec).
+- Migrations: `049_crucible_head_to_head.sql` (tables + `claim_crucible_sync`),
+  `050_crucible_activity_image.sql` (map image column).
+
+### Migrations to apply before/with deploy
+
+`049` and `050` are both applied in production. Because the code tolerates a
+missing `activity_image` column, `050` is not required to avoid breakage, only to
+populate map images.
+
+---
+
 ## Product Definition
 
 For viewer `A` and opponent `B`, the counter means:
