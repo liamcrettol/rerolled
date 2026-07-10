@@ -30,9 +30,9 @@ import type {
   RunLegalityResult,
   RunTrialsPassageSnapshot,
 } from "@/types/challenges";
+import { parsePgcrHandler } from "./detection";
 import {
   getHandler as getBaseHandler,
-  parsePgcrHandler,
   updateLeaderboardHandler,
   type JobHandler,
 } from "./handlers";
@@ -529,7 +529,6 @@ async function buildParticipantContext(
   participant: ParticipantRow,
   loadoutSlots: ChallengeRunLoadoutSlot[],
   pgcr: NormalizedPgcr | null,
-  leaderboardEntry: { rank: number | null; totalEntries: number } | null,
 ): Promise<RerolledBadgeContext> {
   const [legality, fireteamLegality, snapshots, currentValidStreak, trialsPassageRows] = await Promise.all([
     loadLegality(db, run.id, participant.user_id),
@@ -623,6 +622,11 @@ export const awardBadgesForAllParticipantsHandler: JobHandler = async (job, db) 
   const run = await ensureRunFinalized(db, job.run_id);
   if (!run) return;
 
+  // Leaderboard placement is an input to the legacy Top 10% badge. Running the
+  // idempotent leaderboard upsert here removes any ordering dependency between
+  // the two jobs when multiple workers drain the queue concurrently.
+  await updateLeaderboardHandler(job, db);
+
   const [participants, loadoutSlots, badgeRows, pgcr] = await Promise.all([
     loadParticipants(db, run.id),
     loadLoadoutSlots(db, run.id),
@@ -630,7 +634,7 @@ export const awardBadgesForAllParticipantsHandler: JobHandler = async (job, db) 
     loadNormalizedPgcr(db, run.pgcr_instance_id),
   ]);
   const rerolledRows = badgeRows.filter((badge) => badge.mode !== null);
-  const inserts = [];
+  const inserts: Array<ReturnType<typeof buildPlayerBadgeInsert>> = [];
 
   for (const participant of participants) {
     const [leaderboardEntry, currentStreak, complianceResult] = await Promise.all([
@@ -652,7 +656,6 @@ export const awardBadgesForAllParticipantsHandler: JobHandler = async (job, db) 
       participant,
       loadoutSlots,
       pgcr,
-      leaderboardEntry,
     );
 
     const legacyBadgeIds = new Map(
@@ -732,7 +735,7 @@ async function captureEquipmentSnapshotForParticipant(job: WorkerJobRow, db: Db)
   ]);
   if (!run || !participant) return;
 
-  const token = await getBungieToken(participant.user_id);
+  const token = await getBungieToken(participant.user_id, payload.membershipId);
   const client = new BungieWorkerClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const profile: any = await client.get(
@@ -827,7 +830,7 @@ async function captureTrialsPassageSnapshotForParticipant(job: WorkerJobRow, db:
   const participant = await loadParticipantByMembership(db, payload.runId, payload.membershipId);
   if (!participant) return;
 
-  const token = await getBungieToken(participant.user_id);
+  const token = await getBungieToken(participant.user_id, payload.membershipId);
   const client = new BungieWorkerClient();
   const profile = await client.get<BungieProfileResponse>(
     `/Destiny2/${payload.membershipType}/Profile/${payload.membershipId}/?components=${TRIALS_PASSAGE_PROFILE_COMPONENTS}`,
