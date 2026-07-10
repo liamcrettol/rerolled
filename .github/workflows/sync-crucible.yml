@@ -32,6 +32,7 @@ jobs:
 
           MAX_CALLS=10
           call=0
+          saw_failure=0
           while :; do
             call=$((call + 1))
             response_file="$(mktemp)"
@@ -68,11 +69,17 @@ jobs:
 
             if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
               jq . "$response_file" 2>/dev/null || cat "$response_file"
-              echo "sync-crucible returned a failing HTTP status" >&2
-              exit 1
-            fi
-
-            if ! jq -e '.ok == true' "$response_file" >/dev/null 2>&1; then
+              # A partial failure still made progress, and the failed user is
+              # backed off out of the due queue, so keep draining work for
+              # everyone else and report the failure at the end instead.
+              if jq -e '.state == "partial_failure"' "$response_file" >/dev/null 2>&1; then
+                echo "partial failure on call $call; continuing to drain the queue" >&2
+                saw_failure=1
+              else
+                echo "sync-crucible returned a failing HTTP status" >&2
+                exit 1
+              fi
+            elif ! jq -e '.ok == true' "$response_file" >/dev/null 2>&1; then
               jq . "$response_file" 2>/dev/null || cat "$response_file"
               echo "sync-crucible response did not report ok=true" >&2
               exit 1
@@ -90,3 +97,8 @@ jobs:
               break
             fi
           done
+
+          if [ "$saw_failure" -ne 0 ]; then
+            echo "one or more calls reported user sync failures (see summaries above)" >&2
+            exit 1
+          fi
