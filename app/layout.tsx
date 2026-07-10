@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import UpdateAvailable from "@/components/UpdateAvailable";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-bungie-dark text-gray-100 antialiased">
         <Providers>{children}</Providers>
+        <UpdateAvailable />
         <Analytics />
         <SpeedInsights />
       </body>
