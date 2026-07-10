@@ -63,13 +63,13 @@ export default function TopNav({
 
   return (
     <header className="border-b border-bungie-border">
-      <div className="max-w-7xl mx-auto flex items-center gap-8 px-6 h-[4.5rem]">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-3 sm:flex-nowrap sm:px-6 sm:py-0 sm:h-[4.5rem]">
         <Link href="/dashboard" className="flex items-baseline gap-2 shrink-0">
           <BrandWordmark className="text-xl" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
         </Link>
 
-        <nav className="flex items-center gap-6 flex-1 min-w-0 overflow-x-auto">
+        <nav className="order-3 flex basis-full items-center gap-5 overflow-x-auto sm:order-none sm:flex-1 sm:basis-auto sm:gap-6">
           {LINKS.map((l) => {
             const active = pathname === l.href || pathname.startsWith(l.href + "/");
             return (
@@ -87,7 +87,7 @@ export default function TopNav({
         </nav>
 
         {displayName && (
-          <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center gap-3 sm:ml-0">
             <PlayerCard
               member={navMember(displayName, emblemPath, emblemBackgroundPath, clanName)}
               variant="nav"

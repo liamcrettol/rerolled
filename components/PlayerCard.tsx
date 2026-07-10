@@ -62,7 +62,7 @@ export default function PlayerCard({ member, compact, variant = "default", badge
     // height: at h-12 the banner's baked-in icon renders 48px wide, so a
     // narrower card or a smaller floor would slide the name on top of it.
     return (
-      <div className="relative flex h-12 w-56 shrink-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark">
+      <div className="relative flex h-12 w-full max-w-56 shrink min-w-0 items-center overflow-hidden border border-bungie-border bg-bungie-dark sm:w-56 sm:shrink-0">
         {bannerUrl ? (
           <>
             <img
