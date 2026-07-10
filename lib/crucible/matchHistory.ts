@@ -132,7 +132,9 @@ export async function getCrucibleMatchHistory(
       isCurrentUser: row.membership_id === account.membership_id,
       isOnViewerTeam: row.team_id === viewer.team_id,
       trialsReportUrl: buildTrialsReportUrl(row.membership_type, row.membership_id),
-      headToHead: row.team_id === viewer.team_id ? null : h2h[row.membership_id] ?? null,
+      // Head-to-head is your all-time record against this player from matches you
+      // were on opposing teams, so show it for teammates too (just not yourself).
+      headToHead: row.membership_id === account.membership_id ? null : h2h[row.membership_id] ?? null,
     });
     const team = sortPlayers(rows.filter((row) => row.team_id === viewer.team_id).map(toPlayer));
     const opponents = sortPlayers(rows.filter((row) => row.team_id !== viewer.team_id).map(toPlayer));

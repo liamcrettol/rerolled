@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
 
   const rows = data ?? [];
   const modesByHash = new Map<number, number[]>();
+  const sampleByHash = new Map<number, unknown>();
   let updated = 0;
   let unchanged = 0;
   let remaining = 0;
@@ -56,6 +57,19 @@ export async function GET(req: NextRequest) {
       activityName: row.activity_name ?? null,
     });
 
+    // Diagnostic: one sample per distinct activity to see what Bungie reports.
+    if (hash != null && !sampleByHash.has(hash)) {
+      sampleByHash.set(hash, {
+        hash,
+        name: row.activity_name,
+        activityMode: row.activity_mode,
+        activityModes: row.activity_modes,
+        defModes,
+        storedBucket: row.mode_bucket,
+        computedBucket: bucket,
+      });
+    }
+
     if (bucket === row.mode_bucket) {
       unchanged++;
       continue;
@@ -69,5 +83,5 @@ export async function GET(req: NextRequest) {
     updated++;
   }
 
-  return NextResponse.json({ ok: true, total: rows.length, updated, unchanged, remaining });
+  return NextResponse.json({ ok: true, total: rows.length, updated, unchanged, remaining, samples: [...sampleByHash.values()] });
 }

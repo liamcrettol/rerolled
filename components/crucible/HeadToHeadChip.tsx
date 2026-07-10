@@ -79,10 +79,10 @@ export default function HeadToHeadChip({
         aria-expanded={open}
         aria-label={`Head-to-head record against ${opponentName}`}
         onClick={() => open ? setOpen(false) : show()}
-        className="group flex items-center gap-1.5 border border-bungie-blue/35 bg-bungie-blue/10 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-bungie-blue transition hover:border-bungie-blue/70 hover:bg-bungie-blue/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bungie-blue/70"
+        className="group flex items-center gap-1 border border-bungie-blue/30 bg-bungie-blue/10 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none text-bungie-blue transition hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bungie-blue/70"
       >
-        <Crosshair size={11} className="transition group-hover:rotate-45" />
-        H2H {summary.wins}-{summary.losses}
+        <Crosshair size={9} className="opacity-70 transition group-hover:rotate-45" />
+        {summary.wins}-{summary.losses}
       </button>
 
       {open && (

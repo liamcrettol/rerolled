@@ -36,35 +36,22 @@ function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function StatTile({
-  label,
-  value,
-  tone = "text-white",
-  className = "",
-}: {
-  label: string;
-  value: React.ReactNode;
-  tone?: string;
-  className?: string;
-}) {
-  return (
-    <div className={`border border-bungie-border bg-bungie-dark/55 p-4 ${className}`}>
-      <p className="section-label mb-2">{label}</p>
-      <div className={`font-mono text-2xl leading-tight slashed-zero ${tone}`}>{value}</div>
-    </div>
-  );
-}
 
 function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStatus: SeasonStats["historySyncStatus"] }) {
   return (
-    <div className="relative flex items-center justify-between gap-3 px-3 py-2 transition hover:bg-bungie-dark/55">
-      <div className="min-w-0 flex-1">
+    <div className="relative flex min-h-[4.25rem] flex-col justify-center px-3 py-2.5 transition hover:bg-bungie-dark/55">
+      {player.headToHead && (
+        <div className="absolute right-2 top-2 z-10">
+          <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
+        </div>
+      )}
+      <div className="pr-12">
         {player.trialsReportUrl ? (
           <a
             href={player.trialsReportUrl}
             target="_blank"
             rel="noreferrer"
-            className={`group flex min-w-0 items-center gap-1.5 font-semibold transition hover:text-bungie-blue ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}
+            className={`group inline-flex min-w-0 max-w-full items-center gap-1.5 font-semibold transition hover:text-bungie-blue ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}
             aria-label={`Open ${player.displayName} on Trials Report`}
           >
             <span className="truncate text-sm">{player.displayName}</span>
@@ -73,18 +60,12 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
         ) : (
           <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
         )}
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-gray-500">
-            {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
-          </p>
-          {player.headToHead && (
-            <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
-          )}
-        </div>
       </div>
-      <div className="shrink-0 text-right">
-        <p className="font-mono text-sm text-white">{formatKd(player.kd)}</p>
-        <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">K/D</p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <span className="font-mono text-sm text-white">{formatKd(player.kd)}</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.15em] text-gray-500">
+          {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
+        </span>
       </div>
     </div>
   );
@@ -215,68 +196,31 @@ export default function SeasonPanel({
       <section className="h-full">
         <p className="section-label mb-4">Your Season / {stats.seasonName}</p>
         <div className="panel flex min-h-[240px] flex-col p-5 xl:h-[calc(100vh-7rem)]">
-          {isEmpty ? (
-            <div className="flex flex-1 items-center justify-center text-center">
-              <div className="max-w-[18rem]">
-                <p className="text-lg font-semibold text-white">No runs yet.</p>
-                <p className="mt-2 text-sm leading-relaxed text-gray-500">
-                  Roll a loadout to start your season and fill this board.
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="section-label">Historical Match Reports</p>
+              {(stats.historySyncStatus === "queued" || stats.historySyncStatus === "syncing") && (
+                <p className="mt-1 flex items-center gap-1.5 text-[9px] uppercase tracking-[0.15em] text-bungie-blue/75">
+                  <RefreshCw size={9} className="animate-spin" /> Importing Crucible history
                 </p>
-              </div>
+              )}
+            </div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
+              {stats.matchHistory.length} recent
+            </p>
+          </div>
+
+          {stats.matchHistory.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center border border-dashed border-bungie-border/70 bg-bungie-dark/25 px-5 text-center">
+              <p className="max-w-[18rem] text-sm leading-relaxed text-gray-500">
+                Historical reports will appear as your Crucible history is imported and Rerolled runs finish.
+              </p>
             </div>
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <StatTile label="Total runs" value={stats.totalRuns.toLocaleString()} />
-                <StatTile label="Roulette kills" value={stats.rouletteKills.toLocaleString()} />
-                <StatTile
-                  label="Best weapon"
-                  value={
-                    stats.bestWeapon ? (
-                      <div className="space-y-1">
-                        <div className="font-sans text-lg font-semibold uppercase tracking-wide text-bungie-blue">
-                          {stats.bestWeapon.name}
-                        </div>
-                        <div className="text-xs text-gray-500">{stats.bestWeapon.kills.toLocaleString()} kills</div>
-                      </div>
-                    ) : (
-                      "-"
-                    )
-                  }
-                  tone={stats.bestWeapon ? "text-white" : "text-gray-500"}
-                  className="sm:col-span-2"
-                />
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="section-label">Historical Match Reports</p>
-                    {(stats.historySyncStatus === "queued" || stats.historySyncStatus === "syncing") && (
-                      <p className="mt-1 flex items-center gap-1.5 text-[9px] uppercase tracking-[0.15em] text-bungie-blue/75">
-                        <RefreshCw size={9} className="animate-spin" /> Importing Crucible history
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
-                    {stats.matchHistory.length} recent
-                  </p>
-                </div>
-
-                {stats.matchHistory.length === 0 ? (
-                  <div className="flex flex-1 items-center justify-center border border-dashed border-bungie-border/70 bg-bungie-dark/25 px-5 text-center">
-                    <p className="max-w-[18rem] text-sm leading-relaxed text-gray-500">
-                      Historical reports will appear as your Crucible history is imported and Rerolled runs finish.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 max-h-[70vh] xl:max-h-none">
-                    {stats.matchHistory.map((match) => (
-                      <MatchCard key={match.instanceId ?? match.runId} match={match} syncStatus={stats.historySyncStatus} />
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 max-h-[70vh] xl:max-h-none">
+              {stats.matchHistory.map((match) => (
+                <MatchCard key={match.instanceId ?? match.runId} match={match} syncStatus={stats.historySyncStatus} />
+              ))}
             </div>
           )}
         </div>

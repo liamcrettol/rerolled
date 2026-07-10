@@ -28,7 +28,7 @@ describe("HeadToHeadChip", () => {
   it("opens an accessible record card and changes playlist totals", () => {
     render(<HeadToHeadChip summary={summary} opponentName="Rival" syncStatus="syncing" />);
     const trigger = screen.getByRole("button", { name: "Head-to-head record against Rival" });
-    expect(trigger).toHaveTextContent("H2H 4-3");
+    expect(trigger).toHaveTextContent("4-3");
     fireEvent.click(trigger);
     expect(screen.getByText("Importing older Crucible history")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Trials 2/ }));
