@@ -43,9 +43,13 @@ export async function importCrucibleMatch(input: {
   const viewer = pgcr.players.find((player) => player.membershipId === input.viewerMembershipId);
   if (!viewer) return { imported: false, encounterCount: 0 };
 
+  const activityModes = [...new Set([
+    ...pgcr.activityModes,
+    ...(input.activityDefModes ?? []),
+  ])];
   const modeBucket = classifyCrucibleMode({
     activityMode: pgcr.activityMode,
-    activityModes: [...pgcr.activityModes, ...(input.activityDefModes ?? [])],
+    activityModes,
     activityHash: pgcr.activityHash,
     activityName: input.activityName,
   });
@@ -56,7 +60,7 @@ export async function importCrucibleMatch(input: {
     instance_id: pgcr.instanceId,
     activity_hash: pgcr.activityHash,
     activity_mode: pgcr.activityMode,
-    activity_modes: pgcr.activityModes,
+    activity_modes: activityModes,
     mode_bucket: modeBucket,
     activity_name: input.activityName ?? null,
     activity_image: input.activityImage ?? null,
