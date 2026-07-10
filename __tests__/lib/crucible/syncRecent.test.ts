@@ -54,7 +54,7 @@ describe("syncRecentCrucibleHistory", () => {
       ],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getPgcr: (async (id: string) => ({ instanceId: id })) as any,
-      resolveActivityDef: async () => ({ name: "Rusted Lands", image: "/img/map.jpg" }),
+      resolveActivityDef: async () => ({ name: "Rusted Lands", image: "/img/map.jpg", modes: [] }),
       importMatch: (async (input: { rawPgcr: { instanceId: string } }) => {
         imported.push(input.rawPgcr.instanceId);
         return { imported: true, encounterCount: 1 };

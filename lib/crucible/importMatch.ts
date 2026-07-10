@@ -30,6 +30,8 @@ export async function importCrucibleMatch(input: {
   rawPgcr: unknown;
   activityName?: string | null;
   activityImage?: string | null;
+  /** Authoritative mode types from the activity definition, merged into classification. */
+  activityDefModes?: number[];
   db?: Db;
 }): Promise<{ imported: boolean; encounterCount: number }> {
   const db = input.db ?? adminSupabase;
@@ -43,7 +45,7 @@ export async function importCrucibleMatch(input: {
 
   const modeBucket = classifyCrucibleMode({
     activityMode: pgcr.activityMode,
-    activityModes: pgcr.activityModes,
+    activityModes: [...pgcr.activityModes, ...(input.activityDefModes ?? [])],
     activityHash: pgcr.activityHash,
     activityName: input.activityName,
   });

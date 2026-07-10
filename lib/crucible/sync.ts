@@ -50,7 +50,7 @@ async function processConcurrently<T>(items: T[], limit: number, worker: (item: 
 // Resolve an activity's name + map image once per hash, deduping concurrent
 // lookups of the same hash by caching the in-flight promise.
 function makeActivityResolver(resolveDef: typeof resolveActivity) {
-  const cache = new Map<number, Promise<{ name: string | null; image: string | null }>>();
+  const cache = new Map<number, ReturnType<typeof resolveActivity>>();
   return (hash: number) => {
     let entry = cache.get(hash);
     if (!entry) {
@@ -125,6 +125,7 @@ export async function syncRecentCrucibleHistory(
       rawPgcr,
       activityName: def.name,
       activityImage: def.image,
+      activityDefModes: def.modes,
       db,
     });
     if (result.imported) imported++;
@@ -203,6 +204,7 @@ export async function syncNextCrucibleHistoryPage(
       rawPgcr,
       activityName: def.name,
       activityImage: def.image,
+      activityDefModes: def.modes,
       db,
     });
     if (result.imported) importedMatches++;

@@ -59,28 +59,28 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
   return (
     <div className="relative flex items-center justify-between gap-3 px-3 py-2 transition hover:bg-bungie-dark/55">
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          {player.trialsReportUrl ? (
-            <a
-              href={player.trialsReportUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={`group flex min-w-0 items-center gap-1.5 font-semibold transition hover:text-bungie-blue ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}
-              aria-label={`Open ${player.displayName} on Trials Report`}
-            >
-              <span className="truncate text-sm">{player.displayName}</span>
-              <ArrowUpRight size={11} className="shrink-0 text-gray-600 transition group-hover:text-bungie-blue" />
-            </a>
-          ) : (
-            <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
-          )}
+        {player.trialsReportUrl ? (
+          <a
+            href={player.trialsReportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className={`group flex min-w-0 items-center gap-1.5 font-semibold transition hover:text-bungie-blue ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}
+            aria-label={`Open ${player.displayName} on Trials Report`}
+          >
+            <span className="truncate text-sm">{player.displayName}</span>
+            <ArrowUpRight size={11} className="shrink-0 text-gray-600 transition group-hover:text-bungie-blue" />
+          </a>
+        ) : (
+          <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
+        )}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-gray-500">
+            {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
+          </p>
           {player.headToHead && (
             <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
           )}
         </div>
-        <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.18em] text-gray-500">
-          {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
-        </p>
       </div>
       <div className="shrink-0 text-right">
         <p className="font-mono text-sm text-white">{formatKd(player.kd)}</p>
@@ -214,7 +214,7 @@ export default function SeasonPanel({
     return (
       <section className="h-full">
         <p className="section-label mb-4">Your Season / {stats.seasonName}</p>
-        <div className="panel flex h-full min-h-[240px] flex-col p-5">
+        <div className="panel flex min-h-[240px] flex-col p-5 xl:h-[calc(100vh-7rem)]">
           {isEmpty ? (
             <div className="flex flex-1 items-center justify-center text-center">
               <div className="max-w-[18rem]">
@@ -225,16 +225,10 @@ export default function SeasonPanel({
               </div>
             </div>
           ) : (
-            <div className="flex flex-1 flex-col gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <StatTile label="Total runs" value={stats.totalRuns.toLocaleString()} />
                 <StatTile label="Roulette kills" value={stats.rouletteKills.toLocaleString()} />
-                <StatTile label="Weeklies cleared" value={stats.weeklyChallengesCleared} />
-                <StatTile
-                  label="Best placement"
-                  value={stats.bestWeeklyPlacement ? `#${stats.bestWeeklyPlacement}` : "-"}
-                  tone={stats.bestWeeklyPlacement ? "text-bungie-blue" : "text-gray-500"}
-                />
                 <StatTile
                   label="Best weapon"
                   value={
@@ -276,7 +270,7 @@ export default function SeasonPanel({
                     </p>
                   </div>
                 ) : (
-                  <div className="flex-1 space-y-3 pr-1">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 max-h-[70vh] xl:max-h-none">
                     {stats.matchHistory.map((match) => (
                       <MatchCard key={match.instanceId ?? match.runId} match={match} syncStatus={stats.historySyncStatus} />
                     ))}

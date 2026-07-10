@@ -53,21 +53,27 @@ async function getActivityHistory(
   return json.Response?.activities ?? [];
 }
 
-export async function resolveActivity(hash: number): Promise<{ name: string | null; image: string | null }> {
+export async function resolveActivity(hash: number): Promise<{ name: string | null; image: string | null; modes: number[] }> {
   try {
     const res = await fetch(
       `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyActivityDefinition/${hash}/`,
       { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
     );
-    if (!res.ok) return { name: null, image: null };
+    if (!res.ok) return { name: null, image: null, modes: [] };
     const json = await res.json();
     const def = json.Response;
     // pgcrImage is the map banner. Some activities leave it empty, so fall back
     // to null rather than surfacing an empty path the UI would try to load.
     const image = typeof def?.pgcrImage === "string" && def.pgcrImage.length > 0 ? def.pgcrImage : null;
-    return { name: (def?.displayProperties?.name as string) ?? null, image };
+    // The definition's activityModeTypes are the authoritative playlist markers
+    // (e.g. Competitive 69, Trials 84). PGCR `modes` arrays are often too sparse
+    // to classify from alone, so we merge these in.
+    const modeTypes = Array.isArray(def?.activityModeTypes) ? def.activityModeTypes : [];
+    const direct = typeof def?.directActivityModeType === "number" ? [def.directActivityModeType] : [];
+    const modes = [...new Set([...modeTypes, ...direct].filter((n): n is number => typeof n === "number"))];
+    return { name: (def?.displayProperties?.name as string) ?? null, image, modes };
   } catch {
-    return { name: null, image: null };
+    return { name: null, image: null, modes: [] };
   }
 }
 
