@@ -46,8 +46,6 @@ describe("BadgeChip", () => {
       />
     );
     expect(screen.getByText("IMMACULATE")).toBeInTheDocument();
-    // The generic frame's separately-rendered visible name never appears —
-    // bespoke art draws its own label inside the SVG.
     expect(screen.queryByText("Immaculate")).not.toBeInTheDocument();
     expect(container.querySelector(".sr-only")?.textContent).toBe(
       "Immaculate. Go without a loss on your card."
@@ -119,5 +117,44 @@ describe("BadgeChip", () => {
 
     expect(screen.getByRole("img", { name: "Developer badge mark" })).toBeInTheDocument();
     expect(container.querySelector(".sr-only")?.textContent).toBe("Developer. Project maintainer.");
+  });
+
+  it("renders the Founder bespoke badge in the full Badge Case size", () => {
+    const { container } = render(
+      <BadgeChip
+        slug="status_founder"
+        name="Founder"
+        description="Played during closed beta or the early launch window."
+        tier="special"
+        mode="status_legacy"
+        iconKey="status"
+        size="full"
+      />
+    );
+
+    expect(screen.getByText("FOUNDER")).toBeInTheDocument();
+    expect(screen.queryByText("Founder")).not.toBeInTheDocument();
+    expect(container.querySelector(".sr-only")?.textContent).toBe(
+      "Founder. Played during closed beta or the early launch window."
+    );
+  });
+
+  it("renders the compact Founder mark for icon-only player cards", () => {
+    const { container } = render(
+      <BadgeChip
+        slug="status_founder"
+        name="Founder"
+        description="Played during closed beta or the early launch window."
+        tier="special"
+        mode="status_legacy"
+        iconKey="status"
+        size="icon"
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "Founder badge mark" })).toBeInTheDocument();
+    expect(container.querySelector(".sr-only")?.textContent).toBe(
+      "Founder. Played during closed beta or the early launch window."
+    );
   });
 });
