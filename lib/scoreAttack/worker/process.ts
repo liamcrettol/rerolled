@@ -6,7 +6,7 @@
 // complete as a no-op so unimplemented pipeline stages never churn retries.
 
 import { claimNextJob, completeJob, failJob, type WorkerJobRow } from "./store";
-import { getHandler } from "./handlers";
+import { getAutomaticHandler } from "./automaticHandlers";
 import { adminSupabase } from "@/lib/supabase/admin";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,9 +34,9 @@ export async function processWorkerJobs(
     if (!job) break; // queue drained
     result.processed++;
 
-    const handler = getHandler(job.job_type);
+    const handler = getAutomaticHandler(job.job_type);
     if (!handler) {
-      // No handler yet (e.g. Bungie-detection stage) — don't retry forever.
+      // No handler yet — don't retry forever.
       console.warn(`[worker] no handler for job_type=${job.job_type} (job ${job.id}); completing as no-op`);
       result.noHandler++;
       await completeJob(job.id, db);
@@ -49,7 +49,8 @@ export async function processWorkerJobs(
       result.completed++;
     } catch (err) {
       console.error(`[worker] job ${job.id} (${job.job_type}) failed:`, err instanceof Error ? err.message : err);
-      // Linear backoff; the RPC gives up after max_attempts.
+      // A finalization guard may arrive before another worker has persisted the
+      // score/compliance/legality prerequisite. Retrying is intentional.
       const nextRunAt = new Date(Date.now() + 30_000).toISOString();
       await failJob(job.id, err, nextRunAt, db);
       result.failed++;
