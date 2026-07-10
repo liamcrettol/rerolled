@@ -15,6 +15,7 @@ const MODE = {
   BREAKTHROUGH: 65,
   IRON_BANNER_SALVAGE: 68,
   PVP_COMPETITIVE: 69,
+  CLASH_COMPETITIVE: 72,
   CONTROL_QUICKPLAY: 73,
   CONTROL_COMPETITIVE: 74,
   ELIMINATION: 80,
@@ -36,6 +37,10 @@ const IRON_BANNER_MODES = new Set<number>([
   MODE.IRON_BANNER_ZONE_CONTROL,
 ]);
 
+// The Competitive playlist rotates game modes (Zone Control, Clash, Survival,
+// Rift, etc.), so those competitive variants classify as Competitive even when a
+// broad "competitive" marker is absent. Zone Control (89) is a competitive-only
+// mode; plain Control/Clash quickplay stay in their own buckets.
 const COMPETITIVE_MODES = new Set<number>([
   MODE.PVP_COMPETITIVE,
   MODE.SURVIVAL,
@@ -43,16 +48,17 @@ const COMPETITIVE_MODES = new Set<number>([
   MODE.SHOWDOWN,
   MODE.LOCKDOWN,
   MODE.BREAKTHROUGH,
+  MODE.CLASH_COMPETITIVE,
   MODE.CONTROL_COMPETITIVE,
   MODE.ELIMINATION,
   MODE.RIFT,
+  MODE.ZONE_CONTROL,
   MODE.COLLISION,
 ]);
 
 const CONTROL_MODES = new Set<number>([
   MODE.CONTROL,
   MODE.CONTROL_QUICKPLAY,
-  MODE.ZONE_CONTROL,
 ]);
 
 export function classifyCrucibleMode(input: {
@@ -78,5 +84,32 @@ export function classifyCrucibleMode(input: {
 export function crucibleModeLabel(mode: CrucibleModeBucket): string {
   if (mode === "iron_banner") return "Iron Banner";
   return mode.charAt(0).toUpperCase() + mode.slice(1);
+}
+
+// Specific game-type names for the match card, so a match reads "Clash" or
+// "Rumble" instead of the coarse "Other" bucket. Playlist markers (Trials, Iron
+// Banner, Competitive) win first; otherwise we name the specific game type from
+// the singular activityMode.
+const MODE_NAMES: Record<number, string> = {
+  10: "Control", 12: "Clash", 25: "Mayhem", 31: "Supremacy", 37: "Survival",
+  38: "Countdown", 48: "Rumble", 49: "Mayhem", 59: "Showdown", 60: "Lockdown",
+  65: "Breakthrough", 70: "Quickplay", 71: "Clash", 72: "Clash", 73: "Control",
+  74: "Control", 75: "Doubles", 80: "Elimination", 81: "Momentum", 84: "Trials of Osiris",
+  88: "Rift", 89: "Zone Control", 93: "Collision", 94: "Relic",
+};
+
+export function crucibleModeName(input: {
+  activityMode: number | null;
+  activityModes: number[];
+}): string {
+  const modes = new Set(input.activityModes);
+  if (input.activityMode !== null) modes.add(input.activityMode);
+  if (modes.has(MODE.TRIALS_OF_OSIRIS)) return "Trials of Osiris";
+  if ([...modes].some((m) => IRON_BANNER_MODES.has(m))) return "Iron Banner";
+  if ([...modes].some((m) => COMPETITIVE_MODES.has(m))) return "Competitive";
+  // Prefer the specific game type from the singular mode, then the array.
+  if (input.activityMode !== null && MODE_NAMES[input.activityMode]) return MODE_NAMES[input.activityMode];
+  for (const m of input.activityModes) if (MODE_NAMES[m]) return MODE_NAMES[m];
+  return "Crucible";
 }
 

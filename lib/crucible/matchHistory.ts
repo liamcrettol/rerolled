@@ -1,7 +1,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { buildTrialsReportUrl } from "@/lib/stats/history";
 import type { SeasonMatch, SeasonMatchLoadoutSlot, SeasonMatchPlayer } from "@/types/platform";
-import { crucibleModeLabel } from "./modes";
+import { crucibleModeName } from "./modes";
 import { getHeadToHeadSummaries } from "./headToHead";
 import type { CrucibleModeBucket, CrucibleSyncState } from "./types";
 
@@ -12,6 +12,8 @@ interface MatchRow {
   instance_id: string;
   activity_name: string | null;
   activity_image?: string | null;
+  activity_mode: number | null;
+  activity_modes: number[] | null;
   mode_bucket: CrucibleModeBucket;
   period: string;
   team_data: unknown;
@@ -76,7 +78,7 @@ export async function getCrucibleMatchHistory(
 
   // activity_image (migration 050) is additive; if it hasn't been applied yet,
   // fall back to a select without it rather than failing the whole report.
-  const matchCols = "instance_id, activity_name, mode_bucket, period, team_data, is_private";
+  const matchCols = "instance_id, activity_name, activity_mode, activity_modes, mode_bucket, period, team_data, is_private";
   let matchSelect = await db.from("crucible_matches").select(`${matchCols}, activity_image`).in("instance_id", instanceIds).eq("is_private", false);
   if (matchSelect.error && /activity_image/.test(matchSelect.error.message ?? "")) {
     matchSelect = await db.from("crucible_matches").select(matchCols).in("instance_id", instanceIds).eq("is_private", false);
@@ -134,7 +136,22 @@ export async function getCrucibleMatchHistory(
       trialsReportUrl: buildTrialsReportUrl(row.membership_type, row.membership_id),
       // Head-to-head is your all-time record against this player from matches you
       // were on opposing teams, so show it for teammates too (just not yourself).
-      headToHead: row.membership_id === account.membership_id ? null : h2h[row.membership_id] ?? null,
+      // Players you have never faced fall back to an empty 0-0 record so the badge
+      // is still present.
+      headToHead: row.membership_id === account.membership_id
+        ? null
+        : h2h[row.membership_id] ?? {
+            opponentMembershipId: row.membership_id,
+            opponentMembershipType: row.membership_type,
+            opponentDisplayName: row.display_name,
+            encounters: 0,
+            wins: 0,
+            losses: 0,
+            unknown: 0,
+            lastPlayedAt: null,
+            byMode: {},
+            recentMeetings: [],
+          },
     });
     const team = sortPlayers(rows.filter((row) => row.team_id === viewer.team_id).map(toPlayer));
     const opponents = sortPlayers(rows.filter((row) => row.team_id !== viewer.team_id).map(toPlayer));
@@ -149,10 +166,11 @@ export async function getCrucibleMatchHistory(
       instanceId: match.instance_id,
       mode: "crucible",
       modeBucket: match.mode_bucket,
+      modeName: crucibleModeName({ activityMode: match.activity_mode ?? null, activityModes: match.activity_modes ?? [] }),
       mapImage: match.activity_image ?? null,
       playedAt: match.period,
       result: viewer.is_win === true ? "win" : viewer.is_win === false ? "loss" : "unknown",
-      activityName: match.activity_name ?? crucibleModeLabel(match.mode_bucket),
+      activityName: match.activity_name ?? crucibleModeName({ activityMode: match.activity_mode ?? null, activityModes: match.activity_modes ?? [] }),
       challengeTitle,
       featuredPlayer: viewer ? toPlayer(viewer) : null,
       featuredPlayerLabel: viewer ? `${viewer.kills ?? 0} defeats / ${viewer.deaths ?? 0} deaths` : null,

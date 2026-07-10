@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Crosshair } from "lucide-react";
 import { crucibleModeLabel } from "@/lib/crucible/modes";
 import type { CrucibleModeBucket, HeadToHeadModeRecord, HeadToHeadSummary } from "@/lib/crucible/types";
@@ -34,17 +35,34 @@ export default function HeadToHeadChip({
   syncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ left: 0, width: 352, up: false });
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number }>({ left: 0, width: 352 });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const record = recordFor(summary, filter);
   const meetings = summary.recentMeetings.filter((meeting) => filter === "all" || meeting.mode === filter);
   const importing = syncStatus === "queued" || syncStatus === "syncing";
-  // Position the panel relative to the chip, but clamp it inside the viewport so
-  // it never clips off an edge. Chips sit right after a player's name (usually
-  // near the left), so a fixed right-anchor would run off-screen; instead we
-  // measure and pin an explicit left/width every time it opens.
+
+  const cancelClose = () => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  };
+  // Small delay so the mouse can travel from the chip to the (detached) popover
+  // without it closing in the gap.
+  const scheduleClose = () => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  // The popover is rendered in a portal so it escapes the scrollable match list's
+  // overflow clipping. That means fixed viewport positioning, clamped to stay
+  // on-screen, flipping above the chip when there is no room below.
   const show = () => {
+    cancelClose();
     const rect = rootRef.current?.getBoundingClientRect();
     if (!rect) {
       setOpen(true);
@@ -52,41 +70,52 @@ export default function HeadToHeadChip({
     }
     const margin = 8;
     const width = Math.min(352, window.innerWidth - margin * 2);
-    const viewportLeft = Math.min(Math.max(rect.left, margin), window.innerWidth - width - margin);
-    const up = rect.bottom + 400 > window.innerHeight && rect.top > 400;
-    setPos({ left: viewportLeft - rect.left, width, up });
+    const left = Math.min(Math.max(rect.right - width, margin), window.innerWidth - width - margin);
+    const openUp = rect.bottom + 380 > window.innerHeight && rect.top > 380;
+    setPos({
+      left,
+      width,
+      top: openUp ? undefined : rect.bottom + 8,
+      bottom: openUp ? window.innerHeight - rect.top + 8 : undefined,
+    });
     setOpen(true);
   };
 
-  return (
-    <div
-      ref={rootRef}
-      className={`relative shrink-0 ${open ? "z-40" : "z-20"}`}
-      onMouseEnter={show}
-      onMouseLeave={() => setOpen(false)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          setOpen(false);
-          rootRef.current?.querySelector<HTMLButtonElement>("button")?.blur();
-        }
-      }}
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-label={`Head-to-head record against ${opponentName}`}
-        onClick={() => open ? setOpen(false) : show()}
-        className="group flex items-center gap-1 border border-bungie-blue/30 bg-bungie-blue/10 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none text-bungie-blue transition hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bungie-blue/70"
-      >
-        <Crosshair size={9} className="opacity-70 transition group-hover:rotate-45" />
-        {summary.wins}-{summary.losses}
-      </button>
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false);
+    };
+    // Close on scroll/resize rather than trying to keep a fixed panel glued to a
+    // scrolling row.
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [open]);
 
-      {open && (
-        <div style={{ left: pos.left, width: pos.width }} className={`absolute z-50 border border-bungie-blue/35 bg-[#10151c] shadow-[0_20px_60px_rgba(0,0,0,0.65)] ${pos.up ? "bottom-[calc(100%+0.5rem)]" : "top-[calc(100%+0.5rem)]"}`}>
+  useEffect(() => () => cancelClose(), []);
+
+  const popover = open && typeof document !== "undefined"
+    ? createPortal(
+        <div
+          ref={popoverRef}
+          style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }}
+          className="z-[100] border border-bungie-blue/35 bg-[#10151c] shadow-[0_20px_60px_rgba(0,0,0,0.65)]"
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        >
           <div className="relative overflow-hidden border-b border-bungie-border/70 px-4 py-3">
             <div className="absolute inset-y-0 left-0 w-1 bg-bungie-blue" />
             <div className="flex items-start justify-between gap-4">
@@ -153,8 +182,24 @@ export default function HeadToHeadChip({
               {importing ? "Importing older Crucible history" : "Based on recorded Bungie history"}
             </p>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div ref={rootRef} className="shrink-0" onMouseEnter={show} onMouseLeave={scheduleClose}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`Head-to-head record against ${opponentName}`}
+        onClick={() => (open ? setOpen(false) : show())}
+        className="group flex items-center gap-1 border border-bungie-blue/30 bg-bungie-blue/10 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none text-bungie-blue transition hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bungie-blue/70"
+      >
+        <Crosshair size={9} className="opacity-70 transition group-hover:rotate-45" />
+        {summary.wins}-{summary.losses}
+      </button>
+      {popover}
     </div>
   );
 }

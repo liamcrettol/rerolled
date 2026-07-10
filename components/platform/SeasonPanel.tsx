@@ -75,8 +75,8 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
   const loadout = match.loadout.filter((slot) => slot.icon || slot.name);
   const mapImage = normalizeBungieImage(match.mapImage ?? null);
   const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report";
-  const modeLabel = match.mode === "crucible" && match.modeBucket
-    ? crucibleModeLabel(match.modeBucket)
+  const modeLabel = match.mode === "crucible"
+    ? (match.modeName ?? (match.modeBucket ? crucibleModeLabel(match.modeBucket) : "Crucible"))
     : match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack";
   const hasScore = match.teamScore !== null || match.opponentScore !== null;
   const scoreText = `${match.teamScore ?? "-"}${match.opponentScore !== null ? `-${match.opponentScore}` : ""}`;
@@ -156,9 +156,8 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
 
       <div className={`mt-4 grid gap-3 ${match.opponents.length > 0 ? "lg:grid-cols-2" : ""}`}>
         <section className="border border-bungie-border/60 bg-bungie-dark/45">
-          <div className="flex items-center justify-between border-b border-bungie-border/55 px-3 py-2">
+          <div className="border-b border-bungie-border/55 px-3 py-2">
             <p className="section-label">{match.teamLabel}</p>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">{match.team.length} players</p>
           </div>
           <div className="divide-y divide-bungie-border/35">
             {match.team.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
@@ -167,9 +166,8 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
 
         {match.opponents.length > 0 && (
           <section className="border border-bungie-border/60 bg-bungie-dark/45">
-            <div className="flex items-center justify-between border-b border-bungie-border/55 px-3 py-2">
+            <div className="border-b border-bungie-border/55 px-3 py-2">
               <p className="section-label">{match.opponentLabel ?? "Opponents"}</p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">{match.opponents.length} players</p>
             </div>
             <div className="divide-y divide-bungie-border/35">
               {match.opponents.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
