@@ -5,10 +5,19 @@ name: Sync Crucible history
 # pre-loads the deep back-catalogue so head-to-head is ready without the user
 # waiting. Every run prints its queue/import counts and fails visibly when the
 # endpoint reports a stalled or failed worker.
+#
+# GitHub delivers `schedule` events best-effort. In this repo the observed
+# cadence is a few firings per day, not every 10 minutes, so each firing keeps
+# calling the endpoint (bounded by MAX_CALLS) until the due queue is drained
+# instead of taking a single 60-second bite.
 on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch: {}
+
+concurrency:
+  group: sync-crucible
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -21,51 +30,63 @@ jobs:
         run: |
           set -euo pipefail
 
-          response_file="$(mktemp)"
-          set +e
-          http_status="$(
-            curl -sS \
-              --connect-timeout 15 \
-              --max-time 70 \
-              -o "$response_file" \
-              -w "%{http_code}" \
-              -X GET "${APP_URL%/}/api/cron/sync-crucible" \
-              -H "Authorization: Bearer $CRON_SECRET"
-          )"
-          curl_exit=$?
-          set -e
+          MAX_CALLS=10
+          call=0
+          while :; do
+            call=$((call + 1))
+            response_file="$(mktemp)"
+            set +e
+            http_status="$(
+              curl -sS \
+                --connect-timeout 15 \
+                --max-time 70 \
+                -o "$response_file" \
+                -w "%{http_code}" \
+                -X GET "${APP_URL%/}/api/cron/sync-crucible" \
+                -H "Authorization: Bearer $CRON_SECRET"
+            )"
+            curl_exit=$?
+            set -e
 
-          echo "sync-crucible HTTP status: $http_status"
-          if jq . "$response_file" >/dev/null 2>&1; then
-            jq . "$response_file"
-          else
-            cat "$response_file"
-          fi
+            echo "call $call: HTTP status $http_status (curl exit $curl_exit)"
 
-          {
-            echo "### Crucible history sync"
-            echo
-            echo "- HTTP status: \`$http_status\`"
-            echo "- curl exit code: \`$curl_exit\`"
-            echo
-            echo '```json'
-            jq . "$response_file" 2>/dev/null || cat "$response_file"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### Crucible history sync (call $call)"
+              echo
+              echo "- HTTP status: \`$http_status\`"
+              echo "- curl exit code: \`$curl_exit\`"
+              echo
+              echo '```json'
+              jq . "$response_file" 2>/dev/null || cat "$response_file"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "$curl_exit" -ne 0 ]; then
-            echo "sync-crucible request failed before a valid response was received" >&2
-            exit "$curl_exit"
-          fi
+            if [ "$curl_exit" -ne 0 ]; then
+              echo "sync-crucible request failed before a valid response was received" >&2
+              exit "$curl_exit"
+            fi
 
-          if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
-            echo "sync-crucible returned a failing HTTP status" >&2
-            exit 1
-          fi
+            if [ "$http_status" -lt 200 ] || [ "$http_status" -ge 300 ]; then
+              jq . "$response_file" 2>/dev/null || cat "$response_file"
+              echo "sync-crucible returned a failing HTTP status" >&2
+              exit 1
+            fi
 
-          if ! jq -e '.ok == true' "$response_file" >/dev/null 2>&1; then
-            echo "sync-crucible response did not report ok=true" >&2
-            exit 1
-          fi
+            if ! jq -e '.ok == true' "$response_file" >/dev/null 2>&1; then
+              jq . "$response_file" 2>/dev/null || cat "$response_file"
+              echo "sync-crucible response did not report ok=true" >&2
+              exit 1
+            fi
 
-          jq -r '"state=\(.state) queued_before=\(.queuedBefore // 0) queued_remaining=\(.queuedRemaining // 0) claimed=\(.claimed // 0) completed=\(.completed // 0) failed=\(.failed // 0) activities=\(.activities // 0) matches=\(.matches // 0) duration_ms=\(.durationMs // 0)"' "$response_file"
+            jq -r '"state=\(.state) queued_before=\(.queuedBefore // 0) queued_remaining=\(.queuedRemaining // 0) claimed=\(.claimed // 0) completed=\(.completed // 0) failed=\(.failed // 0) activities=\(.activities // 0) matches=\(.matches // 0) duration_ms=\(.durationMs // 0)"' "$response_file"
+
+            queued_remaining="$(jq -r '.queuedRemaining // 0' "$response_file")"
+            if [ "$queued_remaining" -le 0 ]; then
+              echo "queue drained after $call call(s)"
+              break
+            fi
+            if [ "$call" -ge "$MAX_CALLS" ]; then
+              echo "reached MAX_CALLS ($MAX_CALLS) with $queued_remaining job(s) still due; the next firing continues"
+              break
+            fi
+          done
