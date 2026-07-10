@@ -24,6 +24,7 @@ export interface HeadToHeadMeeting {
   instanceId: string;
   playedAt: string;
   mode: CrucibleModeBucket;
+  modeName: string;
   viewerWon: boolean | null;
   activityName: string | null;
 }
@@ -52,4 +53,3 @@ export interface CrucibleSyncState {
   requested_at: string;
   updated_at: string;
 }
-
