@@ -7,6 +7,8 @@ import type {
   HeadToHeadSummary,
 } from "./types";
 
+const MAX_RECENT_MEETINGS = 12;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any;
 
@@ -79,7 +81,7 @@ export function summarizeEncounterRows(
     addResult(summary, row.viewer_won);
     const modeRecord = summary.byMode[row.mode_bucket] ??= emptyRecord();
     addResult(modeRecord, row.viewer_won);
-    if (summary.recentMeetings.length < 3) {
+    if (summary.recentMeetings.length < MAX_RECENT_MEETINGS) {
       const metadata = matchMetadata.get(row.instance_id);
       summary.recentMeetings.push({
         instanceId: row.instance_id,

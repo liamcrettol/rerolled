@@ -34,7 +34,7 @@ export default function HeadToHeadChip({
   syncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number }>({ left: 0, width: 384 });
+  const [pos, setPos] = useState<{ left: number; width: number; maxHeight: number; top?: number; bottom?: number }>({ left: 0, width: 384, maxHeight: 480 });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -77,10 +77,14 @@ export default function HeadToHeadChip({
     const margin = 8;
     const width = Math.min(384, window.innerWidth - margin * 2);
     const left = Math.min(Math.max(rect.right - width, margin), window.innerWidth - width - margin);
-    const openUp = rect.bottom + 420 > window.innerHeight && rect.top > 420;
+    const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - margin * 2);
+    const spaceAbove = Math.max(0, rect.top - margin * 2);
+    const openUp = spaceBelow < 420 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(180, openUp ? spaceAbove : spaceBelow);
     setPos({
       left,
       width,
+      maxHeight,
       top: openUp ? undefined : rect.bottom + 8,
       bottom: openUp ? window.innerHeight - rect.top + 8 : undefined,
     });
@@ -117,8 +121,8 @@ export default function HeadToHeadChip({
     ? createPortal(
         <div
           ref={popoverRef}
-          style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }}
-          className="z-[100] border border-bungie-blue/45 bg-[#0d1218] shadow-[0_20px_60px_rgba(0,0,0,0.72)]"
+          style={{ position: "fixed", left: pos.left, width: pos.width, maxHeight: pos.maxHeight, top: pos.top, bottom: pos.bottom }}
+          className="z-[100] flex flex-col overflow-hidden border border-bungie-blue/45 bg-[#0d1218] shadow-[0_20px_60px_rgba(0,0,0,0.72)]"
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
@@ -136,7 +140,7 @@ export default function HeadToHeadChip({
             </div>
           </div>
 
-          <div className="flex gap-1.5 overflow-x-auto border-b border-bungie-border/65 px-3 py-2.5">
+          <div className="flex flex-wrap gap-1.5 border-b border-bungie-border/65 px-3 py-2.5">
             {FILTERS.map((item) => {
               const count = recordFor(summary, item.key).encounters;
               return (
@@ -144,7 +148,7 @@ export default function HeadToHeadChip({
                   key={item.key}
                   type="button"
                   onClick={() => setFilter(item.key)}
-                  className={`shrink-0 border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.11em] transition ${filter === item.key ? "border-bungie-blue/70 bg-bungie-blue/15 text-bungie-blue" : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-200"}`}
+                  className={`shrink-0 whitespace-nowrap border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.11em] transition ${filter === item.key ? "border-bungie-blue/70 bg-bungie-blue/15 text-bungie-blue" : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-200"}`}
                 >
                   {item.label} {count > 0 ? count : ""}
                 </button>
@@ -161,7 +165,7 @@ export default function HeadToHeadChip({
             ))}
           </div>
 
-          <div className="px-3.5 py-3.5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3.5">
             <div className="mb-2.5 flex items-center justify-between gap-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Recent meetings</p>
               <p className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Last {formatDate(summary.lastPlayedAt)}</p>
