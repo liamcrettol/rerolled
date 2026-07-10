@@ -101,6 +101,7 @@ const MODE_NAMES: Record<number, string> = {
 export function crucibleModeName(input: {
   activityMode: number | null;
   activityModes: number[];
+  modeBucket?: CrucibleModeBucket | null;
 }): string {
   const modes = new Set(input.activityModes);
   if (input.activityMode !== null) modes.add(input.activityMode);
@@ -110,10 +111,9 @@ export function crucibleModeName(input: {
   const specificMode = input.activityMode !== null && MODE_NAMES[input.activityMode]
     ? MODE_NAMES[input.activityMode]
     : input.activityModes.map((mode) => MODE_NAMES[mode]).find(Boolean);
-  if ([...modes].some((m) => COMPETITIVE_MODES.has(m))) {
-    return specificMode ? `Competitive · ${specificMode}` : "Competitive";
+  if (input.modeBucket === "competitive" || [...modes].some((m) => COMPETITIVE_MODES.has(m))) {
+    return specificMode ? `Competitive ${specificMode}` : "Competitive";
   }
   if (specificMode) return specificMode;
   return "Crucible";
 }
-

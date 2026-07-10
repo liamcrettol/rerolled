@@ -27,15 +27,18 @@ describe("classifyCrucibleMode", () => {
 
 describe("crucibleModeName", () => {
   it("shows the Competitive playlist and Zone Control ruleset", () => {
-    expect(crucibleModeName({ activityMode: 89, activityModes: [5, 89] })).toBe("Competitive · Zone Control");
+    expect(crucibleModeName({ activityMode: 89, activityModes: [5, 89] })).toBe("Competitive Zone Control");
   });
 
   it("shows the Competitive playlist and Clash ruleset", () => {
-    expect(crucibleModeName({ activityMode: 72, activityModes: [5, 69, 72] })).toBe("Competitive · Clash");
+    expect(crucibleModeName({ activityMode: 72, activityModes: [5, 69, 72] })).toBe("Competitive Clash");
+  });
+
+  it("uses the stored competitive bucket for older Clash rows", () => {
+    expect(crucibleModeName({ activityMode: 71, activityModes: [5, 12, 71], modeBucket: "competitive" })).toBe("Competitive Clash");
   });
 
   it("keeps quickplay Clash concise", () => {
     expect(crucibleModeName({ activityMode: 71, activityModes: [5, 70, 12, 71] })).toBe("Clash");
   });
 });
-
