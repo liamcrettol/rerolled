@@ -1,7 +1,7 @@
 import {
   detectMercyOrLargeMargin,
   finalizationPrerequisitesReady,
-} from "@/lib/scoreAttack/worker/automaticHandlers";
+} from "@/lib/scoreAttack/worker/participantBadgeContext";
 import type { NormalizedPvpPgcr, NormalizedPvpPgcrPlayer } from "@/lib/scoreAttack/types";
 
 function player(overrides: Partial<NormalizedPvpPgcrPlayer> = {}): NormalizedPvpPgcrPlayer {
