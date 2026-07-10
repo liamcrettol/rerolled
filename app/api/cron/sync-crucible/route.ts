@@ -38,6 +38,18 @@ async function countDueQueuedSyncs(now: string): Promise<number> {
   return count ?? 0;
 }
 
+async function moveRequeuedSyncToBack(userId: string): Promise<void> {
+  const { error } = await adminSupabase
+    .from("crucible_sync_state")
+    .update({ requested_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("status", "queued");
+
+  if (error) {
+    throw new Error(`Crucible sync queue rotation failed: ${error.message}`);
+  }
+}
+
 export async function GET(req: NextRequest) {
   const denied = assertCronAuth(req);
   if (denied) return denied;
@@ -63,6 +75,12 @@ export async function GET(req: NextRequest) {
 
       try {
         const synced = await syncNextCrucibleHistoryPage(state.user_id);
+        if (synced.hasMore) {
+          // claim_crucible_sync orders by requested_at. Move a user that still
+          // has pages remaining to the back of the queue so one deep account
+          // cannot monopolize every claim while other users remain untouched.
+          await moveRequeuedSyncToBack(state.user_id);
+        }
         result.completed++;
         result.activities += synced.processedActivities;
         result.matches += synced.importedMatches;
