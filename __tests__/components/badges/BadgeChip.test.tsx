@@ -85,4 +85,39 @@ describe("BadgeChip", () => {
     );
     expect(container.querySelector(".opacity-45.grayscale")).toBeInTheDocument();
   });
+
+  it("renders the Developer bespoke badge in the full Badge Case size", () => {
+    const { container } = render(
+      <BadgeChip
+        slug="status_developer"
+        name="Developer"
+        description="Project maintainer."
+        tier="special"
+        mode="status_legacy"
+        iconKey="status"
+        size="full"
+      />
+    );
+
+    expect(screen.getByText("DEVELOPER")).toBeInTheDocument();
+    expect(screen.queryByText("Developer")).not.toBeInTheDocument();
+    expect(container.querySelector(".sr-only")?.textContent).toBe("Developer. Project maintainer.");
+  });
+
+  it("renders the compact Developer mark for icon-only player cards", () => {
+    const { container } = render(
+      <BadgeChip
+        slug="status_developer"
+        name="Developer"
+        description="Project maintainer."
+        tier="special"
+        mode="status_legacy"
+        iconKey="status"
+        size="icon"
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "Developer badge mark" })).toBeInTheDocument();
+    expect(container.querySelector(".sr-only")?.textContent).toBe("Developer. Project maintainer.");
+  });
 });
