@@ -55,5 +55,31 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, candidates: instanceIds.length, matchesProcessed, playersUpdated, remaining });
+  // Diagnostic: dump the raw team structure + parsed results for the newest few
+  // matches so we can see exactly where standing lives and whether it resolves.
+  const samples: unknown[] = [];
+  const { data: recent } = await adminSupabase
+    .from("crucible_matches")
+    .select("instance_id, activity_name")
+    .order("period", { ascending: false })
+    .limit(4);
+  for (const rm of recent ?? []) {
+    const { data: c } = await adminSupabase.from("pgcr_cache").select("raw_pgcr").eq("instance_id", rm.instance_id).maybeSingle();
+    if (!c?.raw_pgcr) {
+      samples.push({ instanceId: rm.instance_id, noCache: true });
+      continue;
+    }
+    const parsed = parsePgcr(c.raw_pgcr);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = c.raw_pgcr as any;
+    samples.push({
+      instanceId: rm.instance_id,
+      name: rm.activity_name,
+      kind: parsed.kind,
+      rawTeams: raw?.Response?.teams ?? raw?.teams ?? null,
+      players: (parsed.players ?? []).slice(0, 3).map((p) => ({ team: p.team, standing: p.standing, isWin: p.isWin })),
+    });
+  }
+
+  return NextResponse.json({ ok: true, candidates: instanceIds.length, matchesProcessed, playersUpdated, remaining, samples });
 }

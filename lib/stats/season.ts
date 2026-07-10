@@ -49,7 +49,7 @@ async function resolveFavoriteWeapon(userId: string): Promise<SeasonStats["bestW
 
 export async function getSeasonStats(userId: string): Promise<SeasonStats> {
   try {
-    const careerHistoryPromise = getCrucibleMatchHistory(userId).catch(() => ({
+    const careerHistoryPromise = getCrucibleMatchHistory(userId, { limit: 25 }).catch(() => ({
       matches: [],
       syncStatus: "idle" as const,
     }));
@@ -165,7 +165,7 @@ export async function getSeasonStats(userId: string): Promise<SeasonStats> {
     const mergedHistory = [
       ...career.matches,
       ...legacyHistory.filter((match) => !match.instanceId || !importedIds.has(match.instanceId)),
-    ].sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()).slice(0, 12);
+    ].sort((a, b) => new Date(b.playedAt).getTime() - new Date(a.playedAt).getTime()).slice(0, 25);
 
     return {
       ...baseStats,
