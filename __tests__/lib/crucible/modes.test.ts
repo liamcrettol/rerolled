@@ -1,4 +1,4 @@
-import { classifyCrucibleMode } from "@/lib/crucible/modes";
+import { classifyCrucibleMode, crucibleModeName } from "@/lib/crucible/modes";
 
 const classify = (activityMode: number | null, activityModes: number[] = []) =>
   classifyCrucibleMode({ activityMode, activityModes, activityHash: null });
@@ -22,6 +22,20 @@ describe("classifyCrucibleMode", () => {
 
   it("keeps unknown PvP modes in Other", () => {
     expect(classify(null, [5, 999])).toBe("other");
+  });
+});
+
+describe("crucibleModeName", () => {
+  it("shows the Competitive playlist and Zone Control ruleset", () => {
+    expect(crucibleModeName({ activityMode: 89, activityModes: [5, 89] })).toBe("Competitive · Zone Control");
+  });
+
+  it("shows the Competitive playlist and Clash ruleset", () => {
+    expect(crucibleModeName({ activityMode: 72, activityModes: [5, 69, 72] })).toBe("Competitive · Clash");
+  });
+
+  it("keeps quickplay Clash concise", () => {
+    expect(crucibleModeName({ activityMode: 71, activityModes: [5, 70, 12, 71] })).toBe("Clash");
   });
 });
 

@@ -106,10 +106,14 @@ export function crucibleModeName(input: {
   if (input.activityMode !== null) modes.add(input.activityMode);
   if (modes.has(MODE.TRIALS_OF_OSIRIS)) return "Trials of Osiris";
   if ([...modes].some((m) => IRON_BANNER_MODES.has(m))) return "Iron Banner";
-  if ([...modes].some((m) => COMPETITIVE_MODES.has(m))) return "Competitive";
   // Prefer the specific game type from the singular mode, then the array.
-  if (input.activityMode !== null && MODE_NAMES[input.activityMode]) return MODE_NAMES[input.activityMode];
-  for (const m of input.activityModes) if (MODE_NAMES[m]) return MODE_NAMES[m];
+  const specificMode = input.activityMode !== null && MODE_NAMES[input.activityMode]
+    ? MODE_NAMES[input.activityMode]
+    : input.activityModes.map((mode) => MODE_NAMES[mode]).find(Boolean);
+  if ([...modes].some((m) => COMPETITIVE_MODES.has(m))) {
+    return specificMode ? `Competitive · ${specificMode}` : "Competitive";
+  }
+  if (specificMode) return specificMode;
   return "Crucible";
 }
 

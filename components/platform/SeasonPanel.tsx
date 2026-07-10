@@ -78,8 +78,12 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
           <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>
         )}
         <div className="mt-1.5 flex items-baseline justify-between gap-2">
-          <span className="whitespace-nowrap font-mono text-[10px] uppercase text-gray-500">
-            {player.kills ?? 0}K / {player.deaths ?? 0}D / {player.assists ?? 0}A
+          <span className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] text-gray-400">
+            <span><span className="text-gray-100">{player.kills ?? 0}</span> K</span>
+            <span className="text-gray-700">/</span>
+            <span><span className="text-gray-100">{player.deaths ?? 0}</span> D</span>
+            <span className="text-gray-700">/</span>
+            <span><span className="text-gray-100">{player.assists ?? 0}</span> A</span>
           </span>
           <span className="shrink-0 font-mono text-xs text-white">{formatKd(player.kd)} K/D</span>
         </div>
