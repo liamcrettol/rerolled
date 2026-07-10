@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     if (!member) return NextResponse.json({ ok: true });
 
-    // Drafts are single-session boards - leaving them should close the room
-    // outright so stale joinable codes do not accumulate on the dashboard.
+    // Drafts are single-session boards. Confirming in the client makes this
+    // explicit because closing the room ends the draft for the whole fireteam.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await adminSupabase
       .from("lobbies")

@@ -182,6 +182,11 @@ export function getWeaponAmmoType(itemHash: number): string | null {
   return WEAPONS.get(itemHash)?.ammoType ?? null;
 }
 
+/** Synchronous rarity lookup used by server-side loadout rule enforcement. */
+export function getWeaponTierType(itemHash: number): number | null {
+  return WEAPONS.get(itemHash)?.tierType ?? null;
+}
+
 export async function getPerkNames(hashes: number[]): Promise<Map<number, string>> {
   const result = new Map<number, string>();
   for (const hash of hashes) {

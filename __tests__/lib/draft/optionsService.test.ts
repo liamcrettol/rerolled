@@ -1,13 +1,15 @@
 /** @jest-environment node */
 import { generateSlotOptions, commitSlotPick } from "@/lib/draft/optionsService";
-import { getWeaponAmmoType } from "@/lib/bungie/definitions";
+import { getWeaponAmmoType, getWeaponTierType } from "@/lib/bungie/definitions";
 
 // Mock the ammo-type lookup so the double-special rule is tested against fixed
 // hashes rather than the weekly-refreshed weapons table.
 jest.mock("@/lib/bungie/definitions", () => ({
   getWeaponAmmoType: jest.fn(() => null),
+  getWeaponTierType: jest.fn(() => null),
 }));
 const mockAmmo = getWeaponAmmoType as jest.MockedFunction<typeof getWeaponAmmoType>;
+const mockTier = getWeaponTierType as jest.MockedFunction<typeof getWeaponTierType>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeDb(config: Record<string, any>) {
@@ -154,6 +156,7 @@ describe("commitSlotPick", () => {
   it("commits an offered pick into lobby_loadout_slots", async () => {
     const db = makeDb({
       lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobby_members: { list: [{ user_id: captain, is_spectator: false }] },
       lobby_draft_options: {
         list: [{ item_hash: 1, weapon_name: "A", weapon_icon: "a", weapon_type: "Auto Rifle", damage_type: "Kinetic" }],
       },
@@ -161,5 +164,21 @@ describe("commitSlotPick", () => {
     });
     const result = await commitSlotPick("lobby1", "round1", "kinetic", 1, captain, db);
     expect(result).toEqual({ ok: true });
+  });
+
+  it("rejects a second exotic even if it was offered", async () => {
+    mockTier.mockImplementation((hash) => (hash === 1 || hash === 2 ? 6 : 5));
+    const db = makeDb({
+      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobby_members: { list: [{ user_id: captain, is_spectator: false }] },
+      lobby_draft_options: {
+        list: [{ item_hash: 2, weapon_name: "B", weapon_icon: "b", weapon_type: "Bow", damage_type: "Void" }],
+      },
+      lobby_loadout_slots: {
+        list: [{ slot: "kinetic", item_hash: 1 }],
+      },
+    });
+    const result = await commitSlotPick("lobby1", "round1", "energy", 2, captain, db);
+    expect(result).toEqual({ ok: false, error: "Only one exotic weapon can be equipped in a loadout" });
   });
 });

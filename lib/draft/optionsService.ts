@@ -5,7 +5,7 @@
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { pickCandidates, isValidPick } from "./options";
-import { getWeaponAmmoType } from "@/lib/bungie/definitions";
+import { getWeaponAmmoType, getWeaponTierType } from "@/lib/bungie/definitions";
 import type { WeaponSlot } from "@/types/bungie";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,6 +79,30 @@ async function applyAmmoRules(
   return nonSpecial.length > 0 ? nonSpecial : pool;
 }
 
+// Destiny only permits one exotic weapon in a loadout. Filter the next reveal
+// after an exotic has already been committed. If a pool contains only exotics,
+// keep the reveal usable and let commit validation explain the conflict rather
+// than returning an empty reveal.
+async function applyExoticRules(
+  slot: WeaponSlot,
+  roundId: string,
+  pool: number[],
+  db: Db
+): Promise<number[]> {
+  const { data: committed } = await db
+    .from("lobby_loadout_slots")
+    .select("slot, item_hash")
+    .eq("round_id", roundId);
+
+  const hasExotic = (committed ?? []).some(
+    (pick: { slot: WeaponSlot; item_hash: number }) => pick.slot !== slot && getWeaponTierType(pick.item_hash) === 6
+  );
+  if (!hasExotic) return pool;
+
+  const nonExotic = pool.filter((hash) => getWeaponTierType(hash) !== 6);
+  return nonExotic.length > 0 ? nonExotic : pool;
+}
+
 export async function generateSlotOptions(
   lobbyId: string,
   roundId: string,
@@ -101,7 +125,8 @@ export async function generateSlotOptions(
     return { ok: false, error: "No shared weapon pool cached yet. Open the lobby's weapon browser first." };
   }
 
-  const candidatePool = await applyAmmoRules(slot, roundId, pool, db);
+  const ammoSafePool = await applyAmmoRules(slot, roundId, pool, db);
+  const candidatePool = await applyExoticRules(slot, roundId, ammoSafePool, db);
   const candidates = pickCandidates(candidatePool);
   const options: DraftOption[] = candidates
     .map((itemHash, position) => {
@@ -118,6 +143,7 @@ export async function generateSlotOptions(
   // Replace rather than accumulate: re-rolling a slot's options overwrites the
   // previous 3, it doesn't append a second set.
   await db.from("lobby_draft_options").delete().eq("round_id", roundId).eq("slot", slot);
+  await db.from("lobby_draft_votes").delete().eq("round_id", roundId).eq("slot", slot);
   await db.from("lobby_draft_options").insert(
     options.map((o) => ({
       round_id: roundId,
@@ -178,6 +204,17 @@ export async function commitOfferedOption(
   const picked = offered.find((o) => o.item_hash === itemHash);
   if (!picked) return { ok: false, error: "That weapon wasn't one of the revealed options" };
 
+  const { data: committed } = await db
+    .from("lobby_loadout_slots")
+    .select("slot, item_hash")
+    .eq("round_id", roundId);
+  const exoticAlreadyCommitted = (committed ?? []).some(
+    (existing: { slot: WeaponSlot; item_hash: number }) => existing.slot !== slot && getWeaponTierType(existing.item_hash) === 6
+  );
+  if (exoticAlreadyCommitted && getWeaponTierType(picked.item_hash) === 6) {
+    return { ok: false, error: "Only one exotic weapon can be equipped in a loadout" };
+  }
+
   const { error } = await db.from("lobby_loadout_slots").upsert(
     {
       round_id: roundId,
@@ -206,6 +243,14 @@ export async function commitSlotPick(
 ): Promise<CommitPickResult> {
   const captainCheck = await requireCaptain(lobbyId, userId, db);
   if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
+
+  const { data: members } = await db
+    .from("lobby_members")
+    .select("user_id, is_spectator")
+    .eq("lobby_id", lobbyId);
+  if ((members ?? []).filter((member: { is_spectator: boolean }) => !member.is_spectator).length > 1) {
+    return { ok: false, error: "This draft uses a fireteam vote. Choose an option to vote instead." };
+  }
 
   const offered = await getOfferedOptions(roundId, slot, db);
   return commitOfferedOption(roundId, slot, itemHash, offered, userId, db);

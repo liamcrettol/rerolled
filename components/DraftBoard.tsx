@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy } from "lucide-react";
+import DraftLeaveButton from "@/components/draft/DraftLeaveButton";
 import Spinner from "./Spinner";
 import PlayerCard from "./PlayerCard";
 import { createClient } from "@/lib/supabase/client";
@@ -133,7 +134,7 @@ function DraftCard({
       type="button"
       onClick={onPick}
       disabled={disabled || !landed}
-      className={`group relative flex flex-1 flex-col items-center gap-3 bg-bungie-dark border p-4 transition-all duration-300 ${
+    className={`group relative flex w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col items-center gap-3 bg-bungie-dark border p-4 transition-all duration-300 ${
         selected ? "border-transparent animate-pick-pop" : "border-bungie-border"
       } ${dimmed ? "opacity-30" : "opacity-100"} ${
         landed && !disabled ? "cursor-pointer hover:border-white/40" : "cursor-default"
@@ -202,7 +203,7 @@ function DraftCard({
 function CardBack({ pulse }: { pulse: boolean }) {
   return (
     <div
-      className={`flex flex-1 flex-col items-center justify-center gap-3 border border-dashed border-bungie-border bg-bungie-dark/60 p-4 ${
+      className={`flex w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col items-center justify-center gap-3 border border-dashed border-bungie-border bg-bungie-dark/60 p-4 ${
         pulse ? "animate-pulse" : ""
       }`}
       style={{ minHeight: CARD_WINDOW + 72 }}
@@ -239,6 +240,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const [pickingHash, setPickingHash] = useState<number | null>(null);
   const [characters, setCharacters] = useState<{ characterId: string; classType: number }[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
+  const [charactersLoading, setCharactersLoading] = useState(false);
+  const [characterError, setCharacterError] = useState<string | null>(null);
+  const [roster, setRoster] = useState(members);
   // Votes per slot for the current round (#315) - only meaningful in
   // multi-member lobbies; solo lobbies keep the old captain-taps-to-lock flow.
   const [votes, setVotes] = useState<Partial<Record<WeaponSlot, { voterUserId: string; itemHash: number }[]>>>({});
@@ -251,15 +255,15 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // refetches) don't replay the reel every time.
   const animatedRef = useRef<Set<WeaponSlot>>(new Set());
 
-  const nonSpectatorMembers = useMemo(() => members.filter((m) => !m.is_spectator), [members]);
+  const nonSpectatorMembers = useMemo(() => roster.filter((m) => !m.is_spectator), [roster]);
   // A lobby of just the captain has nothing to vote on - keep the original
   // instant tap-to-lock behavior instead of running a pointless vote/timer.
   const isSolo = nonSpectatorMembers.length <= 1;
-  const isSpectator = members.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
+  const isSpectator = roster.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
 
   const nameFor = useCallback(
-    (userId: string) => members.find((m) => m.user_id === userId)?.display_name ?? userId,
-    [members]
+    (userId: string) => roster.find((m) => m.user_id === userId)?.display_name ?? userId,
+    [roster]
   );
 
   // Same copy-to-clipboard pattern LobbyRoom uses for its lobby code (#314).
@@ -289,12 +293,19 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     if (!round) return;
     setRoundId(round.id);
 
-    const [{ data: existingSlots }, { data: existingOptions }, { data: existingVotes }] = await Promise.all([
+    const [{ data: existingSlots }, { data: existingOptions }, { data: existingVotes }, { data: currentMembers }] = await Promise.all([
       supabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id),
       supabase.from("lobby_draft_options").select("*").eq("round_id", round.id),
       supabase.from("lobby_draft_votes").select("*").eq("round_id", round.id),
+      supabase.from("lobby_members").select("*").eq("lobby_id", lobby.id),
     ]);
     setSlots(existingSlots ?? []);
+    if (currentMembers) {
+      setRoster((previous) => currentMembers.map((member) => ({
+        ...(previous.find((old) => old.id === member.id) ?? {}),
+        ...member,
+      })) as typeof members);
+    }
 
     const grouped: Partial<Record<WeaponSlot, DraftOption[]>> = {};
     const revealed: Partial<Record<WeaponSlot, string>> = {};
@@ -353,6 +364,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "lobby_draft_votes" },
+          () => loadRound()
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "lobby_members" },
           () => loadRound()
         );
     },
@@ -414,16 +430,55 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   useEffect(() => {
     if (!complete) return;
+    let cancelled = false;
+    setCharactersLoading(true);
+    setCharacterError(null);
     fetch("/api/bungie/characters")
-      .then((res) => res.json())
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Couldn't load your Destiny characters");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data.characters?.length) {
+          setCharacters(data.characters);
+          setSelectedCharacterId(data.characters[0].characterId);
+        } else {
+          setCharacterError("No Destiny characters were returned. Retry before applying the loadout.");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setCharacterError(err instanceof Error ? err.message : "Couldn't load your Destiny characters");
+      })
+      .finally(() => {
+        if (!cancelled) setCharactersLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [complete]);
+
+  function retryCharacters() {
+    setCharacters([]);
+    setSelectedCharacterId("");
+    setCharacterError(null);
+    // Toggling the completion dependency is unnecessary. The fetch effect is
+    // retriggered by this explicit event through the same endpoint.
+    setCharactersLoading(true);
+    fetch("/api/bungie/characters")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Couldn't load your Destiny characters");
+        return data;
+      })
       .then((data) => {
         if (data.characters?.length) {
           setCharacters(data.characters);
           setSelectedCharacterId(data.characters[0].characterId);
-        }
+        } else setCharacterError("No Destiny characters were returned. Retry before applying the loadout.");
       })
-      .catch(() => {});
-  }, [complete]);
+      .catch((err) => setCharacterError(err instanceof Error ? err.message : "Couldn't load your Destiny characters"))
+      .finally(() => setCharactersLoading(false));
+  }
 
   async function reveal(slot: WeaponSlot) {
     if (!roundId) return;
@@ -524,7 +579,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl flex-col gap-6">
       {/* Header: title, join code + invite, progress stepper */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="section-label">Draft</h1>
           <button
@@ -542,7 +597,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             {copiedLink ? "Copied" : "Invite"}
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {SLOT_ORDER.map((slot) => {
             const isDone = committedSlots.has(slot);
             const isActive = slot === activeSlot;
@@ -554,7 +609,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     ? "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue"
                     : isActive
                       ? "border-white/40 text-white"
-                      : "border-bungie-border text-gray-600"
+                      : "border-bungie-border text-gray-400"
                 }`}
               >
                 {isDone && (
@@ -572,13 +627,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
               </div>
             );
           })}
+          <DraftLeaveButton lobbyId={lobby.id} />
         </div>
       </div>
 
       {/* Fireteam roster — compact PlayerCard, same one Roll Comparison uses */}
-      {members.length > 0 && (
+      {roster.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {members.map((m) => (
+          {roster.map((m) => (
             <div key={m.id} className="w-48">
               <PlayerCard member={m} compact />
             </div>
@@ -629,10 +685,12 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
             {activeOptions.length === 0 ? (
               <>
-                <div className="flex items-stretch gap-4">
-                  {[0, 1, 2].map((i) => (
-                    <CardBack key={i} pulse={isCaptain} />
-                  ))}
+                <div className="w-full overflow-x-auto pb-2">
+                  <div className="flex min-w-max justify-center gap-4">
+                    {[0, 1, 2].map((i) => (
+                      <CardBack key={i} pulse={isCaptain} />
+                    ))}
+                  </div>
                 </div>
                 {isCaptain && (
                   <button
@@ -647,8 +705,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 )}
               </>
             ) : (
-              <div className="flex items-stretch gap-4">
-                {activeOptions.map((opt, i) => (
+              <div className="w-full overflow-x-auto pb-2">
+                <div className="flex min-w-max justify-center gap-4">
+                  {activeOptions.map((opt, i) => (
                   <DraftCard
                     key={`${activeSlot}-${opt.itemHash}`}
                     option={opt}
@@ -667,7 +726,18 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                       }
                     }}
                   />
-                ))}
+                  ))}
+                </div>
+                {isCaptain && (
+                  <button
+                    type="button"
+                    onClick={() => reveal(activeSlot)}
+                    disabled={busy}
+                    className="mx-auto mt-4 border border-bungie-border px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:border-bungie-blue hover:text-bungie-blue disabled:opacity-50"
+                  >
+                    {busy ? "Rerolling..." : "Reroll options"}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -694,6 +764,15 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 Equip it on a character to send it in-game.
               </p>
             </div>
+            {charactersLoading && <p className="text-sm text-gray-400">Loading Destiny characters...</p>}
+            {characterError && (
+              <div className="space-y-3 border border-red-500/40 bg-red-500/10 px-3 py-3 text-sm text-red-300">
+                <p>{characterError}</p>
+                <button type="button" onClick={retryCharacters} className="border border-red-400/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-red-200 hover:bg-red-500/10">
+                  Retry
+                </button>
+              </div>
+            )}
             {characters.length > 0 && (
               <div className="flex items-center justify-center gap-2">
                 <select

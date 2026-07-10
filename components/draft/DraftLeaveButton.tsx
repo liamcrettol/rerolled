@@ -9,6 +9,7 @@ export default function DraftLeaveButton({ lobbyId }: { lobbyId: string }) {
   const [leaving, setLeaving] = useState(false);
 
   async function leaveDraft() {
+    if (!window.confirm("Leaving Draft ends this draft for everyone in the fireteam. Continue?")) return;
     setLeaving(true);
     try {
       await fetch("/api/draft/leave", {
