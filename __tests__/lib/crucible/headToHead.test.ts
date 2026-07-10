@@ -1,4 +1,4 @@
-import { summarizeEncounterRows, type EncounterRow } from "@/lib/crucible/headToHead";
+import { getHeadToHeadSummaries, summarizeEncounterRows, type EncounterRow } from "@/lib/crucible/headToHead";
 
 const row = (overrides: Partial<EncounterRow> = {}): EncounterRow => ({
   opponent_membership_id: "opp-1",
@@ -41,6 +41,49 @@ describe("summarizeEncounterRows", () => {
     ]);
     expect(summaries["opp-1"].opponentDisplayName).toBe("New Name");
     expect(summaries["opp-2"].encounters).toBe(1);
+  });
+});
+
+describe("getHeadToHeadSummaries", () => {
+  it("batches more than 50 visible opponents instead of returning fake 0-0 records", async () => {
+    const encounters = Array.from({ length: 51 }, (_, index) => row({
+      opponent_membership_id: `opp-${index}`,
+      instance_id: `match-${index}`,
+    }));
+    const requestedBatches: string[][] = [];
+    // Structural fake for the small PostgREST query surface used here.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db: any = {
+      from(table: string) {
+        let ids: string[] = [];
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          order: () => chain,
+          in: (_column: string, values: string[]) => {
+            ids = values;
+            if (table === "crucible_encounters") requestedBatches.push(values);
+            return chain;
+          },
+          then(resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) {
+            const data = table === "crucible_encounters"
+              ? encounters.filter((entry) => ids.includes(entry.opponent_membership_id))
+              : ids.map((instanceId) => ({ instance_id: instanceId, activity_name: "Control" }));
+            return Promise.resolve({ data, error: null }).then(resolve, reject);
+          },
+        };
+        return chain;
+      },
+    };
+
+    const summaries = await getHeadToHeadSummaries({
+      viewerUserId: "viewer",
+      opponentMembershipIds: encounters.map((entry) => entry.opponent_membership_id),
+      db,
+    });
+
+    expect(requestedBatches.map((batch) => batch.length)).toEqual([50, 1]);
+    expect(summaries["opp-50"]).toMatchObject({ encounters: 1, wins: 1, losses: 0 });
   });
 });
 

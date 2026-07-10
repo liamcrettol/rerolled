@@ -69,28 +69,35 @@ export async function getHeadToHeadSummaries(input: {
   mode?: CrucibleModeBucket | "all";
   db?: Db;
 }): Promise<Record<string, HeadToHeadSummary>> {
-  const ids = [...new Set(input.opponentMembershipIds)].slice(0, 50);
+  const ids = [...new Set(input.opponentMembershipIds)];
   if (ids.length === 0) return {};
   const db = input.db ?? adminSupabase;
-  let query = db
-    .from("crucible_encounters")
-    .select("opponent_membership_id, opponent_membership_type, opponent_display_name, instance_id, mode_bucket, viewer_won, played_at")
-    .eq("viewer_user_id", input.viewerUserId)
-    .in("opponent_membership_id", ids)
-    .order("played_at", { ascending: false });
-  if (input.mode && input.mode !== "all") query = query.eq("mode_bucket", input.mode);
-  const { data, error } = await query;
-  if (error) throw new Error(`Head-to-head query failed: ${error.message}`);
-  const rows = (data ?? []) as EncounterRow[];
-  const instanceIds = [...new Set(rows.slice(0, 150).map((row) => row.instance_id))];
+  const batches = Array.from({ length: Math.ceil(ids.length / 50) }, (_, index) => ids.slice(index * 50, (index + 1) * 50));
+  const results = await Promise.all(batches.map(async (batch) => {
+    let query = db
+      .from("crucible_encounters")
+      .select("opponent_membership_id, opponent_membership_type, opponent_display_name, instance_id, mode_bucket, viewer_won, played_at")
+      .eq("viewer_user_id", input.viewerUserId)
+      .in("opponent_membership_id", batch)
+      .order("played_at", { ascending: false });
+    if (input.mode && input.mode !== "all") query = query.eq("mode_bucket", input.mode);
+    const result = await query;
+    if (result.error) throw new Error(`Head-to-head query failed: ${result.error.message}`);
+    return (result.data ?? []) as EncounterRow[];
+  }));
+  const rows = results.flat();
+  const instanceIds = [...new Set(rows.map((row) => row.instance_id))];
   const matchNames = new Map<string, string | null>();
   if (instanceIds.length > 0) {
-    const { data: matches, error: matchError } = await db
+    const matchBatches = Array.from({ length: Math.ceil(instanceIds.length / 100) }, (_, index) => instanceIds.slice(index * 100, (index + 1) * 100));
+    const matchResults = await Promise.all(matchBatches.map((batch) => db
       .from("crucible_matches")
       .select("instance_id, activity_name")
-      .in("instance_id", instanceIds);
-    if (matchError) throw new Error(`Head-to-head match lookup failed: ${matchError.message}`);
-    for (const match of matches ?? []) matchNames.set(match.instance_id, match.activity_name);
+      .in("instance_id", batch)));
+    for (const result of matchResults) {
+      if (result.error) throw new Error(`Head-to-head match lookup failed: ${result.error.message}`);
+      for (const match of result.data ?? []) matchNames.set(match.instance_id, match.activity_name);
+    }
   }
   return summarizeEncounterRows(rows, matchNames);
 }
