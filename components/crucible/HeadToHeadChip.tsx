@@ -34,15 +34,27 @@ export default function HeadToHeadChip({
   syncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }) {
   const [open, setOpen] = useState(false);
-  const [openUp, setOpenUp] = useState(false);
+  const [pos, setPos] = useState({ left: 0, width: 352, up: false });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
   const rootRef = useRef<HTMLDivElement>(null);
   const record = recordFor(summary, filter);
   const meetings = summary.recentMeetings.filter((meeting) => filter === "all" || meeting.mode === filter);
   const importing = syncStatus === "queued" || syncStatus === "syncing";
+  // Position the panel relative to the chip, but clamp it inside the viewport so
+  // it never clips off an edge. Chips sit right after a player's name (usually
+  // near the left), so a fixed right-anchor would run off-screen; instead we
+  // measure and pin an explicit left/width every time it opens.
   const show = () => {
     const rect = rootRef.current?.getBoundingClientRect();
-    setOpenUp(Boolean(rect && rect.bottom + 400 > window.innerHeight && rect.top > 400));
+    if (!rect) {
+      setOpen(true);
+      return;
+    }
+    const margin = 8;
+    const width = Math.min(352, window.innerWidth - margin * 2);
+    const viewportLeft = Math.min(Math.max(rect.left, margin), window.innerWidth - width - margin);
+    const up = rect.bottom + 400 > window.innerHeight && rect.top > 400;
+    setPos({ left: viewportLeft - rect.left, width, up });
     setOpen(true);
   };
 
@@ -74,7 +86,7 @@ export default function HeadToHeadChip({
       </button>
 
       {open && (
-        <div className={`absolute right-0 z-50 w-[min(22rem,calc(100vw-2rem))] border border-bungie-blue/35 bg-[#10151c] shadow-[0_20px_60px_rgba(0,0,0,0.65)] ${openUp ? "bottom-[calc(100%+0.5rem)]" : "top-[calc(100%+0.5rem)]"}`}>
+        <div style={{ left: pos.left, width: pos.width }} className={`absolute z-50 border border-bungie-blue/35 bg-[#10151c] shadow-[0_20px_60px_rgba(0,0,0,0.65)] ${pos.up ? "bottom-[calc(100%+0.5rem)]" : "top-[calc(100%+0.5rem)]"}`}>
           <div className="relative overflow-hidden border-b border-bungie-border/70 px-4 py-3">
             <div className="absolute inset-y-0 left-0 w-1 bg-bungie-blue" />
             <div className="flex items-start justify-between gap-4">

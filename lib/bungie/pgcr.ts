@@ -53,18 +53,26 @@ async function getActivityHistory(
   return json.Response?.activities ?? [];
 }
 
-export async function resolveActivityName(hash: number): Promise<string | null> {
+export async function resolveActivity(hash: number): Promise<{ name: string | null; image: string | null }> {
   try {
     const res = await fetch(
       `${BUNGIE_ROOT}/Destiny2/Manifest/DestinyActivityDefinition/${hash}/`,
       { headers: { "X-API-Key": process.env.BUNGIE_API_KEY! } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { name: null, image: null };
     const json = await res.json();
-    return (json.Response?.displayProperties?.name as string) ?? null;
+    const def = json.Response;
+    // pgcrImage is the map banner. Some activities leave it empty, so fall back
+    // to null rather than surfacing an empty path the UI would try to load.
+    const image = typeof def?.pgcrImage === "string" && def.pgcrImage.length > 0 ? def.pgcrImage : null;
+    return { name: (def?.displayProperties?.name as string) ?? null, image };
   } catch {
-    return null;
+    return { name: null, image: null };
   }
+}
+
+export async function resolveActivityName(hash: number): Promise<string | null> {
+  return (await resolveActivity(hash)).name;
 }
 
 // A PGCR is immutable once the match ends, so it is worth caching forever. The

@@ -29,6 +29,7 @@ export async function importCrucibleMatch(input: {
   viewerMembershipId: string;
   rawPgcr: unknown;
   activityName?: string | null;
+  activityImage?: string | null;
   db?: Db;
 }): Promise<{ imported: boolean; encounterCount: number }> {
   const db = input.db ?? adminSupabase;
@@ -49,19 +50,29 @@ export async function importCrucibleMatch(input: {
   const now = new Date().toISOString();
   const isPrivate = rawIsPrivate(input.rawPgcr);
 
-  requireNoError(await db.from("crucible_matches").upsert({
+  const matchRow: Record<string, unknown> = {
     instance_id: pgcr.instanceId,
     activity_hash: pgcr.activityHash,
     activity_mode: pgcr.activityMode,
     activity_modes: pgcr.activityModes,
     mode_bucket: modeBucket,
     activity_name: input.activityName ?? null,
+    activity_image: input.activityImage ?? null,
     period: pgcr.period,
     duration_seconds: pgcr.durationSeconds,
     is_private: isPrivate,
     team_data: pgcr.teams,
     updated_at: now,
-  }, { onConflict: "instance_id" }), "match upsert");
+  };
+  // activity_image lands with migration 050; if it hasn't been applied yet, drop
+  // the column and retry so importing never breaks on a not-yet-migrated column.
+  let matchResult = await db.from("crucible_matches").upsert(matchRow, { onConflict: "instance_id" });
+  if (matchResult?.error && /activity_image/.test(String(matchResult.error.message ?? matchResult.error))) {
+    const { activity_image: _omit, ...withoutImage } = matchRow;
+    void _omit;
+    matchResult = await db.from("crucible_matches").upsert(withoutImage, { onConflict: "instance_id" });
+  }
+  requireNoError(matchResult, "match upsert");
 
   const playerRows = pgcr.players.map((player) => ({
     instance_id: pgcr.instanceId,

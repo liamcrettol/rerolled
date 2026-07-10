@@ -16,9 +16,9 @@ function formatPlayedAt(value: string) {
   });
 }
 
-function normalizeWeaponIcon(icon: string | null) {
-  if (!icon) return null;
-  return icon.startsWith("http") ? icon : `https://www.bungie.net${icon}`;
+function normalizeBungieImage(path: string | null) {
+  if (!path) return null;
+  return path.startsWith("http") ? path : `https://www.bungie.net${path}`;
 }
 
 function resultClasses(result: SeasonMatch["result"]) {
@@ -92,47 +92,69 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
 
 function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: SeasonStats["historySyncStatus"] }) {
   const loadout = match.loadout.filter((slot) => slot.icon || slot.name);
+  const mapImage = normalizeBungieImage(match.mapImage ?? null);
+  const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report";
+  const modeLabel = match.mode === "crucible" && match.modeBucket
+    ? crucibleModeLabel(match.modeBucket)
+    : match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack";
+  const hasScore = match.teamScore !== null || match.opponentScore !== null;
+  const scoreText = `${match.teamScore ?? "-"}${match.opponentScore !== null ? `-${match.opponentScore}` : ""}`;
 
   return (
-    <article className="border border-bungie-border/80 bg-bungie-dark/35 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${resultClasses(match.result)}`}>
-              {match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report"}
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">
-              {match.mode === "crucible" && match.modeBucket
-                ? crucibleModeLabel(match.modeBucket)
-                : match.mode === "weekly_challenge" ? "Weekly Challenge" : "Score Attack"}
-            </span>
+    <article className="border border-bungie-border/80 bg-bungie-dark/35">
+      {mapImage && (
+        <div className="relative h-32 w-full overflow-hidden border-b border-bungie-border">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={mapImage} alt="" className="h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-black/45" />
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
+            <div className="min-w-0">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className={`border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.22em] ${resultClasses(match.result)}`}>{resultLabel}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-200">{modeLabel}</span>
+              </div>
+              <h3 className="truncate text-xl font-semibold uppercase tracking-[0.03em] text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.85)]">{match.activityName}</h3>
+            </div>
+            {hasScore && (
+              <div className="shrink-0 border border-white/25 bg-black/45 px-3 py-1.5 text-right">
+                <p className="font-mono text-lg leading-none text-white">{scoreText}</p>
+              </div>
+            )}
           </div>
-          <h3 className="mt-3 text-lg font-semibold uppercase tracking-[0.03em] text-white">
-            {match.activityName}
-          </h3>
-          <p className="mt-1 text-xs uppercase tracking-[0.22em] text-gray-500">
-            {formatPlayedAt(match.playedAt)}
-            {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
-          </p>
-          {match.featuredPlayerLabel && (
-            <p className="mt-3 text-sm text-gray-300">{match.featuredPlayerLabel}</p>
-          )}
         </div>
+      )}
 
-        {(match.teamScore !== null || match.opponentScore !== null) && (
-          <div className="border border-bungie-border/70 bg-bungie-dark/60 px-3 py-2 text-right">
-            <p className="section-label mb-1">Score</p>
-            <p className="font-mono text-lg text-white">
-              {match.teamScore ?? "-"}{match.opponentScore !== null ? `-${match.opponentScore}` : ""}
-            </p>
+      <div className="p-4">
+        {!mapImage && (
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${resultClasses(match.result)}`}>{resultLabel}</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-500">{modeLabel}</span>
+              </div>
+              <h3 className="mt-3 text-lg font-semibold uppercase tracking-[0.03em] text-white">{match.activityName}</h3>
+            </div>
+            {hasScore && (
+              <div className="border border-bungie-border/70 bg-bungie-dark/60 px-3 py-2 text-right">
+                <p className="section-label mb-1">Score</p>
+                <p className="font-mono text-lg text-white">{scoreText}</p>
+              </div>
+            )}
           </div>
         )}
-      </div>
+
+        <p className="text-xs uppercase tracking-[0.22em] text-gray-500">
+          {formatPlayedAt(match.playedAt)}
+          {match.challengeTitle ? ` / ${match.challengeTitle}` : ""}
+        </p>
+        {match.featuredPlayerLabel && (
+          <p className="mt-3 text-sm text-gray-300">{match.featuredPlayerLabel}</p>
+        )}
 
       {loadout.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {loadout.map((slot) => {
-            const icon = normalizeWeaponIcon(slot.icon);
+            const icon = normalizeBungieImage(slot.icon);
             return (
               <div key={slot.slot} className="flex items-center gap-2 border border-bungie-border/70 bg-bungie-dark/60 px-2.5 py-2">
                 {icon ? (
@@ -173,6 +195,7 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
             </div>
           </section>
         )}
+        </div>
       </div>
     </article>
   );

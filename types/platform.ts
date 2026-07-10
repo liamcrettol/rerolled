@@ -123,6 +123,8 @@ export interface SeasonMatch {
   instanceId?: string | null;
   mode: "score_attack" | "weekly_challenge" | "crucible";
   modeBucket?: import("@/lib/crucible/types").CrucibleModeBucket | null;
+  /** Activity pgcrImage (map banner) when known. */
+  mapImage?: string | null;
   playedAt: string;
   result: "win" | "loss" | "unknown";
   activityName: string;

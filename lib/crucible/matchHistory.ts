@@ -11,6 +11,7 @@ type Db = any;
 interface MatchRow {
   instance_id: string;
   activity_name: string | null;
+  activity_image?: string | null;
   mode_bucket: CrucibleModeBucket;
   period: string;
   team_data: unknown;
@@ -73,8 +74,16 @@ export async function getCrucibleMatchHistory(
   const instanceIds = [...new Set((encounterRows ?? []).map((row: { instance_id: string }) => row.instance_id))].slice(0, limit);
   if (instanceIds.length === 0) return { matches: [], syncStatus };
 
-  const [{ data: matchRows, error: matchError }, { data: playerRows, error: playerError }, { data: runRows }] = await Promise.all([
-    db.from("crucible_matches").select("instance_id, activity_name, mode_bucket, period, team_data, is_private").in("instance_id", instanceIds).eq("is_private", false),
+  // activity_image (migration 050) is additive; if it hasn't been applied yet,
+  // fall back to a select without it rather than failing the whole report.
+  const matchCols = "instance_id, activity_name, mode_bucket, period, team_data, is_private";
+  let matchSelect = await db.from("crucible_matches").select(`${matchCols}, activity_image`).in("instance_id", instanceIds).eq("is_private", false);
+  if (matchSelect.error && /activity_image/.test(matchSelect.error.message ?? "")) {
+    matchSelect = await db.from("crucible_matches").select(matchCols).in("instance_id", instanceIds).eq("is_private", false);
+  }
+  const { data: matchRows, error: matchError } = matchSelect;
+
+  const [{ data: playerRows, error: playerError }, { data: runRows }] = await Promise.all([
     db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
     db.from("challenge_runs").select("id, pgcr_instance_id, weekly_challenge_id").in("pgcr_instance_id", instanceIds),
   ]);
@@ -138,6 +147,7 @@ export async function getCrucibleMatchHistory(
       instanceId: match.instance_id,
       mode: "crucible",
       modeBucket: match.mode_bucket,
+      mapImage: match.activity_image ?? null,
       playedAt: match.period,
       result: viewer.is_win === true ? "win" : viewer.is_win === false ? "loss" : "unknown",
       activityName: match.activity_name ?? crucibleModeLabel(match.mode_bucket),

@@ -5,6 +5,7 @@ import WeeklyHero from "@/components/platform/WeeklyHero";
 import ModeGrid from "@/components/platform/ModeGrid";
 import SeasonPanel from "@/components/platform/SeasonPanel";
 import DashboardLiveRefresh from "@/components/DashboardLiveRefresh";
+import CrucibleHistorySync from "@/components/CrucibleHistorySync";
 import { getActiveSessionForUser } from "@/lib/lobby";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
 import { getUserWeeklyPlacement, getWeeklyRunCount } from "@/lib/weekly/leaderboard";
@@ -54,6 +55,7 @@ export default async function Dashboard() {
   return (
     <PlatformShell displayName={session.displayName}>
       <DashboardLiveRefresh />
+      <CrucibleHistorySync />
 
       <div className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.95fr)]">
         <section>

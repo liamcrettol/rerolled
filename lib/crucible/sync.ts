@@ -1,6 +1,6 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
-import { getPGCR, resolveActivityName } from "@/lib/bungie/pgcr";
+import { getPGCR, resolveActivity } from "@/lib/bungie/pgcr";
 import { importCrucibleMatch } from "./importMatch";
 import {
   getCrucibleActivityPage,
@@ -19,7 +19,7 @@ interface SyncDependencies {
   getCharacters?: typeof getDestinyCharacterIds;
   getHistoryPage?: typeof getCrucibleActivityPage;
   getPgcr?: typeof getPGCR;
-  resolveName?: typeof resolveActivityName;
+  resolveActivityDef?: typeof resolveActivity;
   importMatch?: typeof importCrucibleMatch;
 }
 
@@ -31,6 +31,83 @@ function errorMessage(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).slice(0, 500);
 }
 
+// On-view sync: pull just the newest page of Crucible activity for the viewer
+// and import anything we have not seen yet, so recent matches appear the moment
+// they open the dashboard instead of waiting for the backfill cron. This never
+// advances the backfill cutoff (that stays the cron's job so deep history is
+// walked contiguously with no gaps); it is a cheap, idempotent top-up. In steady
+// state it is one activity-page fetch plus zero PGCR fetches.
+export async function syncRecentCrucibleHistory(
+  userId: string,
+  dependencies: SyncDependencies = {},
+): Promise<{ imported: number }> {
+  const db = dependencies.db ?? adminSupabase;
+  const getToken = dependencies.getToken ?? getBungieToken;
+  const getCharacters = dependencies.getCharacters ?? getDestinyCharacterIds;
+  const getHistoryPage = dependencies.getHistoryPage ?? getCrucibleActivityPage;
+  const getPgcr = dependencies.getPgcr ?? getPGCR;
+  const resolveDef = dependencies.resolveActivityDef ?? resolveActivity;
+  const importer = dependencies.importMatch ?? importCrucibleMatch;
+
+  const [{ data: account }, { data: stateRow }] = await Promise.all([
+    db.from("bungie_accounts").select("membership_id, membership_type").eq("user_id", userId).maybeSingle(),
+    db.from("crucible_sync_state").select("character_ids, last_incremental_sync_at, backfill_completed_at").eq("user_id", userId).maybeSingle(),
+  ]);
+  if (!account) return { imported: 0 };
+  const state = stateRow as Pick<CrucibleSyncState, "character_ids" | "last_incremental_sync_at" | "backfill_completed_at"> | null;
+
+  const cutoffRaw = state?.last_incremental_sync_at ?? state?.backfill_completed_at ?? null;
+  const cutoffMs = cutoffRaw ? new Date(cutoffRaw).getTime() : 0;
+
+  const token = await getToken(userId, account.membership_id);
+  let characterIds = parseCharacterIds(state?.character_ids);
+  if (characterIds.length === 0) {
+    characterIds = await getCharacters(account.membership_type, account.membership_id, token);
+  }
+
+  // Gather the newest page for every character, keeping only activities newer
+  // than what we have already synced.
+  const candidates = new Map<string, CrucibleActivityHistoryEntry>();
+  for (const characterId of characterIds) {
+    const activities = await getHistoryPage(account.membership_type, account.membership_id, characterId, 0, token);
+    for (const activity of activities) {
+      if (cutoffMs && new Date(activity.period).getTime() <= cutoffMs) continue;
+      candidates.set(activity.activityDetails.instanceId, activity);
+    }
+  }
+  if (candidates.size === 0) return { imported: 0 };
+
+  // Skip anything already imported so a routine page view costs no PGCR fetches.
+  const ids = [...candidates.keys()];
+  const { data: existingRows } = await db.from("crucible_matches").select("instance_id").in("instance_id", ids);
+  const existing = new Set((existingRows ?? []).map((row: { instance_id: string }) => row.instance_id));
+
+  let imported = 0;
+  const defByHash = new Map<number, { name: string | null; image: string | null }>();
+  for (const [instanceId, activity] of candidates) {
+    if (existing.has(instanceId)) continue;
+    const rawPgcr = await getPgcr(instanceId);
+    if (!rawPgcr) continue;
+    const activityHash = activity.activityDetails.referenceId;
+    let def = defByHash.get(activityHash);
+    if (def === undefined) {
+      def = await resolveDef(activityHash);
+      defByHash.set(activityHash, def);
+    }
+    const result = await importer({
+      viewerUserId: userId,
+      viewerMembershipId: account.membership_id,
+      rawPgcr,
+      activityName: def.name,
+      activityImage: def.image,
+      db,
+    });
+    if (result.imported) imported++;
+  }
+
+  return { imported };
+}
+
 export async function syncNextCrucibleHistoryPage(
   userId: string,
   dependencies: SyncDependencies = {},
@@ -40,7 +117,7 @@ export async function syncNextCrucibleHistoryPage(
   const getCharacters = dependencies.getCharacters ?? getDestinyCharacterIds;
   const getHistoryPage = dependencies.getHistoryPage ?? getCrucibleActivityPage;
   const getPgcr = dependencies.getPgcr ?? getPGCR;
-  const resolveName = dependencies.resolveName ?? resolveActivityName;
+  const resolveDef = dependencies.resolveActivityDef ?? resolveActivity;
   const importer = dependencies.importMatch ?? importCrucibleMatch;
 
   const [{ data: account, error: accountError }, { data: state, error: stateError }] = await Promise.all([
@@ -90,21 +167,22 @@ export async function syncNextCrucibleHistoryPage(
   });
 
   let importedMatches = 0;
-  const nameByHash = new Map<number, string | null>();
+  const defByHash = new Map<number, { name: string | null; image: string | null }>();
   for (const activity of uniqueActivities) {
     const rawPgcr = await getPgcr(activity.activityDetails.instanceId);
     if (!rawPgcr) continue;
     const activityHash = activity.activityDetails.referenceId;
-    let activityName = nameByHash.get(activityHash);
-    if (activityName === undefined) {
-      activityName = await resolveName(activityHash);
-      nameByHash.set(activityHash, activityName);
+    let def = defByHash.get(activityHash);
+    if (def === undefined) {
+      def = await resolveDef(activityHash);
+      defByHash.set(activityHash, def);
     }
     const result = await importer({
       viewerUserId: userId,
       viewerMembershipId: account.membership_id,
       rawPgcr,
-      activityName,
+      activityName: def.name,
+      activityImage: def.image,
       db,
     });
     if (result.imported) importedMatches++;
