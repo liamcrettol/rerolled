@@ -367,9 +367,11 @@ function hasNumericOnlyKeys(scoreboardValues: Record<string, number>): boolean {
 function readPvpTeams(pgcr: UnknownRecord): NormalizedPvpPgcrTeam[] {
   return asArray(pgcr.teams)
     .map((team) => ({
-      teamId: readFirstNumber(team, [["teamId"]]),
-      standing: readFirstNumber(team, [["standing"]]),
-      score: readFirstNumber(team, [["score"], ["values", "score", "basic", "value"]]),
+      teamId: readFirstNumber(team, [["teamId"], ["teamId", "basic", "value"]]),
+      // Bungie reports team standing/score as stat objects (standing.basic.value),
+      // not plain numbers, so read the nested value first.
+      standing: readFirstNumber(team, [["standing", "basic", "value"], ["standing"]]),
+      score: readFirstNumber(team, [["score", "basic", "value"], ["score"], ["values", "score", "basic", "value"]]),
       teamName: readFirstString(team, [["teamName"]]) ?? undefined,
     }))
     .filter((team) => team.teamId !== null || team.standing !== null || team.score !== null || team.teamName);
@@ -384,9 +386,14 @@ function determineWin(teamId: number | null, standing: number | null, teams: Nor
     .map((team) => team.standing)
     .filter((value): value is number => value !== null);
 
-  if (teamStanding === null || opposingStandings.length === 0) return null;
-  if (opposingStandings.every((value) => teamStanding < value)) return true;
-  if (opposingStandings.some((value) => teamStanding > value)) return false;
+  if (teamStanding !== null && opposingStandings.length > 0) {
+    if (opposingStandings.every((value) => teamStanding < value)) return true;
+    if (opposingStandings.some((value) => teamStanding > value)) return false;
+  }
+  // Fallback for team modes: a player's own standing is 0 for victory, 1 for
+  // defeat, so use it directly when team-vs-team comparison is unavailable.
+  if (standing === 0) return true;
+  if (standing === 1) return false;
   return null;
 }
 

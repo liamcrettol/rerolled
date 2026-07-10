@@ -44,6 +44,13 @@ export default function HeadToHeadChip({
   const record = recordFor(summary, filter);
   const meetings = summary.recentMeetings.filter((meeting) => filter === "all" || meeting.mode === filter);
   const importing = syncStatus === "queued" || syncStatus === "syncing";
+  // Badge tone reflects the overall record: green ahead, red behind, blue even.
+  const badgeTone =
+    summary.wins > summary.losses
+      ? "border-green-500/40 bg-green-500/10 text-green-300 hover:border-green-500/70 hover:bg-green-500/20 focus-visible:ring-green-500/70"
+      : summary.losses > summary.wins
+        ? "border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500/70 hover:bg-red-500/20 focus-visible:ring-red-500/70"
+        : "border-bungie-blue/30 bg-bungie-blue/10 text-bungie-blue hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:ring-bungie-blue/70";
 
   const cancelClose = () => {
     if (closeTimer.current) {
@@ -194,7 +201,7 @@ export default function HeadToHeadChip({
         aria-expanded={open}
         aria-label={`Head-to-head record against ${opponentName}`}
         onClick={() => (open ? setOpen(false) : show())}
-        className="group flex items-center gap-1 border border-bungie-blue/30 bg-bungie-blue/10 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none text-bungie-blue transition hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bungie-blue/70"
+        className={`group flex items-center gap-1 border px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none transition focus-visible:outline-none focus-visible:ring-2 ${badgeTone}`}
       >
         <Crosshair size={9} className="opacity-70 transition group-hover:rotate-45" />
         {summary.wins}-{summary.losses}
