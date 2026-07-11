@@ -272,8 +272,14 @@ export async function claimCrucibleSync(
 // Transient failures retry with backoff up to a few times, then park the user
 // as failed. Auth failures (dead or cross-app refresh token) are deterministic:
 // no retry ever fixes them, only the user signing in again, so park immediately
-// instead of burning the retry budget one alert at a time.
-export async function failCrucibleSync(userId: string, error: unknown, db: Db = adminSupabase) {
+// instead of burning the retry budget one alert at a time. Returns whether the
+// user was terminally parked (vs. requeued for retry) so the cron can report
+// only parks as failures instead of reddening the run for a self-healing blip.
+export async function failCrucibleSync(
+  userId: string,
+  error: unknown,
+  db: Db = adminSupabase,
+): Promise<{ terminal: boolean }> {
   const message = errorMessage(error);
   const { data: state } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
   const terminal = isBungieAuthErrorMessage(message) || (state?.attempts ?? 0) >= 5;
@@ -285,6 +291,7 @@ export async function failCrucibleSync(userId: string, error: unknown, db: Db = 
     requested_at: new Date(Date.now() + Math.min((state?.attempts ?? 1) * 60_000, 15 * 60_000)).toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
+  return { terminal };
 }
 
 export type { CrucibleActivityHistoryEntry };

@@ -32,4 +32,25 @@ describe("Crucible Bungie history client", () => {
     expect(activities).toHaveLength(1);
     expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/count=50&mode=5&page=4/), expect.any(Object));
   });
+
+  it("retries a transient Bungie 5xx instead of failing the page", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: { get: () => null },
+        json: async () => ({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () => ({ ErrorCode: 1, Response: { activities: [{ period: "2026-07-09", activityDetails: { instanceId: "1", referenceId: 2 } }] } }),
+      }) as unknown as typeof fetch;
+
+    const activities = await getCrucibleActivityPage(3, "member", "char1", 0, "token");
+    expect(activities).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,14 +1,12 @@
-const BUNGIE_ROOT = "https://www.bungie.net/Platform";
+// These GETs are idempotent, so the shared client's retry-with-backoff on
+// 429/5xx applies safely. Bungie's API throws sporadic 500s; without retries
+// each one failed a whole backfill page and turned the scheduled sync run red.
+import { bungieGet } from "@/lib/bungie/client";
+
 // Bungie allows up to 250 activities per page; 50 keeps each backfill page's PGCR
 // fan-out bounded while cutting the number of round-trips vs. the old size of 20.
 const HISTORY_PAGE_SIZE = 50;
 const ALL_PVP_MODE = 5;
-
-interface BungieEnvelope<T> {
-  ErrorCode?: number;
-  Message?: string;
-  Response?: T;
-}
 
 export interface CrucibleActivityHistoryEntry {
   period: string;
@@ -20,25 +18,6 @@ export interface CrucibleActivityHistoryEntry {
   };
 }
 
-async function bungieGet<T>(path: string, accessToken: string): Promise<T> {
-  const response = await fetch(`${BUNGIE_ROOT}${path}`, {
-    headers: {
-      "X-API-Key": process.env.BUNGIE_API_KEY!,
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  if (!response.ok) {
-    const retryAfter = response.headers.get("retry-after");
-    throw new Error(`Bungie request failed (${response.status})${retryAfter ? `; retry after ${retryAfter}s` : ""}`);
-  }
-  const body = await response.json() as BungieEnvelope<T>;
-  if (body.ErrorCode && body.ErrorCode !== 1) {
-    throw new Error(`Bungie API error ${body.ErrorCode}: ${body.Message ?? "Unknown error"}`);
-  }
-  if (body.Response === undefined) throw new Error("Bungie response was empty");
-  return body.Response;
-}
-
 export async function getDestinyCharacterIds(
   membershipType: number,
   membershipId: string,
@@ -46,8 +25,8 @@ export async function getDestinyCharacterIds(
 ): Promise<string[]> {
   const profile = await bungieGet<{
     characters?: { data?: Record<string, unknown> };
-  }>(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=200`, accessToken);
-  return Object.keys(profile.characters?.data ?? {});
+  } | undefined>(`/Destiny2/${membershipType}/Profile/${membershipId}/?components=200`, accessToken);
+  return Object.keys(profile?.characters?.data ?? {});
 }
 
 export async function getCrucibleActivityPage(
@@ -57,11 +36,11 @@ export async function getCrucibleActivityPage(
   page: number,
   accessToken: string,
 ): Promise<CrucibleActivityHistoryEntry[]> {
-  const history = await bungieGet<{ activities?: CrucibleActivityHistoryEntry[] }>(
+  const history = await bungieGet<{ activities?: CrucibleActivityHistoryEntry[] } | undefined>(
     `/Destiny2/${membershipType}/Account/${membershipId}/Character/${characterId}/Stats/Activities/?count=${HISTORY_PAGE_SIZE}&mode=${ALL_PVP_MODE}&page=${page}`,
     accessToken,
   );
-  return history.activities ?? [];
+  return history?.activities ?? [];
 }
 
 export { HISTORY_PAGE_SIZE };

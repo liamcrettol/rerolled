@@ -57,15 +57,24 @@ function makeQueueDb(existing: Record<string, unknown>) {
 describe("failCrucibleSync auth parking", () => {
   it("parks an auth failure immediately, before the retry budget is spent", async () => {
     const db = makeSyncDb(1);
-    await failCrucibleSync("user-1", new Error(AUTH_ERROR), db);
+    const outcome = await failCrucibleSync("user-1", new Error(AUTH_ERROR), db);
     expect(db.updates).toHaveLength(1);
     expect(db.updates[0].status).toBe("failed");
+    expect(outcome.terminal).toBe(true);
   });
 
   it("still retries transient failures with backoff", async () => {
     const db = makeSyncDb(1);
-    await failCrucibleSync("user-1", new Error("Bungie request failed (503)"), db);
+    const outcome = await failCrucibleSync("user-1", new Error("Bungie request failed (503)"), db);
     expect(db.updates[0].status).toBe("queued");
+    expect(outcome.terminal).toBe(false);
+  });
+
+  it("parks a user terminally once the retry budget is exhausted", async () => {
+    const db = makeSyncDb(5);
+    const outcome = await failCrucibleSync("user-1", new Error("Bungie request failed (503)"), db);
+    expect(db.updates[0].status).toBe("failed");
+    expect(outcome.terminal).toBe(true);
   });
 });
 

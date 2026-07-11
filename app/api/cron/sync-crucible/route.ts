@@ -70,6 +70,10 @@ export async function GET(req: NextRequest) {
   // again, reported here so someone can ping them, and deliberately kept out
   // of `failed` so a dead token cannot keep the scheduled run permanently red.
   const needsReauth: SyncFailure[] = [];
+  // Users whose sync hit a transient upstream error (Bungie 5xx/429) and were
+  // requeued with backoff. Self-healing, so kept out of `failed`: only a user
+  // who exhausts the retry budget and gets terminally parked reddens the run.
+  const retried: SyncFailure[] = [];
 
   try {
     const queuedBefore = await countDueQueuedSyncs(new Date().toISOString());
@@ -92,16 +96,24 @@ export async function GET(req: NextRequest) {
         result.matches += synced.importedMatches;
       } catch (error) {
         const message = errorMessage(error);
-        await failCrucibleSync(state.user_id, error).catch((parkError) => {
+        // If the reschedule itself fails, assume terminal so a broken queue
+        // write cannot silently hide a real failure behind a green run.
+        let terminal = true;
+        try {
+          ({ terminal } = await failCrucibleSync(state.user_id, error));
+        } catch (parkError) {
           console.error(
             "[cron/sync-crucible] failed to reschedule user:",
             state.user_id,
             errorMessage(parkError),
           );
-        });
+        }
         if (isBungieAuthErrorMessage(message)) {
           needsReauth.push({ userId: state.user_id, error: message });
           console.warn("[cron/sync-crucible] user parked until re-auth:", state.user_id, message);
+        } else if (!terminal) {
+          retried.push({ userId: state.user_id, error: message });
+          console.warn("[cron/sync-crucible] transient failure, requeued with backoff:", state.user_id, message);
         } else {
           result.failed++;
           failures.push({ userId: state.user_id, error: message });
@@ -149,6 +161,7 @@ export async function GET(req: NextRequest) {
       pruned,
       ...result,
       failures,
+      retried,
       needsReauth: needsReauthNamed,
       durationMs: Date.now() - startedAt,
     };
@@ -165,6 +178,7 @@ export async function GET(req: NextRequest) {
       workerId,
       ...result,
       failures,
+      retried,
       needsReauth,
       durationMs: Date.now() - startedAt,
     };
