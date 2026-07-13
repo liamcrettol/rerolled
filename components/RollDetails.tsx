@@ -308,14 +308,6 @@ export default function RollDetails({
           m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
-        {/* Own-card indicator, shown regardless of whether an emblem card or the
-            plain fallback header renders below, so "which one is mine" is
-            never ambiguous (#203). */}
-        {m.isMe && (
-          <span className={`absolute top-1 left-1.5 z-10 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 ${theme.chip}`}>
-            You
-          </span>
-        )}
         {/* Emblem header (fallback to name) */}
         {card ? (
           <PlayerCard member={card} badges={badges} />

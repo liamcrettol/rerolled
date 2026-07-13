@@ -262,7 +262,6 @@ function WeaponCard({
             <RollRow
               label="Any roll"
               icon={<Shuffle size={12} className="shrink-0 text-gray-400" />}
-              perks={["best available"]}
               selected={!currentInstance}
               onClick={() => onSelect(hash)}
               disabled={disabled}
@@ -303,14 +302,19 @@ function WeaponCard({
               key={relHash}
               label={relDetail.name}
               icon={
-                relDetail.watermark ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={relDetail.watermark} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                relDetail.icon ? (
+                  <span className="relative h-4 w-4 shrink-0 overflow-hidden bg-gray-800">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={relDetail.icon} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    {relDetail.watermark && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={relDetail.watermark} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    )}
+                  </span>
                 ) : (
                   <Repeat size={12} className="shrink-0 text-gray-400" />
                 )
               }
-              perks={[relDetail.tierName]}
               selected={false}
               onClick={() => onSelect(relHash)}
               disabled={disabled}
