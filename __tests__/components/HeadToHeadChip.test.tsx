@@ -32,7 +32,7 @@ describe("HeadToHeadChip", () => {
     expect(trigger).toHaveTextContent("4-3");
     fireEvent.click(trigger);
     expect(screen.getByText("Importing older Crucible history")).toBeInTheDocument();
-    expect(screen.getByText(/Competitive Clash \/ Jul 9/)).toBeInTheDocument();
+    expect(screen.getByText(/Competitive Clash \/ Jul 9, 2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Endless Vale game report" })).toHaveAttribute(
       "href",
       "https://crucible.report/pgcr/match-1",

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, Crosshair, LoaderCircle } from "lucide-react";
+import { ArrowUpRight, LoaderCircle } from "lucide-react";
 import { crucibleGameReportUrl } from "@/lib/crucible/modes";
 import type { CrucibleModeBucket, HeadToHeadModeRecord, HeadToHeadSummary } from "@/lib/crucible/types";
 
@@ -16,7 +16,7 @@ const FILTERS: Array<{ key: "all" | CrucibleModeBucket; label: string }> = [
 
 function formatDate(value: string | null) {
   if (!value) return "Not recorded";
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function recordFor(summary: HeadToHeadSummary, filter: "all" | CrucibleModeBucket): HeadToHeadModeRecord {
@@ -42,7 +42,7 @@ export default function HeadToHeadChip({
   syncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ left: number; width: number; maxHeight: number; top?: number; bottom?: number }>({ left: 0, width: 384, maxHeight: 480 });
+  const [pos, setPos] = useState<{ left: number; width: number; maxHeight: number; top?: number; bottom?: number }>({ left: 0, width: 420, maxHeight: 480 });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
   const [meetings, setMeetings] = useState(summary.recentMeetings);
   const [nextCursors, setNextCursors] = useState<Partial<Record<"all" | CrucibleModeBucket, string | null>>>({});
@@ -82,14 +82,6 @@ export default function HeadToHeadChip({
       setLoadingOlder(false);
     }
   };
-  // Badge tone reflects the overall record: green ahead, red behind, blue even.
-  const badgeTone =
-    summary.wins > summary.losses
-      ? "border-green-500/40 bg-green-500/10 text-green-300 hover:border-green-500/70 hover:bg-green-500/20 focus-visible:ring-green-500/70"
-      : summary.losses > summary.wins
-        ? "border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-500/70 hover:bg-red-500/20 focus-visible:ring-red-500/70"
-        : "border-bungie-blue/30 bg-bungie-blue/10 text-bungie-blue hover:border-bungie-blue/70 hover:bg-bungie-blue/20 focus-visible:ring-bungie-blue/70";
-
   const cancelClose = () => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
@@ -114,7 +106,7 @@ export default function HeadToHeadChip({
       return;
     }
     const margin = 8;
-    const width = Math.min(384, window.innerWidth - margin * 2);
+    const width = Math.min(420, window.innerWidth - margin * 2);
     const left = Math.min(Math.max(rect.right - width, margin), window.innerWidth - width - margin);
     const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - margin * 2);
     const spaceAbove = Math.max(0, rect.top - margin * 2);
@@ -161,25 +153,26 @@ export default function HeadToHeadChip({
         <div
           ref={popoverRef}
           style={{ position: "fixed", left: pos.left, width: pos.width, maxHeight: pos.maxHeight, top: pos.top, bottom: pos.bottom }}
-          className="z-[100] flex flex-col overflow-hidden border border-bungie-blue/45 bg-[#0d1218] shadow-[0_20px_60px_rgba(0,0,0,0.72)]"
+          className="z-[100] flex flex-col overflow-hidden border border-bungie-border bg-bungie-surface"
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
-          <div className="relative overflow-hidden border-b border-bungie-border/80 px-4 py-3.5">
-            <div className="absolute inset-y-0 left-0 w-1 bg-bungie-blue" />
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-bungie-blue">Head to head</p>
-                <p className="mt-1.5 truncate text-[15px] font-semibold uppercase tracking-[0.04em] text-white">{opponentName}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-2xl leading-none text-white">{record.wins}<span className="mx-1.5 text-gray-500">-</span>{record.losses}</p>
-                <p className="mt-1.5 text-[10px] uppercase tracking-[0.17em] text-gray-400">Your record</p>
-              </div>
+          <div className="flex items-center justify-between gap-4 border-b border-bungie-border px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="section-label">Head to head</p>
+              <p className="mt-1 truncate text-sm font-semibold text-white">{opponentName}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-mono text-sm text-gray-200">
+                <span className="text-green-300">{record.wins} W</span>
+                <span className="mx-2 text-bungie-border">/</span>
+                <span className="text-red-300">{record.losses} L</span>
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-gray-400">Selected record</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 border-b border-bungie-border/65 px-3 py-2.5">
+          <div className="grid grid-cols-5 border-b border-bungie-border">
             {FILTERS.map((item) => {
               const count = recordFor(summary, item.key).encounters;
               return (
@@ -187,30 +180,31 @@ export default function HeadToHeadChip({
                   key={item.key}
                   type="button"
                   onClick={() => setFilter(item.key)}
-                  className={`shrink-0 whitespace-nowrap border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.11em] transition ${filter === item.key ? "border-bungie-blue/70 bg-bungie-blue/15 text-bungie-blue" : "border-transparent text-gray-400 hover:border-bungie-border hover:text-gray-200"}`}
+                  className={`min-w-0 border-r border-bungie-border px-1 py-2 text-[10px] font-bold uppercase tracking-[0.04em] transition last:border-r-0 ${filter === item.key ? "bg-bungie-dark text-white" : "text-gray-400 hover:bg-bungie-dark/55 hover:text-white"}`}
                 >
-                  {item.label} {count > 0 ? count : ""}
+                  <span className="block truncate">{item.label}</span>
+                  <span className={`mt-0.5 block font-mono text-[11px] ${filter === item.key ? "text-bungie-blue" : "text-gray-500"}`}>{count}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="grid grid-cols-3 border-b border-bungie-border/65 bg-black/20">
+          <div className="grid grid-cols-3 border-b border-bungie-border bg-bungie-dark/35">
             {[[record.encounters, "Meetings", "text-white"], [record.wins, "Wins", "text-green-300"], [record.losses, "Losses", "text-red-300"]].map(([value, label, tone], index) => (
-              <div key={String(label)} className={`px-3.5 py-3 ${index < 2 ? "border-r border-bungie-border/50" : ""}`}>
-                <p className={`font-mono text-xl leading-none ${tone}`}>{value}</p>
-                <p className="mt-1.5 text-[10px] uppercase tracking-[0.15em] text-gray-400">{label}</p>
+              <div key={String(label)} className={`flex items-center justify-between gap-2 px-3 py-2 ${index < 2 ? "border-r border-bungie-border" : ""}`}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">{label}</p>
+                <p className={`font-mono text-sm ${tone}`}>{value}</p>
               </div>
             ))}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3.5">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Recent meetings</p>
-              <p className="text-[10px] uppercase tracking-[0.14em] text-gray-500">Last {formatDate(summary.lastPlayedAt)}</p>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex items-center justify-between gap-2 border-b border-bungie-border px-3 py-2">
+              <p className="section-label">Recent meetings</p>
+              <p className="text-[10px] uppercase tracking-[0.08em] text-gray-400">Last {formatDate(summary.lastPlayedAt)}</p>
             </div>
             {visibleMeetings.length > 0 ? (
-              <div className="divide-y divide-bungie-border/45 border-y border-bungie-border/55">
+              <div className="divide-y divide-bungie-border/60">
                 {visibleMeetings.map((meeting) => (
                   <a
                     key={meeting.instanceId}
@@ -218,12 +212,11 @@ export default function HeadToHeadChip({
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Open ${meeting.activityName ?? meeting.modeName} game report`}
-                    className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 py-2.5 transition hover:bg-bungie-dark/50"
+                    className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 transition hover:bg-bungie-dark/55"
                   >
-                    <span className={`h-1.5 w-1.5 ${meeting.viewerWon === true ? "bg-green-400" : meeting.viewerWon === false ? "bg-red-400" : "bg-gray-500"}`} />
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-gray-100">{meeting.activityName ?? meeting.modeName}</p>
-                      <p className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-gray-400">
+                      <p className="truncate text-xs font-medium text-gray-100">{meeting.activityName ?? meeting.modeName}</p>
+                      <p className="mt-0.5 text-[11px] text-gray-400">
                         {meeting.modeName} / {formatDate(meeting.playedAt)}
                       </p>
                     </div>
@@ -237,21 +230,21 @@ export default function HeadToHeadChip({
                 ))}
               </div>
             ) : (
-              <p className="border border-dashed border-bungie-border/60 px-3 py-4 text-center text-xs leading-relaxed text-gray-500">No recorded meetings in this playlist.</p>
+              <p className="px-3 py-5 text-center text-xs text-gray-500">No recorded meetings in this playlist.</p>
             )}
             {visibleMeetings.length > 0 && nextCursors[filter] !== null && (
               <button
                 type="button"
                 onClick={loadOlder}
                 disabled={loadingOlder}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 border border-bungie-border/65 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 transition hover:border-bungie-blue/60 hover:text-bungie-blue disabled:cursor-wait disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-1.5 border-t border-bungie-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 transition hover:bg-bungie-dark/55 hover:text-white disabled:cursor-wait disabled:opacity-60"
               >
                 {loadingOlder && <LoaderCircle size={11} className="animate-spin" />}
                 {loadingOlder ? "Loading older meetings" : "Load older meetings"}
               </button>
             )}
-            {olderError && <p className="mt-2 text-center text-[10px] uppercase tracking-[0.1em] text-red-300">Unable to load older meetings</p>}
-            <p className="mt-3.5 text-[10px] uppercase tracking-[0.12em] text-gray-500">
+            {olderError && <p className="border-t border-bungie-border px-3 py-2 text-center text-[10px] uppercase tracking-[0.08em] text-red-300">Unable to load older meetings</p>}
+            <p className="border-t border-bungie-border px-3 py-2 text-[10px] uppercase tracking-[0.06em] text-gray-500">
               {importing ? "Importing older Crucible history" : "Based on recorded Bungie history"}
             </p>
           </div>
@@ -267,10 +260,11 @@ export default function HeadToHeadChip({
         aria-expanded={open}
         aria-label={`Head-to-head record against ${opponentName}`}
         onClick={() => (open ? setOpen(false) : show())}
-        className={`group flex items-center gap-1 border px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none transition focus-visible:outline-none focus-visible:ring-2 ${badgeTone}`}
+        className="flex items-center border border-bungie-border bg-bungie-dark/55 px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none transition hover:border-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-bungie-blue"
       >
-        <Crosshair size={9} className="opacity-70 transition group-hover:rotate-45" />
-        {summary.wins}-{summary.losses}
+        <span className="text-green-300">{summary.wins}</span>
+        <span className="mx-0.5 text-gray-600">-</span>
+        <span className="text-red-300">{summary.losses}</span>
       </button>
       {popover}
     </div>
