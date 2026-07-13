@@ -1,7 +1,7 @@
 import { ArrowUpRight, RefreshCw } from "lucide-react";
 import type { SeasonMatch, SeasonMatchPlayer, SeasonStats } from "@/types/platform";
 import HeadToHeadChip from "@/components/crucible/HeadToHeadChip";
-import { crucibleModeLabel } from "@/lib/crucible/modes";
+import { crucibleGameReportUrl, crucibleModeLabel } from "@/lib/crucible/modes";
 import LocalDateTime from "./LocalDateTime";
 
 function formatKd(value: number | null) {
@@ -94,7 +94,7 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
   const hasScore = match.teamScore !== null || match.opponentScore !== null;
   const scoreText = `${match.teamScore ?? "-"}${match.opponentScore !== null ? `-${match.opponentScore}` : ""}`;
   const fullReportUrl = match.mode === "crucible" && match.instanceId
-    ? `https://destinytracker.com/destiny-2/pgcr/${encodeURIComponent(match.instanceId)}`
+    ? crucibleGameReportUrl(match.instanceId, match.modeBucket)
     : null;
 
   return (

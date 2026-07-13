@@ -1,4 +1,4 @@
-import { classifyCrucibleMode, crucibleModeName } from "@/lib/crucible/modes";
+import { classifyCrucibleMode, crucibleGameReportUrl, crucibleModeName } from "@/lib/crucible/modes";
 
 const classify = (activityMode: number | null, activityModes: number[] = []) =>
   classifyCrucibleMode({ activityMode, activityModes, activityHash: null });
@@ -40,5 +40,15 @@ describe("crucibleModeName", () => {
 
   it("keeps quickplay Clash concise", () => {
     expect(crucibleModeName({ activityMode: 71, activityModes: [5, 70, 12, 71] })).toBe("Clash");
+  });
+});
+
+describe("crucibleGameReportUrl", () => {
+  it("links Trials games to Trials Report", () => {
+    expect(crucibleGameReportUrl("match/1", "trials")).toBe("https://trials.report/pgcr/match%2F1");
+  });
+
+  it("links other Crucible games to Crucible Report", () => {
+    expect(crucibleGameReportUrl("match-2", "competitive")).toBe("https://crucible.report/pgcr/match-2");
   });
 });

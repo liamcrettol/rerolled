@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, Crosshair, LoaderCircle } from "lucide-react";
+import { crucibleGameReportUrl } from "@/lib/crucible/modes";
 import type { CrucibleModeBucket, HeadToHeadModeRecord, HeadToHeadSummary } from "@/lib/crucible/types";
 
 const FILTERS: Array<{ key: "all" | CrucibleModeBucket; label: string }> = [
@@ -213,7 +214,7 @@ export default function HeadToHeadChip({
                 {visibleMeetings.map((meeting) => (
                   <a
                     key={meeting.instanceId}
-                    href={`https://destinytracker.com/destiny-2/pgcr/${encodeURIComponent(meeting.instanceId)}`}
+                    href={crucibleGameReportUrl(meeting.instanceId, meeting.mode)}
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Open ${meeting.activityName ?? meeting.modeName} game report`}

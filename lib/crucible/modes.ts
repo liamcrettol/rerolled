@@ -86,6 +86,14 @@ export function crucibleModeLabel(mode: CrucibleModeBucket): string {
   return mode.charAt(0).toUpperCase() + mode.slice(1);
 }
 
+export function crucibleGameReportUrl(
+  instanceId: string,
+  mode: CrucibleModeBucket | null | undefined,
+): string {
+  const host = mode === "trials" ? "trials.report" : "crucible.report";
+  return `https://${host}/pgcr/${encodeURIComponent(instanceId)}`;
+}
+
 // Specific game-type names for the match card, so a match reads "Clash" or
 // "Rumble" instead of the coarse "Other" bucket. Playlist markers (Trials, Iron
 // Banner, Competitive) win first; otherwise we name the specific game type from

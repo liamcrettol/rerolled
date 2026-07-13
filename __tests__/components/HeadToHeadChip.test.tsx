@@ -33,6 +33,10 @@ describe("HeadToHeadChip", () => {
     fireEvent.click(trigger);
     expect(screen.getByText("Importing older Crucible history")).toBeInTheDocument();
     expect(screen.getByText(/Competitive Clash \/ Jul 9/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Endless Vale game report" })).toHaveAttribute(
+      "href",
+      "https://crucible.report/pgcr/match-1",
+    );
     fireEvent.click(screen.getByRole("button", { name: /Trials 2/ }));
     expect(screen.getAllByText("1", { selector: "p.font-mono" })).toHaveLength(2);
     fireEvent.keyDown(trigger, { key: "Escape" });
