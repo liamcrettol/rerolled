@@ -1,4 +1,4 @@
-import { Dices, Crosshair, Swords, Skull, CalendarClock } from "lucide-react";
+import { Dices, Swords, Skull } from "lucide-react";
 import type { ModeAccent, ModeId } from "@/types/platform";
 
 // Shared per-mode presentation (icon + accent color classes), split out of
@@ -8,8 +8,6 @@ import type { ModeAccent, ModeId } from "@/types/platform";
 
 export const MODE_ICONS: Record<ModeId, typeof Dices> = {
   gun_roulette: Dices,
-  score_attack: Crosshair,
-  weekly_challenge: CalendarClock,
   draft: Swords,
   ironman: Skull,
 };

@@ -6,10 +6,10 @@
 //
 // Roadmap status per #237:
 //   - gun_roulette   → live PvP loadout roulette, routes into the existing lobby flow
-//   - score_attack   → new, live solo run flow (roll → equip → auto-score)
-//   - weekly_challenge → surfaced via the hero, not the grid; run flow on /weekly
-//   - draft → new, shared 1-of-3 card-reveal run flow on /draft (#266)
+//   - draft → shared 1-of-3 card-reveal run flow on /draft (#266)
 //   - ironman → repurposed into the live endgame PvE randomizer
+// Score Attack and Weekly Challenge were removed (#342); their worker/stats
+// substrate stays dormant under lib/scoreAttack, lib/challenges, lib/weekly.
 //
 // Each mode also carries an `accent` — its color identity across the hub
 // (mode cards, run flow, page headers) so every activity has a distinct UI.
@@ -27,30 +27,6 @@ export const MODES: Record<ModeId, ModeDefinition> = {
     href: "/lobby/new",
     ctaLabel: "Create Lobby",
     accent: "green",
-  },
-  score_attack: {
-    id: "score_attack",
-    title: "Score Attack",
-    eyebrow: "Solo",
-    description: "Roll a loadout and score a PvE clear.",
-    status: "new",
-    enabled: true,
-    href: "/score-attack",
-    ctaLabel: "Start Solo Run",
-    accent: "amber",
-  },
-  weekly_challenge: {
-    id: "weekly_challenge",
-    title: "Weekly Challenge",
-    eyebrow: "Weekly",
-    description: "One activity and one leaderboard.",
-    status: "new",
-    enabled: true,
-    // Launched from the hero CTA; kept in the registry so routing/metadata
-    // has a single source of truth.
-    href: "/weekly",
-    ctaLabel: "Run Weekly",
-    accent: "blue",
   },
   draft: {
     id: "draft",

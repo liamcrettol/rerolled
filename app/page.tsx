@@ -14,7 +14,6 @@ import BrandWordmark from "@/components/BrandWordmark";
 // hero), not just roulette. Each mode wears its accent from the registry.
 const LANDING_MODES = [
   MODES.gun_roulette,
-  MODES.weekly_challenge,
   MODES.draft,
   MODES.ironman,
 ];
