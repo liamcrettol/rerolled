@@ -875,7 +875,6 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                         <RollRow
                           key={inst.instanceId}
                           label={inst.perks.map((p) => p.name).join("  ·  ")}
-                          location={inst.location}
                           selected={chosen === inst.instanceId}
                           onClick={() => chooseRoll(slot, inst.instanceId)}
                           favorited={favorites[rd.itemHash.toString()] === inst.instanceId}

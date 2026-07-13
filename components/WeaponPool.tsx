@@ -88,9 +88,9 @@ function sortForBrowser(
 // ── A single selectable roll row ──────────────────────────────────────────────
 
 export function RollRow({
-  label, icon, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
+  label, icon, perks, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
-  label: string; icon?: React.ReactNode; location?: string; perks?: string[];
+  label: string; icon?: React.ReactNode; perks?: string[];
   selected: boolean; onClick: () => void; disabled?: boolean;
   favorited?: boolean; onToggleFavorite?: () => void;
 }) {
@@ -111,11 +111,6 @@ export function RollRow({
           <span className={`text-xs font-semibold inline-flex items-center gap-1 ${selected ? "text-white" : "text-gray-300"}`}>
             {icon}
             {label}
-            {location && (
-              <span className="ml-1.5 text-[10px] font-normal text-gray-400">
-                {location === "vault" ? "in vault" : "on character"}
-              </span>
-            )}
           </span>
           {selected && <Check size={13} className="text-bungie-blue shrink-0 animate-fade-in" />}
         </div>
@@ -276,7 +271,6 @@ function WeaponCard({
               <RollRow
                 key={inst.instanceId}
                 label={inst.perks.map((p) => String(p)).join("  ·  ")}
-                location={inst.location}
                 selected={currentInstance === inst.instanceId}
                 onClick={() => onSelect(hash, inst.instanceId)}
                 disabled={disabled}
@@ -308,7 +302,14 @@ function WeaponCard({
             <RollRow
               key={relHash}
               label={relDetail.name}
-              icon={<Repeat size={12} className="shrink-0 text-gray-400" />}
+              icon={
+                relDetail.watermark ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={relDetail.watermark} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                ) : (
+                  <Repeat size={12} className="shrink-0 text-gray-400" />
+                )
+              }
               perks={[relDetail.tierName]}
               selected={false}
               onClick={() => onSelect(relHash)}
