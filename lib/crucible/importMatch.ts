@@ -99,13 +99,29 @@ export async function importCrucibleMatch(input: {
     onConflict: "instance_id,membership_id",
   }), "player upsert");
 
+  const markViewerImported = async () => requireNoError(
+    await db.from("crucible_match_viewers").upsert({
+      viewer_user_id: input.viewerUserId,
+      viewer_membership_id: input.viewerMembershipId,
+      instance_id: pgcr.instanceId,
+      played_at: pgcr.period,
+    }, { onConflict: "viewer_user_id,instance_id" }),
+    "viewer match upsert",
+  );
+
   // Free-for-all and malformed reports do not expose a trustworthy opponent
   // boundary. Keep their source rows, but never invent head-to-head records.
-  if (viewer.team === null) return { imported: true, encounterCount: 0 };
+  if (viewer.team === null) {
+    await markViewerImported();
+    return { imported: true, encounterCount: 0 };
+  }
   const opponents = pgcr.players.filter(
     (player) => player.team !== null && player.team !== viewer.team,
   );
-  if (opponents.length === 0) return { imported: true, encounterCount: 0 };
+  if (opponents.length === 0) {
+    await markViewerImported();
+    return { imported: true, encounterCount: 0 };
+  }
 
   const encounters = opponents.map((opponent) => ({
     viewer_user_id: input.viewerUserId,
@@ -121,6 +137,7 @@ export async function importCrucibleMatch(input: {
   requireNoError(await db.from("crucible_encounters").upsert(encounters, {
     onConflict: "viewer_user_id,opponent_membership_id,instance_id",
   }), "encounter upsert");
+  await markViewerImported();
 
   return { imported: true, encounterCount: encounters.length };
 }

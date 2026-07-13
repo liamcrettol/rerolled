@@ -108,9 +108,16 @@ export async function syncRecentCrucibleHistory(
   }
   if (candidates.size === 0) return { imported: 0 };
 
-  // Skip anything already imported so a routine page view costs no PGCR fetches.
+  // Dedupe per viewer, not against the global match table. Another signed-in
+  // player may already have imported the same PGCR without creating this
+  // viewer's encounter rows.
   const ids = [...candidates.keys()];
-  const { data: existingRows } = await db.from("crucible_matches").select("instance_id").in("instance_id", ids);
+  const { data: existingRows, error: existingError } = await db
+    .from("crucible_match_viewers")
+    .select("instance_id")
+    .eq("viewer_user_id", userId)
+    .in("instance_id", ids);
+  if (existingError) throw new Error(`Viewer match lookup failed: ${existingError.message}`);
   const existing = new Set((existingRows ?? []).map((row: { instance_id: string }) => row.instance_id));
 
   let imported = 0;
@@ -218,13 +225,15 @@ export async function syncNextCrucibleHistoryPage(
   const nextCharacterIndex = characterFinished ? characterIndex + 1 : characterIndex;
   const allFinished = nextCharacterIndex >= characterIds.length;
   const now = new Date().toISOString();
+  const cycleStartedAt = syncState.sync_started_at ?? now;
   const patch = allFinished
     ? {
         status: "complete",
         next_page: 0,
         active_character_index: 0,
         backfill_completed_at: syncState.backfill_completed_at ?? now,
-        last_incremental_sync_at: now,
+        last_incremental_sync_at: cycleStartedAt,
+        sync_started_at: null,
         locked_by: null,
         locked_until: null,
         last_error: null,
@@ -256,7 +265,7 @@ export async function syncNextCrucibleHistoryPage(
 // queue is empty.
 export async function claimCrucibleSync(
   workerId: string,
-  lockSeconds = 55,
+  lockSeconds = 90,
   db: Db = adminSupabase,
 ): Promise<CrucibleSyncState | null> {
   const { data, error } = await db.rpc("claim_crucible_sync", {
@@ -281,9 +290,10 @@ export async function failCrucibleSync(
   db: Db = adminSupabase,
 ): Promise<{ terminal: boolean }> {
   const message = errorMessage(error);
-  const { data: state } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
+  const { data: state, error: stateError } = await db.from("crucible_sync_state").select("attempts").eq("user_id", userId).single();
+  if (stateError || !state) throw new Error(`Sync failure state read failed: ${stateError?.message ?? "missing"}`);
   const terminal = isBungieAuthErrorMessage(message) || (state?.attempts ?? 0) >= 5;
-  await db.from("crucible_sync_state").update({
+  const { error: updateError } = await db.from("crucible_sync_state").update({
     status: terminal ? "failed" : "queued",
     locked_by: null,
     locked_until: null,
@@ -291,6 +301,7 @@ export async function failCrucibleSync(
     requested_at: new Date(Date.now() + Math.min((state?.attempts ?? 1) * 60_000, 15 * 60_000)).toISOString(),
     updated_at: new Date().toISOString(),
   }).eq("user_id", userId);
+  if (updateError) throw new Error(`Sync failure state update failed: ${updateError.message}`);
   return { terminal };
 }
 

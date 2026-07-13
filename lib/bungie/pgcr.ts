@@ -149,7 +149,16 @@ export async function getPGCR(
     return null;
   }
   const json = await res.json();
-  if (json.ErrorCode && json.ErrorCode !== 1) return null;
+  if (json.ErrorCode && json.ErrorCode !== 1) {
+    const permanentMiss = json.ErrorStatus === "DestinyPGCRNotFound"
+      || json.ErrorStatus === "DestinyPrivacyRestriction";
+    if (options.throwOnTransient && !permanentMiss) {
+      throw new TransientPgcrError(
+        `PGCR ${instanceId} fetch failed (${json.ErrorStatus ?? json.ErrorCode})${json.Message ? `: ${json.Message}` : ""}`
+      );
+    }
+    return null;
+  }
 
   const pgcr: PGCR | null = json.Response ?? null;
   if (pgcr) await writeCachedPGCR(instanceId, pgcr);

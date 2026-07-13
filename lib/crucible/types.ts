@@ -44,6 +44,7 @@ export interface CrucibleSyncState {
   next_page: number;
   character_ids: unknown;
   active_character_index: number;
+  sync_started_at: string | null;
   last_incremental_sync_at: string | null;
   backfill_completed_at: string | null;
   locked_by: string | null;

@@ -47,6 +47,21 @@ describe("getPGCR transient failure classification", () => {
     await expect(getPGCR("111", { throwOnTransient: true })).resolves.toBeNull();
   });
 
+  it("throws on a transient Bungie error envelope even when HTTP is 200", async () => {
+    mockFetchResponse(200, {
+      ErrorCode: 36,
+      ErrorStatus: "ThrottleLimitExceededMinutes",
+      Message: "Slow down",
+      ThrottleSeconds: 60,
+    });
+    await expect(getPGCR("111", { throwOnTransient: true })).rejects.toThrow(TransientPgcrError);
+  });
+
+  it("keeps a PGCR-not-found envelope as a permanent miss", async () => {
+    mockFetchResponse(200, { ErrorCode: 1653, ErrorStatus: "DestinyPGCRNotFound" });
+    await expect(getPGCR("111", { throwOnTransient: true })).resolves.toBeNull();
+  });
+
   it("returns the report on success", async () => {
     const pgcr = { period: "2026-07-10T00:00:00Z", activityDetails: { instanceId: "111" }, entries: [] };
     mockFetchResponse(200, { ErrorCode: 1, Response: pgcr });

@@ -27,6 +27,7 @@ export async function queueCrucibleSync(
     const { data, error } = await db.from("crucible_sync_state").insert({
       user_id: userId,
       status: "queued",
+      sync_started_at: now.toISOString(),
       requested_at: now.toISOString(),
       updated_at: now.toISOString(),
     }).select("*").single();
@@ -47,7 +48,7 @@ export async function queueCrucibleSync(
     return existing as CrucibleSyncState;
   }
   const lastSync = existing.last_incremental_sync_at ?? existing.backfill_completed_at;
-  if (lastSync && now.getTime() - new Date(lastSync).getTime() < SYNC_FRESHNESS_MS) {
+  if (!options.fromSignIn && lastSync && now.getTime() - new Date(lastSync).getTime() < SYNC_FRESHNESS_MS) {
     return existing as CrucibleSyncState;
   }
 
@@ -55,6 +56,8 @@ export async function queueCrucibleSync(
     status: "queued",
     next_page: 0,
     active_character_index: 0,
+    character_ids: [],
+    sync_started_at: now.toISOString(),
     requested_at: now.toISOString(),
     updated_at: now.toISOString(),
     locked_by: null,

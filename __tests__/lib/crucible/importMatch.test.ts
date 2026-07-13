@@ -1,11 +1,12 @@
 import { successfulPvpPgcrWithTeams, successfulPvePgcrWithWeapons } from "@/__fixtures__/scoreAttack/pgcr";
 import { importCrucibleMatch } from "@/lib/crucible/importMatch";
 
-function fakeDb() {
+function fakeDb(failTable?: string) {
   const rows: Record<string, Map<string, Record<string, unknown>>> = {};
   const keyFor = (table: string, row: Record<string, unknown>) => {
     if (table === "crucible_matches") return String(row.instance_id);
     if (table === "crucible_match_players") return `${row.instance_id}:${row.membership_id}`;
+    if (table === "crucible_match_viewers") return `${row.viewer_user_id}:${row.instance_id}`;
     return `${row.viewer_user_id}:${row.opponent_membership_id}:${row.instance_id}`;
   };
   return {
@@ -14,6 +15,7 @@ function fakeDb() {
       rows[table] ??= new Map();
       return {
         async upsert(value: Record<string, unknown> | Record<string, unknown>[]) {
+          if (table === failTable) return { error: new Error(`${table} unavailable`) };
           for (const row of Array.isArray(value) ? value : [value]) {
             rows[table].set(keyFor(table, row), row);
           }
@@ -38,6 +40,10 @@ describe("importCrucibleMatch", () => {
     expect(result).toEqual({ imported: true, encounterCount: 1 });
     expect(db.rows.crucible_matches.size).toBe(1);
     expect(db.rows.crucible_match_players.size).toBe(3);
+    expect([...db.rows.crucible_match_viewers.values()][0]).toMatchObject({
+      viewer_user_id: "user-1",
+      instance_id: "pgcr-200",
+    });
     expect([...db.rows.crucible_encounters.values()][0]).toMatchObject({
       opponent_membership_id: "4611686018429000003",
       viewer_won: true,
@@ -105,5 +111,17 @@ describe("importCrucibleMatch", () => {
     });
     expect(result).toEqual({ imported: true, encounterCount: 0 });
     expect(db.rows.crucible_encounters).toBeUndefined();
+    expect(db.rows.crucible_match_viewers.size).toBe(1);
+  });
+
+  it("does not mark a viewer imported before their encounters succeed", async () => {
+    const db = fakeDb("crucible_encounters");
+    await expect(importCrucibleMatch({
+      viewerUserId: "user-1",
+      viewerMembershipId: "4611686018429000001",
+      rawPgcr: successfulPvpPgcrWithTeams,
+      db,
+    })).rejects.toThrow("encounter upsert failed");
+    expect(db.rows.crucible_match_viewers).toBeUndefined();
   });
 });

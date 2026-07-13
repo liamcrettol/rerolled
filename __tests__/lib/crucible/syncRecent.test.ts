@@ -14,8 +14,11 @@ function makeDb(config: {
   state?: Record<string, unknown> | null;
   existingMatchIds?: string[];
 }) {
+  const queriedTables: string[] = [];
   return {
+    queriedTables,
     from(table: string) {
+      queriedTables.push(table);
       const builder = {
         select: () => builder,
         eq: () => builder,
@@ -36,7 +39,7 @@ function activity(instanceId: string, period: string, referenceId = 1) {
 }
 
 describe("syncRecentCrucibleHistory", () => {
-  it("imports only new matches newer than the cutoff, skipping already-imported ones", async () => {
+  it("imports only new matches newer than the cutoff, deduping per viewer", async () => {
     const imported: string[] = [];
     const db = makeDb({
       account: { membership_id: "500", membership_type: 3 },
@@ -49,7 +52,7 @@ describe("syncRecentCrucibleHistory", () => {
       getToken: async () => "token",
       getHistoryPage: async () => [
         activity("1", "2026-07-05T00:00:00.000Z"), // new -> import
-        activity("2", "2026-07-04T00:00:00.000Z"), // already in crucible_matches -> skip
+        activity("2", "2026-07-04T00:00:00.000Z"), // already imported for this viewer -> skip
         activity("3", "2026-06-01T00:00:00.000Z"), // older than cutoff -> skip
       ],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,6 +67,8 @@ describe("syncRecentCrucibleHistory", () => {
 
     expect(result).toEqual({ imported: 1 });
     expect(imported).toEqual(["1"]);
+    expect(db.queriedTables).toContain("crucible_match_viewers");
+    expect(db.queriedTables).not.toContain("crucible_matches");
   });
 
   it("returns zero when the user has no linked Bungie account", async () => {

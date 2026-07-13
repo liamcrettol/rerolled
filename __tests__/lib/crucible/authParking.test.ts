@@ -70,6 +70,35 @@ describe("failCrucibleSync auth parking", () => {
     expect(outcome.terminal).toBe(false);
   });
 
+  it("surfaces a failed retry-state write", async () => {
+    const db = {
+      from() {
+        const builder = {
+          select: () => builder,
+          eq: () => builder,
+          single: async () => ({ data: { attempts: 1 }, error: null }),
+          update: () => ({ eq: async () => ({ error: { message: "database unavailable" } }) }),
+        };
+        return builder;
+      },
+    };
+    await expect(failCrucibleSync("user-1", new Error("503"), db)).rejects.toThrow("database unavailable");
+  });
+
+  it("surfaces a failed retry-state read", async () => {
+    const db = {
+      from() {
+        const builder = {
+          select: () => builder,
+          eq: () => builder,
+          single: async () => ({ data: null, error: { message: "read unavailable" } }),
+        };
+        return builder;
+      },
+    };
+    await expect(failCrucibleSync("user-1", new Error("503"), db)).rejects.toThrow("read unavailable");
+  });
+
   it("parks a user terminally once the retry budget is exhausted", async () => {
     const db = makeSyncDb(5);
     const outcome = await failCrucibleSync("user-1", new Error("Bungie request failed (503)"), db);
@@ -99,6 +128,22 @@ describe("queueCrucibleSync auth-parked users", () => {
     await queueCrucibleSync("user-1", db, { fromSignIn: true });
     expect(db.updates).toHaveLength(1);
     expect(db.updates[0].status).toBe("queued");
+    expect(db.updates[0]).toMatchObject({
+      character_ids: [],
+      sync_started_at: expect.any(String),
+    });
+  });
+
+  it("refreshes a recently synced character roster after a fresh sign-in", async () => {
+    const db = makeQueueDb({
+      ...parked,
+      status: "complete",
+      last_error: null,
+      last_incremental_sync_at: new Date().toISOString(),
+      character_ids: ["deleted-character"],
+    });
+    await queueCrucibleSync("user-1", db, { fromSignIn: true });
+    expect(db.updates[0]).toMatchObject({ status: "queued", character_ids: [] });
   });
 
   it("still re-queues non-auth failures from a page view", async () => {
