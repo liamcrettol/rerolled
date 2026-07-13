@@ -40,6 +40,7 @@ interface LinkedRunRow {
   id: string;
   pgcr_instance_id: string;
   weekly_challenge_id: string | null;
+  lobby_id: string | null;
 }
 
 interface LinkedGameSessionRow {
@@ -164,7 +165,7 @@ export async function getCrucibleMatchHistory(
 
   const [{ data: playerRows, error: playerError }, { data: runRows }, { data: gameSessionRows }] = await Promise.all([
     db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, emblem_path, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
-    db.from("challenge_runs").select("id, pgcr_instance_id, weekly_challenge_id").in("pgcr_instance_id", instanceIds),
+    db.from("challenge_runs").select("id, pgcr_instance_id, weekly_challenge_id, lobby_id").in("pgcr_instance_id", instanceIds),
     db.from("game_sessions").select("id, pgcr_instance_id, lobby_id").in("pgcr_instance_id", instanceIds),
   ]);
   if (matchError) throw new Error(`Crucible match lookup failed: ${matchError.message}`);
@@ -173,7 +174,10 @@ export async function getCrucibleMatchHistory(
   const matchRows = await repairStaleModeBuckets((rawMatchRows ?? []) as MatchRow[], db, resolveDef);
   const linkedRuns = (runRows ?? []) as LinkedRunRow[];
   const linkedGameSessions = (gameSessionRows ?? []) as LinkedGameSessionRow[];
-  const lobbyIds = [...new Set(linkedGameSessions.map((row) => row.lobby_id))];
+  const lobbyIds = [...new Set([
+    ...linkedGameSessions.map((row) => row.lobby_id),
+    ...linkedRuns.flatMap((row) => row.lobby_id ? [row.lobby_id] : []),
+  ])];
   const runIds = linkedRuns.map((row) => row.id);
   const challengeIds = linkedRuns.flatMap((row) => row.weekly_challenge_id ? [row.weekly_challenge_id] : []);
   const [{ data: loadoutRows }, { data: challengeRows }, { data: lobbyRows }] = await Promise.all([
@@ -245,7 +249,8 @@ export async function getCrucibleMatchHistory(
       : null;
     const run = runByInstance.get(match.instance_id);
     const gameSession = gameSessionByInstance.get(match.instance_id);
-    const lobbyMode = gameSession ? lobbyModeById.get(gameSession.lobby_id) : undefined;
+    const linkedLobbyId = gameSession?.lobby_id ?? run?.lobby_id ?? null;
+    const lobbyMode = linkedLobbyId ? lobbyModeById.get(linkedLobbyId) : undefined;
     const challengeTitle = run?.weekly_challenge_id ? challengeById.get(run.weekly_challenge_id) ?? null : null;
     const loadout = run ? loadoutByRun.get(run.id) ?? [] : [];
     const modeName = crucibleModeName({
