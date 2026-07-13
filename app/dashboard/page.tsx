@@ -42,7 +42,7 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
       <CrucibleHistorySync />
 
-      <div className="mx-auto grid items-stretch gap-5 xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
+      <div className="mx-auto grid items-stretch gap-5 xl:min-h-[calc(100vh-7.5rem)] xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
           <ModeGrid activeSession={activeSession} />
         </div>
