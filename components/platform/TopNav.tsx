@@ -14,7 +14,6 @@ import type { DisplayBadge } from "@/lib/badges/data";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
-  { href: "/weekly", label: "WEEKLY" },
   { href: "/leaderboards", label: "LEADERBOARDS" },
   { href: "/stats", label: "STATS" },
 ];
