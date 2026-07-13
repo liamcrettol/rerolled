@@ -249,6 +249,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const [charactersLoading, setCharactersLoading] = useState(false);
   const [characterError, setCharacterError] = useState<string | null>(null);
   const [roster, setRoster] = useState(members);
+  // Tracks lobbies.status via realtime so every member's board reacts when
+  // anyone closes/ends the draft (Leave Draft flips status to "done" server-
+  // side) - without this, only the person who clicked Leave gets redirected
+  // and the lobby just hangs open on everyone else's screen.
+  const [lobbyStatus, setLobbyStatus] = useState(lobby.status);
   // Votes per slot for the current round (#315) - only meaningful in
   // multi-member lobbies; solo lobbies keep the old captain-taps-to-lock flow.
   const [votes, setVotes] = useState<Partial<Record<WeaponSlot, { voterUserId: string; itemHash: number }[]>>>({});
@@ -375,6 +380,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       channel
         .on(
           "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "lobbies", filter: `id=eq.${lobby.id}` },
+          (payload) => setLobbyStatus((payload.new as Lobby).status)
+        )
+        .on(
+          "postgres_changes",
           { event: "*", schema: "public", table: "lobby_draft_options" },
           () => loadRound()
         )
@@ -394,9 +404,18 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           () => loadRound()
         );
     },
-    [loadRound]
+    [loadRound, lobby.id]
   );
   useSupabaseChannel(`draft:${lobby.id}`, configureChannel);
+
+  // Redirect every remaining member back to the dashboard once the draft is
+  // closed (mirrors LobbyRoom's equivalent end-session handling).
+  useEffect(() => {
+    if (lobbyStatus === "done") {
+      router.push("/dashboard");
+      router.refresh();
+    }
+  }, [lobbyStatus, router]);
 
   const committedSlots = new Set(slots.map((s) => s.slot));
   const complete = SLOT_ORDER.every((s) => committedSlots.has(s));
