@@ -42,11 +42,11 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
         </div>
         <StatusBadge status={mode.status} />
       </div>
-      <h3 className="mt-4 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
+      <h3 className="mt-3 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
         {mode.title}
       </h3>
       <div
-        className={`mt-auto pt-6 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${
+        className={`mt-auto pt-4 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${
           mode.enabled ? accent.action : "text-gray-600"
         }`}
       >
@@ -61,7 +61,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
     return (
       <div
         aria-disabled="true"
-        className={`panel border-l-2 ${accent.border} flex min-h-[190px] flex-col p-5 opacity-50 cursor-not-allowed select-none`}
+        className={`panel border-l-2 ${accent.border} flex min-h-[168px] flex-col p-5 opacity-50 cursor-not-allowed select-none`}
       >
         {body}
       </div>
@@ -71,7 +71,7 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
   return (
     <Link
       href={mode.href}
-      className={`panel border-l-2 ${accent.border} block min-h-[190px] p-5 transition-colors ${accent.hover}`}
+      className={`panel border-l-2 ${accent.border} block min-h-[168px] p-5 transition-colors ${accent.hover}`}
     >
       {body}
     </Link>
@@ -88,8 +88,8 @@ export default function ModeGrid({
 }) {
   return (
     <section>
-      <p className="section-label mb-4">Modes</p>
-      <div className="grid grid-cols-1 gap-4 md:auto-rows-fr md:grid-cols-2">
+      <p className="section-label mb-3">Modes</p>
+      <div className="grid grid-cols-1 gap-3 md:auto-rows-fr md:grid-cols-2">
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />
         ))}

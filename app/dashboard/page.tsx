@@ -57,10 +57,10 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
       <CrucibleHistorySync />
 
-      <div className="mx-auto grid items-stretch gap-6 xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="mx-auto grid items-stretch gap-5 xl:grid-cols-[minmax(0,694px)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5">
           <section>
-            <p className="section-label mb-4">Weekly Challenges</p>
+            <p className="section-label mb-3">Weekly Challenges</p>
             <div className="grid gap-4 lg:grid-cols-2">
               <WeeklyHero
                 challenge={challenge}

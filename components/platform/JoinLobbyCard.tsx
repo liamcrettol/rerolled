@@ -25,19 +25,19 @@ export default function JoinLobbyCard({
   const { code, onCodeChange, loading, error, join, router } = useJoinLobby();
 
   return (
-    <div className="panel border-l-2 border-l-bungie-blue flex min-h-[190px] flex-col p-5">
+    <div className="panel border-l-2 border-l-bungie-blue flex min-h-[168px] flex-col p-5">
       <div className="flex items-center gap-2 min-w-0">
         <KeyRound size={18} className="shrink-0 text-bungie-blue" aria-hidden="true" />
         <p className="text-[10px] font-bold uppercase tracking-widest text-bungie-blue">Fireteam</p>
       </div>
-      <h3 className="mt-4 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
+      <h3 className="mt-3 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
         Enter a code or rejoin
       </h3>
 
       {activeSession && (
         <button
           onClick={() => router.push(`${MODE_BASE_PATH[activeSession.mode]}/${activeSession.code}`)}
-          className="mt-5 flex w-full items-center justify-between gap-2 bg-bungie-blue px-3 py-2.5 text-white transition-colors hover:bg-[#26bcf3]"
+          className="mt-3 flex w-full items-center justify-between gap-2 bg-bungie-blue px-3 py-2.5 text-white transition-colors hover:bg-[#26bcf3]"
         >
           <span className="font-mono text-sm font-bold slashed-zero">{activeSession.code}</span>
           <span className="text-[11px] font-bold uppercase tracking-widest shrink-0">Rejoin</span>
@@ -47,7 +47,7 @@ export default function JoinLobbyCard({
         <p className="mt-1 text-[11px] text-gray-500 truncate">{STATUS_LABELS[activeSession.status]}</p>
       )}
 
-      <form onSubmit={join} className="mt-auto flex gap-2 pt-6">
+      <form onSubmit={join} className="mt-auto flex gap-2 pt-4">
         <label className="flex-1 min-w-0">
           <span className="sr-only">Lobby code</span>
           <input

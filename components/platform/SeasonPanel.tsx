@@ -222,9 +222,9 @@ export default function SeasonPanel({
   if (variant === "dashboard") {
     return (
       <section className="flex h-full min-h-0 flex-col">
-        <p className="section-label mb-4 shrink-0">Your Season / {stats.seasonName}</p>
-        <div className="panel flex min-h-[240px] flex-1 flex-col p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="section-label mb-3 shrink-0">Your Season / {stats.seasonName}</p>
+        <div className="panel flex min-h-[240px] flex-1 flex-col p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
             <div>
               <p className="section-label">Historical Match Reports</p>
               {(stats.historySyncStatus === "queued" || stats.historySyncStatus === "syncing") && (
