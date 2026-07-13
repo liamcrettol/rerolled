@@ -29,9 +29,6 @@ export default async function EndgamePage() {
           <div className="flex items-center gap-2 mb-2">
             <Skull size={14} className="text-red-400" aria-hidden="true" />
             <p className="section-label text-red-400">{mode.eyebrow}</p>
-            <span className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 border text-red-400 border-red-400/40">
-              New
-            </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-white">
             {mode.title}
