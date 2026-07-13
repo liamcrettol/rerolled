@@ -91,6 +91,7 @@ describe("parsePvpPgcr", () => {
       kind: "pvp",
       instanceId: "pgcr-200",
       activityHash: 654321,
+      directorActivityHash: 814159553,
       activityMode: 10,
       activityModes: [5, 10],
       durationSeconds: 600,

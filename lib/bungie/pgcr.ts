@@ -192,6 +192,7 @@ interface WeaponKillStat {
 interface PostMatchResult {
   playerStats: CollectedPlayerStat[];
   weaponKills: WeaponKillStat[];
+  instanceId: string;
   activityHash: number;
   isPrivate: boolean;
 }
@@ -285,7 +286,13 @@ export async function collectPostMatchStats(
     }
     const weaponKills: WeaponKillStat[] = [...killsByHash.entries()].map(([itemHash, totalKills]) => ({ itemHash, totalKills }));
 
-    return { playerStats, weaponKills, activityHash: activity.activityDetails.referenceId, isPrivate: pgcr.activityDetails.isPrivate ?? false };
+    return {
+      playerStats,
+      weaponKills,
+      instanceId: activity.activityDetails.instanceId,
+      activityHash: activity.activityDetails.referenceId,
+      isPrivate: pgcr.activityDetails.isPrivate ?? false,
+    };
   }
 
   return null;

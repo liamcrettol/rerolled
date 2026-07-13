@@ -13,6 +13,7 @@ export interface CrucibleActivityHistoryEntry {
   activityDetails: {
     instanceId: string;
     referenceId: number;
+    directorActivityHash?: number;
     mode?: number;
     modes?: number[];
   };

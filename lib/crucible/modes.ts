@@ -66,16 +66,21 @@ export function classifyCrucibleMode(input: {
   activityModes: number[];
   activityHash: number | null;
   activityName?: string | null;
+  directorActivityName?: string | null;
 }): CrucibleModeBucket {
   const modes = new Set(input.activityModes);
   if (input.activityMode !== null) modes.add(input.activityMode);
+  const name = input.activityName?.toLowerCase() ?? "";
+  const directorName = input.directorActivityName?.toLowerCase() ?? "";
 
   if (modes.has(MODE.TRIALS_OF_OSIRIS)) return "trials";
   if ([...modes].some((mode) => IRON_BANNER_MODES.has(mode))) return "iron_banner";
+  if (directorName.includes("trials of osiris")) return "trials";
+  if (directorName.includes("iron banner")) return "iron_banner";
+  if (directorName.includes("competitive")) return "competitive";
   if ([...modes].some((mode) => COMPETITIVE_MODES.has(mode))) return "competitive";
   if ([...modes].some((mode) => CONTROL_MODES.has(mode))) return "control";
 
-  const name = input.activityName?.toLowerCase() ?? "";
   if (name.includes("trials of osiris")) return "trials";
   if (name.includes("iron banner")) return "iron_banner";
   return "other";

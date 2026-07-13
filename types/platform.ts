@@ -123,6 +123,8 @@ export interface SeasonMatch {
   modeName?: string | null;
   /** Activity pgcrImage (map banner) when known. */
   mapImage?: string | null;
+  /** Rerolled mode that produced this PGCR. Omitted for ordinary Destiny matches. */
+  rerolledMode?: "draft" | "loadout_roulette" | null;
   playedAt: string;
   result: "win" | "loss" | "unknown";
   activityName: string;

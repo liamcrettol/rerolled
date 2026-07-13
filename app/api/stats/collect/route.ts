@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: true, reason: "pgcr not found" });
     }
 
-    const { playerStats, weaponKills } = result;
+    const { playerStats, weaponKills, instanceId, activityHash, isPrivate } = result;
 
     // Final race check right before insert
     const { data: raceCheck } = await adminSupabase
@@ -94,7 +94,14 @@ export async function POST(req: NextRequest) {
 
     const { data: gameSession } = await adminSupabase
       .from("game_sessions")
-      .insert({ lobby_id: lobbyId, player_count: playerStats.length, roulette_hashes: rouletteHashes })
+      .insert({
+        lobby_id: lobbyId,
+        player_count: playerStats.length,
+        roulette_hashes: rouletteHashes,
+        pgcr_instance_id: instanceId,
+        activity_hash: activityHash,
+        is_private: isPrivate,
+      })
       .select()
       .single();
 

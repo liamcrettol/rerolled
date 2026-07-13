@@ -32,6 +32,7 @@ interface MatchMetadata {
 interface MatchMetadataRow {
   instance_id: string;
   activity_hash: number | null;
+  director_activity_hash: number | null;
   activity_name: string | null;
   activity_mode: number | null;
   activity_modes: number[] | null;
@@ -65,7 +66,7 @@ async function loadMatchMetadata(db: Db, instanceIds: string[]): Promise<Map<str
   if (instanceIds.length === 0) return metadata;
   const { data, error } = await db
     .from("crucible_matches")
-    .select("instance_id, activity_hash, activity_name, activity_mode, activity_modes, mode_bucket")
+    .select("instance_id, activity_hash, director_activity_hash, activity_name, activity_mode, activity_modes, mode_bucket")
     .in("instance_id", instanceIds);
   if (error) throw new Error(`Head-to-head match lookup failed: ${error.message}`);
 
@@ -76,13 +77,19 @@ async function loadMatchMetadata(db: Db, instanceIds: string[]): Promise<Map<str
     // Older imports did not merge activity-definition modes, so a competitive
     // Clash can arrive with only the generic Clash mode (71) and be mislabeled.
     if (match.activity_hash != null && modeBucket === "other") {
-      const definition = await resolveActivity(Number(match.activity_hash));
-      activityModes = [...new Set([...storedModes, ...definition.modes])];
+      const [definition, directorDefinition] = await Promise.all([
+        resolveActivity(Number(match.activity_hash)),
+        match.director_activity_hash == null
+          ? Promise.resolve(null)
+          : resolveActivity(Number(match.director_activity_hash)),
+      ]);
+      activityModes = [...new Set([...storedModes, ...definition.modes, ...(directorDefinition?.modes ?? [])])];
       modeBucket = classifyCrucibleMode({
         activityMode: match.activity_mode,
         activityModes,
         activityHash: Number(match.activity_hash),
         activityName: match.activity_name,
+        directorActivityName: directorDefinition?.name ?? null,
       });
     }
     metadata.set(match.instance_id, metadataForRow(match, modeBucket, activityModes));

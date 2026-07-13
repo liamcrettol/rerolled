@@ -53,6 +53,7 @@ export interface NormalizedPvpPgcrTeam {
 interface NormalizedPgcrBase<TPlayer> {
   instanceId: string | null;
   activityHash: number | null;
+  directorActivityHash: number | null;
   activityMode: number | null;
   activityModes: number[];
   period: string | null;

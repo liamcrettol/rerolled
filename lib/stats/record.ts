@@ -65,7 +65,7 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
   const result = await collectPostMatchStats(members, rouletteHashes, token, tokenOwnerUserId, appliedAt);
   if (!result) return { status: "no_game" };
 
-  const { playerStats, weaponKills, activityHash, isPrivate } = result;
+  const { playerStats, weaponKills, instanceId, activityHash, isPrivate } = result;
   const mapName = await resolveActivityName(activityHash);
 
   const { data: gameSession } = await adminSupabase
@@ -77,6 +77,7 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
       round_id: roundId,
       map_name: mapName,
       activity_hash: activityHash,
+      pgcr_instance_id: instanceId,
       is_private: isPrivate,
     })
     .select()

@@ -305,6 +305,7 @@ function baseNormalizedPgcr(pgcr: UnknownRecord, entries: unknown[]) {
   return {
     instanceId: readFirstString(activityDetails, [["instanceId"]]),
     activityHash: readFirstNumber(activityDetails, [["referenceId"], ["directorActivityHash"]]),
+    directorActivityHash: readFirstNumber(activityDetails, [["directorActivityHash"]]),
     activityMode,
     activityModes,
     period,
@@ -419,6 +420,7 @@ export function parsePvEPgcr(raw: unknown): NormalizedPvEPgcr {
       kind: "pve",
       instanceId: null,
       activityHash: null,
+      directorActivityHash: null,
       activityMode: null,
       activityModes: [],
       period: null,
@@ -532,6 +534,7 @@ export function parsePvpPgcr(raw: unknown): NormalizedPvpPgcr {
       kind: "pvp",
       instanceId: null,
       activityHash: null,
+      directorActivityHash: null,
       activityMode: null,
       activityModes: [],
       period: null,

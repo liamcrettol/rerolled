@@ -2,6 +2,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { getPGCR, resolveActivity } from "@/lib/bungie/pgcr";
+import { parsePgcr } from "@/lib/scoreAttack/pgcr";
 import { importCrucibleMatch } from "./importMatch";
 import {
   getCrucibleActivityPage,
@@ -60,6 +61,19 @@ function makeActivityResolver(resolveDef: typeof resolveActivity) {
     }
     return entry;
   };
+}
+
+async function resolveMatchDefinitions(
+  rawPgcr: unknown,
+  mapHash: number,
+  resolve: ReturnType<typeof makeActivityResolver>,
+) {
+  const directorHash = parsePgcr(rawPgcr).directorActivityHash;
+  const [activity, directorActivity] = await Promise.all([
+    resolve(mapHash),
+    directorHash !== null && directorHash !== mapHash ? resolve(directorHash) : Promise.resolve(null),
+  ]);
+  return { activity, directorActivity };
 }
 
 // On-view sync: pull just the newest page of Crucible activity for the viewer
@@ -126,7 +140,11 @@ export async function syncRecentCrucibleHistory(
   await processConcurrently(toImport, PGCR_CONCURRENCY, async (activity) => {
     const rawPgcr = await getPgcr(activity.activityDetails.instanceId);
     if (!rawPgcr) return;
-    const def = await resolve(activity.activityDetails.referenceId);
+    const { activity: def, directorActivity } = await resolveMatchDefinitions(
+      rawPgcr,
+      activity.activityDetails.referenceId,
+      resolve,
+    );
     const result = await importer({
       viewerUserId: userId,
       viewerMembershipId: account.membership_id,
@@ -134,6 +152,8 @@ export async function syncRecentCrucibleHistory(
       activityName: def.name,
       activityImage: def.image,
       activityDefModes: def.modes,
+      directorActivityName: directorActivity?.name ?? null,
+      directorActivityDefModes: directorActivity?.modes ?? [],
       db,
     });
     if (result.imported) imported++;
@@ -208,7 +228,11 @@ export async function syncNextCrucibleHistoryPage(
     // silently skip the match forever. A genuinely missing PGCR still skips.
     const rawPgcr = await getPgcr(activity.activityDetails.instanceId, { throwOnTransient: true });
     if (!rawPgcr) return;
-    const def = await resolve(activity.activityDetails.referenceId);
+    const { activity: def, directorActivity } = await resolveMatchDefinitions(
+      rawPgcr,
+      activity.activityDetails.referenceId,
+      resolve,
+    );
     const result = await importer({
       viewerUserId: userId,
       viewerMembershipId: account.membership_id,
@@ -216,6 +240,8 @@ export async function syncNextCrucibleHistoryPage(
       activityName: def.name,
       activityImage: def.image,
       activityDefModes: def.modes,
+      directorActivityName: directorActivity?.name ?? null,
+      directorActivityDefModes: directorActivity?.modes ?? [],
       db,
     });
     if (result.imported) importedMatches++;

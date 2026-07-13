@@ -67,6 +67,7 @@ describe("buildSeasonMatchHistory", () => {
     kind: "pvp",
     instanceId: "pgcr-1",
     activityHash: 123,
+    directorActivityHash: null,
     activityMode: 5,
     activityModes: [5],
     period: "2026-07-09T03:00:00.000Z",

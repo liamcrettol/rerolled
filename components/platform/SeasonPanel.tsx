@@ -92,6 +92,9 @@ function MatchCard({ match }: { match: SeasonMatch }) {
   const fullReportUrl = match.mode === "crucible" && match.instanceId
     ? crucibleGameReportUrl(match.instanceId, match.modeBucket)
     : null;
+  const rerolledLabel = match.rerolledMode === "draft"
+    ? "Draft"
+    : match.rerolledMode === "loadout_roulette" ? "Loadout Roulette" : null;
 
   return (
     <article className="border border-bungie-border/80 bg-bungie-dark/35">
@@ -100,6 +103,11 @@ function MatchCard({ match }: { match: SeasonMatch }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={mapImage} alt="" className="h-full w-full object-cover object-center" />
           <div className="absolute inset-0 bg-black/45" />
+          {rerolledLabel && (
+            <span className="absolute right-3 top-3 border border-bungie-blue/55 bg-black/70 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-bungie-blue">
+              {rerolledLabel}
+            </span>
+          )}
           <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
             <div className="min-w-0">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">

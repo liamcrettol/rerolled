@@ -114,6 +114,29 @@ describe("importCrucibleMatch", () => {
     expect(db.rows.crucible_match_viewers.size).toBe(1);
   });
 
+  it("persists and classifies the director playlist for Competitive Clash", async () => {
+    const db = fakeDb();
+    const raw = JSON.parse(JSON.stringify(successfulPvpPgcrWithTeams)) as typeof successfulPvpPgcrWithTeams;
+    raw.activityDetails.mode = 71;
+    raw.activityDetails.modes = [5, 70, 12, 71];
+
+    await importCrucibleMatch({
+      viewerUserId: "user-1",
+      viewerMembershipId: "4611686018429000001",
+      rawPgcr: raw,
+      activityName: "The Anomaly",
+      directorActivityName: "Competitive: Matchmade",
+      db,
+    });
+
+    const match = [...db.rows.crucible_matches.values()][0];
+    expect(match.director_activity_hash).toBe(814159553);
+    expect(match.mode_bucket).toBe("competitive");
+    expect([...db.rows.crucible_encounters.values()][0]).toMatchObject({
+      mode_bucket: "competitive",
+    });
+  });
+
   it("does not mark a viewer imported before their encounters succeed", async () => {
     const db = fakeDb("crucible_encounters");
     await expect(importCrucibleMatch({

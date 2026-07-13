@@ -94,6 +94,7 @@ export const successfulPvpPgcrWithTeams = {
   activityDetails: {
     instanceId: "pgcr-200",
     referenceId: 654321,
+    directorActivityHash: 814159553,
     mode: 10,
     modes: [5, 10],
   },

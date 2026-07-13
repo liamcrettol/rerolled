@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await adminSupabase
     .from("crucible_matches")
-    .select("instance_id, activity_hash, activity_mode, activity_modes, activity_name, mode_bucket");
+    .select("instance_id, activity_hash, director_activity_hash, activity_mode, activity_modes, activity_name, mode_bucket");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rows = data ?? [];
@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     }
     const row = rows[i];
     const hash = row.activity_hash != null ? Number(row.activity_hash) : null;
+    const directorHash = row.director_activity_hash != null ? Number(row.director_activity_hash) : null;
 
     let defModes: number[] = [];
     if (hash != null) {
@@ -50,11 +51,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const directorDef = directorHash == null ? null : await resolveActivity(directorHash);
+
     const bucket = classifyCrucibleMode({
       activityMode: row.activity_mode ?? null,
-      activityModes: [...(row.activity_modes ?? []), ...defModes],
+      activityModes: [...(row.activity_modes ?? []), ...defModes, ...(directorDef?.modes ?? [])],
       activityHash: hash,
       activityName: row.activity_name ?? null,
+      directorActivityName: directorDef?.name ?? null,
     });
 
     // Diagnostic: one sample per distinct activity to see what Bungie reports.

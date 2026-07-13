@@ -32,6 +32,8 @@ export async function importCrucibleMatch(input: {
   activityImage?: string | null;
   /** Authoritative mode types from the activity definition, merged into classification. */
   activityDefModes?: number[];
+  directorActivityName?: string | null;
+  directorActivityDefModes?: number[];
   db?: Db;
 }): Promise<{ imported: boolean; encounterCount: number }> {
   const db = input.db ?? adminSupabase;
@@ -46,12 +48,14 @@ export async function importCrucibleMatch(input: {
   const activityModes = [...new Set([
     ...pgcr.activityModes,
     ...(input.activityDefModes ?? []),
+    ...(input.directorActivityDefModes ?? []),
   ])];
   const modeBucket = classifyCrucibleMode({
     activityMode: pgcr.activityMode,
     activityModes,
     activityHash: pgcr.activityHash,
     activityName: input.activityName,
+    directorActivityName: input.directorActivityName,
   });
   const now = new Date().toISOString();
   const isPrivate = rawIsPrivate(input.rawPgcr);
@@ -59,6 +63,7 @@ export async function importCrucibleMatch(input: {
   const matchRow: Record<string, unknown> = {
     instance_id: pgcr.instanceId,
     activity_hash: pgcr.activityHash,
+    director_activity_hash: pgcr.directorActivityHash,
     activity_mode: pgcr.activityMode,
     activity_modes: activityModes,
     mode_bucket: modeBucket,
@@ -70,13 +75,16 @@ export async function importCrucibleMatch(input: {
     team_data: pgcr.teams,
     updated_at: now,
   };
-  // activity_image lands with migration 050; if it hasn't been applied yet, drop
-  // the column and retry so importing never breaks on a not-yet-migrated column.
+  // Additive columns may briefly lag a deploy. Drop only the missing column and
+  // retry so a rolling deployment never blocks match imports.
   let matchResult = await db.from("crucible_matches").upsert(matchRow, { onConflict: "instance_id" });
-  if (matchResult?.error && /activity_image/.test(String(matchResult.error.message ?? matchResult.error))) {
-    const { activity_image: _omit, ...withoutImage } = matchRow;
-    void _omit;
-    matchResult = await db.from("crucible_matches").upsert(withoutImage, { onConflict: "instance_id" });
+  if (matchResult?.error) {
+    const message = String(matchResult.error.message ?? matchResult.error);
+    if (/director_activity_hash/.test(message)) delete matchRow.director_activity_hash;
+    if (/activity_image/.test(message)) delete matchRow.activity_image;
+    if (/director_activity_hash|activity_image/.test(message)) {
+      matchResult = await db.from("crucible_matches").upsert(matchRow, { onConflict: "instance_id" });
+    }
   }
   requireNoError(matchResult, "match upsert");
 

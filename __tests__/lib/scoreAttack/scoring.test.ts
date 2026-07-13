@@ -157,6 +157,7 @@ function makePvpPgcr(overrides: Partial<NormalizedPvpPgcr> = {}, player?: Normal
     kind: "pvp",
     instanceId: "999",
     activityHash: 12345,
+    directorActivityHash: null,
     activityMode: null,
     activityModes: [],
     period: "2026-07-01T00:00:00Z",

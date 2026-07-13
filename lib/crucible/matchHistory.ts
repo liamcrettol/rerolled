@@ -12,6 +12,7 @@ type Db = any;
 interface MatchRow {
   instance_id: string;
   activity_hash: number | null;
+  director_activity_hash: number | null;
   activity_name: string | null;
   activity_image?: string | null;
   activity_mode: number | null;
@@ -41,6 +42,12 @@ interface LinkedRunRow {
   weekly_challenge_id: string | null;
 }
 
+interface LinkedGameSessionRow {
+  id: string;
+  pgcr_instance_id: string;
+  lobby_id: string;
+}
+
 function kd(kills: number | null, deaths: number | null): number | null {
   if (kills === null || deaths === null) return null;
   return deaths === 0 ? kills : Math.round((kills / deaths) * 100) / 100;
@@ -63,27 +70,33 @@ async function repairStaleModeBuckets(
   resolveDef: typeof resolveActivity,
 ): Promise<MatchRow[]> {
   const hashes = [...new Set(rows
-    .filter((row) => row.mode_bucket === "other" && row.activity_hash !== null)
-    .map((row) => Number(row.activity_hash)))];
+    .filter((row) => row.mode_bucket === "other")
+    .flatMap((row) => [row.activity_hash, row.director_activity_hash])
+    .filter((hash): hash is number => hash !== null)
+    .map(Number))];
   if (hashes.length === 0) return rows;
 
-  const definitionModes = new Map<number, number[]>();
+  const definitions = new Map<number, Awaited<ReturnType<typeof resolveActivity>>>();
   await Promise.all(hashes.map(async (hash) => {
-    definitionModes.set(hash, (await resolveDef(hash)).modes);
+    definitions.set(hash, await resolveDef(hash));
   }));
 
   return Promise.all(rows.map(async (row) => {
-    if (row.mode_bucket !== "other" || row.activity_hash === null) return row;
+    if (row.mode_bucket !== "other") return row;
 
     const activityModes = [...new Set([
       ...(row.activity_modes ?? []),
-      ...(definitionModes.get(Number(row.activity_hash)) ?? []),
+      ...(row.activity_hash === null ? [] : definitions.get(Number(row.activity_hash))?.modes ?? []),
+      ...(row.director_activity_hash === null ? [] : definitions.get(Number(row.director_activity_hash))?.modes ?? []),
     ])];
     const modeBucket = classifyCrucibleMode({
       activityMode: row.activity_mode,
       activityModes,
-      activityHash: Number(row.activity_hash),
+      activityHash: row.activity_hash === null ? null : Number(row.activity_hash),
       activityName: row.activity_name,
+      directorActivityName: row.director_activity_hash === null
+        ? null
+        : definitions.get(Number(row.director_activity_hash))?.name ?? null,
     });
     const modesChanged = activityModes.length !== (row.activity_modes ?? []).length
       || activityModes.some((mode) => !(row.activity_modes ?? []).includes(mode));
@@ -141,28 +154,36 @@ export async function getCrucibleMatchHistory(
   // activity_image (migration 050) is additive; if it hasn't been applied yet,
   // fall back to a select without it rather than failing the whole report.
   const matchCols = "instance_id, activity_hash, activity_name, activity_mode, activity_modes, mode_bucket, period, team_data, is_private";
-  let matchSelect = await db.from("crucible_matches").select(`${matchCols}, activity_image`).in("instance_id", instanceIds).eq("is_private", false);
-  if (matchSelect.error && /activity_image/.test(matchSelect.error.message ?? "")) {
-    matchSelect = await db.from("crucible_matches").select(matchCols).in("instance_id", instanceIds).eq("is_private", false);
+  let optionalMatchCols = ["activity_image", "director_activity_hash"];
+  let matchSelect = await db.from("crucible_matches").select(`${matchCols}, ${optionalMatchCols.join(", ")}`).in("instance_id", instanceIds).eq("is_private", false);
+  while (matchSelect.error && optionalMatchCols.some((column) => (matchSelect.error.message ?? "").includes(column))) {
+    optionalMatchCols = optionalMatchCols.filter((column) => !(matchSelect.error.message ?? "").includes(column));
+    matchSelect = await db.from("crucible_matches").select([matchCols, ...optionalMatchCols].join(", ")).in("instance_id", instanceIds).eq("is_private", false);
   }
   const { data: rawMatchRows, error: matchError } = matchSelect;
 
-  const [{ data: playerRows, error: playerError }, { data: runRows }] = await Promise.all([
+  const [{ data: playerRows, error: playerError }, { data: runRows }, { data: gameSessionRows }] = await Promise.all([
     db.from("crucible_match_players").select("instance_id, membership_id, membership_type, display_name, emblem_path, team_id, is_win, kills, deaths, assists").in("instance_id", instanceIds),
     db.from("challenge_runs").select("id, pgcr_instance_id, weekly_challenge_id").in("pgcr_instance_id", instanceIds),
+    db.from("game_sessions").select("id, pgcr_instance_id, lobby_id").in("pgcr_instance_id", instanceIds),
   ]);
   if (matchError) throw new Error(`Crucible match lookup failed: ${matchError.message}`);
   if (playerError) throw new Error(`Crucible roster lookup failed: ${playerError.message}`);
 
   const matchRows = await repairStaleModeBuckets((rawMatchRows ?? []) as MatchRow[], db, resolveDef);
   const linkedRuns = (runRows ?? []) as LinkedRunRow[];
+  const linkedGameSessions = (gameSessionRows ?? []) as LinkedGameSessionRow[];
+  const lobbyIds = [...new Set(linkedGameSessions.map((row) => row.lobby_id))];
   const runIds = linkedRuns.map((row) => row.id);
   const challengeIds = linkedRuns.flatMap((row) => row.weekly_challenge_id ? [row.weekly_challenge_id] : []);
-  const [{ data: loadoutRows }, { data: challengeRows }] = await Promise.all([
+  const [{ data: loadoutRows }, { data: challengeRows }, { data: lobbyRows }] = await Promise.all([
     runIds.length ? db.from("challenge_run_loadout_slots").select("run_id, slot, weapon_name, weapon_icon").in("run_id", runIds) : Promise.resolve({ data: [] }),
     challengeIds.length ? db.from("weekly_challenges").select("id, title").in("id", challengeIds) : Promise.resolve({ data: [] }),
+    lobbyIds.length ? db.from("lobbies").select("id, mode").in("id", lobbyIds) : Promise.resolve({ data: [] }),
   ]);
   const runByInstance = new Map<string, LinkedRunRow>(linkedRuns.map((row) => [row.pgcr_instance_id, row]));
+  const gameSessionByInstance = new Map<string, LinkedGameSessionRow>(linkedGameSessions.map((row) => [row.pgcr_instance_id, row]));
+  const lobbyModeById = new Map<string, "roulette" | "draft" | "endgame">(((lobbyRows ?? []) as { id: string; mode: "roulette" | "draft" | "endgame" }[]).map((row) => [row.id, row.mode]));
   const challengeById = new Map<string, string>(((challengeRows ?? []) as { id: string; title: string }[]).map((row) => [row.id, row.title]));
   const loadoutByRun = new Map<string, SeasonMatchLoadoutSlot[]>();
   for (const row of loadoutRows ?? []) {
@@ -223,6 +244,8 @@ export async function getCrucibleMatchHistory(
       ? rows.find((row) => row.membership_id === opponents[0].membershipId)?.team_id ?? null
       : null;
     const run = runByInstance.get(match.instance_id);
+    const gameSession = gameSessionByInstance.get(match.instance_id);
+    const lobbyMode = gameSession ? lobbyModeById.get(gameSession.lobby_id) : undefined;
     const challengeTitle = run?.weekly_challenge_id ? challengeById.get(run.weekly_challenge_id) ?? null : null;
     const loadout = run ? loadoutByRun.get(run.id) ?? [] : [];
     const modeName = crucibleModeName({
@@ -237,6 +260,7 @@ export async function getCrucibleMatchHistory(
       modeBucket: match.mode_bucket,
       modeName,
       mapImage: match.activity_image ?? null,
+      rerolledMode: lobbyMode === "draft" ? "draft" : lobbyMode === "roulette" ? "loadout_roulette" : null,
       playedAt: match.period,
       result: viewer.is_win === true ? "win" : viewer.is_win === false ? "loss" : "unknown",
       activityName: match.activity_name ?? modeName,

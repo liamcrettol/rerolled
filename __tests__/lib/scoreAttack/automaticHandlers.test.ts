@@ -36,6 +36,7 @@ function pgcr(ownScore: number, opponentScore: number): NormalizedPvpPgcr {
     kind: "pvp",
     instanceId: "instance-1",
     activityHash: 1,
+    directorActivityHash: null,
     activityMode: 10,
     activityModes: [10],
     period: "2026-07-10T00:00:00.000Z",

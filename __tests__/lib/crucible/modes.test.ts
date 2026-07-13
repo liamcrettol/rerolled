@@ -48,6 +48,15 @@ describe("crucibleGameReportUrl", () => {
     expect(crucibleGameReportUrl("match/1", "trials")).toBe("https://trials.report/pgcr/match%2F1");
   });
 
+  it("recognizes Competitive Clash from the director playlist definition", () => {
+    expect(classifyCrucibleMode({
+      activityMode: 71,
+      activityModes: [5, 70, 12, 71],
+      activityHash: 2023826195,
+      directorActivityName: "Competitive: Matchmade",
+    })).toBe("competitive");
+  });
+
   it("links other Crucible games to Crucible Report", () => {
     expect(crucibleGameReportUrl("match-2", "competitive")).toBe("https://crucible.report/pgcr/match-2");
   });
