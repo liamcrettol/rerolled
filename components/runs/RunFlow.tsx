@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Dices, RotateCcw, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import BungieReauthPrompt from "@/components/BungieReauthPrompt";
 import WeaponIcon from "@/components/WeaponIcon";
@@ -109,6 +110,7 @@ interface Props {
 export default function RunFlow({ mode, weeklyChallengeId, activityName, accent }: Props) {
   const a = ACCENT[accent];
   const storageKey = `activeRun:${mode}`;
+  const router = useRouter();
 
   const [run, setRun] = useState<RunState | null>(null);
   const [loadout, setLoadout] = useState<LoadoutSlot[]>([]);
@@ -248,6 +250,8 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
     setLoadout([]);
     setApplyResults(null);
     setBusy(null);
+    router.push("/dashboard");
+    router.refresh();
   };
 
   const reset = () => {
