@@ -64,7 +64,9 @@ function RosterRow({ player }: { player: SeasonMatchPlayer }) {
             aria-label={`Open ${player.displayName} on Trials Report`}
           >
             <span className="truncate text-sm">{player.displayName}</span>
-            <ArrowUpRight size={11} className="shrink-0 text-gray-600 transition group-hover:text-bungie-blue" />
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-[9px] uppercase tracking-[0.08em] text-gray-500 transition group-hover:text-bungie-blue">
+              Profile <ArrowUpRight size={11} />
+            </span>
           </a>
         ) : (
           <p className={`truncate text-sm font-semibold ${player.isCurrentUser ? "text-bungie-blue" : "text-white"}`}>{player.displayName}</p>

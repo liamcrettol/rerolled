@@ -161,7 +161,7 @@ export default function HeadToHeadChip({
                     target="_blank"
                     rel="noreferrer"
                     aria-label={`Open ${meeting.activityName ?? meeting.modeName} game report`}
-                    className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 transition hover:bg-bungie-dark/55"
+                    className="group grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 transition hover:bg-bungie-dark/55"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-gray-100">{meeting.activityName ?? meeting.modeName}</p>
@@ -173,7 +173,9 @@ export default function HeadToHeadChip({
                       <span className={`font-mono text-[11px] font-bold ${meeting.viewerWon === true ? "text-green-300" : meeting.viewerWon === false ? "text-red-300" : "text-gray-400"}`}>
                         {meeting.viewerWon === true ? "W" : meeting.viewerWon === false ? "L" : "-"}
                       </span>
-                      <ArrowUpRight size={11} className="text-gray-600" />
+                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-gray-500 transition group-hover:text-bungie-blue">
+                        Report <ArrowUpRight size={11} />
+                      </span>
                     </span>
                   </a>
                 ))}

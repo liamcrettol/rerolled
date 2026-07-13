@@ -36,6 +36,7 @@ describe("HeadToHeadChip", () => {
       "href",
       "https://crucible.report/pgcr/match-1",
     );
+    expect(screen.getByText("Report")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Trials 2/ }));
     expect(screen.getByText("1 W")).toBeInTheDocument();
     expect(screen.getByText("1 L")).toBeInTheDocument();
