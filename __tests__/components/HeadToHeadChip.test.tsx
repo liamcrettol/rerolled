@@ -27,19 +27,19 @@ const summary: HeadToHeadSummary = {
 
 describe("HeadToHeadChip", () => {
   it("opens an accessible record card and changes playlist totals", () => {
-    render(<HeadToHeadChip summary={summary} opponentName="Rival" syncStatus="syncing" />);
+    render(<HeadToHeadChip summary={summary} opponentName="Rival" />);
     const trigger = screen.getByRole("button", { name: "Head-to-head record against Rival" });
     expect(trigger).toHaveTextContent("4-3");
     fireEvent.click(trigger);
-    expect(screen.getByText("Importing older Crucible history")).toBeInTheDocument();
     expect(screen.getByText(/Competitive Clash \/ Jul 9, 2026/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Endless Vale game report" })).toHaveAttribute(
       "href",
       "https://crucible.report/pgcr/match-1",
     );
     fireEvent.click(screen.getByRole("button", { name: /Trials 2/ }));
-    expect(screen.getAllByText("1", { selector: "p.font-mono" })).toHaveLength(2);
+    expect(screen.getByText("1 W")).toBeInTheDocument();
+    expect(screen.getByText("1 L")).toBeInTheDocument();
     fireEvent.keyDown(trigger, { key: "Escape" });
-    expect(screen.queryByText("Importing older Crucible history")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recent meetings")).not.toBeInTheDocument();
   });
 });

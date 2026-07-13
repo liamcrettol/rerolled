@@ -29,7 +29,7 @@ function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 
-function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStatus: SeasonStats["historySyncStatus"] }) {
+function RosterRow({ player }: { player: SeasonMatchPlayer }) {
   const emblemUrl = player.emblemPath
     ? (player.emblemPath.startsWith("http") ? player.emblemPath : `https://www.bungie.net${player.emblemPath}`)
     : null;
@@ -51,7 +51,7 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
       <div className="absolute inset-y-0 left-14 -z-10 w-6 bg-gradient-to-r from-bungie-dark/25 to-transparent" />
       {player.headToHead && (
         <div className="absolute right-2 top-2 z-10">
-          <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} syncStatus={syncStatus} />
+          <HeadToHeadChip summary={player.headToHead} opponentName={player.displayName} />
         </div>
       )}
       <div className="min-w-0 flex-1 pr-8">
@@ -84,7 +84,7 @@ function RosterRow({ player, syncStatus }: { player: SeasonMatchPlayer; syncStat
   );
 }
 
-function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: SeasonStats["historySyncStatus"] }) {
+function MatchCard({ match }: { match: SeasonMatch }) {
   const loadout = match.loadout.filter((slot) => slot.icon || slot.name);
   const mapImage = normalizeBungieImage(match.mapImage ?? null);
   const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report";
@@ -190,7 +190,7 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
             <p className="section-label">{match.teamLabel}</p>
           </div>
           <div className="divide-y divide-bungie-border/35">
-            {match.team.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
+            {match.team.map((player) => <RosterRow key={player.membershipId} player={player} />)}
           </div>
         </section>
 
@@ -200,7 +200,7 @@ function MatchCard({ match, syncStatus }: { match: SeasonMatch; syncStatus: Seas
               <p className="section-label">{match.opponentLabel ?? "Opponents"}</p>
             </div>
             <div className="divide-y divide-bungie-border/35">
-              {match.opponents.map((player) => <RosterRow key={player.membershipId} player={player} syncStatus={syncStatus} />)}
+              {match.opponents.map((player) => <RosterRow key={player.membershipId} player={player} />)}
             </div>
           </section>
         )}
@@ -247,7 +247,7 @@ export default function SeasonPanel({
           ) : (
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 max-h-[70vh] xl:max-h-none">
               {stats.matchHistory.map((match) => (
-                <MatchCard key={match.instanceId ?? match.runId} match={match} syncStatus={stats.historySyncStatus} />
+                <MatchCard key={match.instanceId ?? match.runId} match={match} />
               ))}
             </div>
           )}

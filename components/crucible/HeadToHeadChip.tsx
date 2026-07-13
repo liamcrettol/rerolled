@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, LoaderCircle } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { crucibleGameReportUrl } from "@/lib/crucible/modes";
 import type { CrucibleModeBucket, HeadToHeadModeRecord, HeadToHeadSummary } from "@/lib/crucible/types";
 
@@ -25,63 +25,22 @@ function recordFor(summary: HeadToHeadSummary, filter: "all" | CrucibleModeBucke
     : summary.byMode[filter] ?? { encounters: 0, wins: 0, losses: 0, unknown: 0 };
 }
 
-function cursorAfter(meeting: { playedAt: string; instanceId: string }): string {
-  const value = `${meeting.playedAt}|${meeting.instanceId}`;
-  return typeof window === "undefined"
-    ? Buffer.from(value, "utf8").toString("base64url")
-    : window.btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
 export default function HeadToHeadChip({
   summary,
   opponentName,
-  syncStatus,
 }: {
   summary: HeadToHeadSummary;
   opponentName: string;
-  syncStatus: "idle" | "queued" | "syncing" | "complete" | "failed";
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; width: number; maxHeight: number; top?: number; bottom?: number }>({ left: 0, width: 420, maxHeight: 480 });
   const [filter, setFilter] = useState<"all" | CrucibleModeBucket>("all");
-  const [meetings, setMeetings] = useState(summary.recentMeetings);
-  const [nextCursors, setNextCursors] = useState<Partial<Record<"all" | CrucibleModeBucket, string | null>>>({});
-  const [loadingOlder, setLoadingOlder] = useState(false);
-  const [olderError, setOlderError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const record = recordFor(summary, filter);
-  const visibleMeetings = meetings.filter((meeting) => filter === "all" || meeting.mode === filter);
-  const importing = syncStatus === "queued" || syncStatus === "syncing";
-
-  useEffect(() => {
-    setMeetings(summary.recentMeetings);
-    setNextCursors({});
-    setOlderError(false);
-  }, [summary]);
-
-  const loadOlder = async () => {
-    const filtered = meetings.filter((meeting) => filter === "all" || meeting.mode === filter);
-    const last = filtered[filtered.length - 1];
-    if (!last || loadingOlder) return;
-    setLoadingOlder(true);
-    setOlderError(false);
-    try {
-      const params = new URLSearchParams({ mode: filter, cursor: nextCursors[filter] ?? cursorAfter(last) });
-      const response = await fetch(`/api/crucible/head-to-head/${encodeURIComponent(summary.opponentMembershipId)}?${params.toString()}`);
-      if (!response.ok) throw new Error("Unable to load older meetings");
-      const data = await response.json() as { matches?: typeof meetings; nextCursor?: string | null };
-      const existing = new Set(meetings.map((meeting) => meeting.instanceId));
-      setMeetings((current) => [...current, ...(data.matches ?? []).filter((meeting) => !existing.has(meeting.instanceId))]);
-      setNextCursors((current) => ({ ...current, [filter]: data.nextCursor ?? null }));
-    } catch {
-      setOlderError(true);
-    } finally {
-      setLoadingOlder(false);
-    }
-  };
+  const visibleMeetings = summary.recentMeetings.filter((meeting) => filter === "all" || meeting.mode === filter);
   const cancelClose = () => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
@@ -168,7 +127,6 @@ export default function HeadToHeadChip({
                 <span className="mx-2 text-bungie-border">/</span>
                 <span className="text-red-300">{record.losses} L</span>
               </p>
-              <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-gray-400">Selected record</p>
             </div>
           </div>
 
@@ -187,15 +145,6 @@ export default function HeadToHeadChip({
                 </button>
               );
             })}
-          </div>
-
-          <div className="grid grid-cols-3 border-b border-bungie-border bg-bungie-dark/35">
-            {[[record.encounters, "Meetings", "text-white"], [record.wins, "Wins", "text-green-300"], [record.losses, "Losses", "text-red-300"]].map(([value, label, tone], index) => (
-              <div key={String(label)} className={`flex items-center justify-between gap-2 px-3 py-2 ${index < 2 ? "border-r border-bungie-border" : ""}`}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400">{label}</p>
-                <p className={`font-mono text-sm ${tone}`}>{value}</p>
-              </div>
-            ))}
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -232,21 +181,6 @@ export default function HeadToHeadChip({
             ) : (
               <p className="px-3 py-5 text-center text-xs text-gray-500">No recorded meetings in this playlist.</p>
             )}
-            {visibleMeetings.length > 0 && nextCursors[filter] !== null && (
-              <button
-                type="button"
-                onClick={loadOlder}
-                disabled={loadingOlder}
-                className="flex w-full items-center justify-center gap-1.5 border-t border-bungie-border px-3 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 transition hover:bg-bungie-dark/55 hover:text-white disabled:cursor-wait disabled:opacity-60"
-              >
-                {loadingOlder && <LoaderCircle size={11} className="animate-spin" />}
-                {loadingOlder ? "Loading older meetings" : "Load older meetings"}
-              </button>
-            )}
-            {olderError && <p className="border-t border-bungie-border px-3 py-2 text-center text-[10px] uppercase tracking-[0.08em] text-red-300">Unable to load older meetings</p>}
-            <p className="border-t border-bungie-border px-3 py-2 text-[10px] uppercase tracking-[0.06em] text-gray-500">
-              {importing ? "Importing older Crucible history" : "Based on recorded Bungie history"}
-            </p>
           </div>
         </div>,
         document.body,
