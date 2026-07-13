@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
-import { rotateCaptain } from "@/lib/lobby";
+import { closeLobby, rotateCaptain } from "@/lib/lobby";
 import { z } from "zod";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
@@ -25,11 +25,7 @@ export async function POST(req: NextRequest) {
     // Rotate captain so next session starts fresh
     await rotateCaptain(lobbyId);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await adminSupabase
-      .from("lobbies")
-      .update({ status: "done", ended_at: new Date().toISOString() } as any)
-      .eq("id", lobbyId);
+    await closeLobby(lobbyId);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

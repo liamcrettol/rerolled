@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { Shuffle, Lock, User, RotateCcw } from "lucide-react";
 import type { LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { type WeaponDetail, type InstancePerk, type DamageTheme, useWeaponTooltip, damageTheme } from "./weaponShared";
+import { SLOT_ORDER } from "@/lib/destiny/constants";
+import RevealReel from "@/components/RevealReel";
 type AnimKind = "roll" | "pick";
 
 interface Props {
@@ -24,7 +25,6 @@ interface Props {
   actions?: React.ReactNode;
 }
 
-const SLOT_ORDER = ["kinetic", "energy", "power"];
 const REEL_ITEM_H = 56;
 const REEL_PRE_COUNT = 15;
 const SLOT_STAGGER_MS: Record<string, number> = { kinetic: 0, energy: 160, power: 320 };
@@ -45,12 +45,12 @@ function WeaponSlotContent({
   onHover: (hash: number, e: React.MouseEvent<HTMLElement>) => void;
   onLeave: () => void;
 }) {
-  const [reelItems, setReelItems] = useState<string[]>([icon]);
   const [spinning, setSpinning] = useState(false);
   const [landed, setLanded] = useState(false);
   const [picked, setPicked] = useState(false);
   const [popKey, setPopKey] = useState(0);
-  const reelRef = useRef<HTMLDivElement>(null);
+  const [revealKey, setRevealKey] = useState(0);
+  const [animateReveal, setAnimateReveal] = useState(false);
   const firstRender = useRef(true);
   const prevHash = useRef(hash);
 
@@ -59,7 +59,6 @@ function WeaponSlotContent({
     if (firstRender.current) {
       firstRender.current = false;
       prevHash.current = hash;
-      setReelItems([icon]);
       return;
     }
     if (hash === prevHash.current) return;
@@ -68,60 +67,20 @@ function WeaponSlotContent({
     const kind: AnimKind = animKindRef?.current[slot] ?? "roll";
 
     if (kind === "pick" || iconPool.length < 2) {
-      setReelItems([icon]);
       setSpinning(false);
+      setAnimateReveal(false);
+      setRevealKey((key) => key + 1);
       setPicked(true);
       setPopKey((k) => k + 1);
       const t = setTimeout(() => setPicked(false), 600);
       return () => clearTimeout(t);
     }
 
-    const delay = SLOT_STAGGER_MS[slot] ?? 0;
-    const staggerTimer = setTimeout(() => {
-      const randoms = Array.from({ length: REEL_PRE_COUNT }, () =>
-        iconPool[Math.floor(Math.random() * iconPool.length)]
-      );
-      setReelItems([...randoms, icon]);
-      setSpinning(true);
-      setLanded(false);
-    }, delay);
-    return () => clearTimeout(staggerTimer);
+    setLanded(false);
+    setAnimateReveal(true);
+    setRevealKey((key) => key + 1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash]);
-
-  // Effect 2: once reelItems + spinning are set, kick off CSS transition
-  useEffect(() => {
-    if (!spinning || reelItems.length < 2) return;
-    const reel = reelRef.current;
-    if (!reel) return;
-
-    const targetY = -((reelItems.length - 1) * REEL_ITEM_H);
-
-    reel.style.transition = "none";
-    reel.style.transform = "translateY(0)";
-
-    const rafId = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        reel.style.transition = "transform 900ms cubic-bezier(0.1, 0.6, 0.3, 1)";
-        reel.style.transform = `translateY(${targetY}px)`;
-      });
-    });
-
-    const landTimer = setTimeout(() => {
-      setSpinning(false);
-      setReelItems([icon]);
-      const r = reelRef.current;
-      if (r) { r.style.transition = "none"; r.style.transform = "translateY(0)"; }
-      setLanded(true);
-      setTimeout(() => setLanded(false), 600);
-    }, 950);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(landTimer);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spinning, reelItems]);
 
   return (
     <>
@@ -134,16 +93,22 @@ function WeaponSlotContent({
         onMouseEnter={(e) => onHover(hash, e)}
         onMouseLeave={onLeave}
       >
-        <div ref={reelRef} style={{ willChange: "transform" }}>
-          {reelItems.map((ic, idx) => (
-            <div key={idx} style={{ width: REEL_ITEM_H, height: REEL_ITEM_H, position: "relative" }}>
-              <Image src={ic} alt="" fill className="object-cover" unoptimized />
-              {idx === reelItems.length - 1 && !spinning && watermark && (
-                <Image src={watermark} alt="" fill className="object-cover pointer-events-none" unoptimized />
-              )}
-            </div>
-          ))}
-        </div>
+        <RevealReel
+          target={icon}
+          fillers={iconPool}
+          revealKey={revealKey}
+          itemSize={REEL_ITEM_H}
+          fillerCount={REEL_PRE_COUNT}
+          animate={animateReveal}
+          delayMs={SLOT_STAGGER_MS[slot] ?? 0}
+          durationMs={900}
+          watermark={watermark}
+          onSpinningChange={setSpinning}
+          onLanded={() => {
+            setLanded(true);
+            setTimeout(() => setLanded(false), 600);
+          }}
+        />
       </div>
       <div className="flex-1 min-w-0">
         {spinning ? (

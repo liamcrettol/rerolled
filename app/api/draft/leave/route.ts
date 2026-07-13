@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { z } from "zod";
+import { closeLobby } from "@/lib/lobby";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
 
@@ -33,11 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Drafts are single-session boards. Confirming in the client makes this
     // explicit because closing the room ends the draft for the whole fireteam.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await adminSupabase
-      .from("lobbies")
-      .update({ status: "done", ended_at: new Date().toISOString() } as any)
-      .eq("id", lobbyId);
+    await closeLobby(lobbyId);
 
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -3,6 +3,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { assertCronAuth } from "@/lib/auth/cron";
+import { closeIdleLobbies } from "@/lib/lobby";
 
 // Triggered by GitHub Actions (see .github/workflows/detect-games.yml) with
 // Authorization: Bearer CRON_SECRET. It finds lobbies that have a pending apply
@@ -24,10 +25,7 @@ export async function GET(req: NextRequest) {
 
   // Mark lobbies idle for >2 hours as done so they stop accumulating.
   const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await adminSupabase.from("lobbies").update({ status: "done", ended_at: new Date().toISOString() } as any)
-    .neq("status", "done")
-    .lt("last_active_at", idleCutoff);
+  await closeIdleLobbies(idleCutoff);
 
   // Find lobbies that have an apply in the last 3 hours but no game_session after it.
   // We join through roll_history to find the apply timestamp per lobby.

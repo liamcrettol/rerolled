@@ -10,6 +10,8 @@ import WeaponIcon from "@/components/WeaponIcon";
 import Spinner from "@/components/Spinner";
 import { ENDGAME_KIND_FIRETEAM_SIZE, ARMOR_SLOT_LABELS, type EndgameActivityKind } from "@/lib/endgame/randomizer";
 import type { Lobby, LobbyMember } from "@/types/lobby";
+import { CLASS_NAMES } from "@/lib/destiny/constants";
+import { useCharacters } from "@/hooks/useCharacters";
 
 // Fireteam Endgame Roulette board. Built on useLobbySession for the generic
 // lobby skeleton (live members, captain/spectator flags, the current round's
@@ -26,7 +28,6 @@ const KIND_LABELS: Record<EndgameActivityKind, string> = {
   raid: "Raid",
 };
 const KIND_ORDER: EndgameActivityKind[] = ["grandmaster", "dungeon", "raid"];
-const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 
 type PickStatus = "resolved" | "none_owned" | "fetch_failed" | "missing_character" | "missing_token";
 
@@ -65,12 +66,6 @@ function statusLine(pick: EndgamePickRow, slotLabel: string): string {
   }
 }
 
-interface Character {
-  characterId: string;
-  classType: number;
-  light: number;
-}
-
 interface Props {
   lobby: Lobby;
   members: LobbyMember[];
@@ -89,31 +84,15 @@ export default function EndgameLobbyBoard({ lobby, members: initialMembers, curr
   const [selectedKinds, setSelectedKinds] = useState<EndgameActivityKind[]>([]);
   const [showRerollConfirm, setShowRerollConfirm] = useState(false);
 
-  const [characters, setCharacters] = useState<Character[] | null>(null);
-  const [characterId, setCharacterId] = useState<string | null>(null);
-  const [loadingCharacters, setLoadingCharacters] = useState(true);
+  const initialCharacterId = initialMembers.find((member) => member.user_id === currentUserId)?.selected_character_id ?? null;
+  const {
+    characters,
+    selectedCharacterId: characterId,
+    setSelectedCharacterId: setCharacterId,
+    loading: loadingCharacters,
+  } = useCharacters({ initialCharacterId });
 
   const me = members.find((m) => m.user_id === currentUserId);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/bungie/characters")
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        const list: Character[] = data.characters ?? [];
-        setCharacters(list);
-        setCharacterId((current) => current ?? me?.selected_character_id ?? list[0]?.characterId ?? null);
-      })
-      .catch(() => setCharacters([]))
-      .finally(() => {
-        if (!cancelled) setLoadingCharacters(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const loadRound = useCallback(async () => {
     if (!roundId) return;

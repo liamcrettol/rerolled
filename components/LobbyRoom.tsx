@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Lobby, LobbyMember } from "@/types/lobby";
 import type { DisplayBadge } from "@/lib/badges/data";
-import type { DestinyCharacter } from "@/types/bungie";
-import type { WeaponSlot } from "@/types/bungie";
+import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import LoadoutQueue from "./LoadoutQueue";
 import ApplyStatus from "./ApplyStatus";
 import { signOut } from "next-auth/react";
@@ -24,6 +23,8 @@ import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { useApplyLoadout } from "@/hooks/lobby/useApplyLoadout";
 import { useRollActions } from "@/hooks/lobby/useRollActions";
 import { Shuffle, Zap, Crown, Check, Copy, X, MoreHorizontal, PanelRightOpen, PanelRightClose, Clock } from "lucide-react";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useCharacters } from "@/hooks/useCharacters";
 
 interface Props {
   lobby: Lobby;
@@ -37,6 +38,8 @@ interface Props {
    * page loads won't show badges until the page is refreshed. */
   memberBadges?: Record<string, DisplayBadge[]>;
 }
+
+const EMPTY_CHARACTERS: DestinyCharacter[] = [];
 
 // Tone drives the status bar's visual weight: "turn" = an action is on you
 // right now (most prominent), "info" = something's happening but not on you,
@@ -88,7 +91,8 @@ export default function LobbyRoom({
   memberBadges,
 }: Props) {
   const router = useRouter();
-  const [characters, setCharacters] = useState<DestinyCharacter[]>([]);
+  const { characters: loadedCharacters } = useCharacters({ selectFirst: false });
+  const characters = loadedCharacters ?? EMPTY_CHARACTERS;
   // Pre-select the guardian this player already chose (persists across rounds/rejoins).
   const [selectedCharId, setSelectedCharId] = useState<string | null>(
     initialMembers.find((m) => m.user_id === currentUserId)?.selected_character_id ?? null
@@ -96,9 +100,10 @@ export default function LobbyRoom({
   const [contextExpanded, setContextExpanded] = useState(true);
 
   const [preferredInstances, setPreferredInstancesState] = useState<Partial<Record<WeaponSlot, string>>>({});
-  const [copied, setCopied] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedWatch, setCopiedWatch] = useState(false);
+  const { copy, isCopied } = useCopyToClipboard();
+  const copied = isCopied("code");
+  const copiedLink = isCopied("invite");
+  const copiedWatch = isCopied("watch");
   const hasAutoSelected = useRef(false);
 
   // Stats panel tab: session totals | match history | global leaderboard
@@ -302,34 +307,16 @@ export default function LobbyRoom({
   }, [roundHistory]);
 
   const copyCode = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(lobby.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard unavailable; ignore */ }
-  }, [lobby.code]);
+    await copy(lobby.code, "code");
+  }, [copy, lobby.code]);
 
   const copyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/join/${lobby.code}`);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 1500);
-    } catch { /* clipboard unavailable; ignore */ }
-  }, [lobby.code]);
+    await copy(`${window.location.origin}/join/${lobby.code}`, "invite");
+  }, [copy, lobby.code]);
 
   const copyWatchLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/watch/${lobby.code}`);
-      setCopiedWatch(true);
-      setTimeout(() => setCopiedWatch(false), 1500);
-    } catch { /* clipboard unavailable; ignore */ }
-  }, [lobby.code]);
-
-  useEffect(() => {
-    fetch("/api/bungie/characters")
-      .then((r) => r.json())
-      .then((d) => { if (d.characters) setCharacters(d.characters); });
-  }, []);
+    await copy(`${window.location.origin}/watch/${lobby.code}`, "watch");
+  }, [copy, lobby.code]);
 
   const handleLoadIntersection = useCallback(
     () => loadIntersection(selectedCharId),

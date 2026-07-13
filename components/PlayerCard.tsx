@@ -7,6 +7,7 @@ import type { LobbyMember } from "@/types/lobby";
 import EquippedBadges from "@/components/badges/EquippedBadges";
 import BadgePopover from "@/components/badges/BadgePopover";
 import type { DisplayBadge } from "@/lib/badges/data";
+import { bungieImg } from "@/lib/destiny/constants";
 
 interface Props {
   member: LobbyMember;
@@ -23,12 +24,12 @@ export default function PlayerCard({ member, compact, variant = "default", badge
 
   const bgUrl =
     !bgFailed && member.emblem_background_path
-      ? `https://www.bungie.net${member.emblem_background_path}`
+      ? bungieImg(member.emblem_background_path)
       : null;
 
   const iconUrl =
     !iconFailed && member.emblem_path
-      ? `https://www.bungie.net${member.emblem_path}`
+      ? bungieImg(member.emblem_path)
       : null;
 
   // emblem_background_path is Bungie's 474x96 nameplate, which has the 96x96

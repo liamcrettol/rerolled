@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { z } from "zod";
+import { closeLobby } from "@/lib/lobby";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
 
@@ -58,8 +59,7 @@ export async function POST(req: NextRequest) {
           .eq("id", lobbyId);
       } else {
         // No one left - mark done to preserve stats (delete cascades to game_sessions)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await adminSupabase.from("lobbies").update({ status: "done", ended_at: new Date().toISOString() } as any).eq("id", lobbyId);
+        await closeLobby(lobbyId);
       }
     }
 

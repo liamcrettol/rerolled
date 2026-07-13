@@ -3,14 +3,10 @@ import type { SeasonMatch, SeasonMatchPlayer, SeasonStats } from "@/types/platfo
 import HeadToHeadChip from "@/components/crucible/HeadToHeadChip";
 import { crucibleGameReportUrl, crucibleModeLabel } from "@/lib/crucible/modes";
 import LocalDateTime from "./LocalDateTime";
+import { bungieImg } from "@/lib/destiny/constants";
 
 function formatKd(value: number | null) {
   return value === null ? "-" : value.toFixed(2);
-}
-
-function normalizeBungieImage(path: string | null) {
-  if (!path) return null;
-  return path.startsWith("http") ? path : `https://www.bungie.net${path}`;
 }
 
 function resultClasses(result: SeasonMatch["result"]) {
@@ -30,9 +26,7 @@ function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 
 function RosterRow({ player }: { player: SeasonMatchPlayer }) {
-  const emblemUrl = player.emblemPath
-    ? (player.emblemPath.startsWith("http") ? player.emblemPath : `https://www.bungie.net${player.emblemPath}`)
-    : null;
+  const emblemUrl = bungieImg(player.emblemPath) || null;
 
   return (
     <div className="relative isolate flex min-h-[4.25rem] items-center overflow-hidden border-b border-bungie-border/35 bg-bungie-dark/25 py-2.5 pl-16 pr-3 transition last:border-b-0 hover:bg-bungie-dark/55">
@@ -88,7 +82,7 @@ function RosterRow({ player }: { player: SeasonMatchPlayer }) {
 
 function MatchCard({ match }: { match: SeasonMatch }) {
   const loadout = match.loadout.filter((slot) => slot.icon || slot.name);
-  const mapImage = normalizeBungieImage(match.mapImage ?? null);
+  const mapImage = bungieImg(match.mapImage) || null;
   const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Report";
   const modeLabel = match.mode === "crucible"
     ? (match.modeName ?? (match.modeBucket ? crucibleModeLabel(match.modeBucket) : "Crucible"))
@@ -167,7 +161,7 @@ function MatchCard({ match }: { match: SeasonMatch }) {
       {loadout.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {loadout.map((slot) => {
-            const icon = normalizeBungieImage(slot.icon);
+            const icon = bungieImg(slot.icon) || null;
             return (
               <div key={slot.slot} className="flex items-center gap-2 border border-bungie-border/70 bg-bungie-dark/60 px-2.5 py-2">
                 {icon ? (

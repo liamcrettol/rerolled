@@ -6,8 +6,8 @@ import type {
 } from "@/types/bungie";
 import type { ResolvedWeapon, ResolvedPerk, ResolvedStat } from "@/types/weapon";
 import type { WeaponSlot } from "@/types/bungie";
+import { bungieImg } from "@/lib/destiny/constants";
 
-const BUNGIE_CDN = "https://www.bungie.net";
 
 // Damage type hash → display name
 const DAMAGE_TYPE_NAMES: Record<number, string> = {
@@ -106,7 +106,7 @@ function resolveWeapon(
         name: plugDef.displayProperties.name,
         description: plugDef.displayProperties.description ?? "",
         icon: plugDef.displayProperties.icon
-          ? `${BUNGIE_CDN}${plugDef.displayProperties.icon}`
+          ? bungieImg(plugDef.displayProperties.icon)
           : "",
         isSelected: socket.plugHash === plugHash,
       });
@@ -141,9 +141,9 @@ function resolveWeapon(
     name: def.displayProperties?.name ?? "Unknown Weapon",
     flavorText: def.flavorText ?? "",
     icon: def.displayProperties?.icon
-      ? `${BUNGIE_CDN}${def.displayProperties.icon}`
+      ? bungieImg(def.displayProperties.icon)
       : "",
-    screenshot: def.screenshot ? `${BUNGIE_CDN}${def.screenshot}` : undefined,
+    screenshot: def.screenshot ? bungieImg(def.screenshot) : undefined,
     slot,
     weaponType: def.itemTypeDisplayName ?? "Weapon",
     ammoType: AMMO_TYPE_NAMES[ammoType] ?? "Primary",

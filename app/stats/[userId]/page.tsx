@@ -2,10 +2,9 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { SLOT_ORDER } from "@/lib/destiny/constants";
 
 export const dynamic = "force-dynamic";
-
-const SLOT_ORDER = ["kinetic", "energy", "power"] as const;
 
 const TIER_COLOR: Record<string, string> = {
   Exotic: "text-yellow-400",

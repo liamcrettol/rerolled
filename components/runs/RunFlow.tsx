@@ -13,6 +13,8 @@ import BungieReauthPrompt from "@/components/BungieReauthPrompt";
 import WeaponIcon from "@/components/WeaponIcon";
 import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import type { WeaponSlot } from "@/types/bungie";
+import { CLASS_NAMES } from "@/lib/destiny/constants";
+import { useCharacters } from "@/hooks/useCharacters";
 
 type Accent = "amber" | "blue" | "red";
 
@@ -70,13 +72,6 @@ interface ScoringBreakdown {
   totalScore: number;
 }
 
-interface Character {
-  characterId: string;
-  classType: number;
-  light: number;
-  emblemPath: string;
-}
-
 interface ApplyResultRow {
   slot: string;
   success: boolean;
@@ -84,7 +79,6 @@ interface ApplyResultRow {
   weapon_name?: string;
 }
 
-const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 
 // Worker-owned pipeline states shown while we wait on detection/scoring.
 const TRACKING_STATES = new Set([
@@ -116,8 +110,11 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
   const [loadout, setLoadout] = useState<LoadoutSlot[]>([]);
   const [rerollsUsed, setRerollsUsed] = useState(0);
   const [rerollLimit, setRerollLimit] = useState(0);
-  const [characters, setCharacters] = useState<Character[] | null>(null);
-  const [characterId, setCharacterId] = useState<string | null>(null);
+  const {
+    characters,
+    selectedCharacterId: characterId,
+    setSelectedCharacterId: setCharacterId,
+  } = useCharacters({ enabled: run?.status === "loadout_rolled", selectFirst: false });
   const [applyResults, setApplyResults] = useState<ApplyResultRow[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -188,10 +185,6 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
       setRerollsUsed(rolled.rerollsUsed);
       setRerollLimit(rolled.rerollLimit);
       setRun({ id: created.runId, status: "loadout_rolled", score: null, scoringBreakdown: null, complianceStatus: null });
-      // Load characters in the background for the next step.
-      api("/api/bungie/characters")
-        .then((d) => setCharacters(d.characters))
-        .catch(() => setCharacters([]));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start the run");
     } finally {
@@ -262,15 +255,6 @@ export default function RunFlow({ mode, weeklyChallengeId, activityName, accent 
     setRerollsUsed(0);
     setError(null);
   };
-
-  // Lazily fetch characters when resuming into the rolled state.
-  useEffect(() => {
-    if (run?.status === "loadout_rolled" && characters === null) {
-      api("/api/bungie/characters")
-        .then((d) => setCharacters(d.characters))
-        .catch(() => setCharacters([]));
-    }
-  }, [run?.status, characters, api]);
 
   // ── render ────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminSupabase } from "@/lib/supabase/admin";
 import { assertCronAuth } from "@/lib/auth/cron";
+import { closeIdleLobbies } from "@/lib/lobby";
 
 const IDLE_CLOSE_MS = 2 * 60 * 60 * 1000;
 
@@ -13,12 +13,7 @@ export async function GET(req: NextRequest) {
 
   // Mark stale lobbies done instead of deleting them. That preserves history but
   // stops active clients from keeping lobby channels and polling paths alive.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await adminSupabase
-    .from("lobbies")
-    .update({ status: "done", ended_at: now } as any)
-    .neq("status", "done")
-    .lt("last_active_at", idleCutoff)
+  const { data, error } = await closeIdleLobbies(idleCutoff, now)
     .select("id, code, status, last_active_at");
 
   if (error) {

@@ -1,18 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Shield, Swords, Target } from "lucide-react";
 import BungieReauthPrompt from "@/components/BungieReauthPrompt";
 import WeaponIcon from "@/components/WeaponIcon";
 import { isBungieAuthErrorMessage } from "@/lib/auth/bungieErrors";
 import type { EndgameActivityKind } from "@/lib/endgame/randomizer";
-
-interface Character {
-  characterId: string;
-  classType: number;
-  light: number;
-  emblemPath: string;
-}
+import { CLASS_NAMES } from "@/lib/destiny/constants";
+import { useCharacters } from "@/hooks/useCharacters";
 
 interface RollResult {
   character: {
@@ -49,7 +44,6 @@ interface RollResult {
   };
 }
 
-const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 const KIND_LABELS: Record<EndgameActivityKind, string> = {
   grandmaster: "Grandmaster",
   dungeon: "Dungeon",
@@ -69,41 +63,18 @@ function armorLocationLabel(
 }
 
 export default function EndgameRandomizer() {
-  const [characters, setCharacters] = useState<Character[] | null>(null);
-  const [characterId, setCharacterId] = useState<string | null>(null);
+  const {
+    characters,
+    selectedCharacterId: characterId,
+    setSelectedCharacterId: setCharacterId,
+    loading: loadingCharacters,
+    error: charactersError,
+  } = useCharacters();
   const [selectedKinds, setSelectedKinds] = useState<EndgameActivityKind[]>(["grandmaster", "dungeon", "raid"]);
   const [result, setResult] = useState<RollResult | null>(null);
-  const [loadingCharacters, setLoadingCharacters] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const needsReauth = error ? isBungieAuthErrorMessage(error) : false;
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingCharacters(true);
-    fetch("/api/bungie/characters")
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-        return data;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        const nextCharacters = (data.characters as Character[]) ?? [];
-        setCharacters(nextCharacters);
-        setCharacterId((current) => current ?? nextCharacters[0]?.characterId ?? null);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Couldn't load your characters.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCharacters(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const needsReauth = Boolean(error || charactersError) && isBungieAuthErrorMessage(error ?? charactersError ?? "");
 
   const toggleKind = (kind: EndgameActivityKind) => {
     setSelectedKinds((current) => {
@@ -149,7 +120,7 @@ export default function EndgameRandomizer() {
               </div>
             ) : needsReauth && (!characters || characters.length === 0) ? (
               <p className="text-xs text-amber-400">Your Bungie connection needs to be refreshed.</p>
-            ) : error && (!characters || characters.length === 0) ? (
+            ) : charactersError && (!characters || characters.length === 0) ? (
               <p className="text-xs text-red-400">Couldn&apos;t load your Bungie characters right now.</p>
             ) : (characters?.length ?? 0) === 0 ? (
               <p className="text-xs text-red-400">No characters found for this Bungie account.</p>

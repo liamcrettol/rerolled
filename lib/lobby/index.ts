@@ -172,6 +172,21 @@ export async function getLobbyMembers(lobbyId: string): Promise<LobbyMember[]> {
   return data ?? [];
 }
 
+export function closeLobby(lobbyId: string, endedAt = new Date().toISOString()) {
+  return adminSupabase
+    .from("lobbies")
+    .update({ status: "done", ended_at: endedAt } as any)
+    .eq("id", lobbyId);
+}
+
+export function closeIdleLobbies(idleCutoff: string, endedAt = new Date().toISOString()) {
+  return adminSupabase
+    .from("lobbies")
+    .update({ status: "done", ended_at: endedAt } as any)
+    .neq("status", "done")
+    .lt("last_active_at", idleCutoff);
+}
+
 export async function rotateCaptain(lobbyId: string): Promise<void> {
   const members = (await getLobbyMembers(lobbyId)).filter((m) => !m.is_spectator);
   if (members.length < 2) return;

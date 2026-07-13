@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Shuffle, Check, Star, Repeat } from "lucide-react";
 import Card from "./ui/Card";
 import type { WeaponSlot } from "@/types/bungie";
+import { SLOT_LABELS } from "@/lib/destiny/constants";
 import {
   type WeaponDetail,
   type InstancePerk,
@@ -50,7 +51,6 @@ interface Props {
   showMetaFilter?: boolean;
 }
 
-const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
 // Meta filter: limit the browser to the staple Crucible archetypes.
 const META_BROWSER_TYPES = new Set(["Hand Cannon", "Shotgun", "Sniper Rifle"]);
 
@@ -88,9 +88,9 @@ function sortForBrowser(
 // ── A single selectable roll row ──────────────────────────────────────────────
 
 export function RollRow({
-  label, icon, perks, selected, onClick, disabled, favorited, onToggleFavorite,
+  label, icon, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
-  label: string; icon?: React.ReactNode; perks?: string[];
+  label: string; icon?: React.ReactNode;
   selected: boolean; onClick: () => void; disabled?: boolean;
   favorited?: boolean; onToggleFavorite?: () => void;
 }) {
@@ -114,11 +114,6 @@ export function RollRow({
           </span>
           {selected && <Check size={13} className="text-bungie-blue shrink-0 animate-fade-in" />}
         </div>
-        {perks && perks.length > 0 && (
-          <p className={`mt-0.5 text-[11px] leading-snug ${selected ? "text-blue-300" : "text-gray-500"}`}>
-            {perks.map((p) => String(p)).join("  ·  ")}
-          </p>
-        )}
       </button>
       {onToggleFavorite && (
         <button

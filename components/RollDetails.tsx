@@ -12,6 +12,7 @@ import WeaponIcon from "./WeaponIcon";
 import Spinner from "./Spinner";
 import Card from "./ui/Card";
 import { Check } from "lucide-react";
+import { SLOT_LABELS, SLOT_ORDER } from "@/lib/destiny/constants";
 
 interface Perk { name: string; description: string; stats?: Record<string, number>; communityDescription?: string }
 interface RollInstance {
@@ -67,9 +68,6 @@ export interface SlotRolls {
   members: MemberRolls[];
 }
 export type RollsData = Partial<Record<WeaponSlot, SlotRolls>>;
-
-const SLOT_LABELS: Record<WeaponSlot, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
-const SLOT_ORDER: WeaponSlot[] = ["kinetic", "energy", "power"];
 
 export default function RollDetails({
   rolls,

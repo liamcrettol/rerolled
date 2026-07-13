@@ -12,30 +12,15 @@ import { createClient } from "@/lib/supabase/client";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
+import { CLASS_NAMES, SLOT_LABELS, SLOT_ORDER, damageColor } from "@/lib/destiny/constants";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useCharacters } from "@/hooks/useCharacters";
+import RevealReel from "@/components/RevealReel";
 
 // How long a player gets to pick which owned copy (roll) of a drafted weapon
 // to equip, once all 3 slots are locked, before it auto-selects for them.
 const ROLL_PICKER_MS = 10_000;
 
-const SLOT_ORDER: WeaponSlot[] = ["kinetic", "energy", "power"];
-const SLOT_LABELS: Record<WeaponSlot, string> = {
-  kinetic: "Kinetic",
-  energy: "Energy",
-  power: "Power",
-};
-const CLASS_LABELS: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
-
-// Destiny element colors — used for the rarity-style edge glow a card lights up
-// with once its reel lands, so the reveal reads like a real loadout roll.
-const DAMAGE_COLORS: Record<string, string> = {
-  Arc: "#7bd6ff",
-  Solar: "#ff8a3d",
-  Void: "#b58cff",
-  Stasis: "#5b8dff",
-  Strand: "#2fd66f",
-  Kinetic: "#d3dae1",
-};
-const damageColor = (d: string) => DAMAGE_COLORS[d] ?? "#9aa1a9";
 
 interface DraftOption {
   position: number;
@@ -59,9 +44,6 @@ interface Props {
 // element-colored edge. Captain taps a landed card to lock the slot.
 const CARD_ICON = 112;
 const CARD_WINDOW = 144;
-const cardOffset = (i: number) => (CARD_WINDOW - CARD_ICON) / 2 - i * CARD_ICON;
-const REEL_MASK =
-  "linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)";
 
 function DraftCard({
   option,
@@ -86,7 +68,6 @@ function DraftCard({
   voteCount?: number;
   onPick: () => void;
 }) {
-  const reelRef = useRef<HTMLDivElement>(null);
   // Captured once at mount rather than tracking the live `spin` prop: this
   // card stays mounted (stable key) for the rest of the reveal, and a
   // realtime refetch (options insert echoing back over the lobby_draft_options
@@ -97,36 +78,6 @@ function DraftCard({
   // permanently blurred and unclickable.
   const [spinAtMount] = useState(spin);
   const [landed, setLanded] = useState(!spinAtMount);
-
-  // [ ...blurred fillers, the real weapon ]. Rebuilt only when the reel arms.
-  const items = useMemo(() => {
-    if (!spinAtMount) return [option.icon];
-    const pool = fillers.length ? fillers : [option.icon];
-    const scroll = Array.from(
-      { length: 14 },
-      () => pool[Math.floor(Math.random() * pool.length)]
-    );
-    return [...scroll, option.icon];
-  }, [spinAtMount, option.icon, fillers]);
-
-  useEffect(() => {
-    if (!spinAtMount) return;
-    const reel = reelRef.current;
-    if (!reel) return;
-    reel.style.transition = "none";
-    reel.style.transform = `translateY(${cardOffset(0)}px)`;
-    void reel.offsetHeight; // commit the reset before the animated move
-    const start = setTimeout(() => {
-      reel.style.transition = "transform 1150ms cubic-bezier(0.16, 1, 0.3, 1)";
-      reel.style.transform = `translateY(${cardOffset(items.length - 1)}px)`;
-    }, delay);
-    const done = setTimeout(() => setLanded(true), delay + 1250);
-    return () => {
-      clearTimeout(start);
-      clearTimeout(done);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const color = damageColor(option.damageType);
   const glow = selected
@@ -152,41 +103,21 @@ function DraftCard({
           {voteCount}
         </span>
       )}
-      <div
-        className="relative overflow-hidden"
-        style={{ width: CARD_ICON, height: CARD_WINDOW }}
-      >
-        <div
-          className="h-full"
-          style={{ maskImage: REEL_MASK, WebkitMaskImage: REEL_MASK }}
-        >
-          <div
-            ref={reelRef}
-            style={{
-              transform: `translateY(${cardOffset(0)}px)`,
-              willChange: "transform",
-            }}
-          >
-            {items.map((ic, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={ic}
-                alt=""
-                loading="eager"
-                decoding="async"
-                style={{
-                  width: CARD_ICON,
-                  height: CARD_ICON,
-                  objectFit: "cover",
-                  display: "block",
-                  filter: landed && i === items.length - 1 ? "none" : "blur(3px)",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      <RevealReel
+        target={option.icon}
+        fillers={fillers.length ? fillers : [option.icon]}
+        revealKey={`${option.itemHash}:${spinAtMount}`}
+        itemSize={CARD_ICON}
+        windowSize={CARD_WINDOW}
+        fillerCount={14}
+        delayMs={delay}
+        durationMs={1150}
+        animateOnMount={spinAtMount}
+        onSpinningChange={(spinning) => {
+          if (spinning) setLanded(false);
+        }}
+        onLanded={() => setLanded(true)}
+      />
 
       <div
         className={`text-center transition-opacity duration-300 ${
@@ -241,13 +172,10 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // pool that was actually fine, just not written yet (#313).
   const [poolReady, setPoolReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const { copy, isCopied } = useCopyToClipboard();
+  const copied = isCopied("code");
+  const copiedLink = isCopied("invite");
   const [pickingHash, setPickingHash] = useState<number | null>(null);
-  const [characters, setCharacters] = useState<{ characterId: string; classType: number }[]>([]);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string>("");
-  const [charactersLoading, setCharactersLoading] = useState(false);
-  const [characterError, setCharacterError] = useState<string | null>(null);
   const [roster, setRoster] = useState(members);
   // Tracks lobbies.status via realtime so every member's board reacts when
   // anyone closes/ends the draft (Leave Draft flips status to "done" server-
@@ -295,20 +223,12 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   // Same copy-to-clipboard pattern LobbyRoom uses for its lobby code (#314).
   const copyCode = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(lobby.code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard unavailable; ignore */ }
-  }, [lobby.code]);
+    await copy(lobby.code, "code");
+  }, [copy, lobby.code]);
 
   const copyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/join/${lobby.code}`);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 1500);
-    } catch { /* clipboard unavailable; ignore */ }
-  }, [lobby.code]);
+    await copy(`${window.location.origin}/join/${lobby.code}`, "invite");
+  }, [copy, lobby.code]);
 
   const loadRound = useCallback(async () => {
     const { data: round } = await supabase
@@ -421,6 +341,15 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const complete = SLOT_ORDER.every((s) => committedSlots.has(s));
   const activeSlot = SLOT_ORDER.find((s) => !committedSlots.has(s)) ?? null;
   const doneCount = committedSlots.size;
+  const {
+    characters: loadedCharacters,
+    selectedCharacterId,
+    setSelectedCharacterId,
+    loading: charactersLoading,
+    error: characterError,
+    retry: retryCharacters,
+  } = useCharacters({ enabled: complete });
+  const characters = loadedCharacters ?? [];
 
   // Slots where I own more than one copy of the drafted weapon - only these
   // get a roll picker; nothing to choose otherwise.
@@ -526,58 +455,6 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       clearTimeout(resolveTimeout);
     };
   }, [isSolo, activeSlot, activeOptions.length, revealedAt, roundId, lobby.id, loadRound]);
-
-  useEffect(() => {
-    if (!complete) return;
-    let cancelled = false;
-    setCharactersLoading(true);
-    setCharacterError(null);
-    fetch("/api/bungie/characters")
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Couldn't load your Destiny characters");
-        return data;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        if (data.characters?.length) {
-          setCharacters(data.characters);
-          setSelectedCharacterId(data.characters[0].characterId);
-        } else {
-          setCharacterError("No Destiny characters were returned. Retry before applying the loadout.");
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setCharacterError(err instanceof Error ? err.message : "Couldn't load your Destiny characters");
-      })
-      .finally(() => {
-        if (!cancelled) setCharactersLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [complete]);
-
-  function retryCharacters() {
-    setCharacters([]);
-    setSelectedCharacterId("");
-    setCharacterError(null);
-    // Toggling the completion dependency is unnecessary. The fetch effect is
-    // retriggered by this explicit event through the same endpoint.
-    setCharactersLoading(true);
-    fetch("/api/bungie/characters")
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Couldn't load your Destiny characters");
-        return data;
-      })
-      .then((data) => {
-        if (data.characters?.length) {
-          setCharacters(data.characters);
-          setSelectedCharacterId(data.characters[0].characterId);
-        } else setCharacterError("No Destiny characters were returned. Retry before applying the loadout.");
-      })
-      .catch((err) => setCharacterError(err instanceof Error ? err.message : "Couldn't load your Destiny characters"))
-      .finally(() => setCharactersLoading(false));
-  }
 
   async function reveal(slot: WeaponSlot) {
     if (!roundId) return;
@@ -929,13 +806,13 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             {characters.length > 0 && (
               <div className="flex items-center justify-center gap-2">
                 <select
-                  value={selectedCharacterId}
+                  value={selectedCharacterId ?? ""}
                   onChange={(e) => setSelectedCharacterId(e.target.value)}
                   className="border border-bungie-border bg-bungie-dark px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white"
                 >
                   {characters.map((c) => (
                     <option key={c.characterId} value={c.characterId}>
-                      {CLASS_LABELS[c.classType] ?? "Guardian"}
+                      {CLASS_NAMES[c.classType] ?? "Guardian"}
                     </option>
                   ))}
                 </select>

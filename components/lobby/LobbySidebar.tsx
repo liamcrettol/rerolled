@@ -9,12 +9,12 @@ import Card from "@/components/ui/Card";
 import type { LobbyMember } from "@/types/lobby";
 import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import type { InstancePerks, IntersectionAuthIssue, WeaponDetail } from "@/hooks/lobby/useWeaponPool";
+import { CLASS_NAMES, bungieImg } from "@/lib/destiny/constants";
 
 // The lobby's right column (#224): the auto-compacting fireteam/guardian
 // context card and the shared Weapon Browser, extracted verbatim from
 // LobbyRoom's rightColumn block.
 
-const CLASS_NAMES: Record<number, string> = { 0: "Titan", 1: "Hunter", 2: "Warlock" };
 // Display order for the character picker: Warlock, Hunter, Titan (left to right).
 const CLASS_ORDER = [2, 1, 0];
 
@@ -53,7 +53,7 @@ function EmblemThumbnail({ emblemPath, classType }: { emblemPath: string; classT
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://www.bungie.net${emblemPath}`}
+      src={bungieImg(emblemPath)}
       alt=""
       className="w-8 h-8 border border-white/10 object-cover"
       onError={() => setEmblemFailed(true)}

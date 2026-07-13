@@ -23,9 +23,7 @@ import { trimBungieName } from "@/lib/utils";
 import { mergeSlot, upsertMember, updateMember, removeMemberById } from "@/lib/lobby/realtimeState";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyLoadoutSlot, LobbyMember } from "@/types/lobby";
-
-const SLOT_ORDER = ["kinetic", "energy", "power"] as const;
-const SLOT_LABELS: Record<string, string> = { kinetic: "Kinetic", energy: "Energy", power: "Power" };
+import { SLOT_LABELS, SLOT_ORDER } from "@/lib/destiny/constants";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   waiting: { label: "Waiting", cls: "border-bungie-border text-gray-400" },

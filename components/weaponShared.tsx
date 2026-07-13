@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { damageTheme } from "@/lib/destiny/constants";
+
+export { DAMAGE_COLOR, damageTheme } from "@/lib/destiny/constants";
+export type { DamageTheme } from "@/lib/destiny/constants";
 
 // ── Shared types ────────────────────────────────────────────────────────────
 
@@ -31,29 +35,6 @@ export const TIER_COLORS: Record<number, { border: string; bg: string; label: st
   4: { border: "border-blue-500/40", bg: "bg-blue-900/10", label: "text-blue-400", accent: "bg-blue-500" },
 };
 export const DEFAULT_TIER = { border: "border-bungie-border", bg: "bg-bungie-dark", label: "text-gray-400", accent: "bg-gray-500" };
-
-export const DAMAGE_COLOR: Record<string, string> = {
-  Kinetic: "text-gray-300",
-  Solar: "text-orange-400",
-  Arc: "text-cyan-300",
-  Void: "text-purple-400",
-  Stasis: "text-blue-400",
-  Strand: "text-emerald-400",
-};
-
-// Richer per-element theme for borders / fills / tints so the UI isn't all the
-// same blue. Keyed by damage type; falls back to DEFAULT_DAMAGE_THEME.
-export interface DamageTheme { text: string; border: string; ring: string; bg: string; fill: string; chip: string }
-const DAMAGE_THEME: Record<string, DamageTheme> = {
-  Kinetic: { text: "text-gray-200", border: "border-gray-400/60", ring: "ring-gray-400/40", bg: "bg-gray-400/10", fill: "bg-gray-300", chip: "bg-gray-400/20 border-gray-400/40 text-gray-200" },
-  Solar:   { text: "text-orange-400", border: "border-orange-500/70", ring: "ring-orange-500/40", bg: "bg-orange-500/10", fill: "bg-orange-400", chip: "bg-orange-500/20 border-orange-500/40 text-orange-300" },
-  Arc:     { text: "text-cyan-300", border: "border-cyan-400/70", ring: "ring-cyan-400/40", bg: "bg-cyan-400/10", fill: "bg-cyan-300", chip: "bg-cyan-400/20 border-cyan-400/40 text-cyan-200" },
-  Void:    { text: "text-purple-400", border: "border-purple-500/70", ring: "ring-purple-500/40", bg: "bg-purple-500/10", fill: "bg-purple-400", chip: "bg-purple-500/20 border-purple-500/40 text-purple-300" },
-  Stasis:  { text: "text-blue-400", border: "border-blue-500/70", ring: "ring-blue-500/40", bg: "bg-blue-500/10", fill: "bg-blue-400", chip: "bg-blue-500/20 border-blue-500/40 text-blue-300" },
-  Strand:  { text: "text-emerald-400", border: "border-emerald-500/70", ring: "ring-emerald-500/40", bg: "bg-emerald-500/10", fill: "bg-emerald-400", chip: "bg-emerald-500/20 border-emerald-500/40 text-emerald-300" },
-};
-const DEFAULT_DAMAGE_THEME: DamageTheme = { text: "text-gray-300", border: "border-bungie-border", ring: "ring-bungie-blue/40", bg: "bg-bungie-dark", fill: "bg-bungie-blue", chip: "bg-bungie-blue/20 border-bungie-blue/40 text-blue-300" };
-export const damageTheme = (d?: string): DamageTheme => (d && DAMAGE_THEME[d]) || DEFAULT_DAMAGE_THEME;
 
 export const BAR_STATS = ["Impact", "Range", "Stability", "Handling", "Reload", "Aim Assist", "Zoom"];
 export const NUM_STATS = ["RPM", "Charge Time", "Magazine"];

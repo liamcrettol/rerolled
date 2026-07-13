@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { HeroWeaponSample } from "@/lib/bungie/definitions";
 import type { WeaponSlot } from "@/types/bungie";
+import RevealReel from "@/components/RevealReel";
+import { RARITY_EDGE_COLORS, SLOT_ORDER } from "@/lib/destiny/constants";
 
 // Purely decorative "loadout roll" for the signed-out landing hero, spinning
 // through real weapon icons (sampled server-side, grouped by real slot - see
@@ -27,7 +29,6 @@ const REEL_ITEM_H = 88;
 // entries peek through above and below the landed weapon - that's what makes
 // it read as a physical reel instead of images swapping in place.
 const REEL_WINDOW_H = 124;
-const REEL_PRE_COUNT = 8;
 const FILLER_POOL_SIZE = 8;
 const SPIN_MS = 950;
 // First spin starts almost immediately instead of waiting a full interval.
@@ -36,20 +37,13 @@ const EXOTIC_TIER = 6;
 // Flat rarity edge while a weapon sits landed — in-game item-tile colors.
 // Exported so other static "landed weapon" visuals (e.g. the landing page's
 // fireteam-intersection moment) reuse the same rarity-edge colors.
-export const EDGE = {
-  exotic: "rgba(199, 166, 74, 0.9)",
-  legendary: "rgba(120, 81, 145, 0.9)",
-};
-const REEL_MASK = "linear-gradient(to bottom, transparent 0%, black 24%, black 76%, transparent 100%)";
+export const EDGE = RARITY_EDGE_COLORS;
 
-// translateY that vertically centers reel item `i` in the window.
-const offsetFor = (i: number) => (REEL_WINDOW_H - REEL_ITEM_H) / 2 - i * REEL_ITEM_H;
-
-const SLOTS: Array<{ slot: WeaponSlot; intervalMs: number; staggerMs: number }> = [
-  { slot: "kinetic", intervalMs: 2800, staggerMs: 0 },
-  { slot: "energy", intervalMs: 2800, staggerMs: 220 },
-  { slot: "power", intervalMs: 2800, staggerMs: 440 },
-];
+const SLOTS: Array<{ slot: WeaponSlot; intervalMs: number; staggerMs: number }> = SLOT_ORDER.map((slot, index) => ({
+  slot,
+  intervalMs: 2800,
+  staggerMs: index * 220,
+}));
 
 function pickTarget(weapons: HeroWeaponSample[], allowExotic: boolean, exclude?: number): number {
   const candidates: number[] = [];
@@ -81,18 +75,10 @@ function ReelSlot({
 }) {
   const fillerPoolRef = useRef<number[] | null>(null);
   if (!fillerPoolRef.current) fillerPoolRef.current = pickFillerPool(weapons);
-  // Reel layout: [sliver above, current, ...fillers, target, sliver below].
-  // The window centers one item; its neighbors show through the mask fade.
-  const [reelItems, setReelItems] = useState<number[]>(() => {
-    const f = fillerPoolRef.current!;
-    return [f[0], initialTarget, f[1 % f.length]];
-  });
+  const [targetIndex, setTargetIndex] = useState(initialTarget);
+  const [revealKey, setRevealKey] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const reelRef = useRef<HTMLDivElement>(null);
   const currentIndexRef = useRef(initialTarget);
-  // Whatever sliver is visible above the centered item at rest - re-seeded at
-  // position 0 on the next spin so resetting the offset never changes pixels.
-  const aboveRef = useRef<number>(fillerPoolRef.current[0]);
 
   // Self-scheduling spin loop: decide the next weapon, spin to it, land, then
   // schedule the next spin - all in one place so timers are easy to track and
@@ -100,26 +86,12 @@ function ReelSlot({
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
     const schedule = (fn: () => void, delay: number) => timers.push(setTimeout(fn, delay));
-    const fillers = fillerPoolRef.current!;
-
     const spin = () => {
       const next = pickTarget(weapons, canShowExotic(), currentIndexRef.current);
       onLand(weapons[next]?.tierType === EXOTIC_TIER);
-      const randoms = Array.from(
-        { length: REEL_PRE_COUNT },
-        () => fillers[Math.floor(Math.random() * fillers.length)]
-      );
-      const below = fillers[Math.floor(Math.random() * fillers.length)];
-      // Seed positions 0/1 with the sliver + weapon currently on screen so
-      // resetting the scroll offset below never visually jumps.
-      setReelItems([aboveRef.current, currentIndexRef.current, ...randoms, next, below]);
-      aboveRef.current = randoms[randoms.length - 1];
-      setSpinning(true);
-
-      schedule(() => {
-        setSpinning(false);
-        currentIndexRef.current = next;
-      }, SPIN_MS + 50);
+      setTargetIndex(next);
+      setRevealKey((key) => key + 1);
+      currentIndexRef.current = next;
 
       schedule(spin, intervalMs);
     };
@@ -129,27 +101,7 @@ function ReelSlot({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Kick off the CSS scroll once reelItems + spinning are set.
-  useEffect(() => {
-    if (!spinning || reelItems.length < 4) return;
-    const reel = reelRef.current;
-    if (!reel) return;
-
-    // Land centered on the second-to-last item (the last is the below-sliver).
-    const targetY = offsetFor(reelItems.length - 2);
-    reel.style.transition = "none";
-    reel.style.transform = `translateY(${offsetFor(1)}px)`;
-    // Force a synchronous reflow so the reset above commits before the
-    // animated move below - unlike double-rAF, this also works in throttled
-    // or backgrounded tabs, which otherwise freeze the reel mid-reset.
-    void reel.offsetHeight;
-    // y1 > 1 overshoots the stop a few px then settles back - the mechanical
-    // "clunk" of a real reel notching into place.
-    reel.style.transition = `transform ${SPIN_MS}ms cubic-bezier(0.22, 1.06, 0.32, 1)`;
-    reel.style.transform = `translateY(${targetY}px)`;
-  }, [spinning, reelItems]);
-
-  const landedTier = weapons[currentIndexRef.current]?.tierType;
+  const landedTier = weapons[targetIndex]?.tierType;
   const edge = landedTier === EXOTIC_TIER ? EDGE.exotic : EDGE.legendary;
   // Rarity-tinted 1px edge that stays lit while the weapon sits landed, and
   // drops back to the neutral frame as the next spin starts.
@@ -157,7 +109,7 @@ function ReelSlot({
 
   return (
     <div
-      className="relative overflow-hidden shrink-0 border border-white/10 bg-bungie-surface"
+      className="relative shrink-0 border border-white/10 bg-bungie-surface"
       style={{
         width: REEL_ITEM_H,
         height: REEL_WINDOW_H,
@@ -165,33 +117,17 @@ function ReelSlot({
         transition: "box-shadow 400ms ease",
       }}
     >
-      <div
-        className="h-full"
-        style={{ maskImage: REEL_MASK, WebkitMaskImage: REEL_MASK }}
-      >
-        <div
-          ref={reelRef}
-          style={{ willChange: "transform", transform: `translateY(${offsetFor(1)}px)` }}
-        >
-          {reelItems.map((wi, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={weapons[wi].icon}
-              alt=""
-              loading="eager"
-              decoding="async"
-              style={{
-                width: REEL_ITEM_H,
-                height: REEL_ITEM_H,
-                objectFit: "cover",
-                display: "block",
-                filter: "blur(3px)",
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      <RevealReel
+        target={weapons[targetIndex].icon}
+        fillers={fillerPoolRef.current.map((index) => weapons[index].icon)}
+        revealKey={revealKey}
+        itemSize={REEL_ITEM_H}
+        windowSize={REEL_WINDOW_H}
+        fillerCount={8}
+        durationMs={SPIN_MS}
+        easing="cubic-bezier(0.22, 1.06, 0.32, 1)"
+        onSpinningChange={setSpinning}
+      />
     </div>
   );
 }

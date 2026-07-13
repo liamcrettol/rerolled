@@ -6,6 +6,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { trimBungieName } from "@/lib/utils";
 import type { PlayerStat, RoundRecord } from "@/hooks/useGameDetection";
+import { bungieImg } from "@/lib/destiny/constants";
 
 // The lobby's stats card (#224): the dismissible post-game banner and the
 // Session / Match History / Leaderboard tabs, extracted verbatim from
@@ -260,7 +261,7 @@ export default function LobbyStatsPanel({
                                   {w.icon && (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
-                                      src={`https://www.bungie.net${w.icon}`}
+                                      src={bungieImg(w.icon)}
                                       alt=""
                                       className="w-8 h-8 shrink-0"
                                     />

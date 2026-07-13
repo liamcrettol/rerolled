@@ -5,12 +5,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import type { ApplyResult } from "@/types/lobby";
 import { trimBungieName } from "@/lib/utils";
 import Card from "./ui/Card";
-
-const SLOT_LABELS: Record<string, string> = {
-  kinetic: "Kinetic",
-  energy: "Energy",
-  power: "Power",
-};
+import { SLOT_LABELS } from "@/lib/destiny/constants";
 
 const SLOT_BADGE_CLASSES: Record<string, string> = {
   kinetic: "text-gray-300 bg-gray-400/10 border-gray-400/30",

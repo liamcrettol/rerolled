@@ -148,7 +148,7 @@ notices and rejects the generic look immediately. The rules:
   Buttons get a mechanical 1px translate press via global CSS — no scale/ease.
 - **Color is semantic, never decorative.** Destiny element colors (Arc `#7bd6ff`,
   Solar `#ff8a3d`, Void `#b58cff`, Stasis `#5b8dff`, Strand `#2fd66f`, Kinetic
-  `#d3dae1` — see `DAMAGE_COLORS` in `DraftBoard.tsx`) and rarity edges (exotic
+  `#d3dae1` — see `DAMAGE_COLORS` in `lib/destiny/constants.ts`) and rarity edges (exotic
   gold `#c7a64a`, legendary purple — `.exotic-border`, HeroReel's `EDGE`) are the
   only things allowed to glow, as thin box-shadow edges on dark tiles.
 - **Motion vocabulary lives in `tailwind.config.ts`** (`pick-pop`, `slot-land`,

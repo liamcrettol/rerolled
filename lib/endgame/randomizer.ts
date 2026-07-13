@@ -3,6 +3,9 @@ import { rollLoadout } from "@/lib/roulette/intersection";
 import { bucketToSlot } from "@/types/bungie";
 import type { BungieProfileResponse, DestinyCharacter, DestinyItemComponent, WeaponSlot } from "@/types/bungie";
 import type { ResolvedWeapon } from "@/types/weapon";
+import { CLASS_NAMES, SLOT_ORDER, bungieImg } from "@/lib/destiny/constants";
+
+export { CLASS_NAMES } from "@/lib/destiny/constants";
 
 export type EndgameActivityKind = "grandmaster" | "dungeon" | "raid";
 
@@ -84,19 +87,11 @@ export const ENDGAME_KIND_FIRETEAM_SIZE: Record<EndgameActivityKind, number> = {
   grandmaster: 3,
 };
 
-const BUNGIE_CDN = "https://www.bungie.net";
-const SLOTS: WeaponSlot[] = ["kinetic", "energy", "power"];
 
 export const ENDGAME_ACTIVITY_KIND_LABELS: Record<EndgameActivityKind, string> = {
   grandmaster: "Grandmaster",
   dungeon: "Dungeon",
   raid: "Raid",
-};
-
-export const CLASS_NAMES: Record<number, string> = {
-  0: "Titan",
-  1: "Hunter",
-  2: "Warlock",
 };
 
 const ENDGAME_TO_ACTIVITY_KIND: Record<EndgameActivityKind, ActivityKind> = {
@@ -180,14 +175,14 @@ export function buildEndgameWeaponRoll(
     };
   }
 
-  const missingSlots = SLOTS.filter((slot) => pools[slot].length === 0);
+  const missingSlots = SLOT_ORDER.filter((slot) => pools[slot].length === 0);
   if (missingSlots.length > 0) {
     throw new Error(`You need at least one ${missingSlots.join(", ")} weapon to roll Endgame Roulette.`);
   }
 
   const rolled = rollLoadout(pools, details, undefined, undefined, "normal", rng);
 
-  return SLOTS.map((slot) => {
+  return SLOT_ORDER.map((slot) => {
     const itemHash = rolled[slot];
     if (!itemHash) {
       throw new Error("Couldn't build a full three-weapon loadout from your inventory.");
@@ -205,8 +200,7 @@ export function buildEndgameWeaponRoll(
 }
 
 function iconUrl(path: string | undefined): string {
-  if (!path) return "";
-  return path.startsWith("http") ? path : `${BUNGIE_CDN}${path}`;
+  return bungieImg(path);
 }
 
 function itemTypeDisplaySortValue(slotLabel: string): number {
