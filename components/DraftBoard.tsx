@@ -687,7 +687,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 )}
               </>
             ) : (
-              <div className="w-full overflow-x-auto pb-2">
+              <div className="-my-6 w-full overflow-x-auto py-6">
                 <div className="flex min-w-max justify-center gap-4">
                   {activeOptions.map((opt, i) => (
                   <DraftCard
