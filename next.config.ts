@@ -15,8 +15,8 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(withAxiom(nextConfig), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
+  org: "rerolled",
+  project: "javascript-nextjs",
   authToken: process.env.SENTRY_AUTH_TOKEN,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
