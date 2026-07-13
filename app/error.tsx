@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 
 // Route-level error boundary. Rerolled leans on two flaky externals (the Bungie
 // API and Supabase), so an unhandled throw in a server component is a normal
@@ -16,6 +17,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

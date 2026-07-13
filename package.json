@@ -15,6 +15,7 @@
     "weekly:rotate": "tsx scripts/weekly-challenge.ts rotate"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.65.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.0",
     "@vercel/analytics": "^2.0.1",
