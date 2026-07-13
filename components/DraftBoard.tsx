@@ -559,7 +559,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       : null;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-4xl flex-col gap-6">
+    <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-[59rem] flex-col gap-6">
       {/* Header: title, join code + invite, progress stepper */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2 flex-wrap">
