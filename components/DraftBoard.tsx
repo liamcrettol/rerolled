@@ -17,10 +17,11 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
 import RevealReel from "@/components/RevealReel";
 import { mergeDraftRosterMember } from "@/lib/draft/roster";
+import WeaponIcon from "@/components/WeaponIcon";
 
 // How long a player gets to pick which owned copy (roll) of a drafted weapon
 // to equip, once all 3 slots are locked, before it auto-selects for them.
-const ROLL_PICKER_MS = 10_000;
+const ROLL_PICKER_MS = 20_000;
 
 
 interface DraftOption {
@@ -738,16 +739,27 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                       {SLOT_LABELS[slot]} · {rd.weaponName}
                     </p>
                     <div className="py-1">
-                      {mine.map((inst) => (
-                        <RollRow
-                          key={inst.instanceId}
-                          label={inst.perks.map((p) => p.name).join("  ·  ")}
-                          selected={chosen === inst.instanceId}
-                          onClick={() => chooseRoll(slot, inst.instanceId)}
-                          favorited={favorites[rd.itemHash.toString()] === inst.instanceId}
-                          onToggleFavorite={() => toggleFavorite(slot, rd.itemHash, inst.instanceId)}
-                        />
-                      ))}
+                      {mine.map((inst) => {
+                        const weaponIcon = inst.weaponIcon ?? rd.weaponIcon;
+                        return (
+                          <RollRow
+                            key={inst.instanceId}
+                            label={inst.perks.map((p) => p.name).join("  ·  ")}
+                            icon={weaponIcon ? (
+                              <WeaponIcon
+                                icon={weaponIcon}
+                                watermark={inst.weaponWatermark ?? rd.weaponWatermark}
+                                name={inst.weaponName ?? rd.weaponName ?? "Weapon"}
+                                size="medium"
+                              />
+                            ) : undefined}
+                            selected={chosen === inst.instanceId}
+                            onClick={() => chooseRoll(slot, inst.instanceId)}
+                            favorited={favorites[rd.itemHash.toString()] === inst.instanceId}
+                            onToggleFavorite={() => toggleFavorite(slot, rd.itemHash, inst.instanceId)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
