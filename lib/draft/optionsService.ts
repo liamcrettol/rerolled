@@ -49,13 +49,10 @@ async function requireCaptain(
   return { ok: true };
 }
 
-// Destiny ammo economy: a fireteam loadout can't run two Special-ammo weapons
-// across the Kinetic + Energy slots. Draft order is Kinetic → Energy → Power,
-// so the only place a double-special can arise is the Energy reveal after a
-// Special Kinetic pick — filter Special weapons out of the Energy pool in that
-// case. (Power is always Heavy, so it's never affected.) Falls back to the
-// unfiltered pool if the group happens to own no non-Special energy weapons, so
-// the reveal still shows something rather than erroring.
+// Draft pairs one Primary-ammo weapon with one Special-ammo weapon across the
+// Kinetic and Energy slots. Kinetic may reveal either type; Energy then reveals
+// the opposite of the committed Kinetic pick. Power is always Heavy. If the
+// shared pool has no complementary weapon, keep the full pool as a fallback.
 async function applyAmmoRules(
   slot: WeaponSlot,
   roundId: string,
@@ -71,12 +68,13 @@ async function applyAmmoRules(
     .eq("slot", "kinetic")
     .maybeSingle();
 
-  if (!kineticPick || getWeaponAmmoType(kineticPick.item_hash) !== "Special") {
-    return pool;
-  }
+  if (!kineticPick) return pool;
+  const kineticAmmo = getWeaponAmmoType(kineticPick.item_hash);
+  if (kineticAmmo !== "Primary" && kineticAmmo !== "Special") return pool;
 
-  const nonSpecial = pool.filter((h) => getWeaponAmmoType(h) !== "Special");
-  return nonSpecial.length > 0 ? nonSpecial : pool;
+  const requiredEnergyAmmo = kineticAmmo === "Primary" ? "Special" : "Primary";
+  const complementary = pool.filter((hash) => getWeaponAmmoType(hash) === requiredEnergyAmmo);
+  return complementary.length > 0 ? complementary : pool;
 }
 
 // Destiny only permits one exotic weapon in a loadout. Filter the next reveal
@@ -113,6 +111,11 @@ export async function generateSlotOptions(
   const captainCheck = await requireCaptain(lobbyId, userId, db);
   if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
 
+  const existingOptions = await getOfferedOptions(roundId, slot, db);
+  if (existingOptions.length > 0) {
+    return { ok: false, error: "Options have already been revealed for this slot" };
+  }
+
   const { data: poolRow } = await db
     .from("lobby_pools")
     .select("pool, weapon_details")
@@ -140,11 +143,7 @@ export async function generateSlotOptions(
     return { ok: false, error: "Couldn't resolve weapon details for this slot's pool" };
   }
 
-  // Replace rather than accumulate: re-rolling a slot's options overwrites the
-  // previous 3, it doesn't append a second set.
-  await db.from("lobby_draft_options").delete().eq("round_id", roundId).eq("slot", slot);
-  await db.from("lobby_draft_votes").delete().eq("round_id", roundId).eq("slot", slot);
-  await db.from("lobby_draft_options").insert(
+  const { error: insertError } = await db.from("lobby_draft_options").insert(
     options.map((o) => ({
       round_id: roundId,
       slot,
@@ -156,6 +155,9 @@ export async function generateSlotOptions(
       damage_type: o.damageType,
     }))
   );
+  if (insertError) {
+    return { ok: false, error: insertError.message ?? "Failed to reveal draft options" };
+  }
 
   return { ok: true, options };
 }

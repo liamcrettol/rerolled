@@ -106,6 +106,17 @@ export default function RevealReel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spinning, items]);
 
+  // The spin mutates transform directly for a smooth one-shot transition.
+  // React does not restore that DOM value when the declared transform string
+  // is unchanged across renders, so explicitly return the one-item reel to its
+  // centered resting position after landing. Otherwise the final image stays
+  // translated above the masked window while its text appears normally.
+  useEffect(() => {
+    if (spinning || items.length !== 1 || !reelRef.current) return;
+    reelRef.current.style.transition = "none";
+    reelRef.current.style.transform = `translateY(${(windowSize - itemSize) / 2}px)`;
+  }, [spinning, items, itemSize, windowSize]);
+
   return (
     <div
       className={`relative shrink-0 overflow-hidden ${className}`}

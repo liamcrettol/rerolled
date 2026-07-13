@@ -16,6 +16,7 @@ import { CLASS_NAMES, SLOT_LABELS, SLOT_ORDER, damageColor } from "@/lib/destiny
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
 import RevealReel from "@/components/RevealReel";
+import { mergeDraftRosterMember } from "@/lib/draft/roster";
 
 // How long a player gets to pick which owned copy (roll) of a drafted weapon
 // to equip, once all 3 slots are locked, before it auto-selects for them.
@@ -248,10 +249,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     ]);
     setSlots(existingSlots ?? []);
     if (currentMembers) {
-      setRoster((previous) => currentMembers.map((member) => ({
-        ...(previous.find((old) => old.id === member.id) ?? {}),
-        ...member,
-      })) as typeof members);
+      setRoster((previous) => currentMembers.map((member) =>
+        mergeDraftRosterMember(previous.find((old) => old.id === member.id), member as LobbyMember)
+      ));
     }
 
     const grouped: Partial<Record<WeaponSlot, DraftOption[]>> = {};
@@ -709,16 +709,6 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   />
                   ))}
                 </div>
-                {isCaptain && (
-                  <button
-                    type="button"
-                    onClick={() => reveal(activeSlot)}
-                    disabled={busy}
-                    className="mx-auto mt-4 border border-bungie-border px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:border-bungie-blue hover:text-bungie-blue disabled:opacity-50"
-                  >
-                    {busy ? "Rerolling..." : "Reroll options"}
-                  </button>
-                )}
               </div>
             )}
           </div>

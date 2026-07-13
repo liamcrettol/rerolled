@@ -83,9 +83,24 @@ describe("generateSlotOptions", () => {
     expect(result.options).toHaveLength(3);
     expect(new Set(result.options?.map((o) => o.itemHash)).size).toBe(3);
   });
+
+  it("rejects a second reveal for the same slot", async () => {
+    const draftOptions = {
+      list: [{ item_hash: 1, weapon_name: "Weapon 1", weapon_icon: "i1", weapon_type: "Auto Rifle", damage_type: "Kinetic" }],
+    };
+    const db = makeDb({
+      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobby_draft_options: draftOptions,
+    });
+
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", captain, db);
+
+    expect(result).toEqual({ ok: false, error: "Options have already been revealed for this slot" });
+    expect(draftOptions).not.toHaveProperty("inserted");
+  });
 });
 
-describe("generateSlotOptions — no double special", () => {
+describe("generateSlotOptions ammo pairing", () => {
   // Energy pool: 10/11 are Special-ammo, 12/13 are Primary.
   const ammoByHash: Record<number, string> = { 5: "Special", 6: "Primary", 10: "Special", 11: "Special", 12: "Primary", 13: "Primary" };
   const energyDetails = {
@@ -110,7 +125,7 @@ describe("generateSlotOptions — no double special", () => {
   beforeEach(() => mockAmmo.mockImplementation((h: number) => ammoByHash[h] ?? null));
   afterEach(() => mockAmmo.mockReset());
 
-  it("excludes Special energy weapons when the Kinetic pick is Special", async () => {
+  it("offers only Primary energy weapons when the Kinetic pick is Special", async () => {
     const db = energyDb(5, [10, 11, 12, 13]);
     const result = await generateSlotOptions("lobby1", "round1", "energy", captain, db);
     expect(result.ok).toBe(true);
@@ -118,13 +133,11 @@ describe("generateSlotOptions — no double special", () => {
     expect(hashes.every((h) => h === 12 || h === 13)).toBe(true);
   });
 
-  it("keeps Special energy weapons when the Kinetic pick is Primary", async () => {
+  it("offers only Special energy weapons when the Kinetic pick is Primary", async () => {
     const db = energyDb(6, [10, 11, 12, 13]);
     const result = await generateSlotOptions("lobby1", "round1", "energy", captain, db);
     expect(result.ok).toBe(true);
-    // Full pool eligible — at least one Special hash can appear across the draw.
-    const drawn = new Set(result.options!.map((o) => o.itemHash));
-    expect([...drawn].every((h) => [10, 11, 12, 13].includes(h))).toBe(true);
+    expect(result.options!.map((o) => o.itemHash).every((h) => h === 10 || h === 11)).toBe(true);
   });
 
   it("falls back to the full pool if the group owns no non-Special energy weapon", async () => {

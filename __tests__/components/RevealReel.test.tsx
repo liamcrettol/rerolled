@@ -31,6 +31,7 @@ describe("RevealReel", () => {
         fillers={["/a.jpg", "/b.jpg"]}
         revealKey={1}
         itemSize={56}
+        windowSize={72}
         fillerCount={3}
         durationMs={100}
         onSpinningChange={onSpinningChange}
@@ -45,6 +46,9 @@ describe("RevealReel", () => {
     act(() => jest.advanceTimersByTime(150));
     expect(container.querySelectorAll("img")).toHaveLength(1);
     expect(container.querySelector("img")).toHaveAttribute("src", "/two.jpg");
+    expect(container.querySelector("img")?.parentElement?.parentElement).toHaveStyle({
+      transform: "translateY(8px)",
+    });
     expect(onSpinningChange).toHaveBeenLastCalledWith(false);
     expect(onLanded).toHaveBeenCalledTimes(1);
   });
