@@ -138,7 +138,7 @@ export default function WeeklyHero({
           {placement?.rank ? (
             <span className={`font-mono slashed-zero ${a.rank}`}>#{placement.rank}</span>
           ) : (
-            <span className="text-sm font-normal text-gray-500">Not run yet</span>
+            <span className="font-mono slashed-zero text-gray-400">-</span>
           )}
         </Stat>
       </div>

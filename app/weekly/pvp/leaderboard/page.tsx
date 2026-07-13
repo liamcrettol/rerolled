@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import PlatformShell from "@/components/platform/PlatformShell";
 import { StandingsRow } from "@/components/platform/StandingsPreview";
+import EmptyState from "@/components/ui/EmptyState";
 import { getActiveWeeklyChallenge } from "@/lib/weekly/challenge";
 import { getWeeklyStandings } from "@/lib/weekly/leaderboard";
 
@@ -33,7 +34,7 @@ export default async function PvpWeeklyLeaderboardPage() {
           <span className="section-label w-16 text-right shrink-0">Score</span>
         </div>
         {entries.length === 0 ? (
-          <p className="text-sm text-gray-500 px-3 py-8 text-center">No runs yet this week.</p>
+          <EmptyState message="No runs yet this week." cta={{ label: "Run the weekly", href: "/weekly/pvp" }} />
         ) : (
           entries.map((e) => <StandingsRow key={`${e.rank}-${e.userId}`} entry={e} showTime={false} />)
         )}

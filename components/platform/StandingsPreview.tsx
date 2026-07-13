@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { LeaderboardEntry } from "@/types/platform";
+import EmptyState from "@/components/ui/EmptyState";
 
 // Week standings preview (#249). Top rows + the current user's row when they're
 // outside the top 3, with a link to the full leaderboard. Also used, without the
@@ -62,7 +63,7 @@ export default function StandingsPreview({ entries, showViewAll = true, showTime
           <span className="section-label w-16 text-right shrink-0">Score</span>
         </div>
         {entries.length === 0 ? (
-          <p className="text-sm text-gray-500 px-3 py-6 text-center">No runs yet this week.</p>
+          <EmptyState message="No runs yet this week." />
         ) : (
           entries.map((e) => <StandingsRow key={`${e.rank}-${e.userId}`} entry={e} showTime={showTime} />)
         )}

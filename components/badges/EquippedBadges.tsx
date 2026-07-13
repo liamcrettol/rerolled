@@ -35,7 +35,11 @@ export default function EquippedBadges({ badges, max = 3, size = "tiny" }: Props
         />
       ))}
       {overflow > 0 && (
-        <span className="text-[10px] font-bold text-gray-300 px-0.5 drop-shadow" aria-label={`${overflow} more badges`}>
+        <span
+          className="text-[10px] font-bold text-gray-300 px-0.5 drop-shadow"
+          aria-hidden="true"
+          title={`${overflow} more badge${overflow === 1 ? "" : "s"} earned`}
+        >
           +{overflow}
         </span>
       )}

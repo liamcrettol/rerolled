@@ -139,6 +139,8 @@ export default function BadgePopover({ badges, children }: Props) {
       <div
         ref={triggerRef}
         tabIndex={0}
+        role="button"
+        aria-label={`${badges.length} badge${badges.length === 1 ? "" : "s"} earned. Show details.`}
         aria-describedby={open ? panelId : undefined}
         onMouseEnter={() => {
           cancelClose();

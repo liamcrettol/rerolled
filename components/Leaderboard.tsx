@@ -1,6 +1,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { trimBungieName } from "@/lib/utils";
+import EmptyState from "@/components/ui/EmptyState";
 
 interface LeaderboardEntry {
   user_id: string;
@@ -23,7 +24,10 @@ export default async function Leaderboard() {
         <div className="px-4 py-3 border-b border-bungie-border">
           <h2 className="section-label">Leaderboard</h2>
         </div>
-        <p className="text-gray-500 text-sm p-4">No games recorded yet.</p>
+        <EmptyState
+          message="No games recorded yet."
+          cta={{ label: "Run a lobby", href: "/dashboard" }}
+        />
       </div>
     );
   }

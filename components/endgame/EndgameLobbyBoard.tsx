@@ -229,9 +229,11 @@ export default function EndgameLobbyBoard({ lobby, members: initialMembers, curr
         <div>
           <p className="section-label text-red-400 mb-2">Choose Character</p>
           {loadingCharacters ? (
-            <p className="text-xs text-gray-500 flex items-center gap-2">
-              <Loader2 size={12} className="animate-spin" /> Loading characters…
-            </p>
+            <div className="flex flex-wrap gap-2" role="status" aria-label="Loading characters">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-[34px] w-24 border border-bungie-border bg-bungie-border/20 animate-pulse" />
+              ))}
+            </div>
           ) : (characters?.length ?? 0) === 0 ? (
             <p className="text-xs text-red-400">No characters found for this Bungie account.</p>
           ) : (

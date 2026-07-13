@@ -162,7 +162,7 @@ export default function NewLobbyPage() {
           </h1>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-6 items-start">
           <div className="space-y-6">
             <div className="panel p-5">
               <p className="section-label mb-3">Preset</p>

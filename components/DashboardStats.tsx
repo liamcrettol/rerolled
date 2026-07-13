@@ -1,5 +1,6 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import Image from "next/image";
+import EmptyState from "@/components/ui/EmptyState";
 
 interface HallOfFameTop {
   weapon_name: string | null;
@@ -17,7 +18,16 @@ export default async function DashboardStats() {
     }>,
   ]);
 
-  if (!gamesTracked && !statsRows?.length) return null;
+  if (!gamesTracked && !statsRows?.length) {
+    return (
+      <div className="panel">
+        <EmptyState
+          message="No roulette runs recorded yet."
+          cta={{ label: "Run a lobby", href: "/dashboard" }}
+        />
+      </div>
+    );
+  }
 
   const totalKills = (statsRows ?? []).reduce((sum, r) => sum + r.kills, 0);
   const players = new Set((statsRows ?? []).map((r) => r.user_id)).size;
