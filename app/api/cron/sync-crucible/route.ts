@@ -9,7 +9,9 @@ import {
 import {
   claimCrucibleSync,
   failCrucibleSync,
+  listParkedCrucibleSyncs,
   syncNextCrucibleHistoryPage,
+  type ParkedCrucibleSync,
 } from "@/lib/crucible/sync";
 
 // Background Crucible history backfill (see .github/workflows/sync-crucible.yml).
@@ -150,6 +152,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Report every currently-parked user on every run, not just users parked
+    // during this run, so parked users cannot hide behind green runs (#343).
+    // Informational only: a parked user must not redden the schedule (nothing
+    // but the user signing in again fixes them), so this never affects health.
+    let parked: ParkedCrucibleSync[] = [];
+    try {
+      parked = await listParkedCrucibleSyncs();
+    } catch (parkedError) {
+      console.error("[cron/sync-crucible] parked lookup failed:", errorMessage(parkedError));
+    }
+
     const health = evaluateCrucibleSyncHealth(result, queuedBefore);
     const payload = {
       ok: health.ok,
@@ -163,6 +176,8 @@ export async function GET(req: NextRequest) {
       failures,
       retried,
       needsReauth: needsReauthNamed,
+      parked,
+      parkedCount: parked.length,
       durationMs: Date.now() - startedAt,
     };
 

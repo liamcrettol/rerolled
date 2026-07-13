@@ -305,5 +305,50 @@ export async function failCrucibleSync(
   return { terminal };
 }
 
+export interface ParkedCrucibleSync {
+  userId: string;
+  displayName: string | null;
+  error: string | null;
+  parkedAt: string | null;
+}
+
+// Every currently-parked user (status "failed"), not just users parked during
+// the current run. Parked users drop out of the due queue entirely, so later
+// runs report green while those users' history silently stops syncing; that is
+// how the July 10 cross-app parking went unnoticed for days. The cron includes
+// this list in every run summary so parked users stay visible until they sign
+// in again (#343).
+export async function listParkedCrucibleSyncs(db: Db = adminSupabase): Promise<ParkedCrucibleSync[]> {
+  const { data: rows, error } = await db
+    .from("crucible_sync_state")
+    .select("user_id, last_error, updated_at")
+    .eq("status", "failed");
+  if (error) throw new Error(`Parked sync lookup failed: ${error.message}`);
+
+  const parked = (rows ?? []) as Array<{ user_id: string; last_error: string | null; updated_at: string | null }>;
+  if (parked.length === 0) return [];
+
+  // Names are a nicety for the run summary; the ids already identify the users.
+  const names = new Map<string, string | null>();
+  try {
+    const { data: userRows } = await db
+      .from("users")
+      .select("id, display_name")
+      .in("id", parked.map((row) => row.user_id));
+    for (const row of (userRows ?? []) as Array<{ id: string; display_name: string | null }>) {
+      names.set(row.id, row.display_name);
+    }
+  } catch {
+    // ignore; fall back to ids
+  }
+
+  return parked.map((row) => ({
+    userId: row.user_id,
+    displayName: names.get(row.user_id) ?? null,
+    error: row.last_error,
+    parkedAt: row.updated_at,
+  }));
+}
+
 export type { CrucibleActivityHistoryEntry };
 

@@ -98,6 +98,26 @@ jobs:
             fi
           done
 
+          # Surface every currently-parked user on every run (#343). Parked
+          # users are out of the due queue, so without this a green run hides
+          # users whose history has silently stopped syncing. Warning only:
+          # a parked user must not redden the schedule, because nothing but
+          # that user signing in again can fix them.
+          parked_count="$(jq -r '.parkedCount // 0' "$response_file" 2>/dev/null || echo 0)"
+          if [ "$parked_count" -gt 0 ]; then
+            parked_names="$(jq -r '[.parked[]? | .displayName // .userId] | join(", ")' "$response_file" 2>/dev/null || echo "unknown")"
+            echo "::warning title=Parked Crucible syncs::$parked_count user(s) excluded from Crucible history sync until they sign in again: $parked_names"
+            {
+              echo "### Parked users ($parked_count)"
+              echo
+              echo "These users are excluded from Crucible history sync until they sign in again:"
+              echo
+              echo '```json'
+              jq '.parked' "$response_file" 2>/dev/null || echo "[]"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
           if [ "$saw_failure" -ne 0 ]; then
             echo "one or more calls reported user sync failures (see summaries above)" >&2
             exit 1
