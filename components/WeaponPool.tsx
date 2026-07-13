@@ -87,7 +87,7 @@ function sortForBrowser(
 
 // ── A single selectable roll row ──────────────────────────────────────────────
 
-function RollRow({
+export function RollRow({
   label, icon, location, perks, selected, onClick, disabled, favorited, onToggleFavorite,
 }: {
   label: string; icon?: React.ReactNode; location?: string; perks?: string[];
@@ -184,7 +184,6 @@ function WeaponCard({
     ? rolls.find((r) => r.instanceId === currentInstance)
     : undefined;
   const previewRoll = selectedRoll ?? rolls.find((r) => r.location !== "vault") ?? rolls[0];
-  const selectedRollIndex = selectedRoll ? rolls.indexOf(selectedRoll) : -1;
 
   const cardInner = (
     <>
@@ -263,10 +262,7 @@ function WeaponCard({
         isActive ? (
           <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
             <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
-              Choose roll
-              {selectedRoll
-                ? ` · Roll ${selectedRollIndex + 1} selected`
-                : " · using best available"}
+              {selectedRoll ? "Choose roll" : "Choose roll · using best available"}
             </p>
             <RollRow
               label="Any roll"
@@ -276,12 +272,11 @@ function WeaponCard({
               onClick={() => onSelect(hash)}
               disabled={disabled}
             />
-            {rolls.map((inst, i) => (
+            {rolls.map((inst) => (
               <RollRow
                 key={inst.instanceId}
-                label={`Roll ${i + 1}`}
+                label={inst.perks.map((p) => String(p)).join("  ·  ")}
                 location={inst.location}
-                perks={inst.perks}
                 selected={currentInstance === inst.instanceId}
                 onClick={() => onSelect(hash, inst.instanceId)}
                 disabled={disabled}

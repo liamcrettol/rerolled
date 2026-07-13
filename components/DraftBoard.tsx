@@ -6,10 +6,16 @@ import { Check, Copy } from "lucide-react";
 import DraftLeaveButton from "@/components/draft/DraftLeaveButton";
 import Spinner from "./Spinner";
 import PlayerCard from "./PlayerCard";
+import { RollRow } from "./WeaponPool";
+import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { createClient } from "@/lib/supabase/client";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
+
+// How long a player gets to pick which owned copy (roll) of a drafted weapon
+// to equip, once all 3 slots are locked, before it auto-selects for them.
+const ROLL_PICKER_MS = 10_000;
 
 const SLOT_ORDER: WeaponSlot[] = ["kinetic", "energy", "power"];
 const SLOT_LABELS: Record<WeaponSlot, string> = {
@@ -255,6 +261,22 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // refetches) don't replay the reel every time.
   const animatedRef = useRef<Set<WeaponSlot>>(new Set());
 
+  // Per-player "choose your roll" step (#roll-picker): once the fireteam's
+  // loadout is locked, a player who owns multiple copies of a drafted weapon
+  // gets ROLL_PICKER_MS to pick which specific one to equip. This is entirely
+  // local/client-side (mirrors the roulette flow's useRollInstances - instance
+  // choice is never synced or persisted, just read at apply time), so it
+  // doesn't need the server-owned-clock treatment the vote timer above does.
+  const { rollsData, myChosenInstances, rollsLoading, favorites, toggleFavorite, handleChooseInstance } =
+    useRollInstances(lobby.id, roundId, slots);
+  const [rollPickerDone, setRollPickerDone] = useState(false);
+  const [rollPickerStartedAt, setRollPickerStartedAt] = useState<number | null>(null);
+  const [rollNowTick, setRollNowTick] = useState(() => Date.now());
+  // Slots the player explicitly picked a roll for - untouched slots fall back
+  // to their favorited roll (already the hook's default) or a random owned
+  // copy when the timer runs out.
+  const touchedRollSlotsRef = useRef<Set<WeaponSlot>>(new Set());
+
   const nonSpectatorMembers = useMemo(() => roster.filter((m) => !m.is_spectator), [roster]);
   // A lobby of just the captain has nothing to vote on - keep the original
   // instant tap-to-lock behavior instead of running a pointless vote/timer.
@@ -380,6 +402,64 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const complete = SLOT_ORDER.every((s) => committedSlots.has(s));
   const activeSlot = SLOT_ORDER.find((s) => !committedSlots.has(s)) ?? null;
   const doneCount = committedSlots.size;
+
+  // Slots where I own more than one copy of the drafted weapon - only these
+  // get a roll picker; nothing to choose otherwise.
+  const multiRollSlots = SLOT_ORDER.filter(
+    (slot) => committedSlots.has(slot) && (rollsData[slot]?.members.find((m) => m.isMe)?.instances.length ?? 0) > 1
+  );
+  const showRollPicker = complete && !rollPickerDone && !rollsLoading && multiRollSlots.length > 0;
+
+  const finishRollPicker = useCallback(() => {
+    for (const slot of multiRollSlots) {
+      if (touchedRollSlotsRef.current.has(slot)) continue;
+      const rd = rollsData[slot];
+      const mine = rd?.members.find((m) => m.isMe)?.instances ?? [];
+      if (mine.length === 0) continue;
+      const favId = favorites[rd!.itemHash.toString()];
+      const hasFavorite = favId && mine.some((i) => i.instanceId === favId);
+      if (!hasFavorite) {
+        const randomInst = mine[Math.floor(Math.random() * mine.length)];
+        handleChooseInstance(slot, randomInst.instanceId);
+      }
+    }
+    setRollPickerDone(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiRollSlots, rollsData, favorites, handleChooseInstance]);
+
+  const chooseRoll = useCallback(
+    (slot: WeaponSlot, instanceId: string) => {
+      touchedRollSlotsRef.current.add(slot);
+      handleChooseInstance(slot, instanceId);
+    },
+    [handleChooseInstance]
+  );
+
+  // New round: reset the picker so it can run again next round.
+  useEffect(() => {
+    touchedRollSlotsRef.current = new Set();
+    setRollPickerDone(false);
+    setRollPickerStartedAt(null);
+  }, [roundId]);
+
+  useEffect(() => {
+    if (!showRollPicker) return;
+    if (rollPickerStartedAt === null) {
+      setRollPickerStartedAt(Date.now());
+      return;
+    }
+    const deadline = rollPickerStartedAt + ROLL_PICKER_MS;
+    const tickInterval = setInterval(() => setRollNowTick(Date.now()), 1000);
+    const finishTimeout = setTimeout(finishRollPicker, Math.max(deadline - Date.now(), 0));
+    return () => {
+      clearInterval(tickInterval);
+      clearTimeout(finishTimeout);
+    };
+  }, [showRollPicker, rollPickerStartedAt, finishRollPicker]);
+
+  const rollSecondsLeft = rollPickerStartedAt
+    ? Math.max(0, Math.ceil((rollPickerStartedAt + ROLL_PICKER_MS - rollNowTick) / 1000))
+    : Math.ceil(ROLL_PICKER_MS / 1000);
 
   // A flat pool of every icon we've seen — feeds the reel's blurred pre-roll so
   // the spin scrolls through varied weapons rather than the same three.
@@ -547,7 +627,12 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       const res = await fetch("/api/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId: lobby.id, roundId, characterId: selectedCharacterId }),
+        body: JSON.stringify({
+          lobbyId: lobby.id,
+          roundId,
+          characterId: selectedCharacterId,
+          preferredInstances: myChosenInstances,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -743,7 +828,57 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           </div>
         )}
 
-        {complete && (
+        {showRollPicker && (
+          <div className="w-full max-w-md space-y-5 text-center animate-fade-in">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+                Choose Your Roll
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                Pick which copy to equip for weapons you own more than one of.
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Auto-selecting in {rollSecondsLeft}s
+              </p>
+            </div>
+            <div className="space-y-4 text-left">
+              {multiRollSlots.map((slot) => {
+                const rd = rollsData[slot]!;
+                const mine = rd.members.find((m) => m.isMe)?.instances ?? [];
+                const chosen = myChosenInstances[slot];
+                return (
+                  <div key={slot} className="border border-bungie-border/50 bg-bungie-surface">
+                    <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pt-2">
+                      {SLOT_LABELS[slot]} · {rd.weaponName}
+                    </p>
+                    <div className="py-1">
+                      {mine.map((inst) => (
+                        <RollRow
+                          key={inst.instanceId}
+                          label={inst.perks.map((p) => p.name).join("  ·  ")}
+                          location={inst.location}
+                          selected={chosen === inst.instanceId}
+                          onClick={() => chooseRoll(slot, inst.instanceId)}
+                          favorited={favorites[rd.itemHash.toString()] === inst.instanceId}
+                          onToggleFavorite={() => toggleFavorite(slot, rd.itemHash, inst.instanceId)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={finishRollPicker}
+              className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#26bcf3]"
+            >
+              Continue
+            </button>
+          </div>
+        )}
+
+        {complete && !showRollPicker && (
           <div className="w-full max-w-md space-y-5 text-center animate-fade-in">
             <div>
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-bungie-blue text-bungie-blue">
