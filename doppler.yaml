@@ -1,0 +1,3 @@
+setup:
+  project: rerolled
+  config: dev
