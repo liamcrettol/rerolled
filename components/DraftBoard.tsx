@@ -371,16 +371,22 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const multiRollSlots = SLOT_ORDER.filter(
     (slot) => committedSlots.has(slot) && (rollsData[slot]?.members.find((m) => m.isMe)?.instances.length ?? 0) > 1
   );
+  // Don't show Apply while the rolls are still loading: applying in that
+  // window would ship no preferred instances, silently ignoring the player's
+  // favorited/chosen rolls (and the roll picker would pop up after the fact).
+  const rollsPending = complete && rollsLoading && !rollPickerDone;
   const showRollPicker = complete && !rollPickerDone && !rollsLoading && multiRollSlots.length > 0;
 
   const finishRollPicker = useCallback(() => {
+    // A favorite may be keyed under a variant hash of the same gun, so match
+    // owned instances by favorite value, not just this round's rolled hash.
+    const favoriteIds = new Set(Object.values(favorites));
     for (const slot of multiRollSlots) {
       if (touchedRollSlotsRef.current.has(slot)) continue;
       const rd = rollsData[slot];
       const mine = rd?.members.find((m) => m.isMe)?.instances ?? [];
       if (mine.length === 0) continue;
-      const favId = favorites[rd!.itemHash.toString()];
-      const hasFavorite = favId && mine.some((i) => i.instanceId === favId);
+      const hasFavorite = mine.some((i) => favoriteIds.has(i.instanceId));
       if (!hasFavorite) {
         const randomInst = mine[Math.floor(Math.random() * mine.length)];
         handleChooseInstance(slot, randomInst.instanceId);
@@ -739,7 +745,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                             ) : undefined}
                             selected={chosen === inst.instanceId}
                             onClick={() => chooseRoll(slot, inst.instanceId)}
-                            favorited={favorites[rd.itemHash.toString()] === inst.instanceId}
+                            favorited={Object.values(favorites).includes(inst.instanceId)}
                             onToggleFavorite={() => toggleFavorite(slot, rd.itemHash, inst.instanceId)}
                           />
                         );
@@ -759,7 +765,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           </div>
         )}
 
-        {complete && !showRollPicker && (
+        {rollsPending && (
+          <div className="flex flex-col items-center gap-3 text-sm text-gray-400 animate-fade-in">
+            <Spinner size={18} />
+            Loading your rolls…
+          </div>
+        )}
+
+        {complete && !showRollPicker && !rollsPending && (
           <div className="w-full max-w-md space-y-5 text-center animate-fade-in">
             <div>
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border-2 border-bungie-blue text-bungie-blue">

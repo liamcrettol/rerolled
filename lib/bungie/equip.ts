@@ -1,5 +1,5 @@
 import { bungiePost } from "./client";
-import { getWeaponDefinitions } from "./definitions";
+import { getWeaponDefinitions, getWeaponGroupHashes } from "./definitions";
 import type { WeaponSlot } from "@/types/bungie";
 import type { ApplyResult } from "@/types/lobby";
 import type { RawWeapon } from "./rawInventory";
@@ -273,7 +273,13 @@ export function findBestInstance(
   targetCharacterId: string,
   preferredInstanceId?: string
 ): RawWeapon | null {
-  const candidates = weapons.filter((w) => w.itemHash === itemHash);
+  // Any variant of the weapon counts (re-release / Adept / craftable): the
+  // rolls browser and draft roll picker group a player's instances across the
+  // whole weapon group (#68), so the copy they chose or favorited can carry a
+  // different itemHash than the one that was rolled. Filtering on the exact
+  // hash silently discarded those picks at apply time.
+  const groupHashes = new Set(getWeaponGroupHashes(itemHash));
+  const candidates = weapons.filter((w) => groupHashes.has(w.itemHash));
   if (candidates.length === 0) return null;
 
   if (preferredInstanceId) {
@@ -289,7 +295,10 @@ export function findBestInstance(
 
   return candidates.sort((a, b) => {
     const costDiff = transferCost(a) - transferCost(b);
-    return costDiff !== 0 ? costDiff : b.lightLevel - a.lightLevel;
+    if (costDiff !== 0) return costDiff;
+    // Same transfer cost: prefer the exact rolled hash over a variant.
+    const exactDiff = Number(b.itemHash === itemHash) - Number(a.itemHash === itemHash);
+    return exactDiff !== 0 ? exactDiff : b.lightLevel - a.lightLevel;
   })[0];
 }
 

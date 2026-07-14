@@ -47,8 +47,18 @@ export function useRollInstances(lobbyId: string, roundId: string | null, slots:
     const key = hash.toString();
     setFavorites((prev) => {
       const next = { ...prev };
-      if (next[key] === instanceId) delete next[key];
-      else next[key] = instanceId;
+      // A weapon can be rolled under any of its variant hashes (re-release /
+      // Adept), so the same physical copy may have been favorited under a
+      // different key. Unfavoriting removes every key pointing at this
+      // instance; otherwise the star turns sticky across weeks.
+      const wasFavorited = Object.values(next).includes(instanceId);
+      if (wasFavorited) {
+        for (const k of Object.keys(next)) {
+          if (next[k] === instanceId) delete next[k];
+        }
+      } else {
+        next[key] = instanceId;
+      }
       return next;
     });
     // Favoriting also selects it for this slot right away.
@@ -83,15 +93,22 @@ export function useRollInstances(lobbyId: string, roundId: string | null, slots:
       // keeping any still-valid existing choice.
       setMyChosenInstances((prev) => {
         const out: Partial<Record<WeaponSlot, string>> = {};
+        // Favorites are keyed by whatever hash the weapon was rolled under at
+        // the time, which can be a different variant (re-release / Adept) of
+        // the same gun - so also match any owned instance by favorite VALUE.
+        const favoriteIds = new Set(Object.values(favoritesRef.current));
         for (const s of ["kinetic", "energy", "power"] as WeaponSlot[]) {
           const mine = next[s]?.members.find((m) => m.isMe)?.instances ?? [];
           if (mine.length === 0) continue;
           // Priority: favorited roll for this weapon > still-valid prior choice > best available.
           const favId = favoritesRef.current[(next[s]?.itemHash ?? 0).toString()];
           const favOwned = favId && mine.some((i) => i.instanceId === favId);
+          const variantFav = favOwned ? undefined : mine.find((i) => favoriteIds.has(i.instanceId));
           const keep = prev[s] && mine.some((i) => i.instanceId === prev[s]);
           out[s] = favOwned
             ? favId
+            : variantFav
+            ? variantFav.instanceId
             : keep
             ? prev[s]!
             : (mine.find((i) => i.location === "character") ?? mine[0]).instanceId;
