@@ -215,11 +215,14 @@ export async function POST(req: NextRequest) {
     if (shouldRotate) {
       const { data: lobbyRow } = await adminSupabase
         .from("lobbies")
-        .select("captain_locked")
+        .select("captain_locked, mode")
         .eq("id", body.lobbyId)
         .single();
 
-      if (!lobbyRow?.captain_locked) {
+      // Draft lobbies never rotate: captain_user_id is the member who started
+      // the draft, and the reveal authorization (optionsService.requireStarter)
+      // depends on it staying put.
+      if (lobbyRow?.mode !== "draft" && !lobbyRow?.captain_locked) {
         await rotateCaptain(body.lobbyId);
       }
     }

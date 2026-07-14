@@ -9,14 +9,16 @@ import PlayerCard from "./PlayerCard";
 import { RollRow } from "./WeaponPool";
 import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
-import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
+import type { Lobby, LobbyMember, LobbyLoadoutSlot, ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { CLASS_NAMES, SLOT_LABELS, SLOT_ORDER, damageColor } from "@/lib/destiny/constants";
+import { trimBungieName } from "@/lib/utils";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
 import RevealReel from "@/components/RevealReel";
 import { mergeDraftRosterMember } from "@/lib/draft/roster";
 import WeaponIcon from "@/components/WeaponIcon";
+import ApplyStatus from "@/components/ApplyStatus";
 
 // How long a player gets to pick which owned copy (roll) of a drafted weapon
 // to equip, once all 3 slots are locked, before it auto-selects for them.
@@ -162,6 +164,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   const [roundId, setRoundId] = useState<string | null>(null);
   const [slots, setSlots] = useState<LobbyLoadoutSlot[]>([]);
+  // My apply results for this round, shown under the Apply button so a failed
+  // transfer/equip is visible instead of silently dropped.
+  const [applyResults, setApplyResults] = useState<ApplyResult[] | null>(null);
   const [options, setOptions] = useState<Partial<Record<WeaponSlot, DraftOption[]>>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -216,7 +221,10 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const isSpectator = roster.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
 
   const nameFor = useCallback(
-    (userId: string) => roster.find((m) => m.user_id === userId)?.display_name ?? userId,
+    (userId: string) => {
+      const name = roster.find((m) => m.user_id === userId)?.display_name;
+      return name ? trimBungieName(name) : userId;
+    },
     [roster]
   );
 
@@ -349,13 +357,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // Realtime fallback: if a postgres_changes event is dropped (table missing
   // from the supabase_realtime publication, socket hiccup, tab throttled),
   // members stall on "Waiting for X to spin" while the reveal already
-  // happened. Poll the round while the draft is unfinished so every board
-  // converges within a few seconds even with realtime fully broken.
+  // happened. Poll the whole session, not just the unfinished draft: after the
+  // loadout locks, this same poll is how everyone else's board learns the
+  // starter advanced to the next round and resets to the roll screen.
   useEffect(() => {
-    if (loading || complete || lobbyStatus === "done") return;
+    if (loading || lobbyStatus === "done") return;
     const interval = setInterval(() => loadRound(), 3000);
     return () => clearInterval(interval);
-  }, [loading, complete, lobbyStatus, loadRound]);
+  }, [loading, lobbyStatus, loadRound]);
   const {
     characters: loadedCharacters,
     selectedCharacterId,
@@ -404,11 +413,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     [handleChooseInstance]
   );
 
-  // New round: reset the picker so it can run again next round.
+  // New round: reset the picker so it can run again next round, let the
+  // reveal reels spin again, and clear the previous round's apply log.
   useEffect(() => {
     touchedRollSlotsRef.current = new Set();
     setRollPickerDone(false);
     setRollPickerStartedAt(null);
+    animatedRef.current = new Set();
+    setApplyResults(null);
   }, [roundId]);
 
   useEffect(() => {
@@ -531,9 +543,31 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      setApplyResults(data.results ?? []);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to apply loadout");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Starter-only: advance to a fresh round so the board returns to the roll
+  // screen for the whole fireteam (everyone else picks it up via the poll).
+  async function nextRound() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/lobby/next-round", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await loadRound();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start the next round");
     } finally {
       setBusy(false);
     }
@@ -824,6 +858,25 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   {busy ? "Applying…" : "Apply Loadout"}
                 </button>
               </div>
+            )}
+            {applyResults && applyResults.length > 0 && (
+              <div className="text-left">
+                <ApplyStatus results={applyResults} onClear={() => setApplyResults(null)} />
+              </div>
+            )}
+            {isStarter ? (
+              <button
+                type="button"
+                onClick={nextRound}
+                disabled={busy}
+                className="border border-bungie-border px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-50"
+              >
+                Next Round
+              </button>
+            ) : (
+              <p className="text-xs text-gray-500">
+                {nameFor(lobby.captain_user_id)} starts the next round when the fireteam is ready.
+              </p>
             )}
           </div>
         )}
