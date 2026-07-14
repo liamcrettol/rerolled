@@ -15,6 +15,16 @@ export interface LobbyRollSettings {
 
 export type LobbyMode = "roulette" | "draft" | "endgame";
 
+// A lobby's mode determines which board it lives on. Every join/rejoin
+// redirect (invite links, the dashboard join form, active-session rejoin)
+// must route through this - sending a member to the wrong board strands them
+// where they can never see their fireteam's session.
+export const MODE_BASE_PATH: Record<LobbyMode, string> = {
+  roulette: "/lobby",
+  draft: "/draft",
+  endgame: "/endgame/lobby",
+};
+
 export interface Lobby {
   id: string;
   code: string;

@@ -6,6 +6,7 @@ import { getCharacters } from "@/lib/bungie/inventory";
 import { getClan } from "@/lib/bungie/clan";
 import { getUsersBadges } from "@/lib/badges/data";
 import DraftBoard from "@/components/DraftBoard";
+import { MODE_BASE_PATH } from "@/types/lobby";
 import type { DestinyCharacter } from "@/types/bungie";
 
 function lastPlayedCharacter(characters: DestinyCharacter[]): DestinyCharacter | null {
@@ -25,6 +26,12 @@ export default async function DraftPage({
   const { code } = await params;
   const lobby = await getLobbyByCode(code);
   if (!lobby || lobby.status === "done") redirect("/dashboard");
+
+  // This page is the DRAFT board - bounce members of other-mode lobbies to
+  // their actual board rather than stranding them here.
+  if (lobby.mode !== "draft") {
+    redirect(`${MODE_BASE_PATH[lobby.mode] ?? "/lobby"}/${lobby.code}`);
+  }
 
   const members = await getLobbyMembers(lobby.id);
   const isMember = members.some((m) => m.user_id === session.userId);

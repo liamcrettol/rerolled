@@ -3,16 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LobbyMode } from "@/types/lobby";
+import { MODE_BASE_PATH } from "@/types/lobby";
 
-// A lobby's mode determines which board it lives on. Rejoin and post-join
-// routing derive from this rather than trusting the caller's joinBasePath,
-// since your active lobby (or the code you just typed in) isn't necessarily
-// the same mode as whatever page you're standing on.
-export const MODE_BASE_PATH: Record<LobbyMode, string> = {
-  roulette: "/lobby",
-  draft: "/draft",
-  endgame: "/endgame/lobby",
-};
+// Re-exported for existing importers; the table itself lives in types/lobby
+// so server components (the /join/[code] invite redirect) can use it too.
+export { MODE_BASE_PATH };
 
 const JOIN_TIMEOUT_MS = 2_500;
 
