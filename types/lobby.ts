@@ -13,7 +13,7 @@ export interface LobbyRollSettings {
   slots: Record<WeaponSlot, SlotMode>;
 }
 
-export type LobbyMode = "roulette" | "draft" | "endgame";
+export type LobbyMode = "roulette" | "draft";
 
 // A lobby's mode determines which board it lives on. Every join/rejoin
 // redirect (invite links, the dashboard join form, active-session rejoin)
@@ -22,7 +22,6 @@ export type LobbyMode = "roulette" | "draft" | "endgame";
 export const MODE_BASE_PATH: Record<LobbyMode, string> = {
   roulette: "/lobby",
   draft: "/draft",
-  endgame: "/endgame/lobby",
 };
 
 export interface Lobby {

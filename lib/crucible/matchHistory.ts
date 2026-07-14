@@ -191,7 +191,7 @@ export async function getCrucibleMatchHistory(
   ]);
   const runByInstance = new Map<string, LinkedRunRow>(linkedRuns.map((row) => [row.pgcr_instance_id, row]));
   const gameSessionByInstance = new Map<string, LinkedGameSessionRow>(linkedGameSessions.map((row) => [row.pgcr_instance_id, row]));
-  const lobbyModeById = new Map<string, "roulette" | "draft" | "endgame">(((lobbyRows ?? []) as { id: string; mode: "roulette" | "draft" | "endgame" }[]).map((row) => [row.id, row.mode]));
+  const lobbyModeById = new Map<string, "roulette" | "draft">(((lobbyRows ?? []) as { id: string; mode: "roulette" | "draft" }[]).map((row) => [row.id, row.mode]));
   const challengeById = new Map<string, string>(((challengeRows ?? []) as { id: string; title: string }[]).map((row) => [row.id, row.title]));
   const loadoutByRun = new Map<string, SeasonMatchLoadoutSlot[]>();
   for (const row of loadoutRows ?? []) {

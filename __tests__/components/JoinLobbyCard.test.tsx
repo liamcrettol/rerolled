@@ -32,12 +32,6 @@ describe("JoinLobbyCard", () => {
     expect(push).toHaveBeenCalledWith("/draft/ABC123");
   });
 
-  it("routes an endgame rejoin to the endgame board", () => {
-    render(<JoinLobbyCard activeSession={{ code: "XYZ789", status: "in_game", mode: "endgame" }} />);
-    fireEvent.click(screen.getByText("Rejoin"));
-    expect(push).toHaveBeenCalledWith("/endgame/lobby/XYZ789");
-  });
-
   it("uppercases and strips whitespace from a typed code", () => {
     render(<JoinLobbyCard activeSession={null} />);
     fireEvent.change(codeInput(), { target: { value: " ab c1 " } });
@@ -55,14 +49,14 @@ describe("JoinLobbyCard", () => {
   it("sends the player to the board the API says the lobby lives on", async () => {
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      json: async () => ({ code: "ABC123", mode: "endgame" }),
+      json: async () => ({ code: "ABC123", mode: "draft" }),
     });
 
     render(<JoinLobbyCard activeSession={null} />);
     fireEvent.change(codeInput(), { target: { value: "ABC123" } });
     fireEvent.click(joinButton());
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/endgame/lobby/ABC123"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/draft/ABC123"));
   });
 
   it("surfaces a join failure instead of navigating", async () => {

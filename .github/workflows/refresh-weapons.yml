@@ -28,22 +28,17 @@ jobs:
           BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
         run: node scripts/build-weapons-table.mjs
 
-      - name: Regenerate activity catalog
-        env:
-          BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
-        run: node scripts/build-activity-catalog.mjs
-
       - name: Sync Clarity perk-stat overlay
         run: node scripts/sync-clarity-data.mjs
 
       - name: Commit and push if changed
         run: |
-          if git diff --quiet -- lib/bungie/data data/activities; then
+          if git diff --quiet -- lib/bungie/data; then
             echo "No data changes; nothing to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add lib/bungie/data data/activities
+          git add lib/bungie/data
           git commit -m "chore: refresh manifest data [skip ci]"
           git push

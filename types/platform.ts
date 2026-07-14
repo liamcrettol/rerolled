@@ -8,7 +8,7 @@
 import type { ActivityFamily } from "./challenges";
 
 /** Every play mode the platform knows about (#244). */
-export type ModeId = "gun_roulette" | "draft" | "ironman";
+export type ModeId = "gun_roulette" | "draft";
 
 /** Status badge shown on a mode card. */
 export type ModeStatus = "live" | "new" | "soon";

@@ -15,7 +15,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   }
 
   // The joined lobby's mode decides which board the invite lands on. This was
-  // hardcoded to /lobby, which dropped draft and endgame invitees into the
+  // hardcoded to /lobby, which dropped draft invitees into the
   // roulette room where they could never see their fireteam's session.
   let mode: LobbyMode = "roulette";
   try {

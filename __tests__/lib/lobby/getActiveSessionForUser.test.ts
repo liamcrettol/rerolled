@@ -2,7 +2,7 @@
 /**
  * getActiveSessionForUser (#292): the dashboard's generic "resume any active
  * lobby" banner needs the single most-recently-active lobby across every
- * mode, but a mode-specific page (Endgame auto-routing) needs its own active
+ * mode, but a mode-specific page can need its own active
  * lobby even when a different-mode lobby was touched more recently. Pins
  * both behaviors against a fake Supabase query builder that actually filters
  * an in-memory row set, rather than asserting on call arguments.
@@ -83,7 +83,7 @@ beforeEach(() => {
   ];
   lobbyRows = [
     { id: "L1", code: "AAAA", status: "active", mode: "roulette", last_active_at: "2026-07-09T12:00:00Z" },
-    { id: "L2", code: "BBBB", status: "active", mode: "endgame", last_active_at: "2026-07-09T10:00:00Z" },
+    { id: "L2", code: "BBBB", status: "active", mode: "draft", last_active_at: "2026-07-09T10:00:00Z" },
   ];
 });
 
@@ -94,19 +94,19 @@ describe("getActiveSessionForUser", () => {
   });
 
   it("with a mode filter, returns that mode's active lobby even when a different mode was touched more recently", async () => {
-    const result = await getActiveSessionForUser("user-1", "endgame");
-    expect(result).toEqual({ code: "BBBB", status: "active", mode: "endgame" });
+    const result = await getActiveSessionForUser("user-1", "draft");
+    expect(result).toEqual({ code: "BBBB", status: "active", mode: "draft" });
   });
 
   it("returns null when the user has no lobby in the requested mode", async () => {
-    lobbyRows = lobbyRows.filter((r) => r.mode !== "endgame");
-    const result = await getActiveSessionForUser("user-1", "endgame");
+    lobbyRows = lobbyRows.filter((r) => r.mode !== "draft");
+    const result = await getActiveSessionForUser("user-1", "draft");
     expect(result).toBeNull();
   });
 
   it("excludes done lobbies", async () => {
-    lobbyRows = [{ id: "L2", code: "BBBB", status: "done", mode: "endgame", last_active_at: "2026-07-09T10:00:00Z" }];
-    const result = await getActiveSessionForUser("user-1", "endgame");
+    lobbyRows = [{ id: "L2", code: "BBBB", status: "done", mode: "draft", last_active_at: "2026-07-09T10:00:00Z" }];
+    const result = await getActiveSessionForUser("user-1", "draft");
     expect(result).toBeNull();
   });
 

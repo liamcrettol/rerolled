@@ -116,7 +116,7 @@ export async function getActiveSessionForUser(
   userId: string,
   // Restrict to a single mode. Without this, the most-recently-active lobby
   // across ALL modes wins - fine for the dashboard's generic "resume" banner,
-  // but a mode-specific page (e.g. Endgame auto-routing) needs its own active
+  // but a mode-specific page can need its own active
   // lobby even when a different-mode lobby was touched more recently (#292).
   mode?: LobbyMode
 ): Promise<{ code: string; status: Lobby["status"]; mode: LobbyMode } | null> {

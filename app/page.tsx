@@ -15,7 +15,6 @@ import BrandWordmark from "@/components/BrandWordmark";
 const LANDING_MODES = [
   MODES.gun_roulette,
   MODES.draft,
-  MODES.ironman,
 ];
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ code?: string }> }) {

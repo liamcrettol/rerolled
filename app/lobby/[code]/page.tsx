@@ -16,7 +16,7 @@ export default async function LobbyPage({
   const lobby = await getLobbyByCode(code);
   if (!lobby) redirect("/dashboard");
 
-  // This page is the ROULETTE board. A draft/endgame member who lands here
+  // This page is the ROULETTE board. A draft member who lands here
   // (old invite redirect, stale tab, bookmark) would sit in a room that can
   // never show their fireteam's session - bounce them to the right board.
   if (lobby.mode && lobby.mode !== "roulette") {

@@ -4,14 +4,12 @@
 // instead of duplicated, hard-coded card data. Adding rulesets/scoring to a
 // mode later means extending a record here, not rewriting the homepage.
 //
-// Roadmap status per #237:
-//   - gun_roulette   → live PvP loadout roulette, routes into the existing lobby flow
+// The surviving modes after the core-slim plan
+// (docs/plans/core-slim-and-h2h-split.md):
+//   - gun_roulette → live PvP loadout roulette, routes into the existing lobby flow
 //   - draft → shared 1-of-3 card-reveal run flow on /draft (#266)
-//   - ironman → repurposed into the live endgame PvE randomizer
-// Score Attack and Weekly Challenge were removed (#342); their dormant
-// worker/stats substrate was deleted too. Only the pieces live features still
-// use survive: lib/scoreAttack/{pgcr,types,activityPool}.ts and
-// lib/challenges/present.ts.
+// Score Attack and Weekly Challenge were removed in #342, Endgame Roulette
+// with the core-slim plan.
 //
 // Each mode also carries an `accent` — its color identity across the hub
 // (mode cards, run flow, page headers) so every activity has a distinct UI.
@@ -41,24 +39,11 @@ export const MODES: Record<ModeId, ModeDefinition> = {
     ctaLabel: "Start Draft",
     accent: "purple",
   },
-  ironman: {
-    id: "ironman",
-    title: "Endgame Roulette",
-    eyebrow: "PvE",
-    description: "Roll a raid, dungeon, or Grandmaster loadout.",
-    status: "live",
-    enabled: true,
-    href: "/endgame",
-    ctaLabel: "Roll Endgame",
-    accent: "red",
-  },
 };
 
-/** The cards shown in the home mode grid, in display order (#243). Score
- * Attack was removed from the grid (#295); Endgame Roulette took its slot. */
+/** The cards shown in the home mode grid, in display order (#243). */
 export const HOME_MODE_GRID: ModeDefinition[] = [
   MODES.gun_roulette,
-  MODES.ironman,
   MODES.draft,
 ];
 
