@@ -446,7 +446,7 @@ Algorithm:
 4. Fetch exactly one history page for the active character and saved page number.
 5. Deduplicate activity instance IDs within the page.
 6. For each activity, check whether the viewer-specific encounter import is already complete. Even when `pgcr_cache` contains the PGCR, the viewer may not yet have encounter rows.
-7. Fetch the immutable PGCR through the existing cached `getPGCR(instanceId)` function.
+7. Fetch the immutable PGCR through the existing cached `getPGCR(instanceId)` function. `getPGCR`'s cache read/write now goes through `lib/pgcr/service.ts` (raw PGCRs are archived to Appwrite Storage as durable H2H source data - see [`docs/pgcr-archive.md`](pgcr-archive.md)); with the archive flags at their default disabled state this is unchanged from a direct `pgcr_cache` read/write.
 8. Call `importCrucibleMatch`.
 9. Limit PGCR work per invocation. Start with 20 activities or stop before the route's execution deadline.
 10. Save the next page cursor.

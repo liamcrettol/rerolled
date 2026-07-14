@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { readRawPgcr } from "@/lib/pgcr/service";
 import { parsePgcr } from "@/lib/scoreAttack/pgcr";
 
 // One-time (idempotent) backfill of win/loss for matches imported before the
@@ -35,10 +36,13 @@ export async function GET(req: NextRequest) {
       break;
     }
     const instanceId = instanceIds[i];
-    const { data: cache } = await adminSupabase.from("pgcr_cache").select("raw_pgcr").eq("instance_id", instanceId).maybeSingle();
-    if (!cache?.raw_pgcr) continue;
+    // Raw PGCRs may live in Appwrite, Supabase, or (before a row is cleared)
+    // both - go through the central service instead of reading raw_pgcr
+    // directly so this still works once verified rows start getting cleared.
+    const cacheResult = await readRawPgcr(instanceId);
+    if (cacheResult.status !== "found") continue;
 
-    const parsed = parsePgcr(cache.raw_pgcr);
+    const parsed = parsePgcr(cacheResult.raw);
     if (parsed.kind !== "pvp") continue;
     matchesProcessed++;
 
@@ -64,14 +68,14 @@ export async function GET(req: NextRequest) {
     .order("period", { ascending: false })
     .limit(4);
   for (const rm of recent ?? []) {
-    const { data: c } = await adminSupabase.from("pgcr_cache").select("raw_pgcr").eq("instance_id", rm.instance_id).maybeSingle();
-    if (!c?.raw_pgcr) {
+    const sampleResult = await readRawPgcr(rm.instance_id);
+    if (sampleResult.status !== "found") {
       samples.push({ instanceId: rm.instance_id, noCache: true });
       continue;
     }
-    const parsed = parsePgcr(c.raw_pgcr);
+    const parsed = parsePgcr(sampleResult.raw);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = c.raw_pgcr as any;
+    const raw = sampleResult.raw as any;
     samples.push({
       instanceId: rm.instance_id,
       name: rm.activity_name,

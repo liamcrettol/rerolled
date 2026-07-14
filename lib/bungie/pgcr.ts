@@ -1,4 +1,4 @@
-import { adminSupabase } from "@/lib/supabase/admin";
+import { readRawPgcr, persistRawPgcr } from "@/lib/pgcr/service";
 
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
 
@@ -86,14 +86,16 @@ export async function resolveActivityName(hash: number): Promise<string | null> 
 // same `pgcr_cache` table; reading it here means the lobby detection path stops
 // re-fetching reports the worker has already pulled. Bungie throttles per app
 // key, so every avoided fetch is budget back for user-facing calls.
+//
+// Both reads and writes go through lib/pgcr/service.ts, which - once the
+// PGCR_ARCHIVE_* flags are enabled - transparently prefers the Appwrite
+// archive and falls back to this same pgcr_cache row (see docs/pgcr-archive.md).
+// With all flags at their default (disabled), this is exactly the direct
+// Supabase read/write it always was.
 async function readCachedPGCR(instanceId: string): Promise<PGCR | null> {
   try {
-    const { data } = await adminSupabase
-      .from("pgcr_cache")
-      .select("raw_pgcr")
-      .eq("instance_id", instanceId)
-      .maybeSingle();
-    return (data?.raw_pgcr as PGCR | undefined) ?? null;
+    const result = await readRawPgcr(instanceId);
+    return result.status === "found" ? (result.raw as PGCR) : null;
   } catch {
     // A cache miss and a cache outage are the same thing to the caller: go to
     // Bungie. Never fail detection because the cache was slow.
@@ -104,17 +106,9 @@ async function readCachedPGCR(instanceId: string): Promise<PGCR | null> {
 async function writeCachedPGCR(instanceId: string, pgcr: PGCR): Promise<void> {
   try {
     const now = new Date().toISOString();
-    await adminSupabase.from("pgcr_cache").upsert(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      {
-        instance_id: instanceId,
-        raw_pgcr: pgcr,
-        status: "fetched",
-        fetched_at: now,
-        updated_at: now,
-      } as any,
-      { onConflict: "instance_id" }
-    );
+    await persistRawPgcr(instanceId, pgcr, {
+      extraFields: { status: "fetched", fetched_at: now, updated_at: now },
+    });
   } catch {
     // Caching is an optimization; a failed write must not fail the detection.
   }

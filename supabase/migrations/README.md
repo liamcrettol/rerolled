@@ -28,6 +28,10 @@ If you add a migration, also:
 | 033_draft_sessions | `draft_sessions`, `draft_picks` (#264 pick/ban draft) | 🗑️ superseded — 034 drops these tables, don't apply on a fresh DB |
 | 034_draft_reveal | `lobby_draft_options` (#266 shared 1-of-3 reveal, replaces 033's mechanic) | ✅ |
 | 035_lock_down_unused_anon_reads | Drops anon SELECT policies on `roll_history`, `weapon_round_kills`, `lobby_pools`, `player_season_stats`, `player_weekly_stats`, `player_lifetime_stats` (#276) | ✅ |
+| 036–056 | Not audited as part of this table - do not infer applied/not-applied status from this README for those files. Check live (`pg_proc`/`information_schema`) before relying on it. | ❓ |
+| 052_prune_pgcr_cache | `prune_pgcr_cache()` - confirmed live via `pg_stat_statements`/`pg_stat_user_tables` (actively deleting `raw_pgcr` rows). Superseded by 057. | ✅ (superseded) |
+| 057_disable_pgcr_prune | Replaces `prune_pgcr_cache()` with a no-op; removes the RPC call from `app/api/cron/sync-crucible`. See [`docs/pgcr-archive.md`](../../docs/pgcr-archive.md). | ⬜ not yet applied |
+| 058_pgcr_appwrite_metadata | Adds `appwrite_sha256`/`appwrite_bytes`/`appwrite_migrated_at`/`appwrite_last_verified_at` to `pgcr_cache`, the disjoint archive/clear partial indexes, plus the atomic `mark_pgcr_archived_if_current` RPC. See [`docs/pgcr-archive.md`](../../docs/pgcr-archive.md). | ⬜ not yet applied |
 
 ### Challenge platform (025–031)
 

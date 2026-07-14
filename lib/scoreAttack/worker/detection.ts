@@ -14,6 +14,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { BungieWorkerClient } from "@/lib/bungie/workerClient";
+import { readRawPgcr, persistRawPgcr } from "@/lib/pgcr/service";
 import { parsePgcr } from "@/lib/scoreAttack/pgcr";
 import { scoreAttackRun, pvpScoreAttackRun } from "@/lib/scoreAttack/scoring";
 import { getActivityDifficultyMultiplier } from "@/lib/scoreAttack/activityPool";
@@ -261,10 +262,13 @@ export async function fetchPgcrHandler(job: WorkerJobRow, d: DetectionDeps = {})
   const { db, client } = deps(d);
   const p = job.payload as { runId: string; instanceId: string };
   const raw = await client.fetchPgcr(p.instanceId);
-  await db.from("pgcr_cache").upsert(
-    { instance_id: p.instanceId, source: "bungie", raw_pgcr: raw, status: "fetched", fetched_at: new Date().toISOString() },
-    { onConflict: "instance_id" },
-  );
+  // Supabase upsert (the durable outbox copy) always happens; the Appwrite
+  // archive is additionally awaited inline here when PGCR_ARCHIVE_WRITES=1 -
+  // see lib/pgcr/service.ts's persistRawPgcr for the full write lifecycle.
+  await persistRawPgcr(p.instanceId, raw, {
+    db,
+    extraFields: { source: "bungie", status: "fetched", fetched_at: new Date().toISOString() },
+  });
   await db.from("challenge_runs").update({ status: "pgcr_fetched", updated_at: new Date().toISOString() }).eq("id", p.runId);
   await enqueueJob({ jobType: "parse_pgcr", runId: p.runId, payload: { runId: p.runId, instanceId: p.instanceId } }, db);
 }
@@ -272,10 +276,17 @@ export async function fetchPgcrHandler(job: WorkerJobRow, d: DetectionDeps = {})
 export async function parsePgcrHandler(job: WorkerJobRow, d: DetectionDeps = {}) {
   const { db } = deps(d);
   const p = job.payload as { runId: string; instanceId: string };
-  const { data: cache } = await db.from("pgcr_cache").select("raw_pgcr").eq("instance_id", p.instanceId).maybeSingle();
-  if (!cache?.raw_pgcr) throw new Error(`pgcr ${p.instanceId} not cached`);
+  // This handler requires the raw PGCR to proceed, so a miss on both the
+  // archive and Supabase (or a retryable error from either) must fail the
+  // job rather than silently no-op - the worker's own retry/backoff (migration
+  // 028's fail_worker_job) is what makes that safe.
+  const result = await readRawPgcr(p.instanceId, db);
+  if (result.status !== "found") {
+    const reason = result.status === "error" ? result.message : `pgcr ${p.instanceId} not cached`;
+    throw new Error(reason);
+  }
 
-  const normalized = parsePgcr(cache.raw_pgcr);
+  const normalized = parsePgcr(result.raw);
   await db.from("pgcr_cache").update({ normalized_pgcr: normalized, status: "normalized", updated_at: new Date().toISOString() }).eq("instance_id", p.instanceId);
 
   const run = await loadRun(db, p.runId);
