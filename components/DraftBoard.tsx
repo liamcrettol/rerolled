@@ -341,6 +341,17 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const complete = SLOT_ORDER.every((s) => committedSlots.has(s));
   const activeSlot = SLOT_ORDER.find((s) => !committedSlots.has(s)) ?? null;
   const doneCount = committedSlots.size;
+
+  // Realtime fallback: if a postgres_changes event is dropped (table missing
+  // from the supabase_realtime publication, socket hiccup, tab throttled),
+  // members stall on "Waiting for X to spin" while the reveal already
+  // happened. Poll the round while the draft is unfinished so every board
+  // converges within a few seconds even with realtime fully broken.
+  useEffect(() => {
+    if (loading || complete || lobbyStatus === "done") return;
+    const interval = setInterval(() => loadRound(), 3000);
+    return () => clearInterval(interval);
+  }, [loading, complete, lobbyStatus, loadRound]);
   const {
     characters: loadedCharacters,
     selectedCharacterId,
