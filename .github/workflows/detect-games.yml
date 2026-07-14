@@ -1,8 +1,7 @@
 name: Detect games
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  # Scheduling moved to Supabase pg_cron (#351, migration 056); kept for manual runs.
   workflow_dispatch: {}
 
 jobs:

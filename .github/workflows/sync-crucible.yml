@@ -6,13 +6,13 @@ name: Sync Crucible history
 # waiting. Every run prints its queue/import counts and fails visibly when the
 # endpoint reports a stalled or failed worker.
 #
-# GitHub delivers `schedule` events best-effort. In this repo the observed
-# cadence is a few firings per day, not every 10 minutes, so each firing keeps
-# calling the endpoint (bounded by MAX_CALLS) until the due queue is drained
-# instead of taking a single 60-second bite.
+# Scheduling moved to Supabase pg_cron (#351, migration 056): GitHub delivers
+# `schedule` events best-effort (observed cadence was roughly hourly despite a
+# */10 cron), so pg_cron + pg_net now ping the endpoint every 10 minutes from
+# inside Postgres. This workflow remains for manual runs: it drains the queue
+# (bounded by MAX_CALLS) and prints the run summary, including the parked-user
+# warning (#343).
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 concurrency:

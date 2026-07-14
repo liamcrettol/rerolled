@@ -1,8 +1,7 @@
 name: Cleanup idle lobbies
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # Scheduling moved to Supabase pg_cron (#351, migration 056); kept for manual runs.
   workflow_dispatch: {}
 
 jobs:
