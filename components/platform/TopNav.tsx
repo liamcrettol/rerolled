@@ -13,8 +13,6 @@ import type { LobbyMember } from "@/types/lobby";
 
 const LINKS = [
   { href: "/dashboard", label: "PLAY" },
-  { href: "/leaderboards", label: "LEADERBOARDS" },
-  { href: "/stats", label: "STATS" },
 ];
 
 // PlayerCard (#318) wants a full LobbyMember — the nav only has a name, an

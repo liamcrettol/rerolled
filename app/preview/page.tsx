@@ -1,6 +1,4 @@
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import Leaderboard from "@/components/Leaderboard";
 import SeedButton from "./SeedButton";
 import LobbyMockup from "./LobbyMockup";
 
@@ -26,14 +24,6 @@ export default function PreviewPage() {
             </p>
           </div>
           <SeedButton />
-        </div>
-
-        {/* Real leaderboard - reads from DB, reflects seeded data */}
-        <div>
-          <p className="text-xs text-gray-600 uppercase tracking-widest mb-3">Global Leaderboard (live from DB)</p>
-          <Suspense fallback={<div className="text-gray-500 text-sm py-4">Loading...</div>}>
-            <Leaderboard />
-          </Suspense>
         </div>
 
         {/* Interactive lobby UI mockup */}

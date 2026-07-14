@@ -1,7 +1,11 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { resolveActivity } from "@/lib/bungie/pgcr";
-import { buildTrialsReportUrl } from "@/lib/stats/history";
 import type { SeasonMatch, SeasonMatchLoadoutSlot, SeasonMatchPlayer } from "@/types/platform";
+
+function buildTrialsReportUrl(membershipType: number | null, membershipId: string): string | null {
+  if (membershipType === null || !membershipId) return null;
+  return `https://destinytrialsreport.com/report/${membershipType}/${membershipId}`;
+}
 import { classifyCrucibleMode, crucibleModeName } from "./modes";
 import { getHeadToHeadSummaries } from "./headToHead";
 import type { CrucibleModeBucket, CrucibleSyncState } from "./types";
