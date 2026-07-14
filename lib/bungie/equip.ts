@@ -290,7 +290,9 @@ export function findBestInstance(
   const transferCost = (w: RawWeapon) => {
     if (w.characterId === targetCharacterId) return 0;
     if (w.location === "vault") return 1;
-    return 2;
+    // A copy equipped on another character needs a swap-in equip over there
+    // before Bungie will let it move at all, so it's the priciest source.
+    return w.isEquipped ? 3 : 2;
   };
 
   return candidates.sort((a, b) => {
@@ -398,8 +400,82 @@ export async function applyWeapons(
     }
   }
 
+  // Bungie refuses to transfer an equipped item. When the copy we need is
+  // equipped on ANOTHER character (say it's that character's only weapon in
+  // the slot), free it by equipping a replacement over there first: a spare
+  // already in that slot on the character if one exists, otherwise a stand-in
+  // pulled from the vault.
+  async function unequipOnSourceCharacter(weapon: WeaponToApply): Promise<void> {
+    const source = roster.find((w) => w.itemInstanceId === weapon.itemInstanceId);
+    if (!source?.isEquipped || !source.characterId || source.characterId === targetCharacterId) return;
+    const sourceCharacterId = source.characterId;
+
+    // Non-exotic spares first: the swap-in only needs to hold the bucket, and
+    // a legendary can never trip the one-exotic rule on that character.
+    let replacement =
+      roster
+        .filter(
+          (w) =>
+            w.slot === weapon.slot &&
+            w.location === "character" &&
+            w.characterId === sourceCharacterId &&
+            !w.isEquipped &&
+            !loadoutInstanceIds.has(w.itemInstanceId) &&
+            !movedToVault.has(w.itemInstanceId)
+        )
+        .sort(
+          (a, b) =>
+            Number(isExotic(a.tierType ?? LEGENDARY_TIER_TYPE)) -
+              Number(isExotic(b.tierType ?? LEGENDARY_TIER_TYPE)) ||
+            a.lightLevel - b.lightLevel
+        )[0] ?? null;
+
+    if (!replacement) {
+      // Nothing else in that bucket on the character: pull a stand-in from the vault.
+      const standIn =
+        roster
+          .filter(
+            (w) =>
+              w.slot === weapon.slot &&
+              w.location === "vault" &&
+              !loadoutInstanceIds.has(w.itemInstanceId) &&
+              !isExotic(w.tierType ?? LEGENDARY_TIER_TYPE)
+          )
+          .sort((a, b) => a.lightLevel - b.lightLevel)[0] ?? null;
+      if (!standIn) {
+        throw new Error(
+          `This copy is equipped on another character with nothing to swap in. Move another ${weapon.slot} weapon to that character, then Apply again.`
+        );
+      }
+      await bungiePost<unknown>(
+        "/Destiny2/Actions/Items/TransferItem/",
+        accessToken,
+        {
+          itemReferenceHash: standIn.itemHash,
+          stackSize: 1,
+          transferToVault: false,
+          itemId: standIn.itemInstanceId,
+          characterId: sourceCharacterId,
+          membershipType,
+        } satisfies TransferItemRequest
+      );
+      replacement = standIn;
+    }
+
+    await bungiePost<EquipItemsResponse>(
+      "/Destiny2/Actions/Items/EquipItems/",
+      accessToken,
+      {
+        itemIds: [replacement.itemInstanceId],
+        characterId: sourceCharacterId,
+        membershipType,
+      } satisfies EquipItemsRequest
+    );
+  }
+
   async function moveToCharacter(weapon: WeaponToApply) {
     if (weapon.location === "character" && weapon.characterId && weapon.characterId !== targetCharacterId) {
+      await unequipOnSourceCharacter(weapon);
       await bungiePost<unknown>(
         "/Destiny2/Actions/Items/TransferItem/",
         accessToken,
