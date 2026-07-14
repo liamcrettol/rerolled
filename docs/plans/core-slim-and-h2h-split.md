@@ -1,15 +1,29 @@
 # Slim Rerolled to its core + split Crucible H2H into its own site
 
-Status: IN PROGRESS (audit 2026-07-14; dormant-artifact cleanup shipped
-2026-07-14: the Score Attack / Weekly worker substrate, badge award pipeline,
-process-jobs cron, weekly authoring CLI, and stale preview harnesses were
-deleted, and migration 059 dropped their 10 dead tables + 6 DB functions and
-unscheduled ping-process-jobs. Survivors that live features still use:
-lib/scoreAttack/{pgcr,types,activityPool}.ts, lib/challenges/present.ts,
-weekly_challenges + weekly_challenge_versions tables, challenge_runs family,
-player_season/lifetime_stats. That pre-completes most of Phase 4; what remains
-of Phase 4 is endgame removal plus those survivors, which die with the season
-panel in Phase 2/5.)
+Status: IN PROGRESS. Done as of 2026-07-14 (all four Rerolled-side removal
+phases, each with an applied drop migration):
+
+- Dormant substrate cleanup `d43f2c8` (#356): Score Attack / Weekly worker,
+  badge award pipeline, process-jobs cron, weekly CLI, stale preview
+  harnesses; migration 059.
+- Phase 1 badges `e07d865` (#357): lib/badges, components/badges, /badges,
+  badge props everywhere; migration 060.
+- Phase 2 leaderboards/stats/chrome `8756cba` (#358): /leaderboards, /stats,
+  SeasonPanel, HeadToHeadChip, lib/stats/{season,history}, lib/challenges;
+  nav = PLAY only, dashboard = centered mode grid; migration 061. **Port
+  SeasonPanel/HeadToHeadChip to the H2H site from commit `e07d865`** (the
+  parent of the deletion).
+- Endgame Roulette removed `e8ceb0a` (#359, decision confirmed by Liam):
+  app/endgame, lib/endgame, ironman mode, endgame lobby mode; migration 062.
+
+Still in Rerolled for the H2H site to take in Phases 3/5:
+lib/crucible + lib/pgcr + lib/scoreAttack/{pgcr,types}.ts (rename on port),
+api/crucible + crucible crons, CrucibleHistorySync (still mounted on the
+dashboard so data keeps accruing), and the challenge_runs / weekly_challenges /
+seasons tables that match-history enrichment still reads.
+
+Remaining: Phase 0 decisions for the new site (domain, DB, repo), then
+Phases 3, 5, 6, 7.
 
 Goal, per Josh: Rerolled keeps **PvP Loadout Roulette** and **Draft** only. Everything
 else (leaderboards, badges, season stats, score attack substrate, endgame roulette)
