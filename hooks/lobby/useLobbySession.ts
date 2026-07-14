@@ -8,6 +8,7 @@ import {
   updateMember,
   removeMemberById,
 } from "@/lib/lobby/realtimeState";
+import { mergeDraftRosterMember } from "@/lib/draft/roster";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -196,6 +197,79 @@ export function useLobbySession(
     loadCurrentRound();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobby.id, state.lobbyData.current_round]);
+
+  // Same-origin polling fallback: realtime is the fast path, but a member
+  // whose browser can't reach *.supabase.co (adblock, Brave shields, DNS
+  // filtering) would otherwise NEVER see rolls, joins, or round advances -
+  // their board just sits frozen while everyone else plays. Poll the lobby
+  // through our own API and dispatch exactly what the realtime handlers
+  // would have; every dispatch is skipped when nothing changed, so clients
+  // whose realtime works never notice this running.
+  const membersRef = useRef(state.members);
+  useEffect(() => {
+    membersRef.current = state.members;
+  }, [state.members]);
+  const slotsRef = useRef(state.slots);
+  useEffect(() => {
+    slotsRef.current = state.slots;
+  }, [state.slots]);
+  const lobbyDataRef = useRef(state.lobbyData);
+  useEffect(() => {
+    lobbyDataRef.current = state.lobbyData;
+  }, [state.lobbyData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch("/api/lobby/state", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lobbyId: lobby.id }),
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+
+        if (data.lobby && JSON.stringify(data.lobby) !== JSON.stringify(lobbyDataRef.current)) {
+          dispatch({ type: "lobbyUpdated", lobby: data.lobby as Lobby });
+        }
+
+        const incoming: LobbyMember[] = data.members ?? [];
+        const present = new Set(incoming.map((m) => m.id));
+        for (const m of incoming) {
+          const existing = membersRef.current.find((x) => x.id === m.id);
+          if (!existing) {
+            dispatch({ type: "memberUpsert", member: m });
+            continue;
+          }
+          // Merge instead of replace so page-enriched fields (badges, fresh
+          // emblem/clan) survive a raw DB row - same guard the draft board uses.
+          const merged = mergeDraftRosterMember(existing, m);
+          if (JSON.stringify(merged) !== JSON.stringify(existing)) {
+            dispatch({ type: "memberUpdate", member: merged });
+          }
+        }
+        for (const m of membersRef.current) {
+          if (!present.has(m.id)) dispatch({ type: "memberRemove", id: m.id });
+        }
+
+        for (const s of (data.slots ?? []) as LobbyLoadoutSlot[]) {
+          if (!roundIdRef.current || s.round_id !== roundIdRef.current) continue;
+          const existing = slotsRef.current.find((x) => x.slot === s.slot);
+          if (existing && existing.item_hash === s.item_hash) continue;
+          if (s.item_hash !== 0) cbRef.current.onSlotRolled?.(s.slot as WeaponSlot, s.item_hash);
+          dispatch({ type: "slotMerged", slot: s });
+        }
+      } catch {
+        // Offline blip or transient 5xx - the next tick retries.
+      }
+    };
+    const interval = setInterval(tick, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [lobby.id]);
 
   /** Locally reflect a seeded loadout (captain's equipped guns) without waiting
    *  on the realtime echo; ignored if a real roll already landed. */
