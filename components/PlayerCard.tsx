@@ -4,21 +4,15 @@ import { useState } from "react";
 import { Crown, Check } from "lucide-react";
 import { trimBungieName } from "@/lib/utils";
 import type { LobbyMember } from "@/types/lobby";
-import EquippedBadges from "@/components/badges/EquippedBadges";
-import BadgePopover from "@/components/badges/BadgePopover";
-import type { DisplayBadge } from "@/lib/badges/data";
 import { bungieImg } from "@/lib/destiny/constants";
 
 interface Props {
   member: LobbyMember;
   compact?: boolean;
   variant?: "default" | "sidebar" | "nav";
-  badges?: DisplayBadge[];
 }
 
-type BadgeBackedMember = LobbyMember & { badges?: DisplayBadge[] };
-
-export default function PlayerCard({ member, compact, variant = "default", badges }: Props) {
+export default function PlayerCard({ member, compact, variant = "default" }: Props) {
   const [bgFailed, setBgFailed] = useState(false);
   const [iconFailed, setIconFailed] = useState(false);
 
@@ -40,17 +34,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
   // card height. The pl-[max(22%,...)] below clears whichever is larger.
   const bannerUrl = bgUrl ?? iconUrl;
   const showSeparateIcon = !bgUrl && !!iconUrl;
-  const resolvedBadges = badges ?? (member as BadgeBackedMember).badges;
-  // Badge marks are 24px squares. They used to sit inline in the clan line - a
-  // 10px text row - which crushed the layout and pushed the mark onto the
-  // emblem art. They get their own slot at the trailing edge instead, centered
-  // against the card's full height and never squeezed by a long display name.
-  // BadgePopover supplies that slot's styling along with the hover disclosure.
-  const badgeStrip = resolvedBadges?.length ? (
-    <BadgePopover badges={resolvedBadges}>
-      <EquippedBadges badges={resolvedBadges} max={compact ? 2 : 3} size="icon" />
-    </BadgePopover>
-  ) : null;
 
   function handleBannerError() {
     if (bgUrl) setBgFailed(true);
@@ -99,7 +82,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               </span>
             )}
           </div>
-          {badgeStrip}
         </div>
       </div>
     );
@@ -154,7 +136,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
               </span>
             ) : null}
           </div>
-          {!member.is_spectator && badgeStrip}
           {!member.is_spectator && member.selected_character_id && (
             <Check size={13} className="text-green-400 shrink-0 animate-fade-in drop-shadow" />
           )}
@@ -217,15 +198,6 @@ export default function PlayerCard({ member, compact, variant = "default", badge
           </span>
         ) : null}
       </div>
-
-      {/* The trailing check is absolutely positioned in the top-right corner, so
-          the badge has to reserve extra room for it - a centered 24px mark
-          clips its lower-left corner at the compact height otherwise. */}
-      {!member.is_spectator && badgeStrip && (
-        <div className={`relative z-10 shrink-0 ${member.selected_character_id ? "pr-6" : "pr-2.5"}`}>
-          {badgeStrip}
-        </div>
-      )}
 
       {!member.is_spectator && member.selected_character_id && (
         <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">

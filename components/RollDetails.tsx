@@ -5,7 +5,6 @@ import type { WeaponSlot } from "@/types/bungie";
 import { BAR_STATS, NUM_STATS, damageTheme } from "./weaponShared";
 import { trimBungieName } from "@/lib/utils";
 import type { LobbyMember } from "@/types/lobby";
-import type { DisplayBadge } from "@/lib/badges/data";
 import PerkIcon from "./PerkIcon";
 import PlayerCard from "./PlayerCard";
 import WeaponIcon from "./WeaponIcon";
@@ -76,7 +75,6 @@ export default function RollDetails({
   favorites,
   onToggleFavorite,
   memberCards,
-  memberBadges,
   loading,
   error,
   onRetry,
@@ -87,7 +85,6 @@ export default function RollDetails({
   favorites?: Record<string, string>;
   onToggleFavorite?: (slot: WeaponSlot, hash: number, instanceId: string) => void;
   memberCards?: Record<string, LobbyMember>;
-  memberBadges?: Record<string, DisplayBadge[]>;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -296,7 +293,6 @@ export default function RollDetails({
   // stat bars. Cards are emblem-width and lay out 3-per-row (see grid below).
   const memberCard = (m: MemberRolls) => {
     const card = memberCards?.[m.userId];
-    const badges = memberBadges?.[m.userId];
     const inst = shownFor(m);
     const weaponDisplay = weaponDisplayFor(inst);
     return (
@@ -308,7 +304,7 @@ export default function RollDetails({
       >
         {/* Emblem header (fallback to name) */}
         {card ? (
-          <PlayerCard member={card} badges={badges} />
+          <PlayerCard member={card} />
         ) : (
           <div className="h-20 flex items-center justify-center bg-bungie-dark border-b border-bungie-border/60 px-3">
             <span className={`text-lg font-bold truncate ${m.isMe ? theme.text : "text-gray-200"}`}>

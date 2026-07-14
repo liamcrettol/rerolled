@@ -4,7 +4,6 @@ import { getLobbyByCode, getLobbyMembers } from "@/lib/lobby";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { getCharacters } from "@/lib/bungie/inventory";
 import { getClan } from "@/lib/bungie/clan";
-import { getUsersBadges } from "@/lib/badges/data";
 import DraftBoard from "@/components/DraftBoard";
 import { MODE_BASE_PATH } from "@/types/lobby";
 import type { DestinyCharacter } from "@/types/bungie";
@@ -37,12 +36,6 @@ export default async function DraftPage({
   const isMember = members.some((m) => m.user_id === session.userId);
   if (!isMember) redirect("/dashboard");
 
-  const memberBadges = await getUsersBadges(members.map((m) => m.user_id));
-  const membersWithBadges = members.map((m) => ({
-    ...m,
-    badges: memberBadges[m.user_id] ?? [],
-  }));
-
   try {
     const token = await getBungieToken(session.userId, session.bungieMembershipId);
     const [characters, clan] = await Promise.all([
@@ -50,7 +43,7 @@ export default async function DraftPage({
       getClan(session.bungieMembershipType, session.bungieMembershipId, token).catch(() => null),
     ]);
     const latest = lastPlayedCharacter(characters);
-    const current = membersWithBadges.find((m) => m.user_id === session.userId);
+    const current = members.find((m) => m.user_id === session.userId);
 
     if (current) {
       if (latest) {
@@ -69,7 +62,7 @@ export default async function DraftPage({
 
   return (
     <main className="min-h-screen p-6 w-full [&_.w-48]:w-72 [&_.w-48]:max-w-full [&_.flex.flex-wrap.gap-2]:justify-center">
-      <DraftBoard lobby={lobby} members={membersWithBadges} currentUserId={session.userId} />
+      <DraftBoard lobby={lobby} members={members} currentUserId={session.userId} />
     </main>
   );
 }

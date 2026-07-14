@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Lobby, LobbyMember } from "@/types/lobby";
-import type { DisplayBadge } from "@/lib/badges/data";
 import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import LoadoutQueue from "./LoadoutQueue";
 import ApplyStatus from "./ApplyStatus";
@@ -33,10 +32,6 @@ interface Props {
   currentUserDisplayName: string;
   bungieMembershipType: number;
   bungieMembershipId: string;
-  /** Badges per member, fetched once at page load (#306) — same staleness
-   * model as emblem/clan data on LobbyMember: a member joining after the
-   * page loads won't show badges until the page is refreshed. */
-  memberBadges?: Record<string, DisplayBadge[]>;
 }
 
 const EMPTY_CHARACTERS: DestinyCharacter[] = [];
@@ -88,7 +83,6 @@ export default function LobbyRoom({
   currentUserId,
   bungieMembershipType,
   bungieMembershipId,
-  memberBadges,
 }: Props) {
   const router = useRouter();
   const { characters: loadedCharacters } = useCharacters({ selectFirst: false });
@@ -855,7 +849,6 @@ export default function LobbyRoom({
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
             memberCards={Object.fromEntries(members.map((m) => [m.user_id, m]))}
-            memberBadges={memberBadges}
             loading={rollsLoading}
             error={rollsError}
             onRetry={fetchRolls}
