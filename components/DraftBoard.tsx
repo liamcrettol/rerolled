@@ -8,7 +8,6 @@ import Spinner from "./Spinner";
 import PlayerCard from "./PlayerCard";
 import { RollRow } from "./WeaponPool";
 import { useRollInstances } from "@/hooks/lobby/useRollInstances";
-import { createClient } from "@/lib/supabase/client";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
@@ -156,7 +155,6 @@ function CardBack({ pulse }: { pulse: boolean }) {
 
 export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
   // Draft has no captain. captain_user_id on a draft lobby is simply whoever
   // started it (it never rotates); their only special role is the Reveal
   // button. Every pick is decided by the fireteam vote.
@@ -231,26 +229,32 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     await copy(`${window.location.origin}/join/${lobby.code}`, "invite");
   }, [copy, lobby.code]);
 
+  // Reads the whole round through our own API (same origin) rather than the
+  // browser Supabase client - a member whose browser blocks *.supabase.co
+  // could never see reveals/votes otherwise. Realtime events and the 3s poll
+  // both funnel into this same refetch.
   const loadRound = useCallback(async () => {
-    const { data: round } = await supabase
-      .from("lobby_rounds")
-      .select("id")
-      .eq("lobby_id", lobby.id)
-      .eq("round_number", lobby.current_round)
-      .single();
-    if (!round) return;
-    setRoundId(round.id);
+    const res = await fetch("/api/draft/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lobbyId: lobby.id }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    setRoundId(data.roundId);
+    // The poll also carries lobby status, so the everyone-gets-redirected
+    // close handling works even when the realtime lobbies UPDATE never lands.
+    if (data.lobbyStatus) setLobbyStatus(data.lobbyStatus);
 
-    const [{ data: existingSlots }, { data: existingOptions }, { data: existingVotes }, { data: currentMembers }] = await Promise.all([
-      supabase.from("lobby_loadout_slots").select("*").eq("round_id", round.id),
-      supabase.from("lobby_draft_options").select("*").eq("round_id", round.id),
-      supabase.from("lobby_draft_votes").select("*").eq("round_id", round.id),
-      supabase.from("lobby_members").select("*").eq("lobby_id", lobby.id),
-    ]);
-    setSlots(existingSlots ?? []);
-    if (currentMembers) {
+    const existingSlots: LobbyLoadoutSlot[] = data.slots ?? [];
+    const existingOptions: Array<{ slot: string; position: number; item_hash: number; weapon_name: string; weapon_icon: string; weapon_type: string; damage_type: string; created_at: string }> = data.options ?? [];
+    const existingVotes: Array<{ slot: string; voter_user_id: string; item_hash: number }> = data.votes ?? [];
+    const currentMembers: LobbyMember[] = data.members ?? [];
+
+    setSlots(existingSlots);
+    if (currentMembers.length > 0) {
       setRoster((previous) => currentMembers.map((member) =>
-        mergeDraftRosterMember(previous.find((old) => old.id === member.id), member as LobbyMember)
+        mergeDraftRosterMember(previous.find((old) => old.id === member.id), member)
       ));
     }
 
@@ -276,7 +280,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       ];
     }
     setVotes(votesGrouped);
-  }, [supabase, lobby.id, lobby.current_round]);
+  }, [lobby.id]);
 
   useEffect(() => {
     // Ensures the shared weapon pool is cached (lobby_pools) so the reveal has
