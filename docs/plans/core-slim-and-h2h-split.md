@@ -1,6 +1,15 @@
 # Slim Rerolled to its core + split Crucible H2H into its own site
 
-Status: PROPOSED (audit done 2026-07-14, not yet started)
+Status: IN PROGRESS (audit 2026-07-14; dormant-artifact cleanup shipped
+2026-07-14: the Score Attack / Weekly worker substrate, badge award pipeline,
+process-jobs cron, weekly authoring CLI, and stale preview harnesses were
+deleted, and migration 059 dropped their 10 dead tables + 6 DB functions and
+unscheduled ping-process-jobs. Survivors that live features still use:
+lib/scoreAttack/{pgcr,types,activityPool}.ts, lib/challenges/present.ts,
+weekly_challenges + weekly_challenge_versions tables, challenge_runs family,
+player_season/lifetime_stats. That pre-completes most of Phase 4; what remains
+of Phase 4 is endgame removal plus those survivors, which die with the season
+panel in Phase 2/5.)
 
 Goal, per Josh: Rerolled keeps **PvP Loadout Roulette** and **Draft** only. Everything
 else (leaderboards, badges, season stats, score attack substrate, endgame roulette)

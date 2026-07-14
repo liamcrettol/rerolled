@@ -8,11 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
-    "weekly:generate": "tsx scripts/weekly-challenge.ts generate",
-    "weekly:preview": "tsx scripts/weekly-challenge.ts preview",
-    "weekly:publish": "tsx scripts/weekly-challenge.ts publish",
-    "weekly:rotate": "tsx scripts/weekly-challenge.ts rotate"
+    "test": "jest"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.65.0",

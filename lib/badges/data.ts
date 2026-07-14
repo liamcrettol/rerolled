@@ -1,11 +1,11 @@
 // Badge display data-access (#257, extended #297).
 //
 // Reads badge data (migration 030 + mode column from 036) for display.
-// Awarding happens server-side in the worker via lib/badges/evaluators.ts /
-// rerolledEvaluators.ts; this is the read/display half only, plus manual
-// grants (lib/badges/grant.ts) for status/legacy badges. Degrades to an
-// empty list so an unmigrated or empty DB shows a clean "no badges yet"
-// state rather than throwing.
+// This is the read/display half only. The server-side awarding pipeline
+// (worker + evaluators) was deleted with the Score Attack substrate; grants
+// today are manual (SQL migrations) or DB triggers. Degrades to an empty
+// list so an unmigrated or empty DB shows a clean "no badges yet" state
+// rather than throwing.
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import type { Badge, BadgeCategory, BadgeMode, BadgeTier } from "@/types/badges";

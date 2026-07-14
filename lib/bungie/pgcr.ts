@@ -82,10 +82,10 @@ export async function resolveActivityName(hash: number): Promise<string | null> 
 }
 
 // A PGCR is immutable once the match ends, so it is worth caching forever. The
-// score-attack worker (lib/scoreAttack/worker/detection.ts) already fills the
-// same `pgcr_cache` table; reading it here means the lobby detection path stops
-// re-fetching reports the worker has already pulled. Bungie throttles per app
-// key, so every avoided fetch is budget back for user-facing calls.
+// Crucible history sync (lib/crucible/sync.ts) fills the same `pgcr_cache`
+// table; reading it here means the lobby detection path stops re-fetching
+// reports the sync has already pulled. Bungie throttles per app key, so every
+// avoided fetch is budget back for user-facing calls.
 //
 // Both reads and writes go through lib/pgcr/service.ts, which - once the
 // PGCR_ARCHIVE_* flags are enabled - transparently prefers the Appwrite

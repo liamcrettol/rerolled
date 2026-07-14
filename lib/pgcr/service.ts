@@ -2,12 +2,11 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import * as archive from "./archive";
 import { PgcrArchiveError } from "./archive";
 
-// Central PGCR persistence/read service. lib/bungie/pgcr.ts,
-// lib/scoreAttack/worker/detection.ts, and any other raw-PGCR access path
-// should go through this module instead of talking to Supabase and Appwrite
-// separately - see docs/pgcr-archive.md for the full design and rollout
-// order. normalized_pgcr is untouched by this module; it is not durable
-// H2H/Score Attack source data the way raw_pgcr is, and stays a plain
+// Central PGCR persistence/read service. lib/bungie/pgcr.ts and any other
+// raw-PGCR access path should go through this module instead of talking to
+// Supabase and Appwrite separately - see docs/pgcr-archive.md for the full
+// design and rollout order. normalized_pgcr is untouched by this module; it
+// is not durable H2H source data the way raw_pgcr is, and stays a plain
 // Supabase read everywhere it's used today.
 //
 // Feature flags (all default OFF - see docs/pgcr-archive.md for rollout order):

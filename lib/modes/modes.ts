@@ -8,8 +8,10 @@
 //   - gun_roulette   → live PvP loadout roulette, routes into the existing lobby flow
 //   - draft → shared 1-of-3 card-reveal run flow on /draft (#266)
 //   - ironman → repurposed into the live endgame PvE randomizer
-// Score Attack and Weekly Challenge were removed (#342); their worker/stats
-// substrate stays dormant under lib/scoreAttack, lib/challenges, lib/weekly.
+// Score Attack and Weekly Challenge were removed (#342); their dormant
+// worker/stats substrate was deleted too. Only the pieces live features still
+// use survive: lib/scoreAttack/{pgcr,types,activityPool}.ts and
+// lib/challenges/present.ts.
 //
 // Each mode also carries an `accent` — its color identity across the hub
 // (mode cards, run flow, page headers) so every activity has a distinct UI.

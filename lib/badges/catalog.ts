@@ -12,9 +12,9 @@ export type BadgeSlug = (typeof BADGE_SLUGS)[keyof typeof BADGE_SLUGS];
 export const ALL_BADGE_SLUGS: BadgeSlug[] = Object.values(BADGE_SLUGS);
 
 // Rerolled badge slugs (Core/Crucible/Trials/Iron Banner/PvE/Status) — must
-// match supabase/migrations/037_rerolled_badge_seed.sql. Evaluated by the
-// generic rule dispatcher in lib/badges/rerolledEvaluators.ts rather than one
-// named evaluator per slug (see that file for why).
+// match supabase/migrations/037_rerolled_badge_seed.sql. The rule-dispatcher
+// evaluation pipeline was deleted with the Score Attack substrate; these
+// remain display-only.
 export const REROLLED_BADGE_SLUGS = {
   // Core
   DRAWN: "core_drawn",
