@@ -1,9 +1,10 @@
-// Draft slot voting (#315). Lobbies with more than one non-spectator member
-// vote on the 3 revealed candidates per slot instead of only the captain
-// picking; the slot resolves as soon as every eligible member has voted, or a
+// Draft slot voting (#315). Every non-spectator member votes on the 3
+// revealed candidates per slot - there is no captain pick in Draft. The slot
+// resolves as soon as every eligible member has voted (instantly in a solo
+// lobby, where the one member's vote is the whole electorate), or a
 // client-driven 30s timer calls resolveSlotTimeout as a fallback. Both paths
-// share commitOfferedOption (lib/draft/optionsService.ts) so a resolved vote
-// writes into lobby_loadout_slots exactly like a captain's instant pick does.
+// share commitOfferedOption (lib/draft/optionsService.ts) to write the winner
+// into lobby_loadout_slots.
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { isValidPick } from "./options";

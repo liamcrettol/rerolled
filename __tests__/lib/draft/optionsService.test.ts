@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { generateSlotOptions, commitSlotPick } from "@/lib/draft/optionsService";
+import { generateSlotOptions, commitOfferedOption } from "@/lib/draft/optionsService";
 import { getWeaponAmmoType, getWeaponTierType } from "@/lib/bungie/definitions";
 
 // Mock the ammo-type lookup so the double-special rule is tested against fixed
@@ -40,29 +40,29 @@ function makeDb(config: Record<string, any>) {
   } as any;
 }
 
-const captain = "captain1";
+const starter = "starter1";
 const other = "member2";
 
 describe("generateSlotOptions", () => {
-  it("rejects a non-captain", async () => {
-    const db = makeDb({ lobbies: { single: { data: { captain_user_id: captain }, error: null } } });
+  it("rejects a member who didn't start the draft", async () => {
+    const db = makeDb({ lobbies: { single: { data: { captain_user_id: starter }, error: null } } });
     const result = await generateSlotOptions("lobby1", "round1", "kinetic", other, db);
-    expect(result).toEqual({ ok: false, error: "Only the captain can run the draft" });
+    expect(result).toEqual({ ok: false, error: "Only the player who started the draft can reveal options" });
   });
 
   it("errors when the lobby pool hasn't been cached yet", async () => {
     const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
       lobby_pools: { single: { data: null, error: null } },
     });
-    const result = await generateSlotOptions("lobby1", "round1", "kinetic", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", starter, db);
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/No shared weapon pool/);
   });
 
   it("returns up to 3 candidates with resolved weapon details", async () => {
     const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
       lobby_pools: {
         single: {
           data: {
@@ -78,7 +78,7 @@ describe("generateSlotOptions", () => {
         },
       },
     });
-    const result = await generateSlotOptions("lobby1", "round1", "kinetic", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", starter, db);
     expect(result.ok).toBe(true);
     expect(result.options).toHaveLength(3);
     expect(new Set(result.options?.map((o) => o.itemHash)).size).toBe(3);
@@ -89,11 +89,11 @@ describe("generateSlotOptions", () => {
       list: [{ item_hash: 1, weapon_name: "Weapon 1", weapon_icon: "i1", weapon_type: "Auto Rifle", damage_type: "Kinetic" }],
     };
     const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
       lobby_draft_options: draftOptions,
     });
 
-    const result = await generateSlotOptions("lobby1", "round1", "kinetic", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", starter, db);
 
     expect(result).toEqual({ ok: false, error: "Options have already been revealed for this slot" });
     expect(draftOptions).not.toHaveProperty("inserted");
@@ -112,7 +112,7 @@ describe("generateSlotOptions ammo pairing", () => {
 
   function energyDb(kineticPickHash: number | null, pool: number[]) {
     return makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
       lobby_pools: {
         single: { data: { pool: { kinetic: [], energy: pool, power: [] }, weapon_details: energyDetails }, error: null },
       },
@@ -127,7 +127,7 @@ describe("generateSlotOptions ammo pairing", () => {
 
   it("offers only Primary energy weapons when the Kinetic pick is Special", async () => {
     const db = energyDb(5, [10, 11, 12, 13]);
-    const result = await generateSlotOptions("lobby1", "round1", "energy", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "energy", starter, db);
     expect(result.ok).toBe(true);
     const hashes = result.options!.map((o) => o.itemHash);
     expect(hashes.every((h) => h === 12 || h === 13)).toBe(true);
@@ -135,63 +135,49 @@ describe("generateSlotOptions ammo pairing", () => {
 
   it("offers only Special energy weapons when the Kinetic pick is Primary", async () => {
     const db = energyDb(6, [10, 11, 12, 13]);
-    const result = await generateSlotOptions("lobby1", "round1", "energy", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "energy", starter, db);
     expect(result.ok).toBe(true);
     expect(result.options!.map((o) => o.itemHash).every((h) => h === 10 || h === 11)).toBe(true);
   });
 
   it("falls back to the full pool if the group owns no non-Special energy weapon", async () => {
     const db = energyDb(5, [10, 11]);
-    const result = await generateSlotOptions("lobby1", "round1", "energy", captain, db);
+    const result = await generateSlotOptions("lobby1", "round1", "energy", starter, db);
     expect(result.ok).toBe(true);
     expect(result.options!.length).toBe(2);
   });
 });
 
-describe("commitSlotPick", () => {
-  it("rejects a non-captain", async () => {
-    const db = makeDb({ lobbies: { single: { data: { captain_user_id: captain }, error: null } } });
-    const result = await commitSlotPick("lobby1", "round1", "kinetic", 1, other, db);
-    expect(result).toEqual({ ok: false, error: "Only the captain can run the draft" });
-  });
+describe("commitOfferedOption", () => {
+  const offered = [
+    { item_hash: 1, weapon_name: "A", weapon_icon: "a", weapon_type: "Auto Rifle", damage_type: "Kinetic" },
+  ];
 
   it("rejects a hash that wasn't offered", async () => {
-    const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
-      lobby_draft_options: {
-        list: [{ item_hash: 1, weapon_name: "A", weapon_icon: "a", weapon_type: "Auto Rifle", damage_type: "Kinetic" }],
-      },
-    });
-    const result = await commitSlotPick("lobby1", "round1", "kinetic", 999, captain, db);
+    const db = makeDb({});
+    const result = await commitOfferedOption("round1", "kinetic", 999, offered, starter, db);
     expect(result).toEqual({ ok: false, error: "That weapon wasn't one of the revealed options" });
   });
 
   it("commits an offered pick into lobby_loadout_slots", async () => {
     const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
-      lobby_members: { list: [{ user_id: captain, is_spectator: false }] },
-      lobby_draft_options: {
-        list: [{ item_hash: 1, weapon_name: "A", weapon_icon: "a", weapon_type: "Auto Rifle", damage_type: "Kinetic" }],
-      },
       lobby_loadout_slots: { upsertResult: { error: null } },
     });
-    const result = await commitSlotPick("lobby1", "round1", "kinetic", 1, captain, db);
+    const result = await commitOfferedOption("round1", "kinetic", 1, offered, starter, db);
     expect(result).toEqual({ ok: true });
   });
 
   it("rejects a second exotic even if it was offered", async () => {
     mockTier.mockImplementation((hash) => (hash === 1 || hash === 2 ? 6 : 5));
     const db = makeDb({
-      lobbies: { single: { data: { captain_user_id: captain }, error: null } },
-      lobby_members: { list: [{ user_id: captain, is_spectator: false }] },
-      lobby_draft_options: {
-        list: [{ item_hash: 2, weapon_name: "B", weapon_icon: "b", weapon_type: "Bow", damage_type: "Void" }],
-      },
       lobby_loadout_slots: {
         list: [{ slot: "kinetic", item_hash: 1 }],
       },
     });
-    const result = await commitSlotPick("lobby1", "round1", "energy", 2, captain, db);
+    const exoticOffer = [
+      { item_hash: 2, weapon_name: "B", weapon_icon: "b", weapon_type: "Bow", damage_type: "Void" },
+    ];
+    const result = await commitOfferedOption("round1", "energy", 2, exoticOffer, starter, db);
     expect(result).toEqual({ ok: false, error: "Only one exotic weapon can be equipped in a loadout" });
   });
 });

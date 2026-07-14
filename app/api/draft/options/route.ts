@@ -9,16 +9,17 @@ const schema = z.object({
   slot: z.enum(["kinetic", "energy", "power"]),
 });
 
-// Captain-only: reveals 3 candidate weapons for a slot from the shared,
+// Starter-only: reveals 3 candidate weapons for a slot from the shared,
 // server-owned pool (#238's lobby_pools cache) — the card-reveal step of
-// Draft mode (#266).
+// Draft mode (#266). Only the member who started the draft can reveal;
+// the pick itself is decided by the fireteam vote (/api/draft/vote).
 export async function POST(req: NextRequest) {
   try {
     const session = await requireSession();
     const { lobbyId, roundId, slot } = schema.parse(await req.json());
     const result = await generateSlotOptions(lobbyId, roundId, slot, session.userId);
     if (!result.ok) {
-      const status = result.error?.includes("captain") ? 403 : 400;
+      const status = result.error?.includes("started the draft") ? 403 : 400;
       return NextResponse.json({ error: result.error }, { status });
     }
     return NextResponse.json({ options: result.options });

@@ -1,7 +1,9 @@
 // Draft mode v2 (#266) data-access. Generates and persists the 3-candidate
-// reveal per slot, then commits the captain's pick straight into
-// lobby_loadout_slots — the same table/row-shape /api/roulette/roll writes —
-// so the rest of the round (realtime slot merge, Apply) is untouched.
+// reveal per slot, then the fireteam vote (lib/draft/voteService.ts) commits
+// the winner straight into lobby_loadout_slots — the same table/row-shape
+// /api/roulette/roll writes — so the rest of the round (realtime slot merge,
+// Apply) is untouched. Draft has no captain: the member who started the lobby
+// is only special in that they click Reveal (requireStarter below).
 
 import { adminSupabase } from "@/lib/supabase/admin";
 import { pickCandidates, isValidPick } from "./options";
@@ -33,7 +35,10 @@ export interface GenerateOptionsResult {
   options?: DraftOption[];
 }
 
-async function requireCaptain(
+// Draft lobbies never rotate captain_user_id, so it is simply the member who
+// started the draft. They aren't a captain: revealing each slot's candidates
+// is their only special role, every pick is decided by the fireteam vote.
+async function requireStarter(
   lobbyId: string,
   userId: string,
   db: Db
@@ -44,7 +49,7 @@ async function requireCaptain(
     .eq("id", lobbyId)
     .single();
   if (lobby?.captain_user_id !== userId) {
-    return { ok: false, error: "Only the captain can run the draft" };
+    return { ok: false, error: "Only the player who started the draft can reveal options" };
   }
   return { ok: true };
 }
@@ -108,8 +113,8 @@ export async function generateSlotOptions(
   userId: string,
   db: Db = adminSupabase
 ): Promise<GenerateOptionsResult> {
-  const captainCheck = await requireCaptain(lobbyId, userId, db);
-  if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
+  const starterCheck = await requireStarter(lobbyId, userId, db);
+  if (!starterCheck.ok) return { ok: false, error: starterCheck.error };
 
   const existingOptions = await getOfferedOptions(roundId, slot, db);
   if (existingOptions.length > 0) {
@@ -188,9 +193,9 @@ export async function getOfferedOptions(
   return data ?? [];
 }
 
-// Shared by the captain-only instant-pick path (solo lobbies) and the vote
-// resolution path (lib/draft/voteService.ts, #315) - both end up writing the
-// same winning candidate into lobby_loadout_slots the same way.
+// Shared by the vote-resolution and timeout paths (lib/draft/voteService.ts,
+// #315) - both end up writing the same winning candidate into
+// lobby_loadout_slots the same way.
 export async function commitOfferedOption(
   roundId: string,
   slot: WeaponSlot,
@@ -235,25 +240,3 @@ export async function commitOfferedOption(
   return { ok: true };
 }
 
-export async function commitSlotPick(
-  lobbyId: string,
-  roundId: string,
-  slot: WeaponSlot,
-  itemHash: number,
-  userId: string,
-  db: Db = adminSupabase
-): Promise<CommitPickResult> {
-  const captainCheck = await requireCaptain(lobbyId, userId, db);
-  if (!captainCheck.ok) return { ok: false, error: captainCheck.error };
-
-  const { data: members } = await db
-    .from("lobby_members")
-    .select("user_id, is_spectator")
-    .eq("lobby_id", lobbyId);
-  if ((members ?? []).filter((member: { is_spectator: boolean }) => !member.is_spectator).length > 1) {
-    return { ok: false, error: "This draft uses a fireteam vote. Choose an option to vote instead." };
-  }
-
-  const offered = await getOfferedOptions(roundId, slot, db);
-  return commitOfferedOption(roundId, slot, itemHash, offered, userId, db);
-}

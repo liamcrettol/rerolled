@@ -43,7 +43,7 @@ interface Props {
 // One revealed option. On first mount (spin=true) it runs a single scroll-and-
 // land pass — the same mechanic as the signed-out home HeroReel — cycling
 // blurred filler icons and notching onto its real weapon, then lighting a
-// element-colored edge. Captain taps a landed card to lock the slot.
+// element-colored edge. Members tap a landed card to cast their vote.
 const CARD_ICON = 112;
 const CARD_WINDOW = 144;
 
@@ -54,7 +54,6 @@ function DraftCard({
   delay,
   disabled,
   selected,
-  dimmed,
   voteCount,
   onPick,
 }: {
@@ -64,9 +63,7 @@ function DraftCard({
   delay: number;
   disabled: boolean;
   selected: boolean;
-  dimmed: boolean;
-  /** Vote tally for this option in a multi-member lobby (#315) - omitted entirely
-   * in solo lobbies, which keep the old instant-pick behavior with no voting. */
+  /** Vote tally for this option (#315). */
   voteCount?: number;
   onPick: () => void;
 }) {
@@ -95,7 +92,7 @@ function DraftCard({
       disabled={disabled || !landed}
     className={`group relative flex w-[min(18rem,calc(100vw-3rem))] shrink-0 flex-col items-center gap-3 bg-bungie-dark border p-4 transition-all duration-300 ${
         selected ? "border-transparent animate-pick-pop" : "border-bungie-border"
-      } ${dimmed ? "opacity-30" : "opacity-100"} ${
+      } ${
         landed && !disabled ? "cursor-pointer hover:border-white/40" : "cursor-default"
       }`}
       style={{ boxShadow: glow }}
@@ -160,7 +157,10 @@ function CardBack({ pulse }: { pulse: boolean }) {
 export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const isCaptain = lobby.captain_user_id === currentUserId;
+  // Draft has no captain. captain_user_id on a draft lobby is simply whoever
+  // started it (it never rotates); their only special role is the Reveal
+  // button. Every pick is decided by the fireteam vote.
+  const isStarter = lobby.captain_user_id === currentUserId;
 
   const [roundId, setRoundId] = useState<string | null>(null);
   const [slots, setSlots] = useState<LobbyLoadoutSlot[]>([]);
@@ -168,8 +168,8 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   // The intersection call that primes lobby_pools does live Bungie API
-  // fetches and typically takes a couple seconds - without this gate, a
-  // captain landing straight on the board (#279) could hit Reveal before the
+  // fetches and typically takes a couple seconds - without this gate, the
+  // starter landing straight on the board (#279) could hit Reveal before the
   // pool finished caching and get "no shared weapon pool cached yet" for a
   // pool that was actually fine, just not written yet (#313).
   const [poolReady, setPoolReady] = useState(false);
@@ -177,15 +177,14 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const { copy, isCopied } = useCopyToClipboard();
   const copied = isCopied("code");
   const copiedLink = isCopied("invite");
-  const [pickingHash, setPickingHash] = useState<number | null>(null);
   const [roster, setRoster] = useState(members);
   // Tracks lobbies.status via realtime so every member's board reacts when
   // anyone closes/ends the draft (Leave Draft flips status to "done" server-
   // side) - without this, only the person who clicked Leave gets redirected
   // and the lobby just hangs open on everyone else's screen.
   const [lobbyStatus, setLobbyStatus] = useState(lobby.status);
-  // Votes per slot for the current round (#315) - only meaningful in
-  // multi-member lobbies; solo lobbies keep the old captain-taps-to-lock flow.
+  // Votes per slot for the current round (#315). Every non-spectator member
+  // votes; a solo member's vote resolves the slot instantly server-side.
   const [votes, setVotes] = useState<Partial<Record<WeaponSlot, { voterUserId: string; itemHash: number }[]>>>({});
   // Earliest lobby_draft_options.created_at per slot, the clock the 30s
   // auto-pick timer counts down from - server-owned so a page reload doesn't
@@ -213,8 +212,8 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   const touchedRollSlotsRef = useRef<Set<WeaponSlot>>(new Set());
 
   const nonSpectatorMembers = useMemo(() => roster.filter((m) => !m.is_spectator), [roster]);
-  // A lobby of just the captain has nothing to vote on - keep the original
-  // instant tap-to-lock behavior instead of running a pointless vote/timer.
+  // A solo lobby still votes (the one vote resolves the slot instantly), but
+  // there's no reason to rush a lone player with the 30s countdown/tally UI.
   const isSolo = nonSpectatorMembers.length <= 1;
   const isSpectator = roster.find((m) => m.user_id === currentUserId)?.is_spectator ?? false;
 
@@ -282,7 +281,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   useEffect(() => {
     // Ensures the shared weapon pool is cached (lobby_pools) so the reveal has
     // something to draw from — same call the roulette flow makes. Reveal stays
-    // disabled until this resolves (see poolReady) so the captain can't race it.
+    // disabled until this resolves (see poolReady) so the starter can't race it.
     fetch("/api/roulette/intersection", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -477,28 +476,6 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     }
   }
 
-  async function pick(slot: WeaponSlot, itemHash: number) {
-    if (!roundId) return;
-    setPickingHash(itemHash);
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/draft/pick", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId: lobby.id, roundId, slot, itemHash }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      await loadRound();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to pick");
-    } finally {
-      setBusy(false);
-      setPickingHash(null);
-    }
-  }
-
   async function vote(slot: WeaponSlot, itemHash: number) {
     if (!roundId) return;
     setError(null);
@@ -613,12 +590,13 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
         </div>
       </div>
 
-      {/* Fireteam roster — compact PlayerCard, same one Roll Comparison uses */}
+      {/* Fireteam roster — compact PlayerCard, same one Roll Comparison uses.
+          is_captain is stripped: Draft has no captain, so no crown here. */}
       {roster.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {roster.map((m) => (
             <div key={m.id} className="w-48">
-              <PlayerCard member={m} compact />
+              <PlayerCard member={{ ...m, is_captain: false }} compact />
             </div>
           ))}
         </div>
@@ -643,17 +621,15 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
               </h2>
               <p className="mt-1 text-sm text-gray-400">
                 {activeOptions.length === 0
-                  ? isCaptain
+                  ? isStarter
                     ? poolReady
-                      ? "Spin up three candidates and pick one for the fireteam."
+                      ? "Spin up three candidates for the fireteam to vote on."
                       : "Loading the fireteam's shared weapon pool…"
                     : `Waiting for ${nameFor(lobby.captain_user_id)} to spin the ${SLOT_LABELS[activeSlot]} slot…`
-                  : isSolo
-                    ? isCaptain
-                      ? "Tap the weapon to lock it in."
-                      : `${nameFor(lobby.captain_user_id)} is choosing…`
-                    : isSpectator
-                      ? "Watching the fireteam vote…"
+                  : isSpectator
+                    ? "Watching the fireteam vote…"
+                    : isSolo
+                      ? "Tap a weapon to lock it in."
                       : myVote != null
                         ? "Vote cast. Tap another to change it."
                         : "Tap a weapon to vote."}
@@ -670,11 +646,11 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 <div className="w-full overflow-x-auto pb-2">
                   <div className="flex min-w-max justify-center gap-4">
                     {[0, 1, 2].map((i) => (
-                      <CardBack key={i} pulse={isCaptain} />
+                      <CardBack key={i} pulse={isStarter} />
                     ))}
                   </div>
                 </div>
-                {isCaptain && (
+                {isStarter && (
                   <button
                     type="button"
                     onClick={() => reveal(activeSlot)}
@@ -696,17 +672,10 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     fillers={fillerIcons}
                     spin={shouldSpin}
                     delay={i * 220}
-                    disabled={isSolo ? busy || !isCaptain : isSpectator}
-                    selected={isSolo ? pickingHash === opt.itemHash : myVote === opt.itemHash}
-                    dimmed={isSolo && pickingHash !== null && pickingHash !== opt.itemHash}
+                    disabled={isSpectator}
+                    selected={myVote === opt.itemHash}
                     voteCount={isSolo ? undefined : voteCounts[opt.itemHash]}
-                    onPick={() => {
-                      if (isSolo) {
-                        if (isCaptain) pick(activeSlot, opt.itemHash);
-                      } else {
-                        vote(activeSlot, opt.itemHash);
-                      }
-                    }}
+                    onPick={() => vote(activeSlot, opt.itemHash)}
                   />
                   ))}
                 </div>
