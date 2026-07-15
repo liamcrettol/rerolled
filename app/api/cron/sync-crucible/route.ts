@@ -14,10 +14,10 @@ import {
   type ParkedCrucibleSync,
 } from "@/lib/crucible/sync";
 
-// Background Crucible history backfill (see .github/workflows/sync-crucible.yml).
+// Background Crucible history backfill, invoked by Supabase pg_cron.
 // Each run claims due users and walks their history a page at a time until the
-// time budget is spent. Failures return non-2xx responses so the scheduled
-// workflow cannot report success while the queue is stalled.
+// time budget is spent. Failures return non-2xx responses so the scheduler's
+// HTTP response history cannot report success while the queue is stalled.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -80,7 +80,9 @@ export async function GET(req: NextRequest) {
   try {
     const queuedBefore = await countDueQueuedSyncs(new Date().toISOString());
 
-    while (result.claimed < 25 && Date.now() - startedAt < 48_000) {
+    // Leave enough headroom for the final page, queue counts, parked-user
+    // lookup, and response serialization before Vercel's 60-second ceiling.
+    while (result.claimed < 25 && Date.now() - startedAt < 35_000) {
       const state = await claimCrucibleSync(workerId);
       if (!state) break;
       result.claimed++;

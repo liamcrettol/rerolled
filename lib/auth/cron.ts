@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Shared auth gate for cron endpoints. They are triggered by GitHub Actions
-// (and, historically, Vercel Cron) with `Authorization: Bearer ${CRON_SECRET}`.
+// Shared auth gate for cron endpoints. Supabase pg_cron + pg_net sends
+// `Authorization: Bearer ${CRON_SECRET}` from secrets held in Supabase Vault.
 //
 // Fails closed in production: if CRON_SECRET is somehow unset on a prod
 // deployment, reject the request rather than leaving the endpoint world-open.

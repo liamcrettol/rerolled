@@ -154,8 +154,7 @@ export async function readRawPgcr(instanceId: string, db: Db = adminSupabase): P
   return { status: "not_found" };
 }
 
-export interface PersistOutcome {
-  supabaseWritten: boolean;
+export interface ArchiveOutcome {
   archived: boolean;
   cleared: boolean;
   sha256?: string;
@@ -163,11 +162,81 @@ export interface PersistOutcome {
   archiveError?: { kind: string; message: string };
 }
 
+export interface PersistOutcome extends ArchiveOutcome {
+  supabaseWritten: boolean;
+}
+
 export interface PersistOptions {
   db?: Db;
   /** Extra columns merged into the pgcr_cache upsert (e.g. status, source, fetched_at). */
   extraFields?: Record<string, unknown>;
   onConflict?: string;
+}
+
+export interface ArchiveStoredOptions {
+  db?: Db;
+  /** Override the clear flag for callers that need an explicitly non-destructive verification pass. */
+  clearVerified?: boolean;
+}
+
+/**
+ * Archive the raw payload already stored in pgcr_cache. This is shared by
+ * live writes and the scheduled reconciliation worker so retries use the
+ * identical upload, download-verification, and checksum-guarded metadata
+ * stamp. It never removes raw_pgcr unless the Appwrite copy was verified and
+ * clearVerified (or PGCR_ARCHIVE_CLEAR_VERIFIED) is enabled.
+ */
+export async function archiveStoredRawPgcr(
+  instanceId: string,
+  options: ArchiveStoredOptions = {},
+): Promise<ArchiveOutcome> {
+  const db = options.db ?? adminSupabase;
+
+  try {
+    // Read Postgres's own text rendering so the Appwrite bytes and the RPC's
+    // checksum are based on one canonical representation.
+    const { data: textRow, error: textError } = await db
+      .from("pgcr_cache")
+      .select("raw_pgcr::text")
+      .eq("instance_id", instanceId)
+      .maybeSingle();
+    if (textError || typeof textRow?.raw_pgcr !== "string") {
+      throw new Error(`could not read raw_pgcr::text for archival: ${textError?.message ?? "no raw payload returned"}`);
+    }
+
+    const bytes = Buffer.from(textRow.raw_pgcr, "utf8");
+    const putResult = await archive.putRawPgcrBytes(instanceId, bytes);
+    const verify = await archive.verifyRawPgcr(instanceId, putResult.sha256);
+    if (!verify.ok) {
+      throw new Error(
+        `post-upload verification failed for ${instanceId} (expected ${putResult.sha256}, got ${verify.actualSha256 ?? "missing object"})`,
+      );
+    }
+
+    const shouldClear = options.clearVerified ?? clearVerifiedEnabled();
+    const { data: marked, error: markError } = await db.rpc("mark_pgcr_archived_if_current", {
+      p_instance_id: instanceId,
+      p_expected_sha256: putResult.sha256,
+      p_clear_raw: shouldClear,
+    });
+    if (markError) {
+      throw new Error(`mark_pgcr_archived_if_current failed for ${instanceId}: ${markError.message ?? markError}`);
+    }
+    if (marked !== true) {
+      console.warn(`[pgcr-archive] mark_pgcr_archived_if_current rejected ${instanceId} - raw_pgcr changed concurrently`);
+      return { archived: false, cleared: false };
+    }
+
+    return { archived: true, cleared: shouldClear, sha256: putResult.sha256, bytes: putResult.bytes };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[pgcr-archive] archival failed for ${instanceId}, Supabase copy retained: ${message}`);
+    return {
+      archived: false,
+      cleared: false,
+      archiveError: { kind: err instanceof PgcrArchiveError ? err.kind : "unknown", message },
+    };
+  }
 }
 
 /**
@@ -261,59 +330,6 @@ export async function persistRawPgcr(
     return { supabaseWritten: true, archived: false, cleared: false };
   }
 
-  try {
-    // Re-read Postgres's own text rendering of what was just written, rather
-    // than re-serializing the JS object. This makes the archived bytes (and
-    // their checksum) identical to what scripts/lib/pgcrArchiveCore.mjs
-    // computes from raw_pgcr::text for the same row via direct SQL - one
-    // definition of "the exact bytes", not two independently-derived ones.
-    const { data: textRow, error: textError } = await db
-      .from("pgcr_cache")
-      .select("raw_pgcr::text")
-      .eq("instance_id", instanceId)
-      .maybeSingle();
-    if (textError || typeof textRow?.raw_pgcr !== "string") {
-      throw new Error(`could not re-read raw_pgcr::text after upsert: ${textError?.message ?? "no row returned"}`);
-    }
-
-    const bytes = Buffer.from(textRow.raw_pgcr, "utf8");
-    const putResult = await archive.putRawPgcrBytes(instanceId, bytes);
-    const verify = await archive.verifyRawPgcr(instanceId, putResult.sha256);
-    if (!verify.ok) {
-      throw new Error(
-        `post-upload verification failed for ${instanceId} (expected ${putResult.sha256}, got ${verify.actualSha256 ?? "missing object"})`,
-      );
-    }
-
-    const shouldClear = clearVerifiedEnabled();
-    const { data: marked, error: markError } = await db.rpc("mark_pgcr_archived_if_current", {
-      p_instance_id: instanceId,
-      p_expected_sha256: putResult.sha256,
-      p_clear_raw: shouldClear,
-    });
-    if (markError) {
-      throw new Error(`mark_pgcr_archived_if_current failed for ${instanceId}: ${markError.message ?? markError}`);
-    }
-    if (marked !== true) {
-      // The guard rejected this call: raw_pgcr no longer matches what we
-      // just verified (a concurrent write happened in between). Do not
-      // report success for either metadata or clearing - the row, now
-      // holding different content, is picked up fresh by the next sweep.
-      console.warn(`[pgcr-archive] mark_pgcr_archived_if_current rejected ${instanceId} - raw_pgcr changed concurrently`);
-      return { supabaseWritten: true, archived: false, cleared: false };
-    }
-
-    return { supabaseWritten: true, archived: true, cleared: shouldClear, sha256: putResult.sha256, bytes: putResult.bytes };
-  } catch (err) {
-    // Never report archived:true when only the Supabase write succeeded.
-    // raw_pgcr is left exactly as the upsert above wrote it.
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[pgcr-archive] archival failed for ${instanceId}, Supabase copy retained: ${message}`);
-    return {
-      supabaseWritten: true,
-      archived: false,
-      cleared: false,
-      archiveError: { kind: err instanceof PgcrArchiveError ? err.kind : "unknown", message },
-    };
-  }
+  const archiveOutcome = await archiveStoredRawPgcr(instanceId, { db });
+  return { supabaseWritten: true, ...archiveOutcome };
 }

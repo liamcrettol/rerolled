@@ -8,8 +8,9 @@
 -- Secrets are NOT in this file: ping_cron_endpoint reads `cron_app_url` and
 -- `cron_secret` from Supabase Vault. Rotate by updating the Vault entries
 -- (Dashboard -> Project Settings -> Vault), no redeploy or migration needed.
--- The GitHub workflows keep workflow_dispatch for manual runs; only their
--- schedule triggers were removed.
+-- Operational cron workflows were removed after this scheduler was verified
+-- live. Manual invocation remains available by calling the authenticated
+-- endpoint directly.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;

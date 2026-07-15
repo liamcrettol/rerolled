@@ -5,8 +5,8 @@ import { detectAndRecordGame } from "@/lib/stats/record";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { closeIdleLobbies } from "@/lib/lobby";
 
-// Triggered by GitHub Actions (see .github/workflows/detect-games.yml) with
-// Authorization: Bearer CRON_SECRET. It finds lobbies that have a pending apply
+// Triggered by Supabase pg_cron + pg_net with Authorization: Bearer CRON_SECRET.
+// It finds lobbies that have a pending apply
 // but no saved game session and runs PGCR detection for each - so stats get
 // captured even when nobody has the page open.
 export const dynamic = "force-dynamic";

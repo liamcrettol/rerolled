@@ -40,8 +40,8 @@ users):
    `router.refresh()`es if anything landed. It is throttled to once per 90s via
    `sessionStorage`, and it never touches the backfill cursor, so it cannot race
    the cron.
-2. **Background deep backfill** (pre-load). `.github/workflows/sync-crucible.yml`
-   hits `GET /api/cron/sync-crucible` every 15 min. The route claims queued users
+2. **Background deep backfill** (pre-load). Supabase pg_cron + pg_net hits
+   `GET /api/cron/sync-crucible` every 10 minutes. The route claims queued users
    via the `claim_crucible_sync` RPC (row lock, so two runs never sync the same
    user) and calls `syncNextCrucibleHistoryPage(userId)`, walking one activity
    page per claim, advancing the cursor across pages and characters until
@@ -478,7 +478,9 @@ Create `GET /api/cron/sync-crucible/route.ts`:
 - Use bounded retries and mark repeated failures `failed`.
 - Set `export const maxDuration = 60` to match existing cron conventions.
 
-Add the new cron endpoint to the same external scheduler or GitHub Actions workflow currently invoking the existing cron routes. Do not assume `vercel.json` schedules it; this repository currently uses external scheduling for frequent jobs.
+Schedule the endpoint with Supabase pg_cron + pg_net through
+`public.ping_cron_endpoint`, following migrations 056 and 059. Do not assume
+`vercel.json` schedules frequent jobs.
 
 Queue a sync after successful Bungie login and when the dashboard loads if the user's data is stale. Dashboard queueing must be fire-and-forget from the UI and must not delay page rendering.
 

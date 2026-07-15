@@ -82,9 +82,11 @@ with fakes so the pagination/termination and checksum-guard behavior is
 verified without a live database or Appwrite connection:
 
 - `scripts/migrate-pgcr-to-appwrite.mjs` - one-time historical backlog drain.
-- `scripts/reconcile-pgcr-archive.mjs` - the permanent, ongoing sweep that
-  replaces `prune_pgcr_cache()`'s role (archiving instead of deleting). Runs
-  up to two fully independent bounded sweeps - see "Reconciliation" below.
+- `GET /api/cron/reconcile-pgcr` - the permanent, bounded production outbox
+  retry. Supabase pg_cron invokes it every five minutes via migration 059.
+- `scripts/reconcile-pgcr-archive.mjs` - the operator sweep for migrations,
+  full backlog repair, and separately approved verified-payload clearing. It
+  runs up to two independent bounded sweeps - see "Reconciliation" below.
 
 ## Feature flags
 
@@ -192,6 +194,16 @@ node scripts/migrate-pgcr-to-appwrite.mjs --verify-only
 
 ## Reconciliation (the permanent replacement for pruning)
 
+Production continuously retries ordinary archive failures through
+`GET /api/cron/reconcile-pgcr`. Each invocation selects at most 40 oldest
+unarchived raw rows, uploads in chunks of four, and stops starting new work
+after 35 seconds. It uses `lib/pgcr/service.ts`'s same create-only upload,
+download verification, and atomic `mark_pgcr_archived_if_current` RPC as live
+writes. Migration 059 schedules the endpoint every five minutes through
+Supabase pg_cron, so this lifecycle has no GitHub Actions dependency.
+
+The CLI remains available for a deliberate full sweep or dry-run:
+
 ```
 node scripts/reconcile-pgcr-archive.mjs --dry-run
 node scripts/reconcile-pgcr-archive.mjs
@@ -272,8 +284,8 @@ node scripts/verify-pgcr-archive.mjs --full --sample 200 --parse-check
 
 - **Appwrite write fails during normal operation:** `raw_pgcr` is left
   exactly as written to Supabase; `persistRawPgcr` returns
-  `archived: false` and logs a `[pgcr-archive]` warning. The row is picked up
-  by the next `reconcile-pgcr-archive.mjs` run. Nothing user-facing breaks -
+  `archived: false` and logs a `[pgcr-archive]` warning. The scheduled
+  `/api/cron/reconcile-pgcr` worker retries it. Nothing user-facing breaks -
   Supabase was always the durable copy for that row.
 - **Appwrite read fails during normal operation:** `readRawPgcr` falls back
   to Supabase automatically. If a row was previously verified
@@ -341,6 +353,7 @@ this change:
 | `lib/scoreAttack/worker/detection.ts` (score/compliance/legality handlers), `lib/scoreAttack/worker/handlers.ts`, `lib/scoreAttack/worker/participantBadgeContext.ts`, `lib/stats/season.ts` | Normalized-document reads (Score Attack, badges, season history, H2H display) | **Unchanged** - stay direct Supabase reads of `normalized_pgcr`, as required |
 | `app/api/cron/backfill-crucible-results/route.ts` | Maintenance (self-described one-time, still present) | Raw reads routed through the service so it keeps working once rows start getting cleared |
 | `app/api/cron/sync-crucible/route.ts` | Maintenance (was: prune RPC call) | Prune call removed |
+| `app/api/cron/reconcile-pgcr/route.ts`, `lib/pgcr/reconcile.ts` | Scheduled Appwrite outbox retry | New; invoked by Supabase pg_cron migration 059 |
 | `supabase/migrations/028_pgcr_worker_infra.sql` | Schema | Unchanged (original table definition) |
 | `supabase/migrations/050_crucible_player_emblems.sql`, `051_crucible_global_names_and_results.sql`, `055_crucible_director_activity.sql` | Historical migrations (SQL over `raw_pgcr`) | Unchanged, already applied - see "What future SQL migrations lose" above for why this pattern can't be reused |
 | `supabase/migrations/052_prune_pgcr_cache.sql` | Maintenance (destructive) | Superseded by `057_disable_pgcr_prune.sql`; original file left as historical record |

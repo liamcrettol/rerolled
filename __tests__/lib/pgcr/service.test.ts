@@ -407,4 +407,23 @@ describe("lib/pgcr/service", () => {
       warn.mockRestore();
     });
   });
+
+  describe("archiveStoredRawPgcr", () => {
+    it("retries an existing outbox row without performing another upsert", async () => {
+      process.env.PGCR_ARCHIVE_CLEAR_VERIFIED = "1";
+      const { archiveStoredRawPgcr } = await import("@/lib/pgcr/service");
+      putRawPgcrBytes.mockResolvedValue({ outcome: "already_present", sha256: "abc123", bytes: 42 });
+      verifyRawPgcr.mockResolvedValue({ ok: true, actualSha256: "abc123", bytes: 42 });
+      const db = makeDb({ maybeSingleQueue: [{ data: { raw_pgcr: '{"a":1}' }, error: null }], rpcResult: true });
+
+      const result = await archiveStoredRawPgcr("123", { db });
+
+      expect(result).toMatchObject({ archived: true, cleared: true, sha256: "abc123", bytes: 42 });
+      expect(db._upsertCalls).toHaveLength(0);
+      expect(db._rpcCalls[0]).toEqual([
+        RPC_NAME,
+        { p_instance_id: "123", p_expected_sha256: "abc123", p_clear_raw: true },
+      ]);
+    });
+  });
 });
