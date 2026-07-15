@@ -27,7 +27,14 @@ export default async function Dashboard() {
       <DashboardLiveRefresh />
       <CrucibleHistorySync />
 
-      <div className="mx-auto flex min-h-[calc(100vh-7.5rem)] w-full max-w-[694px] flex-col justify-center">
+      <div className="mx-auto w-full max-w-5xl py-6 sm:py-10">
+        <div className="mb-7">
+          <p className="section-label text-bungie-blue">Fireteam loadouts</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Choose how you want to play.</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-400 sm:text-base">
+            Roll from the weapons everyone owns, or draft a loadout one choice at a time.
+          </p>
+        </div>
         <ModeGrid activeSession={activeSession} />
       </div>
     </PlatformShell>

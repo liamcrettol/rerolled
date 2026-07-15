@@ -5,15 +5,10 @@
 // Product wordmark + primary section links + signed-in Bungie display name.
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import BrandWordmark from "@/components/BrandWordmark";
 import PlayerCard from "@/components/PlayerCard";
 import type { LobbyMember } from "@/types/lobby";
-
-const LINKS = [
-  { href: "/dashboard", label: "PLAY" },
-];
 
 // PlayerCard (#318) wants a full LobbyMember — the nav only has a name, an
 // emblem, and a clan name, so stub the lobby-specific fields it doesn't render.
@@ -53,8 +48,6 @@ export default function TopNav({
   emblemBackgroundPath?: string | null;
   clanName?: string | null;
 }) {
-  const pathname = usePathname();
-
   return (
     <header className="border-b border-bungie-border">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-3 sm:flex-nowrap sm:px-6 sm:py-0 sm:h-[4.5rem]">
@@ -63,22 +56,7 @@ export default function TopNav({
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
         </Link>
 
-        <nav className="order-3 flex basis-full items-center gap-5 overflow-x-auto sm:order-none sm:flex-1 sm:basis-auto sm:gap-6">
-          {LINKS.map((l) => {
-            const active = pathname === l.href || pathname.startsWith(l.href + "/");
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-colors ${
-                  active ? "text-bungie-blue" : "text-gray-400 hover:text-white"
-                }`}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="hidden h-px flex-1 bg-gradient-to-r from-bungie-border to-transparent sm:block" aria-hidden="true" />
 
         {displayName && (
           <div className="ml-auto flex min-w-0 shrink-0 items-center gap-3 sm:ml-0">

@@ -12,7 +12,7 @@ import { trimBungieName } from "@/lib/utils";
 import { useGameDetection } from "@/hooks/useGameDetection";
 import Spinner from "./Spinner";
 import ConfirmDialog from "./lobby/ConfirmDialog";
-import LobbyStatsPanel, { type StatsTab, type LeaderboardEntry, type SessionTotal } from "./lobby/LobbyStatsPanel";
+import LobbyStatsPanel, { type StatsTab, type SessionTotal } from "./lobby/LobbyStatsPanel";
 import LobbySidebar from "./lobby/LobbySidebar";
 import { wildcardsFromSlots } from "@/lib/lobby/realtimeState";
 import { useLobbySession } from "@/hooks/lobby/useLobbySession";
@@ -100,7 +100,7 @@ export default function LobbyRoom({
   const copiedWatch = isCopied("watch");
   const hasAutoSelected = useRef(false);
 
-  // Stats panel tab: session totals | match history | global leaderboard
+  // Stats panel tab: session totals | match history
   const [statsTab, setStatsTab] = useState<StatsTab>("session");
   const {
     polling,
@@ -119,9 +119,6 @@ export default function LobbyRoom({
     status: lobby.status,
     onSwitchToHistoryTab: () => setStatsTab("history"),
   });
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[] | null>(null);
-  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
   const [rightOpen, setRightOpen] = useState(true);
@@ -512,20 +509,6 @@ export default function LobbyRoom({
   void bungieMembershipType;
   void bungieMembershipId;
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLeaderboardLoading(true);
-    try {
-      const res = await fetch("/api/stats/leaderboard");
-      const data = await res.json();
-      if (data.entries) setLeaderboard(data.entries);
-    } catch { /* ignore */ }
-    setLeaderboardLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (statsTab === "leaderboard" && leaderboard === null) fetchLeaderboard();
-  }, [statsTab, leaderboard, fetchLeaderboard]);
-
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (overflowMenuRef.current && !overflowMenuRef.current.contains(e.target as Node)) {
@@ -708,7 +691,7 @@ export default function LobbyRoom({
           )}
         </div>
 
-        {/* Stats panel: Session / History / Leaderboard tabs */}
+        {/* Stats panel: Session / History tabs */}
         <div className="order-6">
           <LobbyStatsPanel
             statsTab={statsTab}
@@ -717,8 +700,6 @@ export default function LobbyRoom({
             roundHistory={roundHistory}
             expandedRound={expandedRound}
             onExpandRound={setExpandedRound}
-            leaderboard={leaderboard}
-            leaderboardLoading={leaderboardLoading}
             lastGameStats={lastGameStats}
             onDismissLastGame={() => setLastGameStats(null)}
           />

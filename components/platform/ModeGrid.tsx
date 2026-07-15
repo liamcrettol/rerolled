@@ -1,86 +1,48 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import type { ModeDefinition, ModeStatus } from "@/types/platform";
+import type { ModeDefinition } from "@/types/platform";
 import type { Lobby, LobbyMode } from "@/types/lobby";
 import { HOME_MODE_GRID } from "@/lib/modes/modes";
 import JoinLobbyCard from "./JoinLobbyCard";
 import { MODE_ICONS, ACCENT_CLS } from "./modeVisuals";
 
-// Home mode grid (#243/#244/#253). Every card is driven by the mode registry —
-// no per-card conditionals here. Each mode carries its own accent + icon.
-// Disabled roadmap modes render as visibly-inert cards that cannot start a flow.
-
-const STATUS_CLS: Record<ModeStatus, string> = {
-  live: "text-green-400 border-green-400/40",
-  new: "text-bungie-blue border-bungie-blue/40",
-  soon: "text-gray-500 border-bungie-border",
-};
-
-function StatusBadge({ status }: { status: ModeStatus }) {
-  // "live" just means "the original, always-on mode" — badging it reads as
-  // "a match is happening right now," which is wrong. Only NEW/SOON need a
-  // callout; the flagship mode doesn't announce itself.
-  if (status === "live") return null;
-
-  return (
-    <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${STATUS_CLS[status]}`}>
-      {status}
-    </span>
-  );
-}
-
 function ModeCard({ mode }: { mode: ModeDefinition }) {
   const accent = ACCENT_CLS[mode.accent];
   const Icon = MODE_ICONS[mode.id];
 
-  const body = (
-    <>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon size={18} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
-        </div>
-        <StatusBadge status={mode.status} />
-      </div>
-      <h3 className="mt-3 max-w-[14ch] text-xl font-bold uppercase leading-tight tracking-wide text-white">
-        {mode.title}
-      </h3>
-      <div
-        className={`mt-auto pt-4 text-[11px] font-bold uppercase tracking-widest inline-flex items-center gap-1 ${
-          mode.enabled ? accent.action : "text-gray-600"
-        }`}
-      >
-        {mode.ctaLabel}
-        {mode.enabled && <ArrowRight size={12} aria-hidden="true" />}
-      </div>
-    </>
-  );
-
-  if (!mode.enabled || !mode.href) {
-    // Disabled roadmap card — inert, dimmed, and announced to AT (#253).
-    return (
-      <div
-        aria-disabled="true"
-        className={`panel border-l-2 ${accent.border} flex min-h-[168px] flex-col p-5 opacity-50 cursor-not-allowed select-none`}
-      >
-        {body}
-      </div>
-    );
-  }
-
   return (
     <Link
-      href={mode.href}
-      className={`panel border-l-2 ${accent.border} block min-h-[168px] p-5 transition-colors ${accent.hover}`}
+      href={mode.href ?? "/dashboard"}
+      aria-disabled={!mode.enabled}
+      className={`panel group relative flex min-h-[250px] flex-col overflow-hidden border-t-2 p-6 transition-colors sm:p-7 ${
+        mode.id === "gun_roulette"
+          ? "border-t-green-400 hover:border-green-400"
+          : "border-t-purple-400 hover:border-purple-400"
+      } ${!mode.enabled ? "pointer-events-none opacity-50" : ""}`}
     >
-      {body}
+      <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-white/[0.025] transition-transform duration-300 group-hover:scale-125" />
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Icon size={20} className={accent.icon} aria-hidden="true" />
+          <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Play mode</span>
+      </div>
+
+      <div className="relative mt-auto pt-12">
+        <h3 className="max-w-[12ch] text-2xl font-bold uppercase leading-tight tracking-wide text-white sm:text-3xl">
+          {mode.title}
+        </h3>
+        <p className="mt-3 max-w-sm text-sm leading-relaxed text-gray-400">{mode.description}</p>
+        <div className={`mt-6 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest ${accent.action}`}>
+          {mode.ctaLabel}
+          <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+        </div>
+      </div>
     </Link>
   );
 }
 
-// The grid is four columns wide and the registry holds three modes, so the
-// join/rejoin tile fills the cell that was sitting empty rather than living in
-// its own section below the fold.
 export default function ModeGrid({
   activeSession,
 }: {
@@ -88,13 +50,12 @@ export default function ModeGrid({
 }) {
   return (
     <section>
-      <p className="section-label mb-3">Modes</p>
-      <div className="grid grid-cols-1 gap-3 md:auto-rows-fr md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {HOME_MODE_GRID.map((mode) => (
           <ModeCard key={mode.id} mode={mode} />
         ))}
-        <JoinLobbyCard activeSession={activeSession} />
       </div>
+      <JoinLobbyCard activeSession={activeSession} />
     </section>
   );
 }

@@ -13,10 +13,10 @@ const codeInput = () => screen.getByPlaceholderText("LOBBY CODE");
 const joinButton = () => screen.getByRole("button", { name: /join/i });
 
 describe("JoinLobbyCard", () => {
-  it("renders as a mode tile with no active lobby", () => {
+  it("renders as a join utility with no active lobby", () => {
     render(<JoinLobbyCard activeSession={null} />);
 
-    expect(screen.getByText("Enter a code or rejoin")).toBeInTheDocument();
+    expect(screen.getByText("Join with a lobby code")).toBeInTheDocument();
     expect(codeInput()).toBeInTheDocument();
     expect(screen.queryByText("Rejoin")).not.toBeInTheDocument();
   });

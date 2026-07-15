@@ -1,7 +1,6 @@
 "use client";
 
 import { Crown, X } from "lucide-react";
-import Spinner from "@/components/Spinner";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { trimBungieName } from "@/lib/utils";
@@ -11,16 +10,6 @@ import { bungieImg } from "@/lib/destiny/constants";
 // The lobby's stats card (#224): the dismissible post-game banner and the
 // Session / Match History / Leaderboard tabs, extracted verbatim from
 // LobbyRoom's stats section.
-
-export interface LeaderboardEntry {
-  userId: string;
-  displayName: string;
-  gamesPlayed: number;
-  totalKills: number;
-  avgKd: number;
-  wins: number;
-  losses: number;
-}
 
 export interface SessionTotal {
   userId: string;
@@ -32,7 +21,7 @@ export interface SessionTotal {
   games: number;
 }
 
-export type StatsTab = "session" | "history" | "leaderboard";
+export type StatsTab = "session" | "history";
 
 // Running cumulative K/A/D per player across every recorded game this lobby.
 function SessionTotalsTable({ totals }: { totals: SessionTotal[] }) {
@@ -125,8 +114,6 @@ interface Props {
   roundHistory: RoundRecord[];
   expandedRound: string | null;
   onExpandRound: (sessionId: string | null) => void;
-  leaderboard: LeaderboardEntry[] | null;
-  leaderboardLoading: boolean;
   lastGameStats: PlayerStat[] | null;
   onDismissLastGame: () => void;
 }
@@ -138,8 +125,6 @@ export default function LobbyStatsPanel({
   roundHistory,
   expandedRound,
   onExpandRound,
-  leaderboard,
-  leaderboardLoading,
   lastGameStats,
   onDismissLastGame,
 }: Props) {
@@ -165,7 +150,7 @@ export default function LobbyStatsPanel({
 
       {/* Tab bar */}
       <div className="flex border-b border-bungie-border/40">
-        {(["session", "history", "leaderboard"] as const).map((tab) => (
+        {(["session", "history"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => onTabChange(tab)}
@@ -175,7 +160,7 @@ export default function LobbyStatsPanel({
                 : "border-transparent text-gray-400 hover:text-gray-200"
             }`}
           >
-            {tab === "session" ? "Session" : tab === "history" ? "Match History" : "Leaderboard"}
+            {tab === "session" ? "Session" : "Match History"}
           </button>
         ))}
       </div>
@@ -281,54 +266,6 @@ export default function LobbyStatsPanel({
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Global leaderboard */}
-      {statsTab === "leaderboard" && (
-        <div className="p-4">
-          {leaderboardLoading ? (
-            <p className="text-sm text-gray-500 text-center py-4 flex items-center justify-center gap-2">
-              <Spinner size={14} />
-              Loading...
-            </p>
-          ) : !leaderboard || leaderboard.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">No games recorded yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-gray-500 text-xs border-b border-bungie-border">
-                    <th className="text-left pb-2 pr-2">#</th>
-                    <th className="text-left pb-2 pr-4">Player</th>
-                    <th className="text-right pb-2 pr-3">Games</th>
-                    <th className="text-right pb-2 pr-3">W-L</th>
-                    <th className="text-right pb-2">Avg K/D</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-bungie-border/40">
-                  {leaderboard.map((e, i) => (
-                    <tr key={e.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-                      <td className="py-2 pr-2 text-gray-500 font-mono text-xs">{i + 1}</td>
-                      <td className="py-2 pr-4 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          {i === 0 && <Crown size={13} className="shrink-0 text-yellow-400" />}
-                          {e.displayName}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3 text-right">{e.gamesPlayed}</td>
-                      <td className="py-2 pr-3 text-right tabular-nums">
-                        {e.wins + e.losses > 0 ? (
-                          <><span className="text-green-400">{e.wins}</span><span className="text-gray-500">-</span><span className="text-red-400">{e.losses}</span></>
-                        ) : <span className="text-gray-500">-</span>}
-                      </td>
-                      <td className="py-2 text-right">{e.avgKd.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
         </div>
