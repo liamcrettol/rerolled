@@ -1,9 +1,10 @@
 # Beta scaling checklist
 
-Status: written 2026-07-15, not yet started. Three independent workstreams
-before inviting outside users to Rerolled + Rival betas. Verified against the
-live repos and databases on this date — re-check row counts and file lists
-before executing if time has passed, since both repos move fast.
+Status: executed 2026-07-15. The Rerolled Crucible split, database cleanup,
+Rival reconciliation schedule, and 400 MB capacity warnings are complete.
+Rerolled fell from 361 MB to 34 MB; Rival was healthy at 33 MB with 1,133
+matches while its backfill continued. Supabase and Vercel paid-tier choices
+remain owner decisions before a larger or commercial beta.
 
 Why: Rerolled's Supabase database is at **361MB of a 500MB free-tier cap
 (72% full)**, and ~325MB of that is Crucible sync data that duplicates what

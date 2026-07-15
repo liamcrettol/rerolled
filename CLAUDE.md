@@ -7,6 +7,8 @@ The app: a web app for Destiny 2 friend groups to generate random weapon loadout
 between matches. Bungie OAuth sign-in, shared lobby, a rotating "captain" rolls a
 3-slot loadout from the intersection of weapons the fireteam owns; equips via the
 Bungie API and auto-detects the finished match (PGCR) to record stats.
+Rival (`https://rival.d2roulette.app`) is the separate product and source of
+truth for Crucible match history and head-to-head records.
 Stack: Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Supabase ·
 NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby).
 
@@ -220,6 +222,9 @@ Bungie's sandbox rules — enforce them anywhere a loadout is generated
 
 ## Database migrations
 
+- `database_size_bytes()` is checked by the detect-games cron. At 400 MB (80%
+  of the 500 MB free-tier allowance), it emits a `[database-capacity] WARNING`
+  error for the existing logging pipeline.
 - Plain SQL in `supabase/migrations/`, numbered sequentially. Make migrations idempotent
   (`IF NOT EXISTS`, `CREATE OR REPLACE`). Some old migrations may not be applied live — if
   you see `column X does not exist`, suspect an unapplied migration first.

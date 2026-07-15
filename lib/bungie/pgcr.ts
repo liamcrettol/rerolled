@@ -1,4 +1,4 @@
-import { readRawPgcr, persistRawPgcr } from "@/lib/pgcr/service";
+import { adminSupabase } from "@/lib/supabase/admin";
 
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
 
@@ -81,21 +81,17 @@ export async function resolveActivityName(hash: number): Promise<string | null> 
   return (await resolveActivity(hash)).name;
 }
 
-// A PGCR is immutable once the match ends, so it is worth caching forever. The
-// Crucible history sync (lib/crucible/sync.ts) fills the same `pgcr_cache`
-// table; reading it here means the lobby detection path stops re-fetching
-// reports the sync has already pulled. Bungie throttles per app key, so every
-// avoided fetch is budget back for user-facing calls.
-//
-// Both reads and writes go through lib/pgcr/service.ts, which - once the
-// PGCR_ARCHIVE_* flags are enabled - transparently prefers the Appwrite
-// archive and falls back to this same pgcr_cache row (see docs/pgcr-archive.md).
-// With all flags at their default (disabled), this is exactly the direct
-// Supabase read/write it always was.
+// PGCRs are immutable once a match ends. Keep a short-lived Supabase cache so
+// lobby detection does not repeatedly fetch the same report from Bungie.
 async function readCachedPGCR(instanceId: string): Promise<PGCR | null> {
   try {
-    const result = await readRawPgcr(instanceId);
-    return result.status === "found" ? (result.raw as PGCR) : null;
+    const { data, error } = await adminSupabase
+      .from("pgcr_cache")
+      .select("raw_pgcr")
+      .eq("instance_id", instanceId)
+      .maybeSingle();
+    if (error || !data?.raw_pgcr) return null;
+    return data.raw_pgcr as PGCR;
   } catch {
     // A cache miss and a cache outage are the same thing to the caller: go to
     // Bungie. Never fail detection because the cache was slow.
@@ -106,9 +102,16 @@ async function readCachedPGCR(instanceId: string): Promise<PGCR | null> {
 async function writeCachedPGCR(instanceId: string, pgcr: PGCR): Promise<void> {
   try {
     const now = new Date().toISOString();
-    await persistRawPgcr(instanceId, pgcr, {
-      extraFields: { status: "fetched", fetched_at: now, updated_at: now },
-    });
+    await adminSupabase.from("pgcr_cache").upsert(
+      {
+        instance_id: instanceId,
+        raw_pgcr: pgcr,
+        status: "fetched",
+        fetched_at: now,
+        updated_at: now,
+      },
+      { onConflict: "instance_id" }
+    );
   } catch {
     // Caching is an optimization; a failed write must not fail the detection.
   }

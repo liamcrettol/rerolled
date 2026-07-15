@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/auth/encrypt";
 import { encode } from "@auth/core/jwt";
-import { queueCrucibleSync } from "@/lib/crucible/queueSync";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 const OAUTH_STATE_COOKIE = "bungie_oauth_state";
@@ -274,14 +273,6 @@ export async function GET(req: NextRequest) {
       "[bungie/callback] continuing with session-only auth after bungie_accounts upsert outage:",
       formatSupabaseError(accountErr)
     );
-  }
-
-  if (!skipDependentDbWrites && !accountErr) {
-    // fromSignIn: fresh tokens were just stored, so this may revive a user who
-    // was parked for a dead refresh token.
-    queueCrucibleSync(userId, undefined, { fromSignIn: true }).catch((error) => {
-      console.error("[bungie/callback] Crucible sync queue failed:", error instanceof Error ? error.message : error);
-    });
   }
 
   // Touch this user's lobby member rows after a successful sign-in/reauth.

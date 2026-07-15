@@ -4,6 +4,7 @@ import { getBungieToken } from "@/lib/auth/helpers";
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { closeIdleLobbies } from "@/lib/lobby";
+import { checkDatabaseCapacity } from "@/lib/db/capacity";
 
 // Triggered by Supabase pg_cron + pg_net with Authorization: Bearer CRON_SECRET.
 // It finds lobbies that have a pending apply
@@ -22,6 +23,8 @@ const DEADLINE_MS = 50_000;
 export async function GET(req: NextRequest) {
   const denied = assertCronAuth(req);
   if (denied) return denied;
+
+  await checkDatabaseCapacity("rerolled/detect-games");
 
   // Mark lobbies idle for >2 hours as done so they stop accumulating.
   const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();

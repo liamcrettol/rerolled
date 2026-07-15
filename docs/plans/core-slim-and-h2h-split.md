@@ -1,7 +1,10 @@
 # Slim Rerolled to its core + split Crucible H2H into its own site
 
-Status: IN PROGRESS. Done as of 2026-07-14 (all four Rerolled-side removal
-phases, each with an applied drop migration):
+Status: COMPLETE as of 2026-07-15. Rival is live at
+`https://rival.d2roulette.app`; Rerolled's Crucible/Appwrite code and tables
+were removed, cross-links are present, and the split migrations were applied.
+
+Earlier phase history:
 
 - Dormant substrate cleanup `d43f2c8` (#356): Score Attack / Weekly worker,
   badge award pipeline, process-jobs cron, weekly CLI, stale preview
@@ -16,20 +19,13 @@ phases, each with an applied drop migration):
 - Endgame Roulette removed `e8ceb0a` (#359, decision confirmed by Liam):
   app/endgame, lib/endgame, ironman mode, endgame lobby mode; migration 062.
 
-Still in Rerolled for the H2H site to take in Phases 3/5:
-lib/crucible + lib/pgcr + lib/scoreAttack/{pgcr,types}.ts (rename on port),
-api/crucible + crucible crons, CrucibleHistorySync (still mounted on the
-dashboard so data keeps accruing), and the challenge_runs / weekly_challenges /
-seasons tables that match-history enrichment still reads.
-
 Phase 3 decisions are made and the port is built: the H2H site is **Rival**
 at **rival.d2roulette.app**, repo https://github.com/liamcrettol/rival
 (initial port `4a77ca2`, everything ported from this repo per the plan; see
 its README for the one-time Supabase/Bungie/Vercel setup checklist).
 
-Remaining: Rival account setup (Supabase project, Bungie app, Vercel project
-+ domain, Vault secrets), data migration, then Phases 5 (cut crucible out of
-Rerolled), 6 (cross-links), 7 (verify/promote).
+The account setup, data migration, Rerolled cutover, and cross-links are now
+complete. Production promotion remains a separate owner-triggered action.
 
 Goal, per Josh: Rerolled keeps **PvP Loadout Roulette** and **Draft** only. Everything
 else (leaderboards, badges, season stats, score attack substrate, endgame roulette)
