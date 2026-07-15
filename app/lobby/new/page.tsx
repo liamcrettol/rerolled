@@ -18,7 +18,6 @@ interface LobbyPreset {
   settings: {
     rollMode: RollMode;
     rerollLimit: number | null;
-    noDup: boolean;
   };
 }
 
@@ -28,21 +27,21 @@ const PVP_PRESETS: LobbyPreset[] = [
     label: "Standard",
     detail: "Same loadout, 3 rerolls.",
     icon: Crosshair,
-    settings: { rollMode: "normal", rerollLimit: 3, noDup: false },
+    settings: { rollMode: "normal", rerollLimit: 3 },
   },
   {
     id: "chaos",
     label: "Random",
     detail: "Different loadouts, 1 reroll.",
     icon: Shuffle,
-    settings: { rollMode: "chaos", rerollLimit: 1, noDup: true },
+    settings: { rollMode: "chaos", rerollLimit: 1 },
   },
   {
     id: "meta",
     label: "Meta",
     detail: "Meta-weighted, 3 rerolls.",
     icon: Zap,
-    settings: { rollMode: "meta", rerollLimit: 3, noDup: false },
+    settings: { rollMode: "meta", rerollLimit: 3 },
   },
 ];
 
@@ -61,25 +60,6 @@ const WEAPON_TYPES: { label: string; types: string[] }[] = [
   },
 ];
 
-function BoxSwitch({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center border transition-colors ${
-        checked ? "border-green-500 bg-green-500 text-black" : "border-bungie-border bg-bungie-dark"
-      }`}
-    >
-      {checked && (
-        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="4">
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
-      )}
-    </button>
-  );
-}
-
 export default function NewLobbyPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -88,14 +68,12 @@ export default function NewLobbyPage() {
   const [selectedPreset, setSelectedPreset] = useState<LobbyPresetId | null>("balanced");
   const [rollMode, setRollMode] = useState<RollMode>("normal");
   const [rerollLimit, setRerollLimit] = useState<number | null>(3);
-  const [noDup, setNoDup] = useState(false);
   const [bannedTypes, setBannedTypes] = useState<Set<string>>(new Set());
 
   function applyPreset(preset: LobbyPreset) {
     setSelectedPreset(preset.id);
     setRollMode(preset.settings.rollMode);
     setRerollLimit(preset.settings.rerollLimit);
-    setNoDup(preset.settings.noDup);
   }
 
   function toggleBan(type: string) {
@@ -121,7 +99,7 @@ export default function NewLobbyPage() {
           settings: {
             mode: rollMode,
             rerollLimit,
-            noDup,
+            noDup: true,
             banned: [...bannedTypes],
           },
         }),
@@ -240,24 +218,11 @@ export default function NewLobbyPage() {
                   </button>
                 ))}
               </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-gray-600">
+                Weapons cycle without repeats until every eligible option in that slot has appeared.
+              </p>
             </div>
 
-            {/* No duplicates */}
-            <div className="panel p-5">
-              <label className="flex items-center justify-between cursor-pointer select-none">
-                <div>
-                  <p className="text-sm text-white font-medium">No duplicate weapon types</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">e.g. never two Hand Cannons</p>
-                </div>
-                <BoxSwitch
-                  checked={noDup}
-                  onChange={() => {
-                    setNoDup((v) => !v);
-                    setSelectedPreset(null);
-                  }}
-                />
-              </label>
-            </div>
           </div>
 
           {/* Ban weapon types */}

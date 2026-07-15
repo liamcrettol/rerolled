@@ -13,7 +13,6 @@ export function useRollState(lobby: Lobby, isCaptain: boolean, currentRound: num
   const [rollMode, setRollMode] = useState<"normal" | "chaos" | "meta">(
     (lobby.roll_settings?.mode as "normal" | "chaos" | "meta") ?? "normal"
   );
-  const [noDupMode, setNoDupMode] = useState(lobby.roll_settings?.noDup ?? false);
   const [bannedTypes, setBannedTypes] = useState<Set<string>>(
     new Set(lobby.roll_settings?.banned ?? [])
   );
@@ -70,7 +69,7 @@ export function useRollState(lobby: Lobby, isCaptain: boolean, currentRound: num
     const settings: LobbyRollSettings = {
       mode: rollMode,
       rerollLimit,
-      noDup: noDupMode,
+      noDup: true,
       banned: [...bannedTypes],
       slots: {
         kinetic: slotModeOf("kinetic"),
@@ -88,13 +87,11 @@ export function useRollState(lobby: Lobby, isCaptain: boolean, currentRound: num
       });
     }, 400);
     return () => clearTimeout(t);
-  }, [isCaptain, lobby.id, rollMode, rerollLimit, noDupMode, bannedTypes, lockedSlots, wildcardSlots]);
+  }, [isCaptain, lobby.id, rollMode, rerollLimit, bannedTypes, lockedSlots, wildcardSlots]);
 
   return {
     rollMode,
     setRollMode,
-    noDupMode,
-    setNoDupMode,
     bannedTypes,
     setBannedTypes,
     rerollLimit,

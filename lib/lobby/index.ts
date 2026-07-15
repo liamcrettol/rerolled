@@ -19,7 +19,9 @@ export async function createLobby(
     ? {
         mode: initialSettings.mode ?? "normal",
         rerollLimit: initialSettings.rerollLimit ?? null,
-        noDup: initialSettings.noDup ?? false,
+        // Weapon cycling is now always enforced by the roll API. Keep the
+        // legacy setting true for older clients that still display it.
+        noDup: true,
         banned: initialSettings.banned ?? [],
         slots: { kinetic: "normal", energy: "normal", power: "wildcard" },
       }

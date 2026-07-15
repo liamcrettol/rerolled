@@ -53,13 +53,11 @@ describe("useRollState", () => {
       )
     );
     expect(seeded.result.current.rollMode).toBe("chaos");
-    expect(seeded.result.current.noDupMode).toBe(true);
     expect([...seeded.result.current.bannedTypes]).toEqual(["Pulse Rifle"]);
     expect(seeded.result.current.rerollLimit).toBe(2);
 
     const fallback = renderHook(() => useRollState(lobby(), false, 1));
     expect(fallback.result.current.rollMode).toBe("normal");
-    expect(fallback.result.current.noDupMode).toBe(false);
     expect([...fallback.result.current.bannedTypes]).toEqual([]);
     expect(fallback.result.current.rerollLimit).toBeNull();
   });
@@ -136,7 +134,6 @@ describe("useRollState", () => {
 
     act(() => {
       result.current.setRollMode("chaos");
-      result.current.setNoDupMode(true);
       jest.advanceTimersByTime(399);
     });
     expect(fetchMock).not.toHaveBeenCalled();

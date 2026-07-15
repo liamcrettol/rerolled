@@ -1,5 +1,7 @@
 # Database migrations
 
+Applied: `063_lobby_weapon_cycles.sql` adds the server-owned no-repeat weapon deck for Roulette.
+
 **Migrations are NOT applied automatically.** There is no `supabase db push` in
 the deploy pipeline — each `.sql` file here must be run by hand against the live
 Supabase project (Dashboard → **SQL Editor** → paste → Run) before the code that

@@ -147,7 +147,7 @@ export default function LobbyRoom({
   const isSpectatorRef = useRef(false);
 
   const {
-    rollMode, setRollMode, noDupMode, setNoDupMode, bannedTypes, setBannedTypes,
+    rollMode, setRollMode, bannedTypes, setBannedTypes,
     rerollLimit, setRerollLimit, rerollsUsed, rerollExhausted, noteRerollUsed,
     lockedSlots, setLockedSlots, wildcardSlots, setWildcardSlots,
     recentRollsRef, animKindRef, recordRoll, resetForNewRound,
@@ -226,7 +226,6 @@ export default function LobbyRoom({
     effectiveIntersection,
     weaponDetails,
     rollMode,
-    noDupMode,
     rerollExhausted,
     noteRerollUsed,
     lockedSlots,

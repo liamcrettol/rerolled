@@ -49,7 +49,6 @@ function renderActions(overrides: Record<string, unknown> = {}) {
       effectiveIntersection: pick<Record<WeaponSlot, number[]> | null>("effectiveIntersection", { kinetic: [400], energy: [500], power: [300] }),
       weaponDetails,
       rollMode: (overrides.rollMode as "normal" | "chaos" | "meta" | undefined) ?? "chaos",
-      noDupMode: (overrides.noDupMode as boolean | undefined) ?? true,
       rerollExhausted: (overrides.rerollExhausted as boolean | undefined) ?? false,
       noteRerollUsed,
       lockedSlots,
@@ -86,7 +85,6 @@ describe("useRollActions", () => {
       wildcardSlots: ["power"],
       avoid: { kinetic: [111], energy: [222], power: [333] },
       mode: "chaos",
-      nodup: true,
     });
     expect(noteRerollUsed).toHaveBeenCalledTimes(1);
 
@@ -163,8 +161,8 @@ describe("useRollActions", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("uses roll mode, nodup, and avoid data on roll request paths", async () => {
-    const { result } = renderActions({ rollMode: "meta", noDupMode: false });
+  it("uses roll mode and client-side recent memory on roll request paths", async () => {
+    const { result } = renderActions({ rollMode: "meta" });
 
     await act(async () => result.current.rollWithModes(new Set<WeaponSlot>(["power"])));
 
@@ -172,7 +170,7 @@ describe("useRollActions", () => {
       avoid: { kinetic: [111], energy: [222], power: [333] },
       mode: "meta",
     });
-    expect(lastBody().nodup).toBeUndefined();
+    expect(lastBody()).not.toHaveProperty("nodup");
   });
 
   it("sets rolling true synchronously and false after fetch resolves", async () => {

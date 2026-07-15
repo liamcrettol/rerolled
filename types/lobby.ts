@@ -8,6 +8,7 @@ export type SlotMode = "normal" | "lock" | "wildcard";
 export interface LobbyRollSettings {
   mode: "normal" | "chaos" | "meta";
   rerollLimit: number | null; // null = unlimited
+  /** Legacy compatibility flag; the server now always prevents repeats. */
   noDup: boolean;
   banned: string[];
   slots: Record<WeaponSlot, SlotMode>;

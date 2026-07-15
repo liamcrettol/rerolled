@@ -17,7 +17,6 @@ interface UseRollActionsArgs {
   effectiveIntersection: Record<WeaponSlot, number[]> | null;
   weaponDetails: Record<string, WeaponDetail>;
   rollMode: "normal" | "chaos" | "meta";
-  noDupMode: boolean;
   rerollExhausted: boolean;
   noteRerollUsed: () => void;
   lockedSlots: Set<WeaponSlot>;
@@ -48,7 +47,6 @@ export function useRollActions({
   effectiveIntersection,
   weaponDetails,
   rollMode,
-  noDupMode,
   rerollExhausted,
   noteRerollUsed,
   lockedSlots,
@@ -102,12 +100,11 @@ export function useRollActions({
           avoid,
           wildcardSlots: Array.from(nextWildcards),
           mode: rollMode,
-          nodup: noDupMode || undefined,
         }),
       });
       setRolling(false);
     },
-    [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, rollMode, noDupMode, animKindRef, recentRollsRef]
+    [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, rollMode, animKindRef, recentRollsRef]
   );
 
   // Cycle a slot through Reroll Slot → Locked → Your own → Reroll Slot.
@@ -195,13 +192,12 @@ export function useRollActions({
           avoid,
           wildcardSlots: Array.from(effectiveWildcards),
           mode: rollMode,
-          nodup: noDupMode || undefined,
         }),
       });
       noteRerollUsed();
       setRolling(false);
     },
-    [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, noDupMode, rerollExhausted, noteRerollUsed, dismissLastGame, animKindRef, recentRollsRef]
+    [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, rerollExhausted, noteRerollUsed, dismissLastGame, animKindRef, recentRollsRef]
   );
 
   const commitWeaponSelect = useCallback(

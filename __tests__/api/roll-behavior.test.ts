@@ -31,10 +31,11 @@ jest.mock("@/lib/auth/helpers", () => ({
   }),
 }));
 
-// Configurable per-test: previous-round slots returned by the nodup query.
-let prevSlots: Array<{ slot: string; item_hash: number }> = [];
+// Configurable per-test: newest-first rows in the lobby's persistent cycle.
+let usageRows: Array<{ slot: string; item_hash: number; used_at: string }> = [];
 // Captured upserts to lobby_loadout_slots, in call order.
 let upserts: Array<Record<string, unknown>> = [];
+let usageUpserts: Array<Record<string, unknown>> = [];
 
 jest.mock("@/lib/supabase/admin", () => ({
   adminSupabase: {
@@ -51,8 +52,14 @@ jest.mock("@/lib/supabase/admin", () => ({
         verb = "update";
         return chain;
       });
-      chain.upsert = jest.fn((row: Record<string, unknown>) => {
-        upserts.push(row);
+      chain.delete = jest.fn(() => {
+        verb = "delete";
+        return chain;
+      });
+      chain.upsert = jest.fn((row: Record<string, unknown> | Array<Record<string, unknown>>) => {
+        const rows = Array.isArray(row) ? row : [row];
+        if (table === "lobby_loadout_slots") upserts.push(...rows);
+        if (table === "lobby_weapon_usage") usageUpserts.push(...rows);
         return Promise.resolve({ error: null });
       });
       chain.single = jest.fn(() =>
@@ -63,8 +70,8 @@ jest.mock("@/lib/supabase/admin", () => ({
         reject?: (e: unknown) => unknown
       ) => {
         const result =
-          table === "lobby_loadout_slots" && verb === "select"
-            ? { data: prevSlots, error: null }
+          table === "lobby_weapon_usage" && verb === "select"
+            ? { data: usageRows, error: null }
             : { data: null, error: null };
         return Promise.resolve(result).then(resolve, reject);
       };
@@ -100,37 +107,38 @@ function makeRequest(body: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  prevSlots = [];
+  usageRows = [];
   upserts = [];
+  usageUpserts = [];
 });
 
-describe("POST /api/roulette/roll — no-duplicates mode", () => {
-  it("filters weapons rolled in previous rounds out of the pool", async () => {
-    prevSlots = [{ slot: "kinetic", item_hash: 1111 }];
-    await POST(makeRequest({ nodup: true }));
+describe("POST /api/roulette/roll — persistent weapon cycles", () => {
+  it("always filters weapons already used in this lobby cycle", async () => {
+    usageRows = [{ slot: "kinetic", item_hash: 1111, used_at: "2026-01-02" }];
+    await POST(makeRequest());
 
     const [intersectionArg] = jest.mocked(rollLoadout).mock.calls[0];
     expect(intersectionArg.kinetic).toEqual([1112]);
     expect(intersectionArg.energy).toEqual([2222]); // untouched slots pass through
   });
 
-  it("resets a slot's pool when history has exhausted it (cycle restarts)", async () => {
-    prevSlots = [
-      { slot: "kinetic", item_hash: 1111 },
-      { slot: "kinetic", item_hash: 1112 },
+  it("starts a new cycle without immediately repeating the latest weapon", async () => {
+    usageRows = [
+      { slot: "kinetic", item_hash: 1112, used_at: "2026-01-02" },
+      { slot: "kinetic", item_hash: 1111, used_at: "2026-01-01" },
     ];
-    await POST(makeRequest({ nodup: true }));
-
-    const [intersectionArg] = jest.mocked(rollLoadout).mock.calls[0];
-    expect(intersectionArg.kinetic).toEqual([1111, 1112]);
-  });
-
-  it("does not query history at all when nodup is off", async () => {
-    prevSlots = [{ slot: "kinetic", item_hash: 1111 }];
     await POST(makeRequest());
 
     const [intersectionArg] = jest.mocked(rollLoadout).mock.calls[0];
-    expect(intersectionArg.kinetic).toEqual([1111, 1112]);
+    expect(intersectionArg.kinetic).toEqual([1111]);
+  });
+
+  it("records every returned weapon in the backend cycle", async () => {
+    await POST(makeRequest());
+    expect(usageUpserts).toEqual([
+      expect.objectContaining({ slot: "kinetic", item_hash: 1111 }),
+      expect.objectContaining({ slot: "energy", item_hash: 2222 }),
+    ]);
   });
 });
 

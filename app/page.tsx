@@ -25,11 +25,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col sm:min-h-[calc(100vh-4rem)]">
-        <header className="flex items-center justify-between border-b border-bungie-border pb-5">
-          <h1 className="text-2xl sm:text-3xl">
+        <header className="flex items-center border-b border-bungie-border pb-5">
+          <h1 className="text-3xl sm:text-4xl">
             <BrandWordmark />
           </h1>
-          <p className="section-label text-right text-bungie-blue">Destiny 2 fireteam tools</p>
         </header>
 
         <section className="grid flex-1 items-center gap-12 py-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(520px,1.15fr)] lg:gap-16 lg:py-16">
@@ -38,10 +37,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
             <div className="text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
               <FireteamMoment />
             </div>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-gray-400 sm:text-lg">
-              Build a shared Crucible loadout from the weapons your whole fireteam can equip, or draft one slot at a time.
-            </p>
-
             <div className="mt-8 flex max-w-sm flex-col gap-3">
               {code && (
                 <p className="border-l-2 border-bungie-blue bg-bungie-blue/5 px-3 py-2 text-sm text-bungie-blue">
@@ -72,12 +67,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
         </section>
 
         <section className="border-t border-bungie-border py-8">
-          <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mb-5">
             <div>
               <p className="section-label text-bungie-blue">Choose your format</p>
               <h2 className="mt-2 text-2xl font-bold text-white">Two ways to build a loadout</h2>
             </div>
-            <p className="text-sm text-gray-500">Same fireteam. Different kind of chaos.</p>
           </div>
           <ModeSpotlight modes={LANDING_MODES} />
         </section>

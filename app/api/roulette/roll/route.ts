@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { rollLoadout } from "@/lib/roulette/intersection";
 import { findInvalidPoolHashes } from "@/lib/roulette/validatePool";
+import { planWeaponCycles, type WeaponUsageRow } from "@/lib/roulette/weaponCycle";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { createLogger } from "@/lib/logger";
@@ -39,7 +40,6 @@ const schema = z.object({
   }).optional(),
   wildcardSlots: z.array(z.enum(["kinetic", "energy", "power"])).optional(),
   mode: z.enum(["normal", "chaos", "meta"]).optional(),
-  nodup: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -92,30 +92,22 @@ export async function POST(req: NextRequest) {
     // so slot rows are written from the trusted pool where available.
     const details = { ...body.weaponDetails, ...(serverDetails ?? {}) };
 
-    // No-duplicates mode: exclude every weapon rolled in a previous round.
-    // If the subtraction would empty a slot's pool, that slot's pool resets
-    // (i.e. when all weapons have been seen, the cycle starts over).
-    let filteredByHistory = { ...body.intersection };
-    if (body.nodup) {
-      const { data: prevSlots } = await adminSupabase
-        .from("lobby_loadout_slots")
-        .select("slot, item_hash, lobby_rounds!inner(lobby_id)")
-        .eq("lobby_rounds.lobby_id", body.lobbyId)
-        .neq("round_id", body.roundId)
-        .neq("item_hash", 0);
+    // The server owns a persistent per-lobby deck for each weapon slot. Every
+    // rolled or manually chosen weapon is removed until the slot is exhausted.
+    // This survives refreshes, captain changes, and same-round rerolls.
+    const { data: usageData, error: usageReadError } = await adminSupabase
+      .from("lobby_weapon_usage")
+      .select("slot, item_hash, used_at")
+      .eq("lobby_id", body.lobbyId)
+      .order("used_at", { ascending: false });
 
-      const used: Record<string, Set<number>> = { kinetic: new Set(), energy: new Set(), power: new Set() };
-      for (const row of prevSlots ?? []) {
-        used[row.slot]?.add(row.item_hash);
-      }
-
-      for (const slot of ["kinetic", "energy", "power"] as const) {
-        const original = body.intersection[slot];
-        const filtered = original.filter((h) => !used[slot].has(h));
-        // Reset if we've exhausted the pool; otherwise use the filtered list.
-        filteredByHistory[slot] = filtered.length > 0 ? filtered : original;
-      }
+    if (usageReadError) {
+      log.warn("roll.weapon_cycle_read_failed", { lobbyId: body.lobbyId, error: usageReadError.message });
     }
+    const cyclePlan = planWeaponCycles(
+      body.intersection,
+      (usageData ?? []) as WeaponUsageRow[]
+    );
 
     const wildcards = new Set(body.wildcardSlots ?? []);
 
@@ -138,9 +130,9 @@ export async function POST(req: NextRequest) {
 
     // Exclude wildcard slots from the random roll entirely
     const filteredIntersection = {
-      kinetic: wildcards.has("kinetic") ? [] : filteredByHistory.kinetic,
-      energy: wildcards.has("energy") ? [] : filteredByHistory.energy,
-      power: wildcards.has("power") ? [] : filteredByHistory.power,
+      kinetic: wildcards.has("kinetic") ? [] : cyclePlan.pools.kinetic,
+      energy: wildcards.has("energy") ? [] : cyclePlan.pools.energy,
+      power: wildcards.has("power") ? [] : cyclePlan.pools.power,
     };
 
     const exclude = body.rerollSlot
@@ -157,8 +149,10 @@ export async function POST(req: NextRequest) {
       body.mode
     );
 
-    // Upsert rolled slots
+    // Upsert rolled slots and remember every result in the lobby's persistent
+    // weapon cycle. Kept/manual selections are included intentionally.
     const slots: WeaponSlot[] = ["kinetic", "energy", "power"];
+    const usageWrites: Array<{ lobby_id: string; slot: WeaponSlot; item_hash: number; used_at: string }> = [];
     for (const slot of slots) {
       if (wildcards.has(slot)) continue; // already written above
       const hash = roll[slot];
@@ -179,6 +173,36 @@ export async function POST(req: NextRequest) {
         },
         { onConflict: "round_id,slot" }
       );
+
+      const reset = cyclePlan.resets[slot];
+      if (reset) {
+        let clear = adminSupabase
+          .from("lobby_weapon_usage")
+          .delete()
+          .eq("lobby_id", body.lobbyId)
+          .eq("slot", slot);
+        if (reset.retainHash !== null) clear = clear.neq("item_hash", reset.retainHash);
+        const { error: resetError } = await clear;
+        if (resetError) {
+          log.warn("roll.weapon_cycle_reset_failed", { lobbyId: body.lobbyId, slot, error: resetError.message });
+        }
+      }
+
+      usageWrites.push({
+        lobby_id: body.lobbyId,
+        slot,
+        item_hash: hash,
+        used_at: new Date().toISOString(),
+      });
+    }
+
+    if (usageWrites.length > 0) {
+      const { error: usageWriteError } = await adminSupabase
+        .from("lobby_weapon_usage")
+        .upsert(usageWrites, { onConflict: "lobby_id,slot,item_hash" });
+      if (usageWriteError) {
+        log.warn("roll.weapon_cycle_write_failed", { lobbyId: body.lobbyId, error: usageWriteError.message });
+      }
     }
 
     // Best-effort: update status + last_active_at (requires migration 008).
