@@ -22,8 +22,14 @@ api/crucible + crucible crons, CrucibleHistorySync (still mounted on the
 dashboard so data keeps accruing), and the challenge_runs / weekly_challenges /
 seasons tables that match-history enrichment still reads.
 
-Remaining: Phase 0 decisions for the new site (domain, DB, repo), then
-Phases 3, 5, 6, 7.
+Phase 3 decisions are made and the port is built: the H2H site is **Rival**
+at **rival.d2roulette.app**, repo https://github.com/liamcrettol/rival
+(initial port `4a77ca2`, everything ported from this repo per the plan; see
+its README for the one-time Supabase/Bungie/Vercel setup checklist).
+
+Remaining: Rival account setup (Supabase project, Bungie app, Vercel project
++ domain, Vault secrets), data migration, then Phases 5 (cut crucible out of
+Rerolled), 6 (cross-links), 7 (verify/promote).
 
 Goal, per Josh: Rerolled keeps **PvP Loadout Roulette** and **Draft** only. Everything
 else (leaderboards, badges, season stats, score attack substrate, endgame roulette)
