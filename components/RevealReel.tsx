@@ -119,9 +119,11 @@ export default function RevealReel({
     const landTimer = setTimeout(() => {
       setSpinning(false);
       if (persistNeighbors) {
-        const pool = fillers.filter(Boolean);
-        const previous = pool[Math.floor(Math.random() * pool.length)] ?? target;
-        const next = pool[Math.floor(Math.random() * pool.length)] ?? target;
+        // Keep the neighboring tiles from the animated strip. Re-randomizing
+        // these on landing makes the reel visibly jump at the exact moment it
+        // stops.
+        const previous = items[landedIndex - 1] ?? target;
+        const next = items[landedIndex + 1] ?? target;
         setItems([previous, target, next]);
         setLandedIndex(1);
       } else {
