@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import SignOutButton from "@/components/SignOutButton";
+import BrandMark from "@/components/BrandMark";
 import BrandWordmark from "@/components/BrandWordmark";
 import PlayerCard from "@/components/PlayerCard";
 import type { LobbyMember } from "@/types/lobby";
@@ -51,9 +52,12 @@ export default function TopNav({
   return (
     <header className="border-b border-bungie-border">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-3 sm:flex-nowrap sm:px-6 sm:py-0 sm:h-[4.5rem]">
-        <Link href="/dashboard" className="flex items-baseline gap-2 shrink-0">
-          <BrandWordmark className="text-xl" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
+        <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
+          <BrandMark className="h-7 w-7" />
+          <span className="flex items-baseline gap-2">
+            <BrandWordmark className="text-xl" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
+          </span>
         </Link>
 
         <div className="hidden h-px flex-1 bg-gradient-to-r from-bungie-border to-transparent sm:block" aria-hidden="true" />

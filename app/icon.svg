@@ -1,12 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none">
-  <!-- The RouletteLoader cylinder as the site icon: same geometry, heavier
-       strokes and lighter grays than the loader so it reads at 16-32px. -->
-  <circle cx="48" cy="48" r="41" stroke="#6b7280" stroke-width="5" fill="#161b22"/>
-  <circle cx="48" cy="23.5" r="10" fill="#00aeef"/>
-  <circle cx="69.22" cy="35.75" r="10" stroke="#9ca3af" stroke-width="4" fill="#101216"/>
-  <circle cx="69.22" cy="60.25" r="10" stroke="#9ca3af" stroke-width="4" fill="#101216"/>
-  <circle cx="48" cy="72.5" r="10" stroke="#9ca3af" stroke-width="4" fill="#101216"/>
-  <circle cx="26.78" cy="60.25" r="10" stroke="#9ca3af" stroke-width="4" fill="#101216"/>
-  <circle cx="26.78" cy="35.75" r="10" stroke="#9ca3af" stroke-width="4" fill="#101216"/>
-  <circle cx="48" cy="48" r="5" fill="#9ca3af"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- The RouletteLoader cylinder on the app background - the dark mark Liam
+       picked, served as-is so the tab icon matches the brand square. The
+       16/32/48px raster versions live in favicon.ico. -->
+  <rect width="128" height="128" fill="#101216"/>
+  <g transform="translate(16 16)">
+    <path d="M44 2 L52 2 L48 8 Z" fill="#6b7280"/>
+    <circle cx="48" cy="48" r="42" stroke="#2a2e36" stroke-width="2.5" fill="#161b22"/>
+    <circle cx="48" cy="22" r="8.5" stroke-width="2" fill="#00aeef" stroke="#00aeef"/>
+    <circle cx="70.517" cy="35" r="8.5" stroke-width="2" fill="#101216" stroke="#4b5563"/>
+    <circle cx="70.517" cy="61" r="8.5" stroke-width="2" fill="#101216" stroke="#4b5563"/>
+    <circle cx="48" cy="74" r="8.5" stroke-width="2" fill="#101216" stroke="#4b5563"/>
+    <circle cx="25.483" cy="61" r="8.5" stroke-width="2" fill="#101216" stroke="#4b5563"/>
+    <circle cx="25.483" cy="35" r="8.5" stroke-width="2" fill="#101216" stroke="#4b5563"/>
+    <circle cx="48" cy="48" r="7" fill="#374151" stroke="#6b7280" stroke-width="2"/>
+    <circle cx="48" cy="48" r="2.5" fill="#9ca3af"/>
+  </g>
 </svg>
