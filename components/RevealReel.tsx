@@ -15,6 +15,7 @@ interface Props {
   animate?: boolean;
   animateOnMount?: boolean;
   blurFillers?: boolean;
+  alwaysBlur?: boolean;
   persistNeighbors?: boolean;
   watermark?: string;
   className?: string;
@@ -37,6 +38,7 @@ export default function RevealReel({
   animate = true,
   animateOnMount = false,
   blurFillers = true,
+  alwaysBlur = false,
   persistNeighbors = false,
   watermark,
   className = "",
@@ -166,7 +168,7 @@ export default function RevealReel({
                   loading="eager"
                   decoding="async"
                   className="block h-full w-full object-cover"
-                  style={{ filter: blurFillers && (spinning || !isTarget) ? "blur(3px)" : "none" }}
+                  style={{ filter: alwaysBlur || (blurFillers && (spinning || !isTarget)) ? "blur(3px)" : "none" }}
                 />
                 {isTarget && !spinning && watermark && (
                   // eslint-disable-next-line @next/next/no-img-element

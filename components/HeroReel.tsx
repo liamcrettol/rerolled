@@ -125,6 +125,7 @@ function ReelSlot({
         windowSize={REEL_WINDOW_H}
         fillerCount={8}
         durationMs={SPIN_MS}
+        alwaysBlur
         persistNeighbors
         easing="cubic-bezier(0.12, 0.72, 0.16, 1)"
         onSpinningChange={setSpinning}
