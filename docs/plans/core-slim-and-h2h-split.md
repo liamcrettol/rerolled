@@ -1,7 +1,7 @@
 # Slim Rerolled to its core + split Crucible H2H into its own site
 
 Status: COMPLETE as of 2026-07-15. Rival is live at
-`https://rival.d2roulette.app`; Rerolled's Crucible/Appwrite code and tables
+`https://rival.rerolled.io`; Rerolled's Crucible/Appwrite code and tables
 were removed, cross-links are present, and the split migrations were applied.
 
 Earlier phase history:
@@ -20,7 +20,7 @@ Earlier phase history:
   app/endgame, lib/endgame, ironman mode, endgame lobby mode; migration 062.
 
 Phase 3 decisions are made and the port is built: the H2H site is **Rival**
-at **rival.d2roulette.app**, repo https://github.com/liamcrettol/rival
+at **rival.rerolled.io**, repo https://github.com/liamcrettol/rival
 (initial port `4a77ca2`, everything ported from this repo per the plan; see
 its README for the one-time Supabase/Bungie/Vercel setup checklist).
 
@@ -123,7 +123,7 @@ unrecoverable.
    and depends on scoreAttack code we're deleting). Cheap to resurrect later from
    git history if wanted.
 2. **New site identity.** Recommendation: start on a subdomain,
-   **`h2h.d2roulette.app`** (free and instant, domain is on Vercel nameservers;
+   **`h2h.rerolled.io`** (free and instant, domain is on Vercel nameservers;
    a standalone domain can be added later without code changes). Plain, direct
    name for the product itself (e.g. "Rerolled H2H" or "Crucible History"), no
    puns.
@@ -154,7 +154,7 @@ unrecoverable.
 ## Part 3: Step-by-step execution plan
 
 Work each phase as one GitHub issue, one squashed commit to `main` (staging),
-verify on `preview.d2roulette.app`, then promote. Phases 1, 2, and 4 are
+verify on `preview.rerolled.io`, then promote. Phases 1, 2, and 4 are
 independent deletions in Rerolled; Phase 3 is the new site and can proceed in
 parallel. Phase 5 (deleting crucible from Rerolled) must wait for Phase 3.
 
@@ -200,7 +200,7 @@ catch dangling references.
 Scaffold: Next.js 15 App Router + TypeScript + Tailwind with the same design
 tokens (copy `globals.css` bungie.* tokens + `.panel`/`.section-label`
 utilities), new Supabase project, new Bungie OAuth app(s), new Vercel project on
-`h2h.d2roulette.app`.
+`h2h.rerolled.io`.
 
 Port from Rerolled (mostly copy, then adapt imports):
 
@@ -281,10 +281,10 @@ starts; the copy takes minutes).
 ### Phase 6: Connect the two sites
 
 - Rerolled: dashboard card + post-match screen link out to
-  `https://h2h.d2roulette.app/player/<membershipType>/<membershipId>` (same
+  `https://h2h.rerolled.io/player/<membershipType>/<membershipId>` (same
   pattern as the existing external Trials Report links). No shared session
   needed; membership ID is the identity bridge.
-- H2H site: header links back to `d2roulette.app` ("Play Roulette").
+- H2H site: header links back to `rerolled.io` ("Play Roulette").
 - Optional later: shared account linking, shared design package, cross-site
   "played with Rerolled loadout" annotations (H2H site could enrich match rows
   where an instance_id matches a Rerolled game_session).

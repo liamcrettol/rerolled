@@ -29,7 +29,7 @@ export default async function Dashboard() {
           </p>
           <a
             className="mt-4 inline-flex border border-bungie-border px-3 py-2 text-sm font-semibold text-bungie-blue hover:border-bungie-blue hover:text-white"
-            href="https://rival.d2roulette.app"
+            href="https://rival.rerolled.io"
           >
             View your match history &amp; head-to-head records
           </a>

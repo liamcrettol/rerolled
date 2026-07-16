@@ -102,10 +102,10 @@ report a vulnerability.
 ## Deployment URLs
 
 ### Production
-`https://d2roulette.app` — deploys from the `release` branch.
+`https://rerolled.io` — deploys from the `release` branch.
 
 ### Preview / Staging
-`https://preview.d2roulette.app` — deploys from the `main` branch (uses a
+`https://preview.rerolled.io` — deploys from the `main` branch (uses a
 separate Bungie OAuth app so sign-in works on preview). Promote to production
 by merging `main` into `release`.
 
@@ -116,7 +116,7 @@ Local development uses:
 
 ## Status
 
-Live and in active development. Production runs at https://d2roulette.app for a
+Live and in active development. Production runs at https://rerolled.io for a
 private group of players; new work lands on staging first (see Deployment URLs).
 
 ## Developer docs

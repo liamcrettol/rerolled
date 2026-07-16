@@ -10,7 +10,7 @@ const schema = z.object({ lobbyId: z.string().uuid() });
 // whose browser can't reach *.supabase.co (adblock, Brave shields, DNS
 // filtering) was permanently stuck on "Waiting for X to spin" while the
 // starter's reveal worked fine. Serving the state from our own API (service
-// role) means members only ever need to reach d2roulette.app; the realtime
+// role) means members only ever need to reach rerolled.io; the realtime
 // channel is a latency enhancement, not a requirement.
 export async function POST(req: NextRequest) {
   try {

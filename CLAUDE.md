@@ -7,7 +7,7 @@ The app: a web app for Destiny 2 friend groups to generate random weapon loadout
 between matches. Bungie OAuth sign-in, shared lobby, a rotating "captain" rolls a
 3-slot loadout from the intersection of weapons the fireteam owns; equips via the
 Bungie API and auto-detects the finished match (PGCR) to record stats.
-Rival (`https://rival.d2roulette.app`) is the separate product and source of
+Rival (`https://rival.rerolled.io`) is the separate product and source of
 truth for Crucible match history and head-to-head records.
 Stack: Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Supabase ·
 NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby).
@@ -19,26 +19,26 @@ NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby
 - **When you finish a requested change** → commit the completed work and push it
   to **`main`** immediately unless I explicitly say not to.
 - **I give you a ticket number** → run the `develop-github-issue` skill end-to-end
-  and land the work on **`main`**, which deploys to **STAGING** (`preview.d2roulette.app`),
+  and land the work on **`main`**, which deploys to **STAGING** (`preview.rerolled.io`),
   **not production**.
 - **I say "ship it" / "promote" / "make it live"** → promote `main` → `release`,
-  which deploys to **PRODUCTION** (`d2roulette.app`).
+  which deploys to **PRODUCTION** (`rerolled.io`).
 - **I say "straight to prod"** → do the work and promote in one go (hotfixes only).
 
 **Default is staging-first. Never deploy to production unless I explicitly say so.**
 
 | I say | You do | Lands on |
 |---|---|---|
-| "do #123" / "work ticket 123" | `develop-github-issue` skill → merge PR to `main` | `preview.d2roulette.app` (staging) |
-| "ship it" / "promote" | promote `main` → `release` | `d2roulette.app` (production) |
+| "do #123" / "work ticket 123" | `develop-github-issue` skill → merge PR to `main` | `preview.rerolled.io` (staging) |
+| "ship it" / "promote" | promote `main` → `release` | `rerolled.io` (production) |
 | "straight to prod" | work + promote in one go | production |
 
 ---
 
 ## Deploy model (CRITICAL — easy to get wrong)
 
-- **`main` → Preview/Staging → https://preview.d2roulette.app** (Vercel auto-deploys on push).
-- **`release` → Production → https://d2roulette.app** (Vercel auto-deploys on push).
+- **`main` → Preview/Staging → https://preview.rerolled.io** (Vercel auto-deploys on push).
+- **`release` → Production → https://rerolled.io** (Vercel auto-deploys on push).
 - **Merging/pushing to `main` does NOT go live.** Production only updates when `release` updates.
 - **Promote to prod:**
   ```bash
@@ -46,7 +46,7 @@ NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby
   ```
   ⚠️ Never let `release` fall behind what's already live, or prod rolls back. If `release`
   is behind `main`, fast-forward it up before relying on it.
-- `d2roulette.app` is registered through Vercel (Vercel nameservers), so subdomains
+- `rerolled.io` is registered through Vercel (Vercel nameservers), so subdomains
   auto-configure. Production branch and Preview domain pinning are set in
   Vercel → Settings → Environments.
 
@@ -60,8 +60,15 @@ updates it). The flow: claim (assign `@me` + `doing` label) → `git pull --reba
 NOT `checkout -b`) → implement with `Closes #N` commits → `git fetch && git rebase origin/main`
 before push → open PR mirroring the issue's assignee + labels (minus `doing`) → after merge,
 swap `doing`→`completed` and `git worktree remove` the worktree. The skill references
-`superpowers:*` helper skills that may not exist in every environment — if unavailable,
-do those steps manually.
+`superpowers:*` helper skills — those are now installed (user-scope plugin, added
+2026-07-16), so they resolve for real instead of needing the manual fallback. Relevant
+ones: `superpowers:using-git-worktrees` (its own rule is "detect existing isolation first,
+never fight the harness" — it should defer to this repo's `rerolled-wt-<N>` convention
+above, not invent its own), `superpowers:requesting-code-review` /
+`receiving-code-review` (dispatches a subagent reviewer before/after a PR),
+`superpowers:finishing-a-development-branch` (end-of-work merge/PR/cleanup checklist).
+See "Superpowers plugin" below for how its more opinionated skills interact with this
+repo's pace.
 
 After the PR merges, the work is in **staging**. Wait for "ship it" before promoting to prod.
 
@@ -93,11 +100,11 @@ After the PR merges, the work is in **staging**. Wait for "ship it" before promo
 - Redirect is derived: `redirect_uri = ${NEXTAUTH_URL}/api/auth/bungie/callback`.
   `NEXTAUTH_URL` must have **no trailing slash** (a slash → `//api/...` → breaks the
   Bungie exact-match).
-- **Production app** → redirect `https://d2roulette.app/api/auth/bungie/callback`;
+- **Production app** → redirect `https://rerolled.io/api/auth/bungie/callback`;
   creds in Production-scoped `BUNGIE_CLIENT_ID` / `BUNGIE_CLIENT_SECRET`.
 - **Preview app** (client_id `53228`) → redirect
-  `https://preview.d2roulette.app/api/auth/bungie/callback`; creds in Preview-scoped
-  vars; Preview `NEXTAUTH_URL=https://preview.d2roulette.app`.
+  `https://preview.rerolled.io/api/auth/bungie/callback`; creds in Preview-scoped
+  vars; Preview `NEXTAUTH_URL=https://preview.rerolled.io`.
 - The duplicate `BUNGIE_CLIENT_ID` / `BUNGIE_CLIENT_SECRET` env entries (one per
   environment) are **intentional** (different apps) — don't dedupe them.
 - `invalid_client` / "Client failed to authenticate" at token exchange = the
@@ -171,6 +178,89 @@ notices and rejects the generic look immediately. The rules:
 
 ---
 
+## Superdesign skill (design exploration only, not implementation)
+
+Reach for the `superdesign` skill when the task is genuinely about visual
+design: a new page/flow that doesn't have a design yet, visual variants of
+an existing screen, or pulling a reusable component out of a big file. Its
+own trigger rule is explicit: don't invoke it for implementation-only tickets
+(state wiring, bug fixes, anything with no visual exploration) — do the code
+change directly instead.
+
+- It shells out to an external CLI (`npx --yes @superdesign/cli@latest`) that
+  talks to superdesign.dev. First use in this repo needs an interactive
+  `... login` — wait for it to finish before the real command. Prompts and
+  context files you pass are stored server-side by that service, so treat it
+  like any other external tool: never pass secrets, tokens, or real player
+  data through `--context-file`/`-p`.
+- First invocation here will build `.superdesign/init/` (component/layout/
+  route/theme/page inventories) before any design work happens — expected,
+  not a bug. Make sure `.superdesign/tmp/` ends up in `.gitignore` (the skill
+  is supposed to add it itself; verify it did).
+- **Feed it this repo's real design system — don't let it invent one.** The
+  "Design system (flat DIM-style)" section above (zero border radius, no
+  gradients/glassmorphism, the `bungie.*` tokens, the reel motion vocabulary)
+  is the ground truth for `.superdesign/design-system.md`. Always pass the
+  real `globals.css`/`tailwind.config.ts` alongside it. If a draft comes back
+  with rounded corners, gradients, drop shadows, or a new font, that's the
+  tool defaulting to generic-SaaS style and should be rejected/re-prompted,
+  not accepted because it "looks nice."
+- It always does a pixel-perfect reproduction of the current UI before any
+  variation (its own hard rule) — don't try to skip straight to redesign.
+- Good current candidates: the Draft board / slot-reveal screens and
+  `LobbyRoom.tsx`'s sub-views, neither of which ever had a dedicated design
+  pass — `LobbyRoom.tsx` is also a good target for the skill's component-
+  extraction mode given its size (~1500 lines).
+
+---
+
+## Superpowers plugin (local to this repo, installed 2026-07-16)
+
+Superpowers (`obra/superpowers-marketplace`) is installed at **local scope**
+(`.claude/settings.local.json`, gitignored, personal to this checkout — not shared with
+Josh/vxkudo and not active in other projects on this machine). Its skills are worded as
+hard requirements ("you do not have a choice") rather than suggestions. The ones most
+likely to fire here:
+
+- `brainstorming` — gates any creative/feature work behind a presented-and-approved
+  design before implementation starts.
+- `test-driven-development` — write the failing test before the implementation code.
+- `systematic-debugging` — root-cause analysis required before proposing a bug fix.
+- `verification-before-completion` — show real verification output before claiming
+  something works or is fixed.
+
+These are good defaults and mostly already match how this repo runs (tests exist,
+"ship it" is already an explicit gate, `.claude/skills/develop-github-issue` already
+expects a review step). **Don't let the brainstorming/TDD gates add ceremony to the kind
+of small, well-scoped work this repo does constantly** — a ticket with a clear scope in
+its GitHub issue, or "just fix it," is sufficient signal to skip straight to the fix
+rather than running a full brainstorming round first. Reserve the heavier gates for
+genuinely new features or when the ask is actually ambiguous.
+
+The other new plugin, `karpathy-guidelines` (andrej-karpathy-skills), needs no
+reconciliation — it reinforces habits already codified in this file (surgical diffs, no
+speculative abstractions, define verification criteria up front).
+
+## Static analysis (semgrep / codeql, installed 2026-07-16)
+
+Available for a manual security-audit pass (`static-analysis:semgrep` /
+`static-analysis:codeql` skills) — relevant given Bungie token handling
+(`lib/auth/encrypt.ts`, `TOKEN_ENCRYPTION_KEY`), the service-role Supabase client, and
+`scripts/db-query.mjs` (full read/write, RLS bypassed). Good moments to run one: before a
+prod promotion that touches auth/tokens/DB access, or as a standalone periodic audit —
+not on every commit.
+
+- **Neither `semgrep` nor `codeql` is installed on this machine yet** — the skill will
+  fail its prerequisite check until one is (`pip install semgrep` or
+  `uv tool install semgrep` for Semgrep; CodeQL needs the CLI bundle from
+  github.com/github/codeql-cli-binaries, or `gh extension install github/gh-codeql`).
+- Both skills have their own hard approval gate before scanning (present the exact
+  ruleset/plan, wait for explicit yes) — they won't run silently.
+- Semgrep always runs with `--metrics=off` to avoid phoning home during a security audit
+  — keep that when following its instructions.
+
+---
+
 ## UI verification (auth'd pages can't render in preview)
 
 Lobby/draft/dashboard pages need a Bungie session + live Supabase lobby, so the
@@ -183,6 +273,13 @@ then **delete the harness before committing**. After deleting a route, also
 generated route types. Static screenshots can't prove motion — for animation
 checks, describe/loop it in the harness (add a Replay button) and let Liam
 watch it live in the preview window.
+
+The Playwright MCP (`playwright` server, added 2026-07-16) is a heavier option
+for when the sandboxed preview browser genuinely isn't enough — e.g. driving
+a real Bungie OAuth redirect end-to-end with a test account, rather than
+hitting the auth wall. Default to the harness-and-screenshot approach above
+for ordinary UI checks; reach for Playwright specifically when a change needs
+verification through an auth-gated flow the harness can't fake.
 
 ---
 

@@ -17,7 +17,7 @@ handled correctly in the code and needs no changes.
 ## 1. Cut Crucible out of Rerolled (repo: rerolled) — DO THIS FIRST
 
 This is Phase 5 of `docs/plans/core-slim-and-h2h-split.md`, now fully
-scoped. Rival (rival.d2roulette.app) is live, verified working (Bungie
+scoped. Rival (rival.rerolled.io) is live, verified working (Bungie
 sign-in, cron backfill, head-to-head all confirmed end-to-end), and owns
 this feature now. Rerolled's copy is dead weight actively growing its
 database and duplicating Bungie API polling for the same users.
@@ -58,7 +58,7 @@ database and duplicating Bungie API polling for the same users.
 1. **Confirm Rival is still healthy** before deleting anything (this is a
    one-way trip for Rerolled's copy of the data — Rival's database is the
    only place H2H data will live afterward): sign in on
-   `rival.d2roulette.app`, confirm the dashboard shows match history, check
+   `rival.rerolled.io`, confirm the dashboard shows match history, check
    `crucible_sync_state.status` isn't stuck on `failed`.
 
 2. **Grep for every remaining import** of the modules being deleted before
@@ -149,7 +149,7 @@ database and duplicating Bungie API polling for the same users.
 
 10. **Add the cross-link** (this is Phase 6 from the original plan, small
     enough to bundle here): somewhere on Rerolled's dashboard, add a link to
-    `https://rival.d2roulette.app` ("View your match history & head-to-head
+    `https://rival.rerolled.io` ("View your match history & head-to-head
     records"). No shared session needed — it's just a link.
 
 11. **Verify**: `npm test`, `npx tsc --noEmit`, `npm run build`, all green.

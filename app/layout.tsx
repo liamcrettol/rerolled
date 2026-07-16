@@ -13,7 +13,7 @@ const DESCRIPTION =
 // root-level tags are therefore the ones Discord actually renders. `metadataBase`
 // resolves opengraph-image to the absolute URL unfurl crawlers require.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://d2roulette.app"),
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://rerolled.io"),
   title: {
     default: "Rerolled",
     template: "%s | Rerolled",
