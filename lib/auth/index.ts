@@ -58,9 +58,6 @@ const authConfig: NextAuthConfig = {
         token.bungieMembershipId = u.bungieMembershipId as string;
         token.bungieMembershipType = u.bungieMembershipType as number;
         token.displayName = u.displayName as string;
-        token.bungieAccessToken = u.bungieAccessToken as string | undefined;
-        token.bungieRefreshToken = u.bungieRefreshToken as string | undefined;
-        token.bungieTokenExpiresAt = u.bungieTokenExpiresAt as string | null | undefined;
       }
       return token;
     },
@@ -70,9 +67,6 @@ const authConfig: NextAuthConfig = {
       session.bungieMembershipId = token.bungieMembershipId as string;
       session.bungieMembershipType = token.bungieMembershipType as number;
       session.displayName = token.displayName as string;
-      session.bungieAccessToken = token.bungieAccessToken as string | undefined;
-      session.bungieRefreshToken = token.bungieRefreshToken as string | undefined;
-      session.bungieTokenExpiresAt = token.bungieTokenExpiresAt as string | null | undefined;
       return session;
     },
   },

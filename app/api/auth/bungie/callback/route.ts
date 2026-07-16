@@ -316,9 +316,6 @@ export async function GET(req: NextRequest) {
         bungieMembershipId: membershipId,
         bungieMembershipType: membershipType,
         displayName,
-        bungieAccessToken: tokens.access_token,
-        bungieRefreshToken: tokens.refresh_token,
-        bungieTokenExpiresAt: expiresAt,
       },
       secret: process.env.NEXTAUTH_SECRET!,
       maxAge: 30 * 24 * 60 * 60, // 30 days

@@ -20,9 +20,9 @@ export default async function PlatformShell({
   const session = await auth();
 
   // Emblem/clan are cosmetic chrome for the nav player card (#318) — best
-  // effort only, never block the page on a Bungie hiccup. session.bungieAccessToken
-  // is the raw token from login and goes stale; getBungieToken() decrypts the
-  // stored token and auto-refreshes it, same as every other Bungie call in the app.
+  // effort only, never block the page on a Bungie hiccup. getBungieToken()
+  // decrypts the stored token and auto-refreshes it, same as every other
+  // Bungie call in the app.
   const [emblem, clan] = session?.userId
     ? await getBungieToken(session.userId, session.bungieMembershipId)
         .then((token) =>

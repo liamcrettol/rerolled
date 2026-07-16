@@ -6,9 +6,6 @@ declare module "next-auth" {
     bungieMembershipId: string;
     bungieMembershipType: number;
     displayName: string;
-    bungieAccessToken?: string;
-    bungieRefreshToken?: string;
-    bungieTokenExpiresAt?: string | null;
   }
 
   interface User {
@@ -25,8 +22,5 @@ declare module "next-auth/jwt" {
     bungieMembershipId: string;
     bungieMembershipType: number;
     displayName: string;
-    bungieAccessToken?: string;
-    bungieRefreshToken?: string;
-    bungieTokenExpiresAt?: string | null;
   }
 }
