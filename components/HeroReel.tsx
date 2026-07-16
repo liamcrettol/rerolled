@@ -30,7 +30,7 @@ const REEL_ITEM_H = 88;
 // it read as a physical reel instead of images swapping in place.
 const REEL_WINDOW_H = 124;
 const FILLER_POOL_SIZE = 8;
-const SPIN_MS = 950;
+const SPIN_MS = 1250;
 // First spin starts almost immediately instead of waiting a full interval.
 const INITIAL_DELAY_MS = 250;
 const EXOTIC_TIER = 6;
@@ -41,8 +41,8 @@ export const EDGE = RARITY_EDGE_COLORS;
 
 const SLOTS: Array<{ slot: WeaponSlot; intervalMs: number; staggerMs: number }> = SLOT_ORDER.map((slot, index) => ({
   slot,
-  intervalMs: 2800,
-  staggerMs: index * 220,
+  intervalMs: 3400,
+  staggerMs: index * 260,
 }));
 
 function pickTarget(weapons: HeroWeaponSample[], allowExotic: boolean, exclude?: number): number {
@@ -125,7 +125,8 @@ function ReelSlot({
         windowSize={REEL_WINDOW_H}
         fillerCount={8}
         durationMs={SPIN_MS}
-        easing="cubic-bezier(0.22, 1.06, 0.32, 1)"
+        persistNeighbors
+        easing="cubic-bezier(0.12, 0.72, 0.16, 1)"
         onSpinningChange={setSpinning}
       />
     </div>

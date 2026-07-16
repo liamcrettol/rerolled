@@ -15,6 +15,7 @@ interface Props {
   animate?: boolean;
   animateOnMount?: boolean;
   blurFillers?: boolean;
+  persistNeighbors?: boolean;
   watermark?: string;
   className?: string;
   onSpinningChange?: (spinning: boolean) => void;
@@ -36,12 +37,14 @@ export default function RevealReel({
   animate = true,
   animateOnMount = false,
   blurFillers = true,
+  persistNeighbors = false,
   watermark,
   className = "",
   onSpinningChange,
   onLanded,
 }: Props) {
   const [items, setItems] = useState([target]);
+  const [landedIndex, setLandedIndex] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const reelRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
@@ -62,7 +65,15 @@ export default function RevealReel({
     const pool = fillers.filter(Boolean);
 
     if (!shouldAnimate || pool.length === 0) {
-      setItems([target]);
+      if (persistNeighbors && pool.length > 0) {
+        const previous = pool[0];
+        const next = pool[1 % pool.length] ?? pool[0];
+        setItems([previous, target, next]);
+        setLandedIndex(1);
+      } else {
+        setItems([target]);
+        setLandedIndex(0);
+      }
       setSpinning(false);
       onSpinningChangeRef.current?.(false);
       return;
@@ -74,6 +85,7 @@ export default function RevealReel({
         () => pool[Math.floor(Math.random() * pool.length)],
       );
       setItems([...randoms, target]);
+      setLandedIndex(fillerCount);
       setSpinning(true);
       onSpinningChangeRef.current?.(true);
     }, delayMs);
@@ -97,7 +109,16 @@ export default function RevealReel({
 
     const landTimer = setTimeout(() => {
       setSpinning(false);
-      setItems([target]);
+      if (persistNeighbors) {
+        const pool = fillers.filter(Boolean);
+        const previous = pool[Math.floor(Math.random() * pool.length)] ?? target;
+        const next = pool[Math.floor(Math.random() * pool.length)] ?? target;
+        setItems([previous, target, next]);
+        setLandedIndex(1);
+      } else {
+        setItems([target]);
+        setLandedIndex(0);
+      }
       onSpinningChangeRef.current?.(false);
       onLandedRef.current?.();
     }, durationMs + 50);
@@ -112,10 +133,10 @@ export default function RevealReel({
   // centered resting position after landing. Otherwise the final image stays
   // translated above the masked window while its text appears normally.
   useEffect(() => {
-    if (spinning || items.length !== 1 || !reelRef.current) return;
+    if (spinning || !reelRef.current) return;
     reelRef.current.style.transition = "none";
-    reelRef.current.style.transform = `translateY(${(windowSize - itemSize) / 2}px)`;
-  }, [spinning, items, itemSize, windowSize]);
+    reelRef.current.style.transform = `translateY(${(windowSize - itemSize) / 2 - landedIndex * itemSize}px)`;
+  }, [spinning, items, itemSize, windowSize, landedIndex]);
 
   return (
     <div
@@ -128,7 +149,7 @@ export default function RevealReel({
           style={{ transform: `translateY(${offsetFor(0)}px)`, willChange: "transform" }}
         >
           {items.map((icon, index) => {
-            const isTarget = index === items.length - 1;
+            const isTarget = index === (spinning ? items.length - 1 : landedIndex);
             return (
               <div key={`${icon}-${index}`} className="relative" style={{ width: itemSize, height: itemSize }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
