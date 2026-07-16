@@ -84,8 +84,15 @@ export default function RevealReel({
         { length: fillerCount },
         () => pool[Math.floor(Math.random() * pool.length)],
       );
-      setItems([...randoms, target]);
-      setLandedIndex(fillerCount);
+      if (persistNeighbors) {
+        const leading = pool[Math.floor(Math.random() * pool.length)] ?? target;
+        const trailing = pool[Math.floor(Math.random() * pool.length)] ?? target;
+        setItems([leading, ...randoms, target, trailing]);
+        setLandedIndex(fillerCount + 1);
+      } else {
+        setItems([...randoms, target]);
+        setLandedIndex(fillerCount);
+      }
       setSpinning(true);
       onSpinningChangeRef.current?.(true);
     }, delayMs);
@@ -102,10 +109,10 @@ export default function RevealReel({
     if (!reel) return;
 
     reel.style.transition = "none";
-    reel.style.transform = `translateY(${offsetFor(0)}px)`;
+    reel.style.transform = `translateY(${offsetFor(persistNeighbors ? 1 : 0)}px)`;
     void reel.offsetHeight;
     reel.style.transition = `transform ${durationMs}ms ${easing}`;
-    reel.style.transform = `translateY(${offsetFor(items.length - 1)}px)`;
+    reel.style.transform = `translateY(${offsetFor(landedIndex)}px)`;
 
     const landTimer = setTimeout(() => {
       setSpinning(false);
@@ -149,7 +156,7 @@ export default function RevealReel({
           style={{ transform: `translateY(${offsetFor(0)}px)`, willChange: "transform" }}
         >
           {items.map((icon, index) => {
-            const isTarget = index === (spinning ? items.length - 1 : landedIndex);
+            const isTarget = index === landedIndex;
             return (
               <div key={`${icon}-${index}`} className="relative" style={{ width: itemSize, height: itemSize }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
