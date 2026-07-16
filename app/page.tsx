@@ -9,6 +9,7 @@ import { getRandomWeaponSample } from "@/lib/bungie/definitions";
 import { MODES } from "@/lib/modes/modes";
 import Link from "next/link";
 import BrandWordmark from "@/components/BrandWordmark";
+import BrandMark from "@/components/BrandMark";
 
 const LANDING_MODES = [MODES.gun_roulette, MODES.draft];
 
@@ -25,7 +26,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ c
   return (
     <main className="min-h-screen px-5 py-6 sm:px-8 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-6xl flex-col sm:min-h-[calc(100vh-4rem)]">
-        <header className="flex items-center border-b border-bungie-border pb-5">
+        <header className="flex items-center gap-3 border-b border-bungie-border pb-5">
+          <BrandMark className="h-9 w-9 sm:h-10 sm:w-10" />
           <h1 className="text-3xl sm:text-4xl">
             <BrandWordmark />
           </h1>
