@@ -56,9 +56,16 @@ export default function TopNav({
           <BrandMark className="h-7 w-7" />
           <span className="flex items-baseline gap-2">
             <BrandWordmark className="text-xl" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">beta</span>
+            <span className="text-lg font-bold uppercase tracking-widest text-gray-600">beta</span>
           </span>
         </Link>
+
+        <a
+          href="https://rival.rerolled.io"
+          className="shrink-0 text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-white"
+        >
+          View Rival
+        </a>
 
         <div className="hidden h-px flex-1 bg-gradient-to-r from-bungie-border to-transparent sm:block" aria-hidden="true" />
 

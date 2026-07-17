@@ -27,12 +27,6 @@ export default async function Dashboard() {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-400 sm:text-base">
             Roll from the weapons everyone owns, or draft a loadout one choice at a time.
           </p>
-          <a
-            className="mt-4 inline-flex border border-bungie-border px-3 py-2 text-sm font-semibold text-bungie-blue hover:border-bungie-blue hover:text-white"
-            href="https://rival.rerolled.io"
-          >
-            View your match history &amp; head-to-head records
-          </a>
         </div>
         <ModeGrid activeSession={activeSession} />
       </div>
