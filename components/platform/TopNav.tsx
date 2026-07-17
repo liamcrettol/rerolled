@@ -5,6 +5,7 @@
 // Product wordmark + primary section links + signed-in Bungie display name.
 
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import SignOutButton from "@/components/SignOutButton";
 import BrandMark from "@/components/BrandMark";
 import BrandWordmark from "@/components/BrandWordmark";
@@ -62,9 +63,10 @@ export default function TopNav({
 
         <a
           href="https://rival.rerolled.io"
-          className="shrink-0 text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-white"
+          className="inline-flex shrink-0 items-center gap-1.5 border border-bungie-border px-2.5 py-1.5 text-xs font-bold uppercase tracking-widest text-bungie-blue transition hover:border-bungie-blue hover:bg-bungie-blue/10"
         >
-          View Rival
+          <ArrowUpRight size={13} />
+          View Rivals
         </a>
 
         <div className="hidden h-px flex-1 bg-gradient-to-r from-bungie-border to-transparent sm:block" aria-hidden="true" />
