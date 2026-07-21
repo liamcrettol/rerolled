@@ -12,7 +12,6 @@ import { trimBungieName } from "@/lib/utils";
 import { useGameDetection } from "@/hooks/useGameDetection";
 import Spinner from "./Spinner";
 import ConfirmDialog from "./lobby/ConfirmDialog";
-import LobbyStatsPanel, { type StatsTab, type SessionTotal } from "./lobby/LobbyStatsPanel";
 import LobbySidebar from "./lobby/LobbySidebar";
 import { wildcardsFromSlots } from "@/lib/lobby/realtimeState";
 import { useLobbySession } from "@/hooks/lobby/useLobbySession";
@@ -100,23 +99,16 @@ export default function LobbyRoom({
   const copiedWatch = isCopied("watch");
   const hasAutoSelected = useRef(false);
 
-  // Stats panel tab: session totals | match history
-  const [statsTab, setStatsTab] = useState<StatsTab>("session");
-  const {
-    lastGameStats,
-    setLastGameStats,
-    roundHistory,
-    expandedRound,
-    setExpandedRound,
-    startPolling,
-    stopPolling,
-  } = useGameDetection({
+  // Match-detection polling still runs in the background (it's also the
+  // fallback that rotates the captain if a game finishes without everyone
+  // explicitly applying) - Rerolled just no longer displays the session/match
+  // history it used to show, now that Rival is the source of truth for that.
+  const { startPolling, stopPolling } = useGameDetection({
     lobbyId: lobby.id,
     // lobbyData.status isn't known until useLobbySession runs below; the
     // initial `lobby` prop is an acceptable seed since realtime immediately
     // syncs it and this hook re-subscribes on lobbyId, not status.
     status: lobby.status,
-    onSwitchToHistoryTab: () => setStatsTab("history"),
   });
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
@@ -259,7 +251,7 @@ export default function LobbyRoom({
     recentRollsRef,
     animKindRef,
     setPreferredInstances: setPreferredInstancesState,
-    dismissLastGame: () => setLastGameStats(null),
+    dismissLastGame: () => {},
     onConfirmSpecial: setPendingSpecialSelect,
   });
 
@@ -301,24 +293,6 @@ export default function LobbyRoom({
     const id = setInterval(update, 30_000);
     return () => clearInterval(id);
   }, [lobbyData.last_active_at, lobbyData.status]);
-
-  // Running cumulative stats per player across every recorded game this lobby.
-  const sessionTotals = useMemo(() => {
-    const m = new Map<string, SessionTotal>();
-    for (const round of roundHistory) {
-      for (const s of round.stats) {
-        const e = m.get(s.userId) ?? { userId: s.userId, displayName: trimBungieName(s.displayName), kills: 0, deaths: 0, assists: 0, rouletteWeaponKills: 0, games: 0 };
-        e.kills += s.kills;
-        e.deaths += s.deaths;
-        e.assists += s.assists;
-        e.rouletteWeaponKills += s.rouletteWeaponKills;
-        e.games += 1;
-        e.displayName = trimBungieName(s.displayName);
-        m.set(s.userId, e);
-      }
-    }
-    return [...m.values()];
-  }, [roundHistory]);
 
   const copyCode = useCallback(async () => {
     await copy(lobby.code, "code");
@@ -724,20 +698,6 @@ export default function LobbyRoom({
               }}
             />
           )}
-        </div>
-
-        {/* Stats panel: Session / History tabs */}
-        <div className="order-6">
-          <LobbyStatsPanel
-            statsTab={statsTab}
-            onTabChange={setStatsTab}
-            sessionTotals={sessionTotals}
-            roundHistory={roundHistory}
-            expandedRound={expandedRound}
-            onExpandRound={setExpandedRound}
-            lastGameStats={lastGameStats}
-            onDismissLastGame={() => setLastGameStats(null)}
-          />
         </div>
 
         {/* Loadout panel — rows + primary actions in the header. */}
