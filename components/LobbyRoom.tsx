@@ -103,7 +103,6 @@ export default function LobbyRoom({
   // Stats panel tab: session totals | match history
   const [statsTab, setStatsTab] = useState<StatsTab>("session");
   const {
-    polling,
     lastGameStats,
     setLastGameStats,
     roundHistory,
@@ -154,6 +153,12 @@ export default function LobbyRoom({
   // render behind via ref (same pattern the pre-#224 code used).
   const isCaptainRef = useRef(false);
   const isSpectatorRef = useRef(false);
+  // autoApply itself isn't declared until useApplyLoadout runs below, so the
+  // broadcast handler (built here, before that hook is called) closes over
+  // whatever value existed at that render - never the live one. Mirror it
+  // through a ref like isCaptainRef/isSpectatorRef so toggling the checkbox
+  // is actually seen the next time the captain's apply broadcast arrives.
+  const autoApplyRef = useRef(false);
 
   const {
     rollMode, setRollMode, bannedTypes, setBannedTypes,
@@ -187,7 +192,7 @@ export default function LobbyRoom({
             if (captainApplyPulseTimeoutRef.current) clearTimeout(captainApplyPulseTimeoutRef.current);
             captainApplyPulseTimeoutRef.current = setTimeout(() => setCaptainApplyPulse(false), 2500);
           }
-          if (!autoApply || isSpectatorRef.current || isCaptainRef.current) return;
+          if (!autoApplyRef.current || isSpectatorRef.current || isCaptainRef.current) return;
           if (applyingRef.current) return;
           handleApplyRef.current?.();
         },
@@ -224,6 +229,7 @@ export default function LobbyRoom({
     startPolling,
   });
   useEffect(() => { applyingRef.current = applying; }, [applying]);
+  useEffect(() => { autoApplyRef.current = autoApply; }, [autoApply]);
 
   // Stable ref to the latest handleApply so the broadcast callback (built
   // above, before handleApply exists) always calls the current version.
@@ -621,9 +627,8 @@ export default function LobbyRoom({
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {(() => {
-                let { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
+                let { tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
                 if (captainApplyPulse && !isCaptain && !isSpectator) {
-                  text = "Captain applying loadout…";
                   tone = "info";
                 }
                 return (
@@ -631,11 +636,10 @@ export default function LobbyRoom({
                     captainApplyPulse || lobbyData.status === "applying" ? "animate-pulse" : ""
                   }`}>
                     {tone === "turn" && <Crown size={13} />}
-                    Round {lobbyData.current_round} · {text}
+                    Round {lobbyData.current_round}
                   </span>
                 );
               })()}
-              {polling && <span className="text-xs text-green-500 animate-pulse">● watching</span>}
             </div>
             {minutesToClose !== null && minutesToClose <= 20 && (
               <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs px-2 py-0.5 border ${
@@ -769,7 +773,9 @@ export default function LobbyRoom({
                         onClick={handleApply}
                         disabled={Boolean(applyDisabledReason)}
                         title={applyDisabledReason ?? "Apply this loadout"}
-                        className="px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2"
+                        className={`px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2 ${
+                          captainApplyPulse && !isCaptain ? "ring-2 ring-bungie-blue shadow-[0_0_14px_rgba(0,174,239,0.65)] animate-pulse" : ""
+                        }`}
                         aria-label="Apply loadout"
                       >
                         {loadingAction === "apply" ? <Spinner size={15} /> : <Zap size={15} />}
@@ -830,21 +836,15 @@ export default function LobbyRoom({
                 role="switch"
                 aria-checked={autoApply}
                 onClick={toggleAutoApply}
+                title={autoApply ? "Auto-apply is on. You'll equip automatically when the captain applies." : "Turn on to equip automatically when the captain applies."}
                 className={`ml-auto inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
                   autoApply
                     ? "border-green-600 bg-green-600/15 text-green-400"
                     : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"
                 }`}
               >
-                <span
-                  className={`inline-flex h-3 w-3 items-center justify-center border ${
-                    autoApply ? "border-green-500 bg-green-500" : "border-gray-500"
-                  }`}
-                  aria-hidden
-                >
-                  {autoApply && <Check size={9} className="text-black" strokeWidth={4} />}
-                </span>
-                Auto-apply
+                <Zap size={12} className="shrink-0" fill={autoApply ? "currentColor" : "none"} />
+                {autoApply ? "Auto-applying" : "Auto-apply"}
               </button>
             )}
             {/* Captain-lock toggle. This flag blocks BOTH rotation paths

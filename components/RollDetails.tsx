@@ -119,7 +119,6 @@ export default function RollDetails({
   const slot = rolls[activeTab]!;
   const theme = damageTheme(slot.damageType);
   const base = slot.baseStats;
-  const activeWeaponName = slot.weaponName ?? SLOT_LABELS[activeTab];
 
   const members = slot.members;
   const scrollMemberCards = members.length > 3;
@@ -409,9 +408,6 @@ export default function RollDetails({
             <h2 className="section-label">
               Roll Comparison {loading && <span className="text-gray-500 font-normal tracking-normal normal-case">· refreshing…</span>}
             </h2>
-            <p className="mt-0.5 text-xs text-gray-500 truncate">
-              {activeWeaponName} · {members.length} fireteam {members.length === 1 ? "roll" : "rolls"}
-            </p>
           </div>
           {myShown && (
             <span className={`shrink-0 border px-2 py-1 text-[11px] font-semibold ${theme.border} ${theme.bg} ${theme.text}`}>
@@ -429,7 +425,7 @@ export default function RollDetails({
         <div className="w-full md:w-[15rem] shrink-0 md:pr-2 border-bungie-border/50 border-b pb-3 md:border-b-0 md:pb-0 md:border-r flex flex-col gap-2">
           {/* Weapon selector */}
           <div className="flex flex-col gap-1">
-            <p className="text-[10px] uppercase tracking-widest text-gray-600 px-1">Loadout weapons</p>
+            <p className="section-label px-1">Loadout weapons</p>
             {present.map((s) => {
               const t = damageTheme(rolls[s]!.damageType);
               const weaponName = rolls[s]!.weaponName || SLOT_LABELS[s];
@@ -502,7 +498,7 @@ export default function RollDetails({
             another row. */}
         <div className="flex-1 min-w-0">
           <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} pr-1`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
               {members.map((m) => memberCard(m))}
             </div>
           </div>
