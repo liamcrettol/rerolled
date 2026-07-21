@@ -29,6 +29,13 @@ export interface RoundRecord {
 // multiply into a steady database/API load spike.
 export const POLL_INTERVAL_MS = 60_000;
 
+// Stop polling this long after a game starts. Without a ceiling, a lobby left
+// sitting in `in_game` (the PGCR never lands, everyone walked away with the tab
+// open) polls once a minute forever, per open tab. A Crucible match runs ~10-12
+// minutes and the PGCR follows within a couple more, so 20 minutes covers the
+// real case; the detect-games cron is the backstop past that.
+export const POLL_MAX_DURATION_MS = 20 * 60_000;
+
 // Owns the match-detection polling lifecycle for a lobby: checking whether the
 // applied loadout's game has finished (via PGCR), recording it, and keeping
 // round history in sync. Runs its own dedicated realtime channel for
@@ -50,6 +57,10 @@ export function useGameDetection({
   const [roundHistory, setRoundHistory] = useState<RoundRecord[]>([]);
   const [expandedRound, setExpandedRound] = useState<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Polling stays logically on while the tab is hidden even though the timer is
+  // disarmed, so the visibilitychange handler knows whether to re-arm.
+  const pollingRef = useRef(false);
+  const pollDeadlineRef = useRef(0);
   // Read inside the realtime channel callback, which is only set up once (see
   // the eslint-disabled effect below) so a plain closure over `lastGameStats`
   // would always see its value at mount time, not the current one.
@@ -61,6 +72,7 @@ export function useGameDetection({
       clearInterval(pollTimerRef.current);
       pollTimerRef.current = null;
     }
+    pollingRef.current = false;
     setPolling(false);
   }, []);
 
@@ -81,6 +93,12 @@ export function useGameDetection({
   }, [fetchHistory]);
 
   const detectGameEnd = useCallback(async () => {
+    // Give up once the window has passed rather than polling a stuck lobby for
+    // the lifetime of the tab.
+    if (pollingRef.current && Date.now() > pollDeadlineRef.current) {
+      stopPolling();
+      return false;
+    }
     try {
       const res = await fetch("/api/stats/detect", {
         method: "POST",
@@ -102,14 +120,46 @@ export function useGameDetection({
     }
   }, [lobbyId, stopPolling, fetchHistory]);
 
-  const startPolling = useCallback(() => {
+  // Arms the interval only when the tab is actually in view. Players spend the
+  // entire match alt-tabbed into Destiny, which is exactly the window this hook
+  // polls in, so gating on visibility removes most of the requests without
+  // changing what anyone sees: the realtime game_sessions INSERT still pushes
+  // the result to every open client, and becoming visible checks immediately.
+  const armPollTimer = useCallback(() => {
     if (pollTimerRef.current) return;
-    setPolling(true);
-    detectGameEnd();
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
     pollTimerRef.current = setInterval(detectGameEnd, POLL_INTERVAL_MS);
   }, [detectGameEnd]);
 
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = true;
+    pollDeadlineRef.current = Date.now() + POLL_MAX_DURATION_MS;
+    setPolling(true);
+    detectGameEnd();
+    armPollTimer();
+  }, [detectGameEnd, armPollTimer]);
+
   useEffect(() => () => stopPolling(), [stopPolling]);
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (!pollingRef.current) return;
+      if (document.visibilityState === "hidden") {
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+        return;
+      }
+      // Back in view: check right away so the result is on screen by the time
+      // the player has finished tabbing over, then resume the interval.
+      detectGameEnd();
+      armPollTimer();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [detectGameEnd, armPollTimer]);
 
   // When a loadout is applied (status flips to in_game, seen via realtime by
   // every member), everyone starts polling - so whoever's PGCR appears first
