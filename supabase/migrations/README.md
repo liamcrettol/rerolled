@@ -35,7 +35,9 @@ If you add a migration, also:
 | 052_prune_pgcr_cache | `prune_pgcr_cache()` - confirmed live via `pg_stat_statements`/`pg_stat_user_tables` (actively deleting `raw_pgcr` rows). Superseded by 057. | ✅ (superseded) |
 | 057_disable_pgcr_prune | Replaces `prune_pgcr_cache()` with a no-op; removes the RPC call from `app/api/cron/sync-crucible`. See [`docs/pgcr-archive.md`](../../docs/pgcr-archive.md). | ✅ |
 | 058_pgcr_appwrite_metadata | Adds `appwrite_sha256`/`appwrite_bytes`/`appwrite_migrated_at`/`appwrite_last_verified_at` to `pgcr_cache`, the disjoint archive/clear partial indexes, plus the atomic `mark_pgcr_archived_if_current` RPC. See [`docs/pgcr-archive.md`](../../docs/pgcr-archive.md). | ✅ |
-| 059_schedule_pgcr_reconciliation | Schedules the bounded Appwrite outbox retry endpoint every five minutes through Supabase pg_cron. | ✅ |
+| 059a_drop_dormant_substrate | Drops the dormant worker/badge-award/weekly job substrate (#356). | ✅ |
+| 059b_schedule_pgcr_reconciliation | Schedules the bounded Appwrite outbox retry endpoint every five minutes through Supabase pg_cron. | ✅ |
+| 065_harden_rls | Enables RLS on `auth_codes`/`oauth_states` (the last two tables that never had it), drops the stale unused anon-read policies, and revokes default `anon`/`authenticated` grants on every backend-only table. The 8 tables the browser subscribes to over Realtime keep their anon SELECT policies — see the policy comments in the migration. | ✅ |
 
 ### Challenge platform (025–031)
 
