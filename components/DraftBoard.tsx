@@ -15,6 +15,7 @@ import { CLASS_NAMES, SLOT_LABELS, SLOT_ORDER, damageColor } from "@/lib/destiny
 import { trimBungieName } from "@/lib/utils";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
+import { useVisibilityPoll } from "@/hooks/useVisibilityPoll";
 import RevealReel from "@/components/RevealReel";
 import { mergeDraftRosterMember } from "@/lib/draft/roster";
 import WeaponIcon from "@/components/WeaponIcon";
@@ -360,11 +361,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // happened. Poll the whole session, not just the unfinished draft: after the
   // loadout locks, this same poll is how everyone else's board learns the
   // starter advanced to the next round and resets to the roll screen.
-  useEffect(() => {
-    if (loading || lobbyStatus === "done") return;
-    const interval = setInterval(() => loadRound(), 3000);
-    return () => clearInterval(interval);
-  }, [loading, lobbyStatus, loadRound]);
+  // Visibility-gated (#352) so a backgrounded draft tab stops polling; on
+  // refocus it fires an immediate catch-up tick.
+  useVisibilityPoll(loadRound, 5000, !loading && lobbyStatus !== "done");
   const {
     characters: loadedCharacters,
     selectedCharacterId,

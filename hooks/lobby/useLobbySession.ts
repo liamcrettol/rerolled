@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
+import { useVisibilityPoll } from "@/hooks/useVisibilityPoll";
 import {
   mergeSlot,
   upsertMember,
@@ -218,58 +219,55 @@ export function useLobbySession(
     lobbyDataRef.current = state.lobbyData;
   }, [state.lobbyData]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const res = await fetch("/api/lobby/state", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lobbyId: lobby.id }),
-        });
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
+  // Visibility-gated so a backgrounded lobby tab stops polling (#352). Skips
+  // once the lobby is done (LobbyRoom redirects on "done", but this avoids a
+  // stray tick in the gap). 5s cadence: realtime is the instant path, this is
+  // only the fallback for clients that can't reach *.supabase.co.
+  const pollLobbyState = useCallback(async () => {
+    try {
+      const res = await fetch("/api/lobby/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lobbyId: lobby.id }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
 
-        if (data.lobby && JSON.stringify(data.lobby) !== JSON.stringify(lobbyDataRef.current)) {
-          dispatch({ type: "lobbyUpdated", lobby: data.lobby as Lobby });
-        }
-
-        const incoming: LobbyMember[] = data.members ?? [];
-        const present = new Set(incoming.map((m) => m.id));
-        for (const m of incoming) {
-          const existing = membersRef.current.find((x) => x.id === m.id);
-          if (!existing) {
-            dispatch({ type: "memberUpsert", member: m });
-            continue;
-          }
-          // Merge instead of replace so page-enriched fields (badges, fresh
-          // emblem/clan) survive a raw DB row - same guard the draft board uses.
-          const merged = mergeDraftRosterMember(existing, m);
-          if (JSON.stringify(merged) !== JSON.stringify(existing)) {
-            dispatch({ type: "memberUpdate", member: merged });
-          }
-        }
-        for (const m of membersRef.current) {
-          if (!present.has(m.id)) dispatch({ type: "memberRemove", id: m.id });
-        }
-
-        for (const s of (data.slots ?? []) as LobbyLoadoutSlot[]) {
-          if (!roundIdRef.current || s.round_id !== roundIdRef.current) continue;
-          const existing = slotsRef.current.find((x) => x.slot === s.slot);
-          if (existing && existing.item_hash === s.item_hash) continue;
-          if (s.item_hash !== 0) cbRef.current.onSlotRolled?.(s.slot as WeaponSlot, s.item_hash);
-          dispatch({ type: "slotMerged", slot: s });
-        }
-      } catch {
-        // Offline blip or transient 5xx - the next tick retries.
+      if (data.lobby && JSON.stringify(data.lobby) !== JSON.stringify(lobbyDataRef.current)) {
+        dispatch({ type: "lobbyUpdated", lobby: data.lobby as Lobby });
       }
-    };
-    const interval = setInterval(tick, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+
+      const incoming: LobbyMember[] = data.members ?? [];
+      const present = new Set(incoming.map((m) => m.id));
+      for (const m of incoming) {
+        const existing = membersRef.current.find((x) => x.id === m.id);
+        if (!existing) {
+          dispatch({ type: "memberUpsert", member: m });
+          continue;
+        }
+        // Merge instead of replace so page-enriched fields (badges, fresh
+        // emblem/clan) survive a raw DB row - same guard the draft board uses.
+        const merged = mergeDraftRosterMember(existing, m);
+        if (JSON.stringify(merged) !== JSON.stringify(existing)) {
+          dispatch({ type: "memberUpdate", member: merged });
+        }
+      }
+      for (const m of membersRef.current) {
+        if (!present.has(m.id)) dispatch({ type: "memberRemove", id: m.id });
+      }
+
+      for (const s of (data.slots ?? []) as LobbyLoadoutSlot[]) {
+        if (!roundIdRef.current || s.round_id !== roundIdRef.current) continue;
+        const existing = slotsRef.current.find((x) => x.slot === s.slot);
+        if (existing && existing.item_hash === s.item_hash) continue;
+        if (s.item_hash !== 0) cbRef.current.onSlotRolled?.(s.slot as WeaponSlot, s.item_hash);
+        dispatch({ type: "slotMerged", slot: s });
+      }
+    } catch {
+      // Offline blip or transient 5xx - the next tick retries.
+    }
   }, [lobby.id]);
+  useVisibilityPoll(pollLobbyState, 5000, state.lobbyData.status !== "done");
 
   /** Locally reflect a seeded loadout (captain's equipped guns) without waiting
    *  on the realtime echo; ignored if a real roll already landed. */
