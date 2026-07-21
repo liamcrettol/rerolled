@@ -12,18 +12,39 @@ function authorized(req: NextRequest): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authorized(req)) {
+    return NextResponse.json(
+      { status: "temporary_verification_failure", error: { code: "unauthorized" } },
+      { status: 401 },
+    );
+  }
 
   const body = await req.json().catch(() => null) as { userId?: string } | null;
-  if (!body?.userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  if (!body?.userId) {
+    return NextResponse.json(
+      { status: "temporary_verification_failure", error: { code: "invalid_request" } },
+      { status: 400 },
+    );
+  }
 
   try {
     const result = await reserveSignupSlot(body.userId, "rival");
-    if (!result.allowed) return NextResponse.json(result, { status: 409 });
+    if (!result.allowed) {
+      return NextResponse.json(result, {
+        status: 409,
+        headers: { "Cache-Control": "no-store, private" },
+      });
+    }
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store, private" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[internal/rival/signup-capacity] check failed", message);
-    return NextResponse.json({ error: message }, { status: 503 });
+    console.error("[internal/rival/signup-capacity] temporary verification failure", {
+      route: "/api/internal/rival/signup-capacity",
+      reason: message,
+    });
+    return NextResponse.json(
+      { status: "temporary_verification_failure", error: { code: "capacity_backend_unavailable" } },
+      { status: 503 },
+    );
   }
 }

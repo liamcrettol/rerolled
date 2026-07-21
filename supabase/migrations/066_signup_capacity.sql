@@ -39,7 +39,7 @@ create or replace function public.reserve_signup_slot(
   p_user_id text,
   p_site text
 )
-returns table (allowed boolean, already_registered boolean, user_count integer)
+returns table (allowed boolean, already_registered boolean, user_count integer, max_users integer)
 language plpgsql
 security definer
 set search_path = public
@@ -59,12 +59,12 @@ begin
   if exists (
     select 1 from public.signup_capacity_users where user_id = p_user_id
   ) then
-    return query select true, true, config_row.reserved_users;
+    return query select true, true, config_row.reserved_users, config_row.max_users;
     return;
   end if;
 
   if config_row.reserved_users >= config_row.max_users then
-    return query select false, false, config_row.reserved_users;
+    return query select false, false, config_row.reserved_users, config_row.max_users;
     return;
   end if;
 
@@ -77,7 +77,7 @@ begin
   where id = true
   returning reserved_users into config_row.reserved_users;
 
-  return query select true, false, config_row.reserved_users;
+  return query select true, false, config_row.reserved_users, config_row.max_users;
 end;
 $$;
 
