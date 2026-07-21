@@ -298,7 +298,7 @@ export default function RollDetails({
     return (
       <div
         key={m.userId}
-        className={`relative overflow-hidden flex flex-col w-full max-w-[26rem] ${
+        className={`relative overflow-hidden flex flex-col w-full ${
           m.isMe ? `border-2 ${theme.border}` : "border border-bungie-border/60"
         } bg-bungie-dark/30`}
       >
@@ -452,12 +452,6 @@ export default function RollDetails({
 
           {/* Your rolls (scrollable) */}
           <div className="max-h-[20rem] overflow-y-auto pr-1 pb-1 space-y-1">
-          <div className="flex items-center justify-between gap-2 px-1 mb-1">
-            <p className={`text-xs font-semibold ${theme.text}`}>Your rolls</p>
-            <span className="text-[10px] text-gray-500">
-              {myInstances.length} {myInstances.length === 1 ? "roll" : "rolls"}
-            </span>
-          </div>
           {myInstances.length === 0 ? (
             <p className="border border-bungie-border/60 bg-bungie-dark/60 px-2 py-2 text-gray-500 text-[11px]">
               {me?.failed ? "Your rolls could not load for this weapon." : "No owned rolls for this weapon."}
@@ -501,14 +495,14 @@ export default function RollDetails({
           </div>
         </div>
 
-        {/* Comparison: a card per member. Columns adapt to the space available
-            at their natural card width instead of stretching tracks across the
-            whole panel, which keeps two-player lobbies from leaving a giant
-            empty gap between cards. Full height for one row; scrolls only once
-            the lobby spills into another row. */}
+        {/* Comparison: a card per member, fixed at 3 columns on wide screens
+            regardless of viewport width (a max-width cap on flex-wrapped cards
+            can't guarantee 3-per-row since the fit point shifts with viewport).
+            Full height for one row; scrolls only once the lobby spills into
+            another row. */}
         <div className="flex-1 min-w-0">
           <div className={`${scrollMemberCards ? "max-h-[24rem] overflow-y-auto" : ""} pr-1`}>
-            <div className="flex flex-wrap gap-3 content-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
               {members.map((m) => memberCard(m))}
             </div>
           </div>

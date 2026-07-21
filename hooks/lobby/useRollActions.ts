@@ -88,21 +88,24 @@ export function useRollActions({
         }
       }
       const avoid = { ...recentRollsRef.current };
-      await fetch("/api/roulette/roll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lobbyId,
-          roundId,
-          intersection: effectiveIntersection ?? intersection,
-          weaponDetails,
-          keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
-          avoid,
-          wildcardSlots: Array.from(nextWildcards),
-          mode: rollMode,
-        }),
-      });
-      setRolling(false);
+      try {
+        await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lobbyId,
+            roundId,
+            intersection: effectiveIntersection ?? intersection,
+            weaponDetails,
+            keepSlots: Object.keys(keep).length > 0 ? keep : undefined,
+            avoid,
+            wildcardSlots: Array.from(nextWildcards),
+            mode: rollMode,
+          }),
+        });
+      } finally {
+        setRolling(false);
+      }
     },
     [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, rollMode, animKindRef, recentRollsRef]
   );
@@ -179,23 +182,26 @@ export function useRollActions({
       }
       // Avoid repeating any of the last few weapons per slot
       const avoid = { ...recentRollsRef.current };
-      await fetch("/api/roulette/roll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lobbyId,
-          roundId,
-          intersection: effectiveIntersection ?? intersection,
-          weaponDetails,
-          rerollSlot,
-          keepSlots,
-          avoid,
-          wildcardSlots: Array.from(effectiveWildcards),
-          mode: rollMode,
-        }),
-      });
-      noteRerollUsed();
-      setRolling(false);
+      try {
+        await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lobbyId,
+            roundId,
+            intersection: effectiveIntersection ?? intersection,
+            weaponDetails,
+            rerollSlot,
+            keepSlots,
+            avoid,
+            wildcardSlots: Array.from(effectiveWildcards),
+            mode: rollMode,
+          }),
+        });
+        noteRerollUsed();
+      } finally {
+        setRolling(false);
+      }
     },
     [intersection, effectiveIntersection, roundId, lobbyId, slots, weaponDetails, lockedSlots, wildcardSlots, rollMode, rerollExhausted, noteRerollUsed, dismissLastGame, animKindRef, recentRollsRef]
   );
@@ -236,12 +242,15 @@ export function useRollActions({
           }
         }
       }
-      await fetch("/api/roulette/roll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lobbyId, roundId, intersection, weaponDetails, keepSlots: keep }),
-      });
-      setRolling(false);
+      try {
+        await fetch("/api/roulette/roll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lobbyId, roundId, intersection, weaponDetails, keepSlots: keep }),
+        });
+      } finally {
+        setRolling(false);
+      }
     },
     [intersection, roundId, lobbyId, slots, weaponDetails, dismissLastGame, setPreferredInstances, animKindRef]
   );

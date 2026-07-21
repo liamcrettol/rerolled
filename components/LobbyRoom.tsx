@@ -21,7 +21,7 @@ import { useWeaponPool } from "@/hooks/lobby/useWeaponPool";
 import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { useApplyLoadout } from "@/hooks/lobby/useApplyLoadout";
 import { useRollActions } from "@/hooks/lobby/useRollActions";
-import { Shuffle, Zap, Crown, Check, Copy, X, MoreHorizontal, PanelRightOpen, PanelRightClose, Clock } from "lucide-react";
+import { Shuffle, Zap, Crown, Check, Copy, X, MoreHorizontal, PanelRightOpen, PanelRightClose, Clock, Lock } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
 
@@ -134,6 +134,15 @@ export default function LobbyRoom({
   } | null>(null);
   const [minutesToClose, setMinutesToClose] = useState<number | null>(null);
   const overflowMenuRef = useRef<HTMLDivElement>(null);
+  // Brief pulse on the status badge for everyone but the captain, fired the
+  // instant the captain broadcasts Apply - real feedback that the loadout was
+  // selected, independent of the "applying" lobby status (which nothing ever
+  // sets; apply jumps straight from "rolling" to "in_game").
+  const [captainApplyPulse, setCaptainApplyPulse] = useState(false);
+  const captainApplyPulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (captainApplyPulseTimeoutRef.current) clearTimeout(captainApplyPulseTimeoutRef.current);
+  }, []);
 
   const hasAutoLoaded = useRef(false);
   const hasSeeded = useRef(false);
@@ -173,6 +182,11 @@ export default function LobbyRoom({
           hasSeeded.current = false;
         },
         onCaptainApply: () => {
+          if (!isCaptainRef.current) {
+            setCaptainApplyPulse(true);
+            if (captainApplyPulseTimeoutRef.current) clearTimeout(captainApplyPulseTimeoutRef.current);
+            captainApplyPulseTimeoutRef.current = setTimeout(() => setCaptainApplyPulse(false), 2500);
+          }
           if (!autoApply || isSpectatorRef.current || isCaptainRef.current) return;
           if (applyingRef.current) return;
           handleApplyRef.current?.();
@@ -328,19 +342,30 @@ export default function LobbyRoom({
   // When a new non-spectator joins, refresh the pool for everyone already
   // loaded — without re-rolling — so the captain's pool reflects the new member
   // without a manual reload. Skipped during an active game.
+  //
+  // Guards against a join racing this client's OWN initial auto-load (#309):
+  // if a join lands before hasAutoLoaded flips true, the old code still
+  // advanced prevMemberCount to the new (higher) count while bailing out, so
+  // that join was silently absorbed into the baseline and never triggered a
+  // reload — permanently, since nothing else would re-run this effect. Now
+  // the baseline only advances past an increase once hasAutoLoaded is
+  // actually true, and roundId is a dependency so the effect re-checks the
+  // moment this client's own load completes (mirrors the effect above that
+  // flips hasAutoLoaded), catching up on any joins that raced it.
   useEffect(() => {
     const count = members.filter((m) => !m.is_spectator).length;
     if (prevMemberCount.current === null) { prevMemberCount.current = count; return; }
     const prev = prevMemberCount.current;
+    if (count <= prev) { prevMemberCount.current = count; return; }
+    if (!hasAutoLoaded.current) return;
     prevMemberCount.current = count;
-    if (!hasAutoLoaded.current || count <= prev) return;
     if (lobbyData.status === "in_game") return;
     handleLoadIntersection();
     // Refresh the comparison so the new member's rolls appear without waiting
     // for a slot change (fetchRolls otherwise only re-runs on slot changes).
     if (slots.some((s) => s.item_hash !== 0)) fetchRolls();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members, lobbyData.status]);
+  }, [members, lobbyData.status, roundId]);
 
   // If an inventory load failed because someone's Bungie auth needs refreshing,
   // a successful reauth touches that member row and arrives here as realtime.
@@ -527,7 +552,6 @@ export default function LobbyRoom({
       body: JSON.stringify({ lobbyId: lobby.id, locked: next }),
     });
   }, [captainLocked, lobby.id]);
-  void handleToggleCaptainLock; // wired up by the captain-lock control elsewhere in the tree
 
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
@@ -597,9 +621,15 @@ export default function LobbyRoom({
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {(() => {
-                const { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
+                let { text, tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
+                if (captainApplyPulse && !isCaptain && !isSpectator) {
+                  text = "Captain applying loadout…";
+                  tone = "info";
+                }
                 return (
-                  <span className={`text-sm font-semibold px-2.5 py-1 border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]}`}>
+                  <span className={`text-sm font-semibold px-2.5 py-1 border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]} ${
+                    captainApplyPulse || lobbyData.status === "applying" ? "animate-pulse" : ""
+                  }`}>
                     {tone === "turn" && <Crown size={13} />}
                     Round {lobbyData.current_round} · {text}
                   </span>
@@ -815,6 +845,27 @@ export default function LobbyRoom({
                   {autoApply && <Check size={9} className="text-black" strokeWidth={4} />}
                 </span>
                 Auto-apply
+              </button>
+            )}
+            {/* Captain-lock toggle. This flag blocks BOTH rotation paths
+                (apply-time RPC in /api/apply and the post-game fallback in
+                advanceRoundAndRotate) with no other way to see or clear it in
+                the UI, so a lobby that got locked before this control existed
+                would stay wedged on the same captain forever (#308). */}
+            {isCaptain && (
+              <button
+                role="switch"
+                aria-checked={captainLocked}
+                onClick={handleToggleCaptainLock}
+                title={captainLocked ? "Captain rotation is paused. Click to rotate again after each round." : "Captain rotates to the next player each round. Click to stay captain."}
+                className={`ml-auto inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
+                  captainLocked
+                    ? "border-yellow-600 bg-yellow-600/15 text-yellow-400"
+                    : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"
+                }`}
+              >
+                <Lock size={12} className="shrink-0" />
+                {captainLocked ? "Staying captain" : "Auto-rotate captain"}
               </button>
             )}
           </div>
