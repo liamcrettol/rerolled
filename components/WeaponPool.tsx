@@ -178,7 +178,7 @@ function WeaponCard({
   const cardInner = (
     <>
       <div
-        className="relative w-12 h-12 shrink-0 overflow-hidden bg-gray-800 cursor-help"
+        className="relative w-12 h-12 shrink-0 overflow-hidden bg-gray-800"
         onMouseEnter={(e) => onHover(hash, e)}
         onMouseLeave={onLeave}
       >

@@ -86,7 +86,7 @@ function WeaponSlotContent({
     <>
       <div
         key={popKey}
-        className={`relative overflow-hidden border shrink-0 cursor-help transition-shadow duration-300 ${theme.bg} ${theme.border} ${
+        className={`relative overflow-hidden border shrink-0 transition-shadow duration-300 ${theme.bg} ${theme.border} ${
           picked ? "animate-pick-pop ring-1 ring-bungie-blue" : ""
         } ${landed ? "animate-slot-land" : ""}`}
         style={{ width: REEL_ITEM_H, height: REEL_ITEM_H }}

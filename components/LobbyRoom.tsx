@@ -826,12 +826,6 @@ export default function LobbyRoom({
                 )}
               </span>
             )}
-            {!intersection && isCaptain && loadingAction === "intersection" && (
-              <span className="text-xs text-gray-500 inline-flex items-center gap-1.5">
-                <Spinner size={12} />
-                Loading shared weapons…
-              </span>
-            )}
             {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
             {!isCaptain && (
               <button

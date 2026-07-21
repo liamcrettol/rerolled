@@ -409,11 +409,6 @@ export default function RollDetails({
               Roll Comparison {loading && <span className="text-gray-500 font-normal tracking-normal normal-case">· refreshing…</span>}
             </h2>
           </div>
-          {myShown && (
-            <span className={`shrink-0 border px-2 py-1 text-[11px] font-semibold ${theme.border} ${theme.bg} ${theme.text}`}>
-              Selected roll
-            </span>
-          )}
         </div>
       </div>
 
