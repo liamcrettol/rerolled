@@ -143,7 +143,11 @@ export default function LobbyRoom({
     if (captainApplyPulseTimeoutRef.current) clearTimeout(captainApplyPulseTimeoutRef.current);
   }, []);
 
-  const hasAutoLoaded = useRef(false);
+  // State (not a ref) so the join-refresh and auth-retry effects below can
+  // actually depend on it and re-run the moment this client's own initial
+  // load finishes, instead of only reacting when members/roundId happen to
+  // change again for an unrelated reason (#309 follow-up).
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
   const hasSeeded = useRef(false);
   const prevMemberCount = useRef<number | null>(null);
 
@@ -183,7 +187,7 @@ export default function LobbyRoom({
           resetForNewRound();
           clearApplyResults();
           setPreferredInstancesState({});
-          hasAutoLoaded.current = false;
+          setHasAutoLoaded(false);
           hasSeeded.current = false;
         },
         onCaptainApply: () => {
@@ -338,32 +342,30 @@ export default function LobbyRoom({
   // Weapons" themselves. The captain's load also seeds the initial roll;
   // non-captains just populate their pool view.
   useEffect(() => {
-    if (hasAutoLoaded.current) return;
+    if (hasAutoLoaded) return;
     if (isSpectator || !roundId) return;
-    hasAutoLoaded.current = true;
+    setHasAutoLoaded(true);
     handleLoadIntersection();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSpectator, roundId]);
+  }, [isSpectator, roundId, hasAutoLoaded]);
 
   // When a new non-spectator joins, refresh the pool for everyone already
   // loaded — without re-rolling — so the captain's pool reflects the new member
   // without a manual reload. Skipped during an active game.
   //
   // Guards against a join racing this client's OWN initial auto-load (#309):
-  // if a join lands before hasAutoLoaded flips true, the old code still
-  // advanced prevMemberCount to the new (higher) count while bailing out, so
-  // that join was silently absorbed into the baseline and never triggered a
-  // reload — permanently, since nothing else would re-run this effect. Now
-  // the baseline only advances past an increase once hasAutoLoaded is
-  // actually true, and roundId is a dependency so the effect re-checks the
-  // moment this client's own load completes (mirrors the effect above that
-  // flips hasAutoLoaded), catching up on any joins that raced it.
+  // if a join lands before hasAutoLoaded flips true, the baseline isn't
+  // advanced past the increase, so the join isn't silently absorbed. Since
+  // hasAutoLoaded is now real state (not a ref) and a dependency here, this
+  // effect actually re-runs the moment this client's own load completes
+  // (rather than only when members/roundId happen to change again for an
+  // unrelated reason), catching up on any joins that raced it.
   useEffect(() => {
     const count = members.filter((m) => !m.is_spectator).length;
     if (prevMemberCount.current === null) { prevMemberCount.current = count; return; }
     const prev = prevMemberCount.current;
     if (count <= prev) { prevMemberCount.current = count; return; }
-    if (!hasAutoLoaded.current) return;
+    if (!hasAutoLoaded) return;
     prevMemberCount.current = count;
     if (lobbyData.status === "in_game") return;
     handleLoadIntersection();
@@ -371,18 +373,18 @@ export default function LobbyRoom({
     // for a slot change (fetchRolls otherwise only re-runs on slot changes).
     if (slots.some((s) => s.item_hash !== 0)) fetchRolls();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members, lobbyData.status, roundId]);
+  }, [members, lobbyData.status, roundId, hasAutoLoaded]);
 
   // If an inventory load failed because someone's Bungie auth needs refreshing,
   // a successful reauth touches that member row and arrives here as realtime.
   // Retry for everyone automatically instead of requiring browser refreshes.
   useEffect(() => {
     if (!intersectionAuthIssue || poolLoading || isSpectator) return;
-    if (!hasAutoLoaded.current) return;
+    if (!hasAutoLoaded) return;
     if (lobbyData.status === "in_game") return;
     handleLoadIntersection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members]);
+  }, [members, hasAutoLoaded]);
 
   // Seed the captain's loadout from their equipped weapons once the pool is
   // loaded and the round has no loadout yet, so the Roll Comparison reflects

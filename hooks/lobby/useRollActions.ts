@@ -182,6 +182,11 @@ export function useRollActions({
       }
       // Avoid repeating any of the last few weapons per slot
       const avoid = { ...recentRollsRef.current };
+      // The very first "Roll Loadout" of a round populates an empty loadout -
+      // that's not a reroll and shouldn't spend the budget. Only a genuine
+      // reroll (a per-slot reroll, or clicking Roll Loadout again once slots
+      // are already populated) counts.
+      const isInitialRoll = !rerollSlot && slots.every((s) => s.item_hash === 0);
       try {
         await fetch("/api/roulette/roll", {
           method: "POST",
@@ -198,7 +203,7 @@ export function useRollActions({
             mode: rollMode,
           }),
         });
-        noteRerollUsed();
+        if (!isInitialRoll) noteRerollUsed();
       } finally {
         setRolling(false);
       }

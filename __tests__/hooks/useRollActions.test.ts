@@ -98,6 +98,19 @@ describe("useRollActions", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("the first roll of a round populates an empty loadout without spending the reroll budget", async () => {
+    const { result } = renderActions({ slots: [slot("kinetic", 0), slot("energy", 0), slot("power", 0)] });
+
+    await act(async () => result.current.handleRoll());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(noteRerollUsed).not.toHaveBeenCalled();
+
+    // Once slots are populated, "Roll Loadout" again is a genuine reroll.
+    const already = renderActions({ slots: [slot("kinetic", 100), slot("energy", 200), slot("power", 300)] });
+    await act(async () => already.result.current.handleRoll());
+    expect(noteRerollUsed).toHaveBeenCalledTimes(1);
+  });
+
   it("single-slot reroll keeps every other real non-wildcard slot", async () => {
     const { result } = renderActions({ slots: [slot("kinetic", 100), slot("energy", 200), slot("power", 300)], wildcardSlots: ["power"] });
 
