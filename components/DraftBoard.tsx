@@ -195,6 +195,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // reset it.
   const [revealedAt, setRevealedAt] = useState<Partial<Record<WeaponSlot, string>>>({});
   const [nowTick, setNowTick] = useState(() => Date.now());
+  // Sequence each slot's vote requests so a slower response from an earlier
+  // click cannot roll the UI back after the player changes their vote.
+  const voteRequestRef = useRef<Partial<Record<WeaponSlot, number>>>({});
   // Slots whose reveal animation has already fired, so re-renders (realtime
   // refetches) don't replay the reel every time.
   const animatedRef = useRef<Set<WeaponSlot>>(new Set());
@@ -512,6 +515,22 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
 
   async function vote(slot: WeaponSlot, itemHash: number) {
     if (!roundId) return;
+    const requestId = (voteRequestRef.current[slot] ?? 0) + 1;
+    voteRequestRef.current[slot] = requestId;
+
+    // A vote is visually local first: waiting for /vote and then /state made
+    // a successful click look ignored for roughly two network round trips.
+    // Preserve everyone else's tally while replacing only this user's vote.
+    setVotes((previous) => {
+      const slotVotes = previous[slot] ?? [];
+      return {
+        ...previous,
+        [slot]: [
+          ...slotVotes.filter((entry) => entry.voterUserId !== currentUserId),
+          { voterUserId: currentUserId, itemHash },
+        ],
+      };
+    });
     setError(null);
     try {
       const res = await fetch("/api/draft/vote", {
@@ -521,9 +540,16 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      await loadRound();
+      // Reconcile with the authoritative winner, but do not let an older
+      // request overwrite a newer optimistic selection.
+      if (voteRequestRef.current[slot] === requestId) await loadRound();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to vote");
+      if (voteRequestRef.current[slot] === requestId) {
+        setError(e instanceof Error ? e.message : "Failed to vote");
+        // The server may have accepted the vote even if the response failed,
+        // so reload instead of guessing which local value to restore.
+        await loadRound();
+      }
     }
   }
 

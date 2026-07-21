@@ -61,7 +61,7 @@ export default function UpdateAvailable() {
           onClick={() => window.location.reload()}
           className="border border-bungie-gold bg-bungie-gold px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-bungie-dark transition hover:brightness-110"
         >
-          Update now
+          Click here to update
         </button>
         <button
           type="button"
