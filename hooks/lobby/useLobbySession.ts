@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
+import { useSupabaseChannel, fallbackPollMs, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import { useVisibilityPoll } from "@/hooks/useVisibilityPoll";
 import {
   mergeSlot,
@@ -170,7 +170,7 @@ export function useLobbySession(
     []
   );
 
-  const { channelRef, supabase } = useSupabaseChannel(`lobby:${lobby.id}`, configureChannel);
+  const { channelRef, supabase, health } = useSupabaseChannel(`lobby:${lobby.id}`, configureChannel);
 
   // Load the current round's id + persisted slots whenever the round number moves.
   useEffect(() => {
@@ -267,7 +267,10 @@ export function useLobbySession(
       // Offline blip or transient 5xx - the next tick retries.
     }
   }, [lobby.id]);
-  useVisibilityPoll(pollLobbyState, 5000, state.lobbyData.status !== "done");
+  // Rate follows realtime health: a client whose socket is fine only needs
+  // this as a dropped-event safety net (30s), while a client whose socket is
+  // blocked is being carried entirely by it (5s).
+  useVisibilityPoll(pollLobbyState, fallbackPollMs(health), state.lobbyData.status !== "done");
 
   /** Locally reflect a seeded loadout (captain's equipped guns) without waiting
    *  on the realtime echo; ignored if a real roll already landed. */

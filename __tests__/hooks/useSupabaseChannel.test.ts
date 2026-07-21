@@ -1,9 +1,20 @@
 import { act, renderHook } from "@testing-library/react";
-import { useSupabaseChannel } from "@/hooks/useSupabaseChannel";
+import {
+  useSupabaseChannel,
+  fallbackPollMs,
+  POLL_MS_REALTIME_UP,
+  POLL_MS_REALTIME_DOWN,
+} from "@/hooks/useSupabaseChannel";
+
+type SubscribeCallback = (status: string) => void;
 
 class ChannelStub {
   name: string;
-  subscribe = jest.fn(() => this);
+  lastSubscribeCallback: SubscribeCallback | null = null;
+  subscribe = jest.fn((cb?: SubscribeCallback) => {
+    this.lastSubscribeCallback = cb ?? null;
+    return this;
+  });
   on = jest.fn(() => this);
   send = jest.fn();
 
@@ -84,5 +95,59 @@ describe("useSupabaseChannel", () => {
   it("exposes the live channel object while mounted", () => {
     const { result } = renderHook(() => useSupabaseChannel("lobby:1", jest.fn()));
     expect(result.current.channelRef.current).toBe(channels[0]);
+  });
+
+  // Realtime health drives how hard the fallback polls hit our own API, which
+  // is what put the Vercel account over its Fluid CPU fair-use limit (#364).
+  describe("realtime health", () => {
+    it("starts as connecting before the socket reports back", () => {
+      const { result } = renderHook(() => useSupabaseChannel("lobby:1", jest.fn()));
+      expect(result.current.health).toBe("connecting");
+    });
+
+    it("reports up once the channel subscribes", () => {
+      const { result } = renderHook(() => useSupabaseChannel("lobby:1", jest.fn()));
+
+      act(() => channels[0].lastSubscribeCallback?.("SUBSCRIBED"));
+
+      expect(result.current.health).toBe("up");
+    });
+
+    it.each(["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"])(
+      "reports down on %s, which is what a blocked supabase.co looks like",
+      (status) => {
+        const { result } = renderHook(() => useSupabaseChannel("lobby:1", jest.fn()));
+
+        act(() => channels[0].lastSubscribeCallback?.(status));
+
+        expect(result.current.health).toBe("down");
+      }
+    );
+
+    it("resets to connecting when the channel name changes", () => {
+      const { result, rerender } = renderHook(
+        ({ name }) => useSupabaseChannel(name, jest.fn()),
+        { initialProps: { name: "lobby:1" } }
+      );
+      act(() => channels[0].lastSubscribeCallback?.("SUBSCRIBED"));
+      expect(result.current.health).toBe("up");
+
+      act(() => rerender({ name: "lobby:2" }));
+
+      expect(result.current.health).toBe("connecting");
+    });
+  });
+
+  describe("fallbackPollMs", () => {
+    it("polls slowly when realtime is carrying the session", () => {
+      expect(fallbackPollMs("up")).toBe(POLL_MS_REALTIME_UP);
+    });
+
+    it("polls fast when the poll is the only thing advancing the board", () => {
+      expect(fallbackPollMs("down")).toBe(POLL_MS_REALTIME_DOWN);
+      // Unknown health must not be treated as healthy: a client stuck in
+      // "connecting" still needs its board to move.
+      expect(fallbackPollMs("connecting")).toBe(POLL_MS_REALTIME_DOWN);
+    });
   });
 });

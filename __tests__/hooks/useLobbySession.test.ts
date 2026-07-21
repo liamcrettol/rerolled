@@ -46,8 +46,11 @@ const supabase = { from: jest.fn((table: string) => query(table)) };
 jest.mock("@/hooks/useSupabaseChannel", () => ({
   useSupabaseChannel: jest.fn((_name: string, configure: (channel: ChannelStub) => void) => {
     if (channel.handlers.length === 0) configure(channel);
-    return { channelRef: { current: channel }, supabase };
+    // "up" mirrors the common case (realtime subscribed), which is also what
+    // these tests exercise - they drive the channel handlers directly.
+    return { channelRef: { current: channel }, supabase, health: "up" };
   }),
+  fallbackPollMs: jest.fn(() => 30_000),
 }));
 
 jest.mock("@/lib/supabase/client", () => ({ createClient: jest.fn() }));

@@ -1,45 +1,54 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useVisibilityPoll } from "@/hooks/useVisibilityPoll";
 
-const CHECK_INTERVAL_MS = 60_000;
+// This component is mounted in the root layout, so this check runs on every
+// page for every visitor for as long as the tab is open. At 60s a single
+// forgotten tab was ~1,400 requests a day finding nothing. 10 minutes is
+// plenty for a "new version available" nudge, and useVisibilityPoll keeps
+// hidden tabs from checking at all.
+const CHECK_INTERVAL_MS = 10 * 60_000;
 
 export default function UpdateAvailable() {
   const currentVersion = useRef<string | null>(null);
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-
+  const active = useRef(true);
   useEffect(() => {
-    let active = true;
-
-    async function checkForUpdate() {
-      try {
-        const response = await fetch("/api/version", { cache: "no-store" });
-        if (!response.ok) return;
-
-        const data = (await response.json()) as { version?: string };
-        if (!active || !data.version) return;
-
-        if (currentVersion.current === null) {
-          currentVersion.current = data.version;
-          return;
-        }
-
-        if (data.version !== currentVersion.current) {
-          setUpdateVersion(data.version);
-        }
-      } catch {
-        // A failed version check should never interrupt the app.
-      }
-    }
-
-    checkForUpdate();
-    const interval = window.setInterval(checkForUpdate, CHECK_INTERVAL_MS);
-
+    active.current = true;
     return () => {
-      active = false;
-      window.clearInterval(interval);
+      active.current = false;
     };
   }, []);
+
+  const checkForUpdate = useCallback(async () => {
+    try {
+      const response = await fetch("/api/version", { cache: "no-store" });
+      if (!response.ok) return;
+
+      const data = (await response.json()) as { version?: string };
+      if (!active.current || !data.version) return;
+
+      if (currentVersion.current === null) {
+        currentVersion.current = data.version;
+        return;
+      }
+
+      if (data.version !== currentVersion.current) {
+        setUpdateVersion(data.version);
+      }
+    } catch {
+      // A failed version check should never interrupt the app.
+    }
+  }, []);
+
+  // Seed the baseline version once on mount; useVisibilityPoll handles the
+  // recurring checks (and skips them entirely while the tab is hidden).
+  useEffect(() => {
+    void checkForUpdate();
+  }, [checkForUpdate]);
+
+  useVisibilityPoll(checkForUpdate, CHECK_INTERVAL_MS);
 
   if (!updateVersion) return null;
 

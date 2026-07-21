@@ -8,7 +8,7 @@ import Spinner from "./Spinner";
 import PlayerCard from "./PlayerCard";
 import { RollRow } from "./WeaponPool";
 import { useRollInstances } from "@/hooks/lobby/useRollInstances";
-import { useSupabaseChannel, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
+import { useSupabaseChannel, fallbackPollMs, type SupabaseChannel } from "@/hooks/useSupabaseChannel";
 import type { Lobby, LobbyMember, LobbyLoadoutSlot, ApplyResult } from "@/types/lobby";
 import type { WeaponSlot } from "@/types/bungie";
 import { CLASS_NAMES, SLOT_LABELS, SLOT_ORDER, damageColor } from "@/lib/destiny/constants";
@@ -339,7 +339,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
     },
     [loadRound, lobby.id]
   );
-  useSupabaseChannel(`draft:${lobby.id}`, configureChannel);
+  const { health } = useSupabaseChannel(`draft:${lobby.id}`, configureChannel);
 
   // Redirect every remaining member back to the dashboard once the draft is
   // closed (mirrors LobbyRoom's equivalent end-session handling).
@@ -363,7 +363,9 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
   // starter advanced to the next round and resets to the roll screen.
   // Visibility-gated (#352) so a backgrounded draft tab stops polling; on
   // refocus it fires an immediate catch-up tick.
-  useVisibilityPoll(loadRound, 5000, !loading && lobbyStatus !== "done");
+  // Rate follows realtime health: 30s is enough to catch a dropped event when
+  // the socket works, 5s is needed when this poll is the only thing running.
+  useVisibilityPoll(loadRound, fallbackPollMs(health), !loading && lobbyStatus !== "done");
   const {
     characters: loadedCharacters,
     selectedCharacterId,
