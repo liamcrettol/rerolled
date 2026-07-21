@@ -319,9 +319,10 @@ Bungie's sandbox rules — enforce them anywhere a loadout is generated
 
 ## Database migrations
 
-- `database_size_bytes()` is checked by the detect-games cron. At 400 MB (80%
-  of the 500 MB free-tier allowance), it emits a `[database-capacity] WARNING`
-  error for the existing logging pipeline.
+- `database_size_bytes()` is checked by the detect-games cron. At 6.4 GB (80% of
+  the 8 GB included with Supabase Pro), it emits a `[database-capacity] WARNING`
+  error for the existing logging pipeline. Both projects moved to Pro on
+  2026-07-21; the threshold was 400 MB against the old 500 MB free-tier cap.
 - Plain SQL in `supabase/migrations/`, numbered sequentially. Make migrations idempotent
   (`IF NOT EXISTS`, `CREATE OR REPLACE`). Some old migrations may not be applied live — if
   you see `column X does not exist`, suspect an unapplied migration first.
