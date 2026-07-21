@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/auth/encrypt";
 import { encode } from "@auth/core/jwt";
+import { reserveSignupSlot } from "@/lib/auth/signupCapacity";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 const OAUTH_STATE_COOKIE = "bungie_oauth_state";
@@ -210,6 +211,13 @@ export async function GET(req: NextRequest) {
     membershipType = primary.membershipType;
   } catch (e) {
     return errRedirect("user_fetch_threw", String(e));
+  }
+
+  try {
+    const capacity = await reserveSignupSlot(userId, "rerolled");
+    if (!capacity.allowed) return errRedirect("signup_cap_reached");
+  } catch (e) {
+    return errRedirect("signup_cap_unavailable", String(e));
   }
 
   // Encrypt tokens

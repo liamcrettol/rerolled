@@ -9,6 +9,8 @@ const MESSAGES: Record<string, string> = {
   state_mismatch: "Your sign-in session expired or didn't match. Please sign in again.",
   token_exchange_failed: "We couldn't complete sign-in with Bungie. Please try again in a moment.",
   token_fetch_threw: "We couldn't reach Bungie to finish sign-in. Please try again.",
+  signup_cap_reached: "This site has reached its 150-user limit.",
+  signup_cap_unavailable: "We couldn't verify sign-up availability. Please try again shortly.",
   user_fetch_failed: "We couldn't load your Bungie profile. Please try again.",
   user_fetch_threw: "We couldn't reach Bungie to load your profile. Please try again.",
   no_destiny_membership: "No Destiny 2 account is linked to this Bungie profile.",
