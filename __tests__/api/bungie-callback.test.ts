@@ -11,6 +11,7 @@ jest.mock("@/lib/supabase/admin", () => ({
 // failure path never reaches encode(), so stubbing it is safe.
 jest.mock("@auth/core/jwt", () => ({ encode: jest.fn() }));
 jest.mock("@/lib/auth/encrypt", () => ({ encryptToken: jest.fn() }));
+jest.mock("@/lib/auth/signupCapacity", () => ({ reserveSignupSlot: jest.fn() }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let GET: (req: NextRequest) => Promise<any>;
@@ -70,4 +71,137 @@ it("maps a Bungie-supplied error param to the generic bungie_error code", async 
     new NextRequest("https://test.app/api/auth/bungie/callback?error=access_denied&state=valid-state"),
   );
   expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=bungie_error");
+});
+
+describe("signup capacity gating", () => {
+  const mockReserveSignupSlot = require("@/lib/auth/signupCapacity").reserveSignupSlot as jest.Mock;
+  const mockEncode = require("@auth/core/jwt").encode as jest.Mock;
+  const mockEncryptToken = require("@/lib/auth/encrypt").encryptToken as jest.Mock;
+
+  function chainFor(result: { data?: unknown; error?: unknown }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const builder: any = {};
+    ["select", "eq", "gt", "update", "upsert", "delete", "abortSignal"].forEach((method) => {
+      builder[method] = jest.fn(() => builder);
+    });
+    builder.single = jest.fn(async () => ({ data: result.data ?? null, error: result.error ?? null }));
+    builder.maybeSingle = jest.fn(async () => ({ data: result.data ?? null, error: result.error ?? null }));
+    builder.then = (resolve: (value: { data: unknown; error: unknown }) => void) =>
+      resolve({ data: result.data ?? null, error: result.error ?? null });
+    return builder;
+  }
+
+  function bungieFetchMock() {
+    return jest.fn(async (url: string) => {
+      if (url.includes("/OAuth/token/")) {
+        return {
+          ok: true,
+          text: async () => "",
+          json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 3600 }),
+        };
+      }
+      if (url.includes("GetMembershipsForCurrentUser")) {
+        return {
+          ok: true,
+          json: async () => ({
+            Response: {
+              bungieNetUser: { membershipId: "bnet-1", uniqueName: "Guardian#1234" },
+              destinyMemberships: [{ membershipId: "dest-1", membershipType: 3 }],
+              primaryMembershipId: "dest-1",
+            },
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    }) as unknown as typeof fetch;
+  }
+
+  function callbackRequest() {
+    return new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state");
+  }
+
+  beforeEach(() => {
+    mockEncode.mockResolvedValue("session-jwt");
+    mockEncryptToken.mockImplementation(async (t: string) => `enc:${t}`);
+    global.fetch = bungieFetchMock();
+  });
+
+  it("skips the shared capacity check entirely for a returning user, even if it would fail", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return chainFor({ data: { state: "valid-state", return_to: null } });
+      if (table === "bungie_accounts") return chainFor({ data: { user_id: "bnet-1" } });
+      return chainFor({ data: null });
+    });
+    mockReserveSignupSlot.mockRejectedValue(new Error("Signup capacity verification failed: capacity_request_timeout"));
+
+    const res = await GET(callbackRequest());
+
+    expect(mockReserveSignupSlot).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toBe("https://test.app/dashboard");
+  });
+
+  it("still runs the shared capacity check for a genuinely new user", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return chainFor({ data: { state: "valid-state", return_to: null } });
+      if (table === "bungie_accounts") return chainFor({ data: null });
+      return chainFor({ data: null });
+    });
+    mockReserveSignupSlot.mockResolvedValue({
+      status: "available",
+      allowed: true,
+      already_registered: false,
+      user_count: 8,
+      max_users: 150,
+    });
+
+    const res = await GET(callbackRequest());
+
+    expect(mockReserveSignupSlot).toHaveBeenCalledWith("bnet-1", "rerolled");
+    expect(res.headers.get("location")).toBe("https://test.app/dashboard");
+  });
+
+  it("still blocks a genuinely new user when the shared cap is reached", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return chainFor({ data: { state: "valid-state", return_to: null } });
+      if (table === "bungie_accounts") return chainFor({ data: null });
+      return chainFor({ data: null });
+    });
+    mockReserveSignupSlot.mockResolvedValue({
+      status: "capacity_reached",
+      allowed: false,
+      already_registered: false,
+      user_count: 150,
+      max_users: 150,
+    });
+
+    const res = await GET(callbackRequest());
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=signup_cap_reached");
+  });
+
+  it("falls back to the shared capacity check when the local existing-account lookup errors", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return chainFor({ data: { state: "valid-state", return_to: null } });
+      if (table === "bungie_accounts") {
+        // The existence check (maybeSingle) errors, but the later upsert write
+        // (then) must still succeed so this test isolates the fallback behavior.
+        const builder = chainFor({ data: null });
+        builder.maybeSingle = jest.fn(async () => ({ data: null, error: { message: "db blip" } }));
+        return builder;
+      }
+      return chainFor({ data: null });
+    });
+    mockReserveSignupSlot.mockResolvedValue({
+      status: "available",
+      allowed: true,
+      already_registered: false,
+      user_count: 8,
+      max_users: 150,
+    });
+
+    const res = await GET(callbackRequest());
+
+    expect(mockReserveSignupSlot).toHaveBeenCalledWith("bnet-1", "rerolled");
+    expect(res.headers.get("location")).toBe("https://test.app/dashboard");
+  });
 });
