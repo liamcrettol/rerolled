@@ -45,3 +45,25 @@ export async function reserveSignupSlot(
   }
   throw new Error(`Signup capacity verification failed: ${lastError instanceof Error ? lastError.message : "unknown error"}`);
 }
+
+// Best-effort compensation for a reservation that never became a real
+// account (e.g. the users/bungie_accounts upsert failed right after
+// reserveSignupSlot succeeded). Never throws - this runs from an already-
+// failing callback path, so a release failure here must not mask or replace
+// the original error redirect. Worst case the slot stays reserved, same as
+// before this existed.
+export async function releaseSignupSlot(userId: string, site: "rerolled" | "rival"): Promise<void> {
+  try {
+    const { error } = await withSupabaseTimeout(
+      adminSupabase.rpc("release_signup_slot", { p_user_id: userId }),
+      1_500
+    );
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    console.error("[signupCapacity] failed to release an orphaned slot", {
+      site,
+      userId,
+      reason: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}

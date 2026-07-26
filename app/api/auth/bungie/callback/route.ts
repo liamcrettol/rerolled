@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/auth/encrypt";
 import { encode } from "@auth/core/jwt";
-import { reserveSignupSlot } from "@/lib/auth/signupCapacity";
+import { reserveSignupSlot, releaseSignupSlot } from "@/lib/auth/signupCapacity";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 const OAUTH_STATE_COOKIE = "bungie_oauth_state";
@@ -249,6 +249,10 @@ export async function GET(req: NextRequest) {
   const skipDependentDbWrites = userErr && isTransientSupabaseError(userErr);
   if (userErr) {
     if (!isTransientSupabaseError(userErr)) {
+      // The signup slot was already reserved above but no account was ever
+      // created - give it back so a never-completed signup doesn't
+      // permanently shrink the lifetime cap.
+      await releaseSignupSlot(userId, "rerolled");
       return errRedirect("user_upsert_failed", formatSupabaseError(userErr));
     }
     console.error(

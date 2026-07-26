@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { reserveSignupSlot } from "@/lib/auth/signupCapacity";
+import { reserveSignupSlot, releaseSignupSlot } from "@/lib/auth/signupCapacity";
 
 export const dynamic = "force-dynamic";
 
@@ -47,4 +47,29 @@ export async function POST(req: NextRequest) {
       { status: 503 },
     );
   }
+}
+
+// Compensating release for a reservation that never became a real Rival
+// account (e.g. Rival's own users upsert failed right after this reserved a
+// slot here). Best-effort by design - releaseSignupSlot never throws, so
+// this always returns 200 and just reports whether a row was actually
+// released.
+export async function DELETE(req: NextRequest) {
+  if (!authorized(req)) {
+    return NextResponse.json(
+      { status: "temporary_verification_failure", error: { code: "unauthorized" } },
+      { status: 401 },
+    );
+  }
+
+  const body = await req.json().catch(() => null) as { userId?: string } | null;
+  if (!body?.userId) {
+    return NextResponse.json(
+      { status: "temporary_verification_failure", error: { code: "invalid_request" } },
+      { status: 400 },
+    );
+  }
+
+  await releaseSignupSlot(body.userId, "rival");
+  return NextResponse.json({ status: "ok" }, { headers: { "Cache-Control": "no-store, private" } });
 }
