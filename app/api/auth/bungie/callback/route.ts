@@ -213,16 +213,39 @@ export async function GET(req: NextRequest) {
     return errRedirect("user_fetch_threw", String(e));
   }
 
+  // Returning users must never be gated by the shared new-signup capacity
+  // check - only genuinely new sign-ins need to reserve a lifetime slot. A
+  // failed local lookup falls through to the capacity RPC below, so no
+  // capacity-safety guarantee is weakened for actual new signups; it just
+  // means an outage of the local lookup behaves like it did before this fix.
+  let isReturningUser = false;
   try {
-    const capacity = await reserveSignupSlot(userId, "rerolled");
-    if (!capacity.allowed) return errRedirect("signup_cap_reached");
+    const { data: existingAccount, error: existingAccountError } = await adminSupabase
+      .from("bungie_accounts")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingAccountError) throw existingAccountError;
+    isReturningUser = Boolean(existingAccount);
   } catch (e) {
-    console.error("[bungie/callback] signup capacity verification failed", {
-      site: "rerolled",
+    console.error("[bungie/callback] existing-account lookup failed, falling back to shared capacity check", {
       userId,
       reason: e instanceof Error ? e.message : "unknown error",
     });
-    return errRedirect("signup_cap_unavailable", String(e));
+  }
+
+  if (!isReturningUser) {
+    try {
+      const capacity = await reserveSignupSlot(userId, "rerolled");
+      if (!capacity.allowed) return errRedirect("signup_cap_reached");
+    } catch (e) {
+      console.error("[bungie/callback] signup capacity verification failed", {
+        site: "rerolled",
+        userId,
+        reason: e instanceof Error ? e.message : "unknown error",
+      });
+      return errRedirect("signup_cap_unavailable", String(e));
+    }
   }
 
   // Encrypt tokens

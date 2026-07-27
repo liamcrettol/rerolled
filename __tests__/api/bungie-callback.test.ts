@@ -11,6 +11,10 @@ jest.mock("@/lib/supabase/admin", () => ({
 // failure path never reaches encode(), so stubbing it is safe.
 jest.mock("@auth/core/jwt", () => ({ encode: jest.fn() }));
 jest.mock("@/lib/auth/encrypt", () => ({ encryptToken: jest.fn() }));
+const mockReserveSignupSlot = jest.fn();
+jest.mock("@/lib/auth/signupCapacity", () => ({
+  reserveSignupSlot: (...args: unknown[]) => mockReserveSignupSlot(...args),
+}));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let GET: (req: NextRequest) => Promise<any>;
@@ -70,4 +74,118 @@ it("maps a Bungie-supplied error param to the generic bungie_error code", async 
     new NextRequest("https://test.app/api/auth/bungie/callback?error=access_denied&state=valid-state"),
   );
   expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=bungie_error");
+});
+
+describe("shared signup capacity gating (existing vs new users)", () => {
+  const OAUTH_STATE_QUERY = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    gt: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { state: "valid-state", return_to: null }, error: null }),
+    delete: jest.fn().mockReturnThis(),
+  };
+
+  function mockSuccessfulBungieFetches() {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 3600 }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          Response: {
+            bungieNetUser: { membershipId: "user-1", uniqueName: "Guardian#1234" },
+            destinyMemberships: [{ membershipId: "d-1", membershipType: 3 }],
+            primaryMembershipId: "d-1",
+          },
+        }),
+      }) as unknown as typeof fetch;
+  }
+
+  it("skips the shared signup capacity RPC entirely for a user with an existing bungie_accounts row", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockSuccessfulBungieFetches();
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return OAUTH_STATE_QUERY;
+      if (table === "bungie_accounts") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn().mockResolvedValue({ data: { user_id: "user-1" }, error: null }),
+        };
+      }
+      if (table === "users") {
+        return {
+          upsert: jest.fn().mockReturnValue({
+            abortSignal: jest.fn().mockResolvedValue({ error: { message: "duplicate key value" } }),
+          }),
+        };
+      }
+      throw new Error(`unexpected table in this test: ${table}`);
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    // Returning user: the capacity RPC must never be invoked...
+    expect(mockReserveSignupSlot).not.toHaveBeenCalled();
+    // ...and the flow continues past it to the next real step (users upsert),
+    // proving the check was skipped rather than the whole request short-circuiting.
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=user_upsert_failed");
+  });
+
+  it("still enforces the shared signup capacity RPC for a brand-new user", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockSuccessfulBungieFetches();
+    mockReserveSignupSlot.mockRejectedValue(new Error("capacity backend unavailable"));
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return OAUTH_STATE_QUERY;
+      if (table === "bungie_accounts") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+        };
+      }
+      throw new Error(`unexpected table in this test: ${table}`);
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(mockReserveSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=signup_cap_unavailable");
+  });
+
+  it("falls through to the capacity RPC when the local existing-account lookup itself fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockSuccessfulBungieFetches();
+    mockReserveSignupSlot.mockRejectedValue(new Error("capacity backend unavailable"));
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "oauth_states") return OAUTH_STATE_QUERY;
+      if (table === "bungie_accounts") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn().mockResolvedValue({ data: null, error: { message: "connection timed out" } }),
+        };
+      }
+      throw new Error(`unexpected table in this test: ${table}`);
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    // A broken lookup must not be treated as "user is returning" - that would
+    // let a local outage silently bypass the lifetime cap for new signups.
+    expect(mockReserveSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=signup_cap_unavailable");
+  });
 });
