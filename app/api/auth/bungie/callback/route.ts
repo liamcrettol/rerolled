@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/auth/encrypt";
 import { encode } from "@auth/core/jwt";
-import { reserveSignupSlot } from "@/lib/auth/signupCapacity";
+import { releaseSignupSlot, reserveSignupSlot } from "@/lib/auth/signupCapacity";
 
 const BASE_URL = process.env.NEXTAUTH_URL!;
 const OAUTH_STATE_COOKIE = "bungie_oauth_state";
@@ -213,9 +213,15 @@ export async function GET(req: NextRequest) {
     return errRedirect("user_fetch_threw", String(e));
   }
 
+  // Whether THIS request just consumed one of the 150 lifetime slots (as
+  // opposed to an already-registered user passing through). Only a slot this
+  // request itself reserved should ever be released below - never one that
+  // belongs to an existing account.
+  let slotReserved = false;
   try {
     const capacity = await reserveSignupSlot(userId, "rerolled");
     if (!capacity.allowed) return errRedirect("signup_cap_reached");
+    slotReserved = !capacity.already_registered;
   } catch (e) {
     console.error("[bungie/callback] signup capacity verification failed", {
       site: "rerolled",
@@ -232,6 +238,7 @@ export async function GET(req: NextRequest) {
     encryptedAccess = await encryptToken(tokens.access_token);
     if (tokens.refresh_token) encryptedRefresh = await encryptToken(tokens.refresh_token);
   } catch (e) {
+    if (slotReserved) await releaseSignupSlot(userId);
     return errRedirect("encrypt_failed", String(e));
   }
 
@@ -249,6 +256,7 @@ export async function GET(req: NextRequest) {
   const skipDependentDbWrites = userErr && isTransientSupabaseError(userErr);
   if (userErr) {
     if (!isTransientSupabaseError(userErr)) {
+      if (slotReserved) await releaseSignupSlot(userId);
       return errRedirect("user_upsert_failed", formatSupabaseError(userErr));
     }
     console.error(
@@ -280,6 +288,7 @@ export async function GET(req: NextRequest) {
       );
   if (accountErr) {
     if (!isTransientSupabaseError(accountErr)) {
+      if (slotReserved) await releaseSignupSlot(userId);
       return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
     }
     console.error(

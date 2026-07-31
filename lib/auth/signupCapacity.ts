@@ -45,3 +45,24 @@ export async function reserveSignupSlot(
   }
   throw new Error(`Signup capacity verification failed: ${lastError instanceof Error ? lastError.message : "unknown error"}`);
 }
+
+// Compensates a reserveSignupSlot() call whose account was never actually
+// persisted (e.g. token encryption or the users/bungie_accounts upsert failed
+// non-transiently afterward). Best-effort: swallows its own errors so a
+// release failure never masks the original signup error redirect. Never call
+// this for an already_registered result - that slot belongs to an existing
+// account, not this request.
+export async function releaseSignupSlot(userId: string): Promise<void> {
+  try {
+    const { error } = await withSupabaseTimeout(
+      adminSupabase.rpc("release_signup_slot", { p_user_id: userId }),
+      1_500
+    );
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    console.error("[signupCapacity] failed to release an abandoned signup slot", {
+      userId,
+      reason: error instanceof Error ? error.message : "unknown error",
+    });
+  }
+}
