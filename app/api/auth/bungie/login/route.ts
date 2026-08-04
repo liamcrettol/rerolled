@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
   const rawReturnTo = req.nextUrl.searchParams.get("returnTo");
   const returnTo = rawReturnTo && SAFE_RETURN_TO_RE.test(rawReturnTo) ? rawReturnTo : null;
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  // A trailing slash here produces "//api/auth/bungie/callback" below, which
+  // fails Bungie's exact-match redirect_uri check - strip it defensively
+  // rather than relying on NEXTAUTH_URL always being configured correctly.
+  const baseUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
   const redirectUri =
     process.env.BUNGIE_REDIRECT_URI ||
     `${baseUrl}/api/auth/bungie/callback`;

@@ -44,7 +44,9 @@ CREATE INDEX IF NOT EXISTS draft_picks_session_idx ON draft_picks(session_id);
 ALTER TABLE draft_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE draft_picks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "anon read draft_sessions" ON draft_sessions;
 CREATE POLICY "anon read draft_sessions" ON draft_sessions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "anon read draft_picks" ON draft_picks;
 CREATE POLICY "anon read draft_picks" ON draft_picks FOR SELECT USING (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE draft_sessions;

@@ -12,9 +12,10 @@ jest.mock("@/lib/supabase/admin", () => ({
 jest.mock("@auth/core/jwt", () => ({ encode: jest.fn() }));
 jest.mock("@/lib/auth/encrypt", () => ({ encryptToken: jest.fn() }));
 const mockReserveSignupSlot = jest.fn();
+const mockReleaseSignupSlot = jest.fn();
 jest.mock("@/lib/auth/signupCapacity", () => ({
   reserveSignupSlot: (...args: unknown[]) => mockReserveSignupSlot(...args),
-  releaseSignupSlot: jest.fn(),
+  releaseSignupSlot: (...args: unknown[]) => mockReleaseSignupSlot(...args),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,5 +169,28 @@ describe("signup capacity check for returning users (#367)", () => {
       new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
     );
     expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=signup_cap_unavailable");
+  });
+
+  // #368 follow-up - encryptToken() throwing left a reserved slot orphaned
+  // forever, same failure shape as the user_upsert_failed branch which
+  // already releases it.
+  it("releases the reserved slot when token encryption fails for a new user", async () => {
+    setup(false);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+    encryptToken.mockRejectedValue(new Error("encryption backend unavailable"));
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=encrypt_failed");
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
   });
 });

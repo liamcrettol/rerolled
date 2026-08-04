@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS lobby_draft_votes (
 CREATE INDEX IF NOT EXISTS lobby_draft_votes_round_idx ON lobby_draft_votes(round_id);
 
 ALTER TABLE lobby_draft_votes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "anon read lobby_draft_votes" ON lobby_draft_votes;
 CREATE POLICY "anon read lobby_draft_votes" ON lobby_draft_votes FOR SELECT USING (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE lobby_draft_votes;

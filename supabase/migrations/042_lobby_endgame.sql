@@ -55,7 +55,9 @@ CREATE INDEX IF NOT EXISTS lobby_endgame_exotic_picks_user_round_idx ON lobby_en
 
 ALTER TABLE lobby_endgame_rounds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lobby_endgame_exotic_picks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "anon read lobby_endgame_rounds" ON lobby_endgame_rounds;
 CREATE POLICY "anon read lobby_endgame_rounds" ON lobby_endgame_rounds FOR SELECT USING (true);
+DROP POLICY IF EXISTS "anon read lobby_endgame_exotic_picks" ON lobby_endgame_exotic_picks;
 CREATE POLICY "anon read lobby_endgame_exotic_picks" ON lobby_endgame_exotic_picks FOR SELECT USING (true);
 
 -- Direct table subscription (same pattern as lobby_draft_options in 034) so

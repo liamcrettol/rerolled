@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS lobby_draft_options (
 CREATE INDEX IF NOT EXISTS lobby_draft_options_round_idx ON lobby_draft_options(round_id);
 
 ALTER TABLE lobby_draft_options ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "anon read lobby_draft_options" ON lobby_draft_options;
 CREATE POLICY "anon read lobby_draft_options" ON lobby_draft_options FOR SELECT USING (true);
 
 ALTER PUBLICATION supabase_realtime ADD TABLE lobby_draft_options;

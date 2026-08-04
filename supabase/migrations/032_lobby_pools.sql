@@ -25,4 +25,5 @@ CREATE TABLE IF NOT EXISTS lobby_pools (
 ALTER TABLE lobby_pools ENABLE ROW LEVEL SECURITY;
 -- Read-only to anon (same posture as other lobby tables); writes go through the
 -- service-role client in the intersection route.
+DROP POLICY IF EXISTS "anon read lobby_pools" ON lobby_pools;
 CREATE POLICY "anon read lobby_pools" ON lobby_pools FOR SELECT USING (true);
