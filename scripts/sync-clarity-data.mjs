@@ -35,11 +35,30 @@ function extractText(enBlocks) {
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// GitHub raw content occasionally 5xx transiently; retry a few times with
+// backoff so a single blip doesn't fail the whole weekly scheduled run.
+async function fetchWithRetry(url, retries = 3) {
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (err) {
+      if (attempt > retries) throw err;
+      console.log(`Fetch ${url} failed (${err.message}); retrying (${attempt}/${retries})...`);
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+      continue;
+    }
+    if (res.ok || res.status < 500 || attempt > retries) return res;
+    console.log(`Fetch ${url} returned ${res.status}; retrying (${attempt}/${retries})...`);
+    await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+  }
+}
+
 async function main() {
   const knownPerks = JSON.parse(readFileSync(`${DATA_DIR}/perk-data.json`, "utf8"));
 
   console.log("Downloading Clarity database...");
-  const res = await fetch(SOURCE_URL);
+  const res = await fetchWithRetry(SOURCE_URL);
   if (!res.ok) throw new Error(`Clarity database download ${res.status}`);
   const all = await res.json();
 

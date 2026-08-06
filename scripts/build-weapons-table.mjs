@@ -69,8 +69,29 @@ function apiHeaders() {
   return process.env.BUNGIE_API_KEY ? { "X-API-Key": process.env.BUNGIE_API_KEY } : {};
 }
 
+// Bungie's manifest/CDN endpoints occasionally 5xx transiently; retry a
+// handful of times with backoff before giving up, so a single blip doesn't
+// fail the whole weekly scheduled run. 4xx responses are treated as
+// permanent and not retried.
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, options);
+    } catch (err) {
+      if (attempt > retries) throw err;
+      console.log(`Fetch ${url} failed (${err.message}); retrying (${attempt}/${retries})...`);
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+      continue;
+    }
+    if (res.ok || res.status < 500 || attempt > retries) return res;
+    console.log(`Fetch ${url} returned ${res.status}; retrying (${attempt}/${retries})...`);
+    await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+  }
+}
+
 async function main() {
-  const manifestRes = await fetch(PLATFORM, { headers: apiHeaders() });
+  const manifestRes = await fetchWithRetry(PLATFORM, { headers: apiHeaders() });
   if (!manifestRes.ok) throw new Error(`Manifest endpoint ${manifestRes.status}`);
   const manifest = await manifestRes.json();
   const version = manifest.Response.version;
@@ -91,8 +112,8 @@ async function main() {
 
   console.log(`New manifest ${version} (was ${current || "none"}); downloading item table...`);
   const [itemsRes, plugSetsRes] = await Promise.all([
-    fetch(`${CDN}${itemPath}`),
-    fetch(`${CDN}${plugSetPath}`),
+    fetchWithRetry(`${CDN}${itemPath}`),
+    fetchWithRetry(`${CDN}${plugSetPath}`),
   ]);
   if (!itemsRes.ok) throw new Error(`Item table download ${itemsRes.status}`);
   if (!plugSetsRes.ok) throw new Error(`Plug set table download ${plugSetsRes.status}`);
