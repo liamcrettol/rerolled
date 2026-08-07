@@ -34,12 +34,15 @@ export async function GET(req: NextRequest) {
   // We join through roll_history to find the apply timestamp per lobby.
   const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
 
+  // Bounded defensively: at current scale this cutoff window holds far fewer
+  // rows, but an unbounded scan here would grow with lobby volume forever.
   const { data: pendingApplies } = await adminSupabase
     .from("roll_history")
     .select("lobby_id, round_id, applied_at")
     .not("applied_at", "is", null)
     .gte("applied_at", cutoff)
-    .order("applied_at", { ascending: false });
+    .order("applied_at", { ascending: false })
+    .limit(500);
 
   if (!pendingApplies?.length) {
     return NextResponse.json({ processed: 0, message: "No pending applies" });

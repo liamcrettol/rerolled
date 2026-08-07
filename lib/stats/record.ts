@@ -94,7 +94,12 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
     return { status: "already_recorded", stats: mapStoredStats(existing?.player_game_stats ?? []) };
   }
 
-  await adminSupabase.from("player_game_stats").insert(
+  // These inserts must not fail silently: game_sessions(round_id) is already
+  // committed, so a caller checking "does a session exist for this round" will
+  // treat it as fully recorded from here on and never call detectAndRecordGame
+  // for this round again. Throwing surfaces the failure to both callers'
+  // error logging instead of leaving a session with no stats forever.
+  const { error: statsError } = await adminSupabase.from("player_game_stats").insert(
     playerStats.map((s) => ({
       game_session_id: gameSession.id,
       user_id: s.userId,
@@ -107,15 +112,21 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
       won: s.won,
     }))
   );
+  if (statsError) {
+    throw new Error(`Failed to persist player_game_stats for round ${roundId}: ${statsError.message}`);
+  }
 
   if (weaponKills.length) {
-    await adminSupabase.from("weapon_round_kills").insert(
+    const { error: weaponError } = await adminSupabase.from("weapon_round_kills").insert(
       weaponKills.map((w) => ({
         game_session_id: gameSession.id,
         item_hash: w.itemHash,
         total_kills: w.totalKills,
       }))
     );
+    if (weaponError) {
+      throw new Error(`Failed to persist weapon_round_kills for round ${roundId}: ${weaponError.message}`);
+    }
   }
 
   await advanceRoundAndRotate(lobbyId, roundId);
