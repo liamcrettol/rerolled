@@ -107,7 +107,11 @@ export async function POST(req: NextRequest) {
 
     if (!gameSession) return NextResponse.json({ error: "Failed to save session" }, { status: 500 });
 
-    await adminSupabase.from("player_game_stats").insert(
+    // These inserts must not fail silently: game_sessions is already committed,
+    // so the race checks above will treat this round as already handled and
+    // never retry it. Throwing surfaces the failure instead of leaving a
+    // session with no stats forever (see lib/stats/record.ts for the same fix).
+    const { error: statsError } = await adminSupabase.from("player_game_stats").insert(
       playerStats.map((s) => ({
         game_session_id: gameSession.id,
         user_id: s.userId,
@@ -120,15 +124,21 @@ export async function POST(req: NextRequest) {
         won: s.won,
       }))
     );
+    if (statsError) {
+      throw new Error(`Failed to persist player_game_stats for lobby ${lobbyId}: ${statsError.message}`);
+    }
 
     if (weaponKills.length) {
-      await adminSupabase.from("weapon_round_kills").insert(
+      const { error: weaponError } = await adminSupabase.from("weapon_round_kills").insert(
         weaponKills.map((w) => ({
           game_session_id: gameSession.id,
           item_hash: w.itemHash,
           total_kills: w.totalKills,
         }))
       );
+      if (weaponError) {
+        throw new Error(`Failed to persist weapon_round_kills for lobby ${lobbyId}: ${weaponError.message}`);
+      }
     }
 
     return NextResponse.json({ ok: true, stats: playerStats });
