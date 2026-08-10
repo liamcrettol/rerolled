@@ -317,6 +317,11 @@ export async function GET(req: NextRequest) {
       );
   if (accountErr) {
     if (!isTransientSupabaseError(accountErr)) {
+      // Same orphaned-slot risk as the encrypt_failed/user_upsert_failed
+      // branches above: the users upsert already succeeded but no
+      // bungie_accounts row exists, so this never becomes a signable-in
+      // account. Give the reserved slot back.
+      if (reservedNewSlot) await releaseSignupSlot(userId, "rerolled");
       return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
     }
     console.error(

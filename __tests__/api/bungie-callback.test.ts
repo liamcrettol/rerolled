@@ -193,4 +193,40 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=encrypt_failed");
     expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
   });
+
+  // Found during the 2026-08-10 scheduled production health audit: unlike its
+  // encrypt_failed/user_upsert_failed siblings above, this branch left a
+  // reserved slot orphaned forever when the users upsert succeeded but the
+  // bungie_accounts upsert failed non-transiently - no account is ever
+  // signable-in from that state, so the slot must be released too.
+  it("releases the reserved slot when the bungie_accounts upsert fails for a new user", async () => {
+    setup(false);
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "bungie_accounts") {
+        return {
+          upsert: jest.fn().mockReturnThis(),
+          abortSignal: jest.fn().mockReturnValue({
+            error: { message: "duplicate key value violates unique constraint", code: "23505" },
+          }),
+        };
+      }
+      return tableQuery(false);
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "https://test.app/auth/error?error=account_upsert_failed",
+    );
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
 });
