@@ -194,3 +194,151 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
   });
 });
+
+// Production audit finding — reservedNewSlot was set to true on ANY
+// allowed=true response, including already_registered=true. A real prior
+// registrant whose local bungie_accounts lookup missed/timed out (so
+// isReturningUser=false) would hit the capacity RPC, get recognized as
+// already registered, and then have their genuine ledger row deleted by
+// releaseSignupSlot if a later write in the same request failed - silently
+// freeing a slot and letting the lifetime cap drift upward. Only a
+// reservation this request actually created may ever be released.
+describe("signup slot release safety for real prior registrants", () => {
+  const encode = jest.requireMock("@auth/core/jwt").encode as jest.Mock;
+  const encryptToken = jest.requireMock("@/lib/auth/encrypt").encryptToken as jest.Mock;
+
+  function tableQuery(writeError: { message: string; code?: string } | null = null) {
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      upsert: jest.fn().mockReturnThis(),
+      abortSignal: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { state: "valid-state", return_to: null }, error: null }),
+      // isReturningUser's local lookup always misses in these tests - the
+      // scenario under test is exactly what happens when that lookup can't
+      // find an account that the capacity ledger already knows about.
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+      error: writeError,
+    };
+  }
+
+  function setupTables(opts: { usersError?: typeof WRITE_ERROR; accountsError?: typeof WRITE_ERROR } = {}) {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") return tableQuery(opts.usersError ?? null);
+      if (table === "bungie_accounts") return tableQuery(opts.accountsError ?? null);
+      return tableQuery(null);
+    });
+  }
+
+  function setupFetch() {
+    global.fetch = jest.fn((url: string) => {
+      if (url.includes("/App/OAuth/token/")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 3600 }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          Response: {
+            bungieNetUser: { membershipId: "user-1", uniqueName: "Guardian#1234" },
+            destinyMemberships: [{ membershipId: "d1", membershipType: 3 }],
+            primaryMembershipId: "d1",
+          },
+        }),
+      });
+    }) as unknown as typeof fetch;
+    encode.mockResolvedValue("signed-jwt");
+    encryptToken.mockResolvedValue("encrypted");
+  }
+
+  const WRITE_ERROR = { message: "duplicate key value violates unique constraint", code: "23505" };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("does not release a real prior registrant's slot when the users upsert fails", async () => {
+    setupFetch();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setupTables({ usersError: WRITE_ERROR });
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: true,
+      user_count: 150,
+      max_users: 150,
+      status: "already_registered",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=user_upsert_failed");
+    expect(mockReleaseSignupSlot).not.toHaveBeenCalled();
+  });
+
+  it("still releases a genuinely new user's slot when the users upsert fails", async () => {
+    setupFetch();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setupTables({ usersError: WRITE_ERROR });
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=user_upsert_failed");
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
+
+  it("does not release a real prior registrant's slot when the bungie_accounts upsert fails", async () => {
+    setupFetch();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setupTables({ accountsError: WRITE_ERROR });
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: true,
+      user_count: 150,
+      max_users: 150,
+      status: "already_registered",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=account_upsert_failed");
+    expect(mockReleaseSignupSlot).not.toHaveBeenCalled();
+  });
+
+  it("releases a genuinely new user's slot when the bungie_accounts upsert fails", async () => {
+    setupFetch();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    setupTables({ accountsError: WRITE_ERROR });
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=account_upsert_failed");
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
+});

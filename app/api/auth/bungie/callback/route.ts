@@ -241,7 +241,11 @@ export async function GET(req: NextRequest) {
     try {
       const capacity = await reserveSignupSlot(userId, "rerolled");
       if (!capacity.allowed) return errRedirect("signup_cap_reached");
-      reservedNewSlot = true;
+      // already_registered=true means this call didn't create a new ledger
+      // row - it found a pre-existing one for a real prior registrant whose
+      // local bungie_accounts lookup above happened to miss/time out. Only a
+      // reservation THIS request created may ever be released below.
+      reservedNewSlot = !capacity.already_registered;
     } catch (e) {
       console.error("[bungie/callback] signup capacity verification failed", {
         site: "rerolled",
@@ -317,6 +321,10 @@ export async function GET(req: NextRequest) {
       );
   if (accountErr) {
     if (!isTransientSupabaseError(accountErr)) {
+      // Same orphaned-slot risk as the user_upsert_failed branch above: no
+      // tokens were ever stored, so this identity can never authenticate,
+      // yet it would otherwise permanently occupy one of the lifetime slots.
+      if (reservedNewSlot) await releaseSignupSlot(userId, "rerolled");
       return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
     }
     console.error(
