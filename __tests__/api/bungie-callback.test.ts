@@ -193,4 +193,67 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=encrypt_failed");
     expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
   });
+
+  // Bug found during the 2026-08-13 production health audit: a slot the RPC
+  // reports as `already_registered` was still marked as ours to release,
+  // so a later write failure could hand back a real, already-consumed slot
+  // to a different new signup and let the lifetime cap be exceeded.
+  it("never releases a slot the RPC reports as already_registered, even if a later write fails", async () => {
+    setup(false);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: true,
+      user_count: 150,
+      max_users: 150,
+      status: "already_registered",
+    });
+    encryptToken.mockRejectedValue(new Error("encryption backend unavailable"));
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=encrypt_failed");
+    expect(mockReleaseSignupSlot).not.toHaveBeenCalled();
+  });
+
+  // Bug found during the 2026-08-13 production health audit: the
+  // bungie_accounts upsert failure branch never released a slot it had
+  // reserved, unlike the sibling encrypt_failed/user_upsert_failed
+  // branches - a non-transient bungie_accounts write failure permanently
+  // shrank the lifetime cap for a signup that never completed.
+  it("releases the reserved slot when the bungie_accounts upsert fails for a new user", async () => {
+    setup(false);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "bungie_accounts") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          upsert: jest.fn().mockReturnThis(),
+          abortSignal: jest.fn().mockReturnValue({
+            maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+            then: (resolve: (v: { error: { message: string } }) => void) =>
+              resolve({ error: { message: "constraint violation" } }),
+          }),
+        };
+      }
+      return tableQuery(false);
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=account_upsert_failed");
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
 });

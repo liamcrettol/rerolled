@@ -241,7 +241,10 @@ export async function GET(req: NextRequest) {
     try {
       const capacity = await reserveSignupSlot(userId, "rerolled");
       if (!capacity.allowed) return errRedirect("signup_cap_reached");
-      reservedNewSlot = true;
+      // Only a slot this request itself newly consumed should ever be
+      // released below - a returning user's already_registered result
+      // must never be treated as "ours to give back".
+      reservedNewSlot = !capacity.already_registered;
     } catch (e) {
       console.error("[bungie/callback] signup capacity verification failed", {
         site: "rerolled",
@@ -317,6 +320,11 @@ export async function GET(req: NextRequest) {
       );
   if (accountErr) {
     if (!isTransientSupabaseError(accountErr)) {
+      // Same orphaned-slot risk as the encrypt_failed/user_upsert_failed
+      // branches above: the signup slot was already reserved, but no
+      // usable bungie_accounts row was ever created, so no account exists
+      // to consume it - give it back.
+      if (reservedNewSlot) await releaseSignupSlot(userId, "rerolled");
       return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
     }
     console.error(
