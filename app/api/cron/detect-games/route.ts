@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
 
   // Mark lobbies idle for >2 hours as done so they stop accumulating.
   const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  await closeIdleLobbies(idleCutoff);
+  const { error: idleCloseError } = await closeIdleLobbies(idleCutoff);
+  if (idleCloseError) {
+    console.error("[detect-games] idle-lobby close failed", { reason: idleCloseError.message });
+  }
 
   // Find lobbies that have an apply in the last 3 hours but no game_session after it.
   // We join through roll_history to find the apply timestamp per lobby.
