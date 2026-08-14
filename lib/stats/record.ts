@@ -139,17 +139,23 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
  * locked) and open the next round.
  */
 async function advanceRoundAndRotate(lobbyId: string, roundId: string): Promise<void> {
-  const { data: roundState } = await adminSupabase
+  const { data: roundState, error: roundStateError } = await adminSupabase
     .from("lobby_rounds")
     .select("captain_rotated")
     .eq("id", roundId)
     .single();
+  if (roundStateError) {
+    console.error("[stats/record] round-state read failed", { roundId, reason: roundStateError.message });
+  }
 
-  const { data: lobby } = await adminSupabase
+  const { data: lobby, error: lobbyError } = await adminSupabase
     .from("lobbies")
     .select("current_round, captain_locked")
     .eq("id", lobbyId)
     .single();
+  if (lobbyError) {
+    console.error("[stats/record] lobby read failed", { lobbyId, reason: lobbyError.message });
+  }
 
   if (!roundState?.captain_rotated && !lobby?.captain_locked) {
     await rotateCaptain(lobbyId);
