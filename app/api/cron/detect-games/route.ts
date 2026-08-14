@@ -39,13 +39,17 @@ export async function GET(req: NextRequest) {
 
   // Bounded defensively: at current scale this cutoff window holds far fewer
   // rows, but an unbounded scan here would grow with lobby volume forever.
-  const { data: pendingApplies } = await adminSupabase
+  const { data: pendingApplies, error: pendingAppliesError } = await adminSupabase
     .from("roll_history")
     .select("lobby_id, round_id, applied_at")
     .not("applied_at", "is", null)
     .gte("applied_at", cutoff)
     .order("applied_at", { ascending: false })
     .limit(500);
+
+  if (pendingAppliesError) {
+    console.error("[detect-games] pending-applies query failed", { reason: pendingAppliesError.message });
+  }
 
   if (!pendingApplies?.length) {
     return NextResponse.json({ processed: 0, message: "No pending applies" });
@@ -61,10 +65,14 @@ export async function GET(req: NextRequest) {
 
   // Filter to lobbies that don't already have a session after their latest apply
   const lobbyIds = [...byLobby.keys()];
-  const { data: existingSessions } = await adminSupabase
+  const { data: existingSessions, error: existingSessionsError } = await adminSupabase
     .from("game_sessions")
     .select("lobby_id, played_at")
     .in("lobby_id", lobbyIds);
+
+  if (existingSessionsError) {
+    console.error("[detect-games] existing-sessions query failed", { reason: existingSessionsError.message });
+  }
 
   const stuck: Array<{ lobbyId: string; roundId: string; appliedAt: string }> = [];
   for (const [lobbyId, { round_id, applied_at }] of byLobby) {
@@ -81,10 +89,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Skip any lobbies that are done (ended by captain, last-member-leave, or idle timeout above)
-  const { data: lobbyStatuses } = await adminSupabase
+  const { data: lobbyStatuses, error: lobbyStatusesError } = await adminSupabase
     .from("lobbies")
     .select("id, status")
     .in("id", stuck.map((s) => s.lobbyId));
+
+  if (lobbyStatusesError) {
+    console.error("[detect-games] lobby-statuses query failed", { reason: lobbyStatusesError.message });
+  }
 
   const doneIds = new Set((lobbyStatuses ?? []).filter((l) => l.status === "done").map((l) => l.id));
   const activeStuck = stuck.filter((s) => !doneIds.has(s.lobbyId));
