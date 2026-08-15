@@ -20,11 +20,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
     if (isDatabaseUnavailableError(err)) {
+      console.error("[lobby/join] database unavailable:", err instanceof Error ? err.message : err);
       return NextResponse.json({ error: DATABASE_UNAVAILABLE_MESSAGE }, { status: 503 });
     }
 
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : msg === "Lobby not found" ? 404 : 500;
+    if (status === 500) console.error("[lobby/join] request failed:", msg);
     return NextResponse.json({ error: msg }, { status });
   }
 }

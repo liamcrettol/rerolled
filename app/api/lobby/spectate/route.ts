@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
+    if (status !== 401) console.error("[lobby/spectate] request failed:", msg);
     return NextResponse.json({ error: msg }, { status });
   }
 }
