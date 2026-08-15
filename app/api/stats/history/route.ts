@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
       .from("game_sessions")
       .select("id, played_at, player_count, roulette_hashes, round_id, map_name")
       .eq("lobby_id", lobbyId)
-      .order("played_at", { ascending: true });
+      .order("played_at", { ascending: true })
+      .limit(200);
     if (sessionsError) throw new Error(sessionsError.message);
 
     if (!sessions || sessions.length === 0) return NextResponse.json({ rounds: [] });

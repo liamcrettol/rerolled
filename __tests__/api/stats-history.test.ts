@@ -22,7 +22,8 @@ it("returns a clean JSON error instead of a bare 500 when the sessions query fai
   const query = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    order: jest.fn().mockResolvedValue({ data: null, error: { message: "connection reset" } }),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockResolvedValue({ data: null, error: { message: "connection reset" } }),
   };
   mockFrom.mockReturnValue(query);
 
@@ -44,7 +45,8 @@ it("returns an empty rounds list when there are no sessions", async () => {
   const query = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
-    order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockResolvedValue({ data: [], error: null }),
   };
   mockFrom.mockReturnValue(query);
 

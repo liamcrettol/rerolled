@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
     if (isDatabaseUnavailableError(err)) {
+      console.error("[lobby/create] database unavailable:", err instanceof Error ? err.message : err);
       return NextResponse.json(
         { error: DATABASE_UNAVAILABLE_MESSAGE },
         { status: 503 }
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[lobby/create] request failed:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

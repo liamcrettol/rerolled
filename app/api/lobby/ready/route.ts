@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("[lobby/ready] request failed:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

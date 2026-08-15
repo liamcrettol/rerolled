@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     .select("id, code, status, last_active_at");
 
   if (error) {
+    console.error("[cron/cleanup-lobbies] closeIdleLobbies failed:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
