@@ -280,16 +280,23 @@ export async function GET(req: NextRequest) {
       { onConflict: "id" }
     ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
   );
-  const skipDependentDbWrites = userErr && isTransientSupabaseError(userErr);
+  // The "continue with a session-only cookie" fallback below only makes sense
+  // for a returning user's transient blip - they already have real
+  // users/bungie_accounts rows, so a brief outage just means those rows go
+  // one write cycle stale. For a request that reserved a brand-new slot
+  // (reservedNewSlot), there is no existing account to fall back on: a
+  // transient failure here would issue a session with no backing DB rows at
+  // all *and* leak the reserved slot forever, since only the non-transient
+  // branch used to release it. Treat "transient but this was a fresh signup"
+  // the same as a hard failure - fail closed and give the slot back.
+  const skipDependentDbWrites = userErr && isTransientSupabaseError(userErr) && !reservedNewSlot;
   if (userErr) {
-    if (!isTransientSupabaseError(userErr)) {
-      // The signup slot was already reserved above but no account was ever
-      // created - give it back so a never-completed signup doesn't
-      // permanently shrink the lifetime cap. Only for a slot this request
-      // itself reserved; a returning user's original slot must never be
-      // released here.
+    if (!isTransientSupabaseError(userErr) || reservedNewSlot) {
       if (reservedNewSlot) await releaseSignupSlot(userId, "rerolled");
-      return errRedirect("user_upsert_failed", formatSupabaseError(userErr));
+      return errRedirect(
+        isTransientSupabaseError(userErr) ? "user_upsert_transient_failure" : "user_upsert_failed",
+        formatSupabaseError(userErr)
+      );
     }
     console.error(
       "[bungie/callback] continuing with session-only auth after users upsert outage:",
@@ -319,13 +326,16 @@ export async function GET(req: NextRequest) {
         ).abortSignal(AbortSignal.timeout(AUTH_DB_WRITE_TIMEOUT_MS))
       );
   if (accountErr) {
-    if (!isTransientSupabaseError(accountErr)) {
-      // Same orphaned-slot risk as the encrypt_failed/user_upsert_failed
-      // branches above: the signup slot was already reserved, but no
-      // usable bungie_accounts row was ever created, so no account exists
-      // to consume it - give it back.
+    // Same reasoning as the users-upsert branch above: a transient failure
+    // is only safe to shrug off when this wasn't a fresh signup. A freshly
+    // reserved slot with no bungie_accounts row ever written must fail
+    // closed and release the slot, not silently issue a broken session.
+    if (!isTransientSupabaseError(accountErr) || reservedNewSlot) {
       if (reservedNewSlot) await releaseSignupSlot(userId, "rerolled");
-      return errRedirect("account_upsert_failed", formatSupabaseError(accountErr));
+      return errRedirect(
+        isTransientSupabaseError(accountErr) ? "account_upsert_transient_failure" : "account_upsert_failed",
+        formatSupabaseError(accountErr)
+      );
     }
     console.error(
       "[bungie/callback] continuing with session-only auth after bungie_accounts upsert outage:",

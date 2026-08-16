@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
 
   if (pendingAppliesError) {
     console.error("[detect-games] pending-applies query failed", { reason: pendingAppliesError.message });
+    return NextResponse.json({ error: pendingAppliesError.message }, { status: 500 });
   }
 
   if (!pendingApplies?.length) {
@@ -72,6 +73,7 @@ export async function GET(req: NextRequest) {
 
   if (existingSessionsError) {
     console.error("[detect-games] existing-sessions query failed", { reason: existingSessionsError.message });
+    return NextResponse.json({ error: existingSessionsError.message }, { status: 500 });
   }
 
   const stuck: Array<{ lobbyId: string; roundId: string; appliedAt: string }> = [];
@@ -96,6 +98,7 @@ export async function GET(req: NextRequest) {
 
   if (lobbyStatusesError) {
     console.error("[detect-games] lobby-statuses query failed", { reason: lobbyStatusesError.message });
+    return NextResponse.json({ error: lobbyStatusesError.message }, { status: 500 });
   }
 
   const doneIds = new Set((lobbyStatuses ?? []).filter((l) => l.status === "done").map((l) => l.id));
