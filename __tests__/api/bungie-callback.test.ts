@@ -256,4 +256,110 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=account_upsert_failed");
     expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
   });
+
+  // Bug found during the 2026-08-16 production health audit: a *transient*
+  // users-upsert failure took the "continue with session-only auth" path
+  // unconditionally, even for a brand-new signup that had just reserved a
+  // slot. That left a session cookie with no backing users/bungie_accounts
+  // rows at all, and (unlike the non-transient branch) never released the
+  // slot - a permanent leak on every transient blip during a fresh signup.
+  it("fails closed and releases the reserved slot when the users upsert fails transiently for a new user", async () => {
+    setup(false);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return {
+          upsert: jest.fn().mockReturnThis(),
+          abortSignal: jest.fn().mockReturnValue({
+            then: (resolve: (v: { error: { message: string } }) => void) =>
+              resolve({ error: { message: "request timed out" } }),
+          }),
+        };
+      }
+      return tableQuery(false);
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "https://test.app/auth/error?error=user_upsert_transient_failure",
+    );
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
+
+  // Same leak, second write site: a transient bungie_accounts-upsert failure
+  // on a fresh signup must also fail closed and release the slot rather than
+  // continuing with a session that has no bungie_accounts row.
+  it("fails closed and releases the reserved slot when the bungie_accounts upsert fails transiently for a new user", async () => {
+    setup(false);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "bungie_accounts") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          upsert: jest.fn().mockReturnThis(),
+          abortSignal: jest.fn().mockReturnValue({
+            maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+            then: (resolve: (v: { error: { message: string } }) => void) =>
+              resolve({ error: { message: "connection timed out" } }),
+          }),
+        };
+      }
+      return tableQuery(false);
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    mockReserveSignupSlot.mockResolvedValue({
+      allowed: true,
+      already_registered: false,
+      user_count: 10,
+      max_users: 150,
+      status: "available",
+    });
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "https://test.app/auth/error?error=account_upsert_transient_failure",
+    );
+    expect(mockReleaseSignupSlot).toHaveBeenCalledWith("user-1", "rerolled");
+  });
+
+  // Guard the resilience this fallback was actually built for (#367-adjacent):
+  // a RETURNING user (no slot reserved this request) must still get a
+  // session-only cookie on a transient blip instead of being locked out.
+  it("still continues with session-only auth on a transient users-upsert failure for a returning user", async () => {
+    setup(true);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "users") {
+        return {
+          upsert: jest.fn().mockReturnThis(),
+          abortSignal: jest.fn().mockReturnValue({
+            then: (resolve: (v: { error: { message: string } }) => void) =>
+              resolve({ error: { message: "request timed out" } }),
+          }),
+        };
+      }
+      return tableQuery(true);
+    });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+
+    expect(res.headers.get("location")).toBe("https://test.app/dashboard");
+    expect(mockReserveSignupSlot).not.toHaveBeenCalled();
+    expect(mockReleaseSignupSlot).not.toHaveBeenCalled();
+  });
 });
