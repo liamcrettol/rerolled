@@ -107,6 +107,43 @@ async function readStoredTokens(userId: string) {
 // token with a dead one, silently breaking background sync until the user
 // signs in again. Writes are compare-and-swapped against the exact ciphertext
 // that was read, and a lost race adopts the winner's tokens instead of failing.
+// Bungie invalidates the redeemed refresh token the moment the exchange
+// above succeeds, so by the time we're persisting the replacement, there is
+// no going back: a persist failure here doesn't just fail this request, it
+// strands the account (DB keeps a dead refresh token, the live one is lost).
+// A single transient Supabase blip shouldn't cost a user their session, so
+// retry a couple of times before giving up.
+async function persistRefreshedBungieTokens(
+  userId: string,
+  refreshTokenEnc: string,
+  patch: Record<string, unknown>
+) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await withSupabaseTimeout(
+        adminSupabase
+          .from("bungie_accounts")
+          .update(patch)
+          .eq("user_id", userId)
+          .eq("refresh_token_enc", refreshTokenEnc)
+          .select("user_id")
+      );
+    } catch (err) {
+      if (attempt === maxAttempts) {
+        console.error(
+          "[auth] failed to persist refreshed Bungie tokens for user",
+          userId,
+          err instanceof Error ? err.message : String(err)
+        );
+        throw new Error("Bungie token refresh could not be saved. Please try again");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 async function refreshBungieToken(userId: string, refreshTokenEnc: string): Promise<string> {
   const refreshToken = await decryptToken(refreshTokenEnc).catch((err) => {
     throw normalizeBungieTokenError(err);
@@ -147,20 +184,13 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
-  const { data: updated } = await withSupabaseTimeout(
-    adminSupabase
-      .from("bungie_accounts")
-      .update({
-        access_token_enc: encryptedAccess,
-        ...(encryptedRefresh ? { refresh_token_enc: encryptedRefresh } : {}),
-        expires_at: expiresAt,
-        oauth_client_id: process.env.BUNGIE_CLIENT_ID ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId)
-      .eq("refresh_token_enc", refreshTokenEnc)
-      .select("user_id")
-  );
+  const { data: updated } = await persistRefreshedBungieTokens(userId, refreshTokenEnc, {
+    access_token_enc: encryptedAccess,
+    ...(encryptedRefresh ? { refresh_token_enc: encryptedRefresh } : {}),
+    expires_at: expiresAt,
+    oauth_client_id: process.env.BUNGIE_CLIENT_ID ?? null,
+    updated_at: new Date().toISOString(),
+  });
   if (!updated || updated.length === 0) {
     // Lost the write race: a concurrent refresh landed first and its stored
     // tokens are at least as fresh as ours. Our access token is still valid

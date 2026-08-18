@@ -12,10 +12,16 @@ jest.mock("@/lib/auth/encrypt", () => ({
 // Scriptable admin client: each test enqueues the account row(s) reads return,
 // and captures update filters/payloads.
 type Row = Record<string, unknown> | null;
-const dbState: { reads: Row[]; updateResult: Row[]; updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }> } = {
+const dbState: {
+  reads: Row[];
+  updateResult: Row[];
+  updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }>;
+  updateThrows: number;
+} = {
   reads: [],
   updateResult: [],
   updates: [],
+  updateThrows: 0,
 };
 
 jest.mock("@/lib/supabase/admin", () => ({
@@ -37,6 +43,10 @@ jest.mock("@/lib/supabase/admin", () => ({
               return updateBuilder;
             },
             select: async () => {
+              if (dbState.updateThrows > 0) {
+                dbState.updateThrows -= 1;
+                throw new Error("Supabase query timed out");
+              }
               dbState.updates.push({ patch, filters });
               return { data: dbState.updateResult };
             },
@@ -83,6 +93,7 @@ describe("getBungieToken refresh race protection", () => {
     dbState.reads = [];
     dbState.updateResult = [];
     dbState.updates = [];
+    dbState.updateThrows = 0;
   });
 
   it("compare-and-swaps the token write against the refresh ciphertext it read", async () => {
@@ -130,6 +141,26 @@ describe("getBungieToken refresh race protection", () => {
     mockBungie(400, { error: "invalid_request", error_description: "ProvidedTokenNotValidRefreshToken" });
 
     await expect(getBungieToken("user-1", "500")).rejects.toThrow("Bungie token refresh failed (400)");
+  });
+
+  it("retries the token persist write past a transient Supabase failure", async () => {
+    dbState.reads = [accountRow()];
+    dbState.updateResult = [{ user_id: "user-1" }];
+    dbState.updateThrows = 1; // first persist attempt times out, second succeeds
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(1);
+    expect(dbState.updates[0].patch).toMatchObject({ access_token_enc: "enc:new-access" });
+  });
+
+  it("surfaces a clear error instead of losing rotated tokens when every persist attempt fails", async () => {
+    dbState.reads = [accountRow()];
+    dbState.updateThrows = 3; // exhausts all retry attempts
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).rejects.toThrow("Bungie token refresh could not be saved");
+    expect(dbState.updates).toHaveLength(0);
   });
 
   it("fails fast when the tokens were issued by a different OAuth app", async () => {

@@ -17,6 +17,15 @@ import { rotateCaptain } from "@/lib/lobby";
 import { createLogger } from "@/lib/logger";
 import { z } from "zod";
 
+// This route writes lobby_members.is_ready/selected_character_id up front,
+// then runs a chain of retried Bungie calls (inventory clear, transfer,
+// equip) that can each back off up to ~3.2s. On the platform default (~10s),
+// a slow-but-successful Bungie exchange gets killed mid-chain: the member is
+// already marked ready/applied but mark_player_applied never runs for them,
+// wedging captain rotation until they re-apply or the idle-lobby cron closes
+// the lobby. Extend the budget so the retry chain has room to finish.
+export const maxDuration = 60;
+
 const schema = z.object({
   lobbyId: z.string().uuid(),
   roundId: z.string().uuid(),
