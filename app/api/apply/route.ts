@@ -188,7 +188,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     const roundNumber = roundRow?.round_number ?? 0;
 
-    await adminSupabase.from("roll_history").upsert(
+    // detect-games polls roll_history.applied_at to find rounds that still
+    // need PGCR detection - if this write silently fails, that round never
+    // surfaces as "pending" and its stats are lost with no trace anywhere.
+    const { error: rollHistoryError } = await adminSupabase.from("roll_history").upsert(
       {
         lobby_id: body.lobbyId,
         round_id: body.roundId,
@@ -198,6 +201,13 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "round_id" }
     );
+    if (rollHistoryError) {
+      log.warn("apply.roll_history_write_failed", {
+        lobbyId: body.lobbyId,
+        roundId: body.roundId,
+        error: rollHistoryError.message,
+      });
+    }
 
     // Best-effort: update status + last_active_at (requires migration 008).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
