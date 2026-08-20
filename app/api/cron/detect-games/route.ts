@@ -194,7 +194,9 @@ export async function GET(req: NextRequest) {
       if (outcome.status === "no_game") return;
       processed++;
     } catch (e) {
-      errors.push(`${lobbyId}: ${e instanceof Error ? e.message : String(e)}`);
+      const reason = e instanceof Error ? e.message : String(e);
+      console.error("[detect-games] lobby processing failed", { lobbyId, reason });
+      errors.push(`${lobbyId}: ${reason}`);
     }
   }
 
