@@ -3,7 +3,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { getBungieToken } from "@/lib/auth/helpers";
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { assertCronAuth } from "@/lib/auth/cron";
-import { closeIdleLobbies } from "@/lib/lobby";
+import { closeIdleLobbies, getLobbyIdsAwaitingDetection } from "@/lib/lobby";
 import { checkDatabaseCapacity } from "@/lib/db/capacity";
 
 // Triggered by Supabase pg_cron + pg_net with Authorization: Bearer CRON_SECRET.
@@ -26,68 +26,33 @@ export async function GET(req: NextRequest) {
 
   await checkDatabaseCapacity("rerolled/detect-games");
 
-  // Mark lobbies idle for >2 hours as done so they stop accumulating.
+  // Find lobbies that have an apply in the last 3 hours but no game_session after it
+  // (still awaiting PGCR detection) before doing anything that could close a lobby -
+  // last_active_at is only set at apply time and never refreshed while a client
+  // waits for detection, so the idle-close below must not sweep these up.
+  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const { pending: stuck, error: pendingError, stage } = await getLobbyIdsAwaitingDetection(cutoff);
+
+  if (pendingError) {
+    const label = stage === "existing_sessions" ? "existing-sessions" : "pending-applies";
+    console.error(`[detect-games] ${label} query failed`, { reason: pendingError.message });
+    return NextResponse.json({ error: pendingError.message }, { status: 500 });
+  }
+
+  // Mark lobbies idle for >2 hours as done so they stop accumulating, except
+  // any still awaiting detection above.
   const idleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const { error: idleCloseError } = await closeIdleLobbies(idleCutoff);
+  const { error: idleCloseError } = await closeIdleLobbies(
+    idleCutoff,
+    undefined,
+    stuck.map((s) => s.lobbyId)
+  );
   if (idleCloseError) {
     console.error("[detect-games] idle-lobby close failed", { reason: idleCloseError.message });
   }
 
-  // Find lobbies that have an apply in the last 3 hours but no game_session after it.
-  // We join through roll_history to find the apply timestamp per lobby.
-  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-
-  // Bounded defensively: at current scale this cutoff window holds far fewer
-  // rows, but an unbounded scan here would grow with lobby volume forever.
-  const { data: pendingApplies, error: pendingAppliesError } = await adminSupabase
-    .from("roll_history")
-    .select("lobby_id, round_id, applied_at")
-    .not("applied_at", "is", null)
-    .gte("applied_at", cutoff)
-    .order("applied_at", { ascending: false })
-    .limit(500);
-
-  if (pendingAppliesError) {
-    console.error("[detect-games] pending-applies query failed", { reason: pendingAppliesError.message });
-    return NextResponse.json({ error: pendingAppliesError.message }, { status: 500 });
-  }
-
-  if (!pendingApplies?.length) {
-    return NextResponse.json({ processed: 0, message: "No pending applies" });
-  }
-
-  // Deduplicate: one entry per lobby, keeping the most recent apply
-  const byLobby = new Map<string, { round_id: string; applied_at: string }>();
-  for (const row of pendingApplies) {
-    if (!byLobby.has(row.lobby_id)) {
-      byLobby.set(row.lobby_id, { round_id: row.round_id, applied_at: row.applied_at });
-    }
-  }
-
-  // Filter to lobbies that don't already have a session after their latest apply
-  const lobbyIds = [...byLobby.keys()];
-  const { data: existingSessions, error: existingSessionsError } = await adminSupabase
-    .from("game_sessions")
-    .select("lobby_id, played_at")
-    .in("lobby_id", lobbyIds);
-
-  if (existingSessionsError) {
-    console.error("[detect-games] existing-sessions query failed", { reason: existingSessionsError.message });
-    return NextResponse.json({ error: existingSessionsError.message }, { status: 500 });
-  }
-
-  const stuck: Array<{ lobbyId: string; roundId: string; appliedAt: string }> = [];
-  for (const [lobbyId, { round_id, applied_at }] of byLobby) {
-    const hasSession = existingSessions?.some(
-      (s) => s.lobby_id === lobbyId && s.played_at >= applied_at
-    );
-    if (!hasSession) {
-      stuck.push({ lobbyId, roundId: round_id, appliedAt: applied_at });
-    }
-  }
-
   if (!stuck.length) {
-    return NextResponse.json({ processed: 0, message: "All lobbies already have sessions" });
+    return NextResponse.json({ processed: 0, message: "No pending applies" });
   }
 
   // Skip any lobbies that are done (ended by captain, last-member-leave, or idle timeout above)
@@ -194,7 +159,9 @@ export async function GET(req: NextRequest) {
       if (outcome.status === "no_game") return;
       processed++;
     } catch (e) {
-      errors.push(`${lobbyId}: ${e instanceof Error ? e.message : String(e)}`);
+      const reason = e instanceof Error ? e.message : String(e);
+      console.error("[detect-games] lobby processing failed", { lobbyId, reason });
+      errors.push(`${lobbyId}: ${reason}`);
     }
   }
 

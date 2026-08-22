@@ -11,18 +11,24 @@ jest.mock("@/lib/supabase/admin", () => ({
 }));
 
 const mockCloseIdleLobbies = jest.fn();
-jest.mock("@/lib/lobby", () => ({
-  closeIdleLobbies: (...args: unknown[]) => mockCloseIdleLobbies(...args),
-}));
+jest.mock("@/lib/lobby", () => {
+  const actual = jest.requireActual("@/lib/lobby");
+  return {
+    closeIdleLobbies: (...args: unknown[]) => mockCloseIdleLobbies(...args),
+    getLobbyIdsAwaitingDetection: actual.getLobbyIdsAwaitingDetection,
+  };
+});
 
 // This route only reaches getBungieToken/detectAndRecordGame once it finds a
 // stuck lobby, which none of these tests exercise (empty roll_history) - mocked
 // anyway so requiring the route doesn't pull in next-auth's ESM-only deps.
+const mockGetBungieToken = jest.fn();
 jest.mock("@/lib/auth/helpers", () => ({
-  getBungieToken: jest.fn(),
+  getBungieToken: (...args: unknown[]) => mockGetBungieToken(...args),
 }));
+const mockDetectAndRecordGame = jest.fn();
 jest.mock("@/lib/stats/record", () => ({
-  detectAndRecordGame: jest.fn(),
+  detectAndRecordGame: (...args: unknown[]) => mockDetectAndRecordGame(...args),
 }));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +144,109 @@ describe("surfaces query failures as 500s instead of a silent empty 200 (2026-08
     expect(errSpy).toHaveBeenCalledWith(
       "[detect-games] existing-sessions query failed",
       expect.objectContaining({ reason: "statement timeout" }),
+    );
+    errSpy.mockRestore();
+  });
+
+  it("excludes lobbies still awaiting PGCR detection from the idle-close sweep (2026-08-22 audit)", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "roll_history") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          not: jest.fn().mockReturnThis(),
+          gte: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({
+            data: [{ lobby_id: "lobby-1", round_id: "round-1", applied_at: "2026-08-22T00:00:00Z" }],
+            error: null,
+          }),
+        };
+      }
+      if (table === "game_sessions") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        };
+      }
+      if (table === "lobbies") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [{ id: "lobby-1", status: "done" }], error: null }),
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+    mockCloseIdleLobbies.mockResolvedValue({ data: [], error: null });
+
+    await GET(new NextRequest("https://test.app/api/cron/detect-games"));
+
+    expect(mockCloseIdleLobbies).toHaveBeenCalledWith(
+      expect.any(String),
+      undefined,
+      ["lobby-1"]
+    );
+  });
+
+  it("logs a per-lobby processing failure instead of only returning it in the response body (#381)", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    mockCloseIdleLobbies.mockResolvedValue({ data: [], error: null });
+    mockGetBungieToken.mockResolvedValue("token-abc");
+    mockDetectAndRecordGame.mockRejectedValue(new Error("player_game_stats insert failed"));
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "roll_history") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          not: jest.fn().mockReturnThis(),
+          gte: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({
+            data: [{ lobby_id: "lobby-1", round_id: "round-1", applied_at: "2026-08-22T00:00:00Z" }],
+            error: null,
+          }),
+        };
+      }
+      if (table === "game_sessions") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        };
+      }
+      if (table === "lobbies") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [{ id: "lobby-1", status: "active" }], error: null }),
+        };
+      }
+      if (table === "lobby_members") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({
+            data: [
+              { user_id: "u1", display_name: "A", bungie_membership_type: 3, bungie_membership_id: "1", selected_character_id: "c1" },
+              { user_id: "u2", display_name: "B", bungie_membership_type: 3, bungie_membership_id: "2", selected_character_id: "c2" },
+            ],
+            error: null,
+          }),
+        };
+      }
+      if (table === "lobby_loadout_slots") {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockResolvedValue({ data: [{ item_hash: 123 }], error: null }),
+        };
+      }
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    const res = await GET(new NextRequest("https://test.app/api/cron/detect-games"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.errors).toEqual(["lobby-1: player_game_stats insert failed"]);
+    expect(errSpy).toHaveBeenCalledWith(
+      "[detect-games] lobby processing failed",
+      expect.objectContaining({ lobbyId: "lobby-1", reason: "player_game_stats insert failed" })
     );
     errSpy.mockRestore();
   });
