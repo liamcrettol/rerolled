@@ -12,10 +12,16 @@ jest.mock("@/lib/auth/encrypt", () => ({
 // Scriptable admin client: each test enqueues the account row(s) reads return,
 // and captures update filters/payloads.
 type Row = Record<string, unknown> | null;
-const dbState: { reads: Row[]; updateResult: Row[]; updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }> } = {
+const dbState: {
+  reads: Row[];
+  updateResult: Row[];
+  updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }>;
+  updateThrows: Error[];
+} = {
   reads: [],
   updateResult: [],
   updates: [],
+  updateThrows: [],
 };
 
 jest.mock("@/lib/supabase/admin", () => ({
@@ -38,6 +44,8 @@ jest.mock("@/lib/supabase/admin", () => ({
             },
             select: async () => {
               dbState.updates.push({ patch, filters });
+              const err = dbState.updateThrows.shift();
+              if (err) throw err;
               return { data: dbState.updateResult };
             },
           };
@@ -83,6 +91,7 @@ describe("getBungieToken refresh race protection", () => {
     dbState.reads = [];
     dbState.updateResult = [];
     dbState.updates = [];
+    dbState.updateThrows = [];
   });
 
   it("compare-and-swaps the token write against the refresh ciphertext it read", async () => {
@@ -130,6 +139,37 @@ describe("getBungieToken refresh race protection", () => {
     mockBungie(400, { error: "invalid_request", error_description: "ProvidedTokenNotValidRefreshToken" });
 
     await expect(getBungieToken("user-1", "500")).rejects.toThrow("Bungie token refresh failed (400)");
+  });
+
+  // Bug found during the 2026-08-22 production health audit: a persist
+  // failure (Supabase timeout/transient error, distinct from a clean "0 rows
+  // matched" CAS loss) threw uncaught even though a valid, freshly-obtained
+  // access token was already in hand - and left the stored refresh token
+  // ciphertext stale, dooming the *next* refresh too, since Bungie had
+  // already rotated it away server-side.
+  it("retries a persist failure once, then still returns the fresh access token", async () => {
+    dbState.reads = [accountRow()];
+    dbState.updateThrows = [new Error("Supabase query timed out")];
+    dbState.updateResult = [{ user_id: "user-1" }];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+  });
+
+  it("returns the fresh access token even when persisting it fails on every attempt", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    dbState.reads = [accountRow()];
+    dbState.updateThrows = [new Error("Supabase query timed out"), new Error("Supabase query timed out")];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+    expect(errSpy).toHaveBeenCalledWith(
+      "[auth] failed to persist refreshed Bungie token after retry",
+      expect.objectContaining({ userId: "user-1" })
+    );
+    errSpy.mockRestore();
   });
 
   it("fails fast when the tokens were issued by a different OAuth app", async () => {
