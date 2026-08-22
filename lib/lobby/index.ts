@@ -181,12 +181,78 @@ export function closeLobby(lobbyId: string, endedAt = new Date().toISOString()) 
     .eq("id", lobbyId);
 }
 
-export function closeIdleLobbies(idleCutoff: string, endedAt = new Date().toISOString()) {
-  return adminSupabase
+// excludeIds must cover every lobby with a pending, undetected PGCR apply
+// (see getLobbyIdsAwaitingDetection) - last_active_at is only ever set at
+// apply time and never refreshed while a client waits for detection, so an
+// idle cutoff alone can't tell "abandoned" apart from "match still in
+// progress, nobody has the tab open." Closing one of those marks it done and
+// permanently excludes it from the detect-games cron, silently losing the
+// match's stats.
+export function closeIdleLobbies(
+  idleCutoff: string,
+  endedAt = new Date().toISOString(),
+  excludeIds: string[] = []
+) {
+  let query = adminSupabase
     .from("lobbies")
     .update({ status: "done", ended_at: endedAt } as any)
     .neq("status", "done")
     .lt("last_active_at", idleCutoff);
+  if (excludeIds.length) {
+    query = query.notIn("id", excludeIds);
+  }
+  return query;
+}
+
+export type PendingApply = { lobbyId: string; roundId: string; appliedAt: string };
+
+// Lobbies with an apply in the last 3 hours but no game_session recorded
+// after it - i.e. still awaiting PGCR detection. Shared by detect-games
+// (which processes them) and cleanup-lobbies/detect-games' own idle-close
+// (which must never mark one of these "done" out from under detection).
+export async function getLobbyIdsAwaitingDetection(cutoff: string): Promise<{
+  pending: PendingApply[];
+  error: { message: string } | null;
+  stage: "pending_applies" | "existing_sessions" | null;
+}> {
+  const { data: pendingApplies, error: pendingAppliesError } = await adminSupabase
+    .from("roll_history")
+    .select("lobby_id, round_id, applied_at")
+    .not("applied_at", "is", null)
+    .gte("applied_at", cutoff)
+    .order("applied_at", { ascending: false })
+    .limit(500);
+
+  if (pendingAppliesError) {
+    return { pending: [], error: pendingAppliesError, stage: "pending_applies" };
+  }
+  if (!pendingApplies?.length) return { pending: [], error: null, stage: null };
+
+  const byLobby = new Map<string, { round_id: string; applied_at: string }>();
+  for (const row of pendingApplies) {
+    if (!byLobby.has(row.lobby_id)) {
+      byLobby.set(row.lobby_id, { round_id: row.round_id, applied_at: row.applied_at });
+    }
+  }
+
+  const lobbyIds = [...byLobby.keys()];
+  const { data: existingSessions, error: existingSessionsError } = await adminSupabase
+    .from("game_sessions")
+    .select("lobby_id, played_at")
+    .in("lobby_id", lobbyIds);
+
+  if (existingSessionsError) {
+    return { pending: [], error: existingSessionsError, stage: "existing_sessions" };
+  }
+
+  const pending: PendingApply[] = [];
+  for (const [lobbyId, { round_id, applied_at }] of byLobby) {
+    const hasSession = existingSessions?.some(
+      (s) => s.lobby_id === lobbyId && s.played_at >= applied_at
+    );
+    if (!hasSession) pending.push({ lobbyId, roundId: round_id, appliedAt: applied_at });
+  }
+  return { pending, error: null, stage: null };
 }
 
 export async function rotateCaptain(lobbyId: string): Promise<void> {
