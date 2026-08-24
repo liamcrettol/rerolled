@@ -6,7 +6,7 @@ jest.mock("@/lib/supabase/admin", () => ({
   withSupabaseTimeout: (promise: unknown) => promise,
 }));
 
-import { reserveSignupSlot, releaseSignupSlot } from "@/lib/auth/signupCapacity";
+import { reserveSignupSlot, releaseSignupSlot, findExistingRivalAccountIds } from "@/lib/auth/signupCapacity";
 
 describe("reserveSignupSlot", () => {
   beforeEach(() => {
@@ -59,6 +59,63 @@ describe("releaseSignupSlot", () => {
       "[signupCapacity] failed to release an orphaned slot",
       expect.objectContaining({ userId: "orphaned-user" }),
     );
+    errSpy.mockRestore();
+  });
+});
+
+describe("findExistingRivalAccountIds", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.RIVAL_SYNC_SECRET = "shared-secret";
+    global.fetch = jest.fn() as unknown as typeof fetch;
+  });
+
+  it("returns the existing ids Rival reports", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ existingUserIds: ["user-1"] }),
+    });
+
+    await expect(findExistingRivalAccountIds(["user-1", "user-2"])).resolves.toEqual(["user-1"]);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://rival.rerolled.io/api/internal/rerolled/account-exists",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ userIds: ["user-1", "user-2"] }),
+      }),
+    );
+  });
+
+  it("returns null (never an empty array) on a non-2xx response, so nothing gets wrongly released", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 503, json: async () => null });
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    errSpy.mockRestore();
+  });
+
+  it("returns null when RIVAL_SYNC_SECRET is not configured", async () => {
+    delete process.env.RIVAL_SYNC_SECRET;
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+    errSpy.mockRestore();
+  });
+
+  it("returns null on a network error", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockRejectedValue(new Error("network down"));
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    errSpy.mockRestore();
+  });
+
+  it("returns null on a malformed response body", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ nope: true }) });
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
     errSpy.mockRestore();
   });
 });

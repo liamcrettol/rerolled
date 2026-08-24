@@ -17,6 +17,13 @@ import { rotateCaptain } from "@/lib/lobby";
 import { createLogger } from "@/lib/logger";
 import { z } from "zod";
 
+// The retried Bungie call chain (inventory clear, transfer, equip - each
+// backing off up to ~2.8s on throttling, see lib/bungie/client.ts) can
+// exceed Vercel Hobby's ~10s default before is_ready/selected_character_id
+// have already been written, wedging captain rotation until the 2-hour
+// idle-lobby cron closes the round. Match detect-games' maxDuration.
+export const maxDuration = 60;
+
 const schema = z.object({
   lobbyId: z.string().uuid(),
   roundId: z.string().uuid(),
