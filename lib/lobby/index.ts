@@ -123,11 +123,18 @@ export async function getActiveSessionForUser(
   mode?: LobbyMode
 ): Promise<{ code: string; status: Lobby["status"]; mode: LobbyMode } | null> {
   try {
+    // lobby_members rows are never deleted (lobbies are only soft-closed),
+    // so an active/heavy user accumulates one row per lobby they've ever
+    // joined across the app's lifetime. Only the most recently joined ones
+    // can plausibly still be the active session, so bound the scan instead
+    // of pulling every row a long-tenured user has ever had (#390).
     const { data: memberships } = await withSupabaseTimeout(
       adminSupabase
         .from("lobby_members")
         .select("lobby_id")
         .eq("user_id", userId)
+        .order("joined_at", { ascending: false })
+        .limit(50)
     );
 
     if (!memberships || memberships.length === 0) return null;

@@ -17,7 +17,7 @@ interface LobbyRow {
   last_active_at: string;
 }
 
-let membershipRows: Array<{ lobby_id: string; user_id: string }> = [];
+let membershipRows: Array<{ lobby_id: string; user_id: string; joined_at?: string }> = [];
 let lobbyRows: LobbyRow[] = [];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,5 +114,41 @@ describe("getActiveSessionForUser", () => {
     membershipRows = [];
     const result = await getActiveSessionForUser("user-1");
     expect(result).toBeNull();
+  });
+
+  // #390: lobby_members rows are never deleted, so a long-tenured user can
+  // accumulate far more rows than any single dashboard load should scan.
+  // The membership lookup bounds itself to the 50 most recently joined
+  // lobbies instead of pulling the user's entire history.
+  describe("bounded membership scan (#390)", () => {
+    it("still finds the active lobby when it's among the 50 most recently joined", async () => {
+      membershipRows = Array.from({ length: 60 }, (_, i) => ({
+        lobby_id: `OLD${i}`,
+        user_id: "user-1",
+        joined_at: `2020-01-01T00:00:${String(i).padStart(2, "0")}Z`,
+      }));
+      membershipRows.push({ lobby_id: "ACTIVE", user_id: "user-1", joined_at: "2026-07-09T12:00:00Z" });
+      lobbyRows = [
+        { id: "ACTIVE", code: "CCCC", status: "active", mode: "roulette", last_active_at: "2026-07-09T12:00:00Z" },
+      ];
+
+      const result = await getActiveSessionForUser("user-1");
+      expect(result).toEqual({ code: "CCCC", status: "active", mode: "roulette" });
+    });
+
+    it("does not consider a lobby joined further back than the 50 most recent memberships", async () => {
+      membershipRows = Array.from({ length: 50 }, (_, i) => ({
+        lobby_id: `RECENT${i}`,
+        user_id: "user-1",
+        joined_at: `2026-07-10T00:00:${String(i).padStart(2, "0")}Z`,
+      }));
+      membershipRows.push({ lobby_id: "STALE", user_id: "user-1", joined_at: "2020-01-01T00:00:00Z" });
+      lobbyRows = [
+        { id: "STALE", code: "DDDD", status: "active", mode: "roulette", last_active_at: "2026-07-09T12:00:00Z" },
+      ];
+
+      const result = await getActiveSessionForUser("user-1");
+      expect(result).toBeNull();
+    });
   });
 });
