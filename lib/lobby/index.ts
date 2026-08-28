@@ -85,7 +85,14 @@ export async function joinLobby(
   if (error || !lobby) throw new Error("Lobby not found");
   if (lobby.status === "done") throw new Error("Lobby has ended");
 
-  // Upsert member (allow rejoining)
+  // Upsert member (allow rejoining). is_captain is deliberately omitted: the
+  // column's own default (false) covers a genuine new row, but including it
+  // here would also fire on a rejoin - re-hitting the invite link, or any
+  // retry of this same call - and forcibly clear captaincy from whoever the
+  // upserted row belongs to if they currently hold it, desyncing
+  // lobby_members.is_captain from lobbies.captain_user_id with nothing to
+  // reassign it. rotateCaptain then finds no member flagged captain and
+  // wedges the round (see rotateCaptain's own fallback below).
   const { data: member, error: memberErr } = await adminSupabase
     .from("lobby_members")
     .upsert(
@@ -96,7 +103,6 @@ export async function joinLobby(
         bungie_membership_type: bungieMembershipType,
         bungie_membership_id: bungieMembershipId,
         is_ready: false,
-        is_captain: false,
       },
       { onConflict: "lobby_id,user_id" }
     )
@@ -266,7 +272,20 @@ export async function rotateCaptain(lobbyId: string): Promise<void> {
   const members = (await getLobbyMembers(lobbyId)).filter((m) => !m.is_spectator);
   if (members.length < 2) return;
 
-  const currentCaptainIdx = members.findIndex((m) => m.is_captain);
+  let currentCaptainIdx = members.findIndex((m) => m.is_captain);
+  if (currentCaptainIdx === -1) {
+    // lobby_members.is_captain can desync from the lobby's own source of
+    // truth (e.g. a rejoin previously cleared it with nothing to reassign
+    // it - see joinLobby). Falling straight through to index 0 here would
+    // silently hand captaincy to whoever joined first instead of advancing
+    // from wherever rotation actually left off.
+    const { data: lobby } = await adminSupabase
+      .from("lobbies")
+      .select("captain_user_id")
+      .eq("id", lobbyId)
+      .single();
+    currentCaptainIdx = members.findIndex((m) => m.user_id === lobby?.captain_user_id);
+  }
   const nextIdx = (currentCaptainIdx + 1) % members.length;
   const nextCaptain = members[nextIdx];
 
