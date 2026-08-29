@@ -114,6 +114,9 @@ export default function LobbyRoom({
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
   const [rightOpen, setRightOpen] = useState(true);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [showCaptainPicker, setShowCaptainPicker] = useState(false);
+  const [passingCaptaincy, setPassingCaptaincy] = useState(false);
+  const [captainPassError, setCaptainPassError] = useState<string | null>(null);
   const [showEndSessionConfirm, setShowEndSessionConfirm] = useState(false);
   const [endSessionError, setEndSessionError] = useState<string | null>(null);
   const [endingSession, setEndingSession] = useState(false);
@@ -525,6 +528,27 @@ export default function LobbyRoom({
     return () => document.removeEventListener("mousedown", handler);
   }, [showOverflowMenu]);
 
+  const captainPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (captainPickerRef.current && !captainPickerRef.current.contains(e.target as Node)) {
+        setShowCaptainPicker(false);
+        setCaptainPassError(null);
+      }
+    }
+    if (showCaptainPicker) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showCaptainPicker]);
+
+  // Captaincy can move to someone else at any time (rotation, another client's
+  // hand-off). Close a picker that is no longer this user's to act on.
+  useEffect(() => {
+    if (!isCaptain) {
+      setShowCaptainPicker(false);
+      setCaptainPassError(null);
+    }
+  }, [isCaptain]);
+
   const handleToggleCaptainLock = useCallback(async () => {
     const next = !captainLocked;
     setCaptainLocked(next);
@@ -534,6 +558,39 @@ export default function LobbyRoom({
       body: JSON.stringify({ lobbyId: lobby.id, locked: next }),
     });
   }, [captainLocked, lobby.id]);
+
+  // Hand captaincy to a specific player. The realtime lobby_members UPDATE is
+  // what actually moves the crown for everyone (including this client), so
+  // there is no local optimistic flip to unwind if the request fails.
+  const handlePassCaptaincy = useCallback(
+    async (userId: string) => {
+      setPassingCaptaincy(true);
+      setCaptainPassError(null);
+      try {
+        const res = await fetch("/api/lobby/set-captain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lobbyId: lobby.id, userId }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          setCaptainPassError(body.error ?? "Could not pass captaincy. Try again.");
+          return;
+        }
+        setShowCaptainPicker(false);
+      } catch {
+        setCaptainPassError("Could not reach the server. Try again.");
+      } finally {
+        setPassingCaptaincy(false);
+      }
+    },
+    [lobby.id]
+  );
+
+  // Eligible recipients: everyone actually playing except the current captain.
+  const captainCandidates = members.filter(
+    (m) => !m.is_spectator && m.user_id !== currentUserId
+  );
 
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
@@ -808,13 +865,61 @@ export default function LobbyRoom({
                 advanceRoundAndRotate) with no other way to see or clear it in
                 the UI, so a lobby that got locked before this control existed
                 would stay wedged on the same captain forever (#308). */}
+            {/* Manual hand-off. Rotation is automatic, but a fireteam often
+                wants to just give the roll to someone specific (AFK captain,
+                someone who wants a turn) without waiting a round. */}
+            {isCaptain && captainCandidates.length > 0 && (
+              <div className="relative ml-auto" ref={captainPickerRef}>
+                <button
+                  onClick={() => {
+                    setShowCaptainPicker((v) => !v);
+                    setCaptainPassError(null);
+                  }}
+                  aria-haspopup="menu"
+                  aria-expanded={showCaptainPicker}
+                  title="Give captaincy to another player"
+                  className="inline-flex items-center gap-1.5 text-xs border border-bungie-border px-2.5 py-1 text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
+                >
+                  <Crown size={12} className="shrink-0" />
+                  Pass captaincy
+                </button>
+                {showCaptainPicker && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl"
+                  >
+                    {captainPassError && (
+                      <p className="border-b border-bungie-border px-4 py-2 text-xs text-red-400">
+                        {captainPassError}
+                      </p>
+                    )}
+                    {captainCandidates.map((m) => (
+                      <button
+                        key={m.user_id}
+                        role="menuitem"
+                        disabled={passingCaptaincy}
+                        onClick={() => handlePassCaptaincy(m.user_id)}
+                        className="w-full px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-bungie-dark disabled:opacity-50"
+                      >
+                        {trimBungieName(m.display_name)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {isCaptain && (
               <button
                 role="switch"
                 aria-checked={captainLocked}
                 onClick={handleToggleCaptainLock}
                 title={captainLocked ? "Captain rotation is paused. Click to rotate again after each round." : "Captain rotates to the next player each round. Click to stay captain."}
-                className={`ml-auto inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
+                className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
+                  // The pass-captaincy control carries ml-auto when it renders;
+                  // a second one here would push the two apart instead of
+                  // grouping them at the right edge.
+                  captainCandidates.length > 0 ? "ml-1.5" : "ml-auto"
+                } ${
                   captainLocked
                     ? "border-yellow-600 bg-yellow-600/15 text-yellow-400"
                     : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"

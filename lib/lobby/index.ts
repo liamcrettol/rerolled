@@ -302,17 +302,29 @@ export async function rotateCaptain(lobbyId: string): Promise<void> {
   const nextIdx = (currentCaptainIdx + 1) % members.length;
   const nextCaptain = members[nextIdx];
 
-  // These three writes are not a transaction, and their errors must be
-  // checked: supabase-js resolves with { error } rather than throwing. A
-  // swallowed failure between the clear and the set leaves NOBODY flagged
-  // captain, so no client renders the roll controls and the round is stuck
-  // until someone reloads into the same broken state.
-  //
-  // Throwing makes a partial failure retryable rather than silent. The retry
-  // is safe because the current captain is derived from lobbies.captain_user_id
-  // (written last) rather than from the is_captain flags this function is in
-  // the middle of rewriting, so re-running after any partial failure picks the
-  // same nextCaptain instead of skipping a player.
+  await assignCaptain(lobbyId, nextCaptain);
+}
+
+/**
+ * Make one specific member the captain. Shared by rotateCaptain and the manual
+ * hand-off in /api/lobby/set-captain, so both get the same error handling.
+ *
+ * These three writes are not a transaction, and their errors must be checked:
+ * supabase-js resolves with { error } rather than throwing. A swallowed failure
+ * between the clear and the set leaves NOBODY flagged captain, so no client
+ * renders the roll controls and the round is stuck until someone reloads into
+ * the same broken state.
+ *
+ * Throwing makes a partial failure retryable rather than silent. For
+ * rotateCaptain the retry is safe because it derives the current captain from
+ * lobbies.captain_user_id, which is written LAST here - so until the whole
+ * hand-off lands, a re-run still picks the same target instead of skipping a
+ * player. Keep captain_user_id last for that reason.
+ */
+export async function assignCaptain(
+  lobbyId: string,
+  nextCaptain: { id: string; user_id: string }
+): Promise<void> {
   const { error: clearErr } = await adminSupabase
     .from("lobby_members")
     .update({ is_captain: false })
