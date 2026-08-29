@@ -23,21 +23,39 @@ export async function POST(req: NextRequest) {
 
     const nextRound = lobby.current_round + 1;
 
-    await adminSupabase.from("lobby_rounds").insert({
-      lobby_id: lobbyId,
-      round_number: nextRound,
-      status: "pending",
-    });
+    // Errors here must be checked: supabase-js resolves with { error } rather
+    // than throwing, so a swallowed failure would advance current_round past a
+    // round that has no lobby_rounds row, and lobby/state (which looks the
+    // round up by round_number) would resolve roundId: null forever.
+    //
+    // Upsert rather than insert: (lobby_id, round_number) is unique, so if the
+    // current_round update below fails after the row lands, the captain's retry
+    // would otherwise collide with it permanently. Same idiom as the
+    // onConflict upsert in app/api/apply/route.ts.
+    const { error: roundErr } = await adminSupabase.from("lobby_rounds").upsert(
+      {
+        lobby_id: lobbyId,
+        round_number: nextRound,
+        status: "pending",
+      },
+      { onConflict: "lobby_id,round_number" }
+    );
 
-    await adminSupabase
+    if (roundErr) throw new Error(roundErr.message ?? "Failed to create next round");
+
+    const { error: membersErr } = await adminSupabase
       .from("lobby_members")
       .update({ is_ready: false })
       .eq("lobby_id", lobbyId);
 
-    await adminSupabase
+    if (membersErr) throw new Error(membersErr.message ?? "Failed to reset ready state");
+
+    const { error: lobbyErr } = await adminSupabase
       .from("lobbies")
       .update({ current_round: nextRound, status: "waiting", last_active_at: new Date().toISOString() })
       .eq("id", lobbyId);
+
+    if (lobbyErr) throw new Error(lobbyErr.message ?? "Failed to advance the round");
 
     return NextResponse.json({ ok: true, round: nextRound });
   } catch (err) {

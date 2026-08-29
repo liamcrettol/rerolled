@@ -59,12 +59,18 @@ export async function createLobby(
 
   if (memberErr || !member) throw new Error(memberErr?.message ?? "Failed to add host");
 
-  // Create first round
-  await adminSupabase.from("lobby_rounds").insert({
+  // Create first round. supabase-js resolves with { error } instead of
+  // throwing, so this error must be checked: a swallowed failure here returns a
+  // lobby with no round 1, and nothing backfills it (next-round only inserts
+  // round N+1), leaving the lobby permanently unrollable while the client is
+  // told creation succeeded.
+  const { error: roundErr } = await adminSupabase.from("lobby_rounds").insert({
     lobby_id: lobby.id,
     round_number: 1,
     status: "pending",
   });
+
+  if (roundErr) throw new Error(roundErr.message ?? "Failed to create first round");
 
   return { lobby, member };
 }

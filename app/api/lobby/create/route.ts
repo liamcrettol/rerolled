@@ -4,6 +4,7 @@ import { createLobby } from "@/lib/lobby";
 import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError } from "@/lib/api/errors";
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
   try {
     const session = await requireSession();
     const body = await req.json().catch(() => ({}));
@@ -18,7 +19,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
     if (isDatabaseUnavailableError(err)) {
-      console.error("[lobby/create] database unavailable:", err instanceof Error ? err.message : err);
+      // Include elapsed ms: it distinguishes tripping the client-side
+      // SUPABASE_REQUEST_TIMEOUT_MS budget (~1.2s per request by default) from
+      // a genuinely slow or unreachable database.
+      console.error(
+        `[lobby/create] database unavailable after ${Date.now() - startedAt}ms:`,
+        err instanceof Error ? err.message : err
+      );
       return NextResponse.json(
         { error: DATABASE_UNAVAILABLE_MESSAGE },
         { status: 503 }
