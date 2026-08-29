@@ -52,3 +52,9 @@ it("surfaces a failed pending-detection lookup as a 500 instead of closing lobbi
   expect(mockCloseIdleLobbies).not.toHaveBeenCalled();
   errSpy.mockRestore();
 });
+
+it("declares the same maxDuration headroom as detect-games, which shares its query", () => {
+  const route = require("@/app/api/cron/cleanup-lobbies/route");
+  expect(route.dynamic).toBe("force-dynamic");
+  expect(route.maxDuration).toBe(60);
+});

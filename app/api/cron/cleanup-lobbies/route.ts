@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { closeIdleLobbies, getLobbyIdsAwaitingDetection } from "@/lib/lobby";
 
+// Shares the getLobbyIdsAwaitingDetection scan with detect-games, which is
+// given the same headroom below - without it this runs at the Vercel Hobby
+// default of 10s while its sibling gets 60s for the identical query.
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 const IDLE_CLOSE_MS = 2 * 60 * 60 * 1000;
 // Same "still awaiting PGCR detection" window detect-games uses - a lobby in
 // this set must never be marked done here, or detect-games permanently loses
