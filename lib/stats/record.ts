@@ -164,14 +164,48 @@ async function advanceRoundAndRotate(lobbyId: string, roundId: string): Promise<
   if (!lobby) return;
 
   const nextRound = lobby.current_round + 1;
-  await adminSupabase.from("lobby_rounds").insert({
-    lobby_id: lobbyId,
-    round_number: nextRound,
-    status: "pending",
-  });
-  await adminSupabase.from("lobby_members").update({ is_ready: false }).eq("lobby_id", lobbyId);
+
+  // This is the ONLY path that opens a new round for a roulette lobby
+  // (/api/lobby/next-round is draft-only), so a swallowed failure here strands
+  // the lobby on its current round forever: captain_rotated is already true for
+  // that round, so mark_player_applied never rotates again, and the client's
+  // round load is keyed on current_round so it never refetches. That reads as
+  // "stopped rotating, and we have to refresh to roll."
+  //
+  // Upsert rather than insert: (lobby_id, round_number) is unique, so a retry
+  // after the current_round update below fails would otherwise collide
+  // permanently.
+  const { error: roundErr } = await adminSupabase.from("lobby_rounds").upsert(
+    {
+      lobby_id: lobbyId,
+      round_number: nextRound,
+      status: "pending",
+    },
+    { onConflict: "lobby_id,round_number" }
+  );
+  if (roundErr) {
+    console.error("[stats/record] next-round write failed", { lobbyId, nextRound, reason: roundErr.message });
+    // Do not advance current_round past a round that does not exist.
+    return;
+  }
+
+  const { error: readyErr } = await adminSupabase
+    .from("lobby_members")
+    .update({ is_ready: false })
+    .eq("lobby_id", lobbyId);
+  if (readyErr) {
+    console.error("[stats/record] ready reset failed", { lobbyId, reason: readyErr.message });
+  }
+
   // current_round must succeed even if migration 008 hasn't run.
-  await adminSupabase.from("lobbies").update({ current_round: nextRound }).eq("id", lobbyId);
+  const { error: advanceErr } = await adminSupabase
+    .from("lobbies")
+    .update({ current_round: nextRound })
+    .eq("id", lobbyId);
+  if (advanceErr) {
+    console.error("[stats/record] current_round advance failed", { lobbyId, nextRound, reason: advanceErr.message });
+    return;
+  }
   // Best-effort status + timestamp (requires migration 008).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await adminSupabase.from("lobbies").update({ status: "waiting", last_active_at: new Date().toISOString() } as any).eq("id", lobbyId);

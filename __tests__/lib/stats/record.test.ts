@@ -50,6 +50,13 @@ function makeDb(config: Record<string, any>) {
         cfg.inserted = rows;
         return builder;
       },
+      // advanceRoundAndRotate upserts the next round on
+      // (lobby_id, round_number) so a retry after a partial failure cannot
+      // collide with the row a previous attempt already wrote.
+      upsert: (rows: unknown) => {
+        cfg.upserted = rows;
+        return Promise.resolve(cfg.upsertResult ?? { data: null, error: null });
+      },
       update: () => builder,
       single: async () => cfg.single ?? { data: null, error: null },
       maybeSingle: async () => cfg.maybeSingle ?? { data: null, error: null },
