@@ -278,35 +278,59 @@ export async function rotateCaptain(lobbyId: string): Promise<void> {
   const members = (await getLobbyMembers(lobbyId)).filter((m) => !m.is_spectator);
   if (members.length < 2) return;
 
-  let currentCaptainIdx = members.findIndex((m) => m.is_captain);
+  // lobbies.captain_user_id is the source of truth, not lobby_members.is_captain.
+  // The flags are derived state that this very function rewrites in three
+  // non-transactional steps, so reading them first would make a retry after a
+  // partial failure advance from a half-written state and skip a player.
+  // captain_user_id is written last, so it still names the pre-rotation captain
+  // until the whole rotation has landed - which is exactly what makes a retry
+  // idempotent. It also absorbs the is_captain desync a rejoin used to cause
+  // (see joinLobby).
+  const { data: lobby } = await adminSupabase
+    .from("lobbies")
+    .select("captain_user_id")
+    .eq("id", lobbyId)
+    .single();
+
+  let currentCaptainIdx = members.findIndex((m) => m.user_id === lobby?.captain_user_id);
   if (currentCaptainIdx === -1) {
-    // lobby_members.is_captain can desync from the lobby's own source of
-    // truth (e.g. a rejoin previously cleared it with nothing to reassign
-    // it - see joinLobby). Falling straight through to index 0 here would
-    // silently hand captaincy to whoever joined first instead of advancing
-    // from wherever rotation actually left off.
-    const { data: lobby } = await adminSupabase
-      .from("lobbies")
-      .select("captain_user_id")
-      .eq("id", lobbyId)
-      .single();
-    currentCaptainIdx = members.findIndex((m) => m.user_id === lobby?.captain_user_id);
+    // captain_user_id names nobody currently in the lobby (the captain left,
+    // or an old row predates it). Fall back to the flag; index 0 only if that
+    // is absent too, which at least keeps rotation moving.
+    currentCaptainIdx = members.findIndex((m) => m.is_captain);
   }
   const nextIdx = (currentCaptainIdx + 1) % members.length;
   const nextCaptain = members[nextIdx];
 
-  await adminSupabase
+  // These three writes are not a transaction, and their errors must be
+  // checked: supabase-js resolves with { error } rather than throwing. A
+  // swallowed failure between the clear and the set leaves NOBODY flagged
+  // captain, so no client renders the roll controls and the round is stuck
+  // until someone reloads into the same broken state.
+  //
+  // Throwing makes a partial failure retryable rather than silent. The retry
+  // is safe because the current captain is derived from lobbies.captain_user_id
+  // (written last) rather than from the is_captain flags this function is in
+  // the middle of rewriting, so re-running after any partial failure picks the
+  // same nextCaptain instead of skipping a player.
+  const { error: clearErr } = await adminSupabase
     .from("lobby_members")
     .update({ is_captain: false })
     .eq("lobby_id", lobbyId);
 
-  await adminSupabase
+  if (clearErr) throw new Error(clearErr.message ?? "Failed to clear captain flags");
+
+  const { error: setErr } = await adminSupabase
     .from("lobby_members")
     .update({ is_captain: true })
     .eq("id", nextCaptain.id);
 
-  await adminSupabase
+  if (setErr) throw new Error(setErr.message ?? "Failed to assign the next captain");
+
+  const { error: lobbyUpdErr } = await adminSupabase
     .from("lobbies")
     .update({ captain_user_id: nextCaptain.user_id })
     .eq("id", lobbyId);
+
+  if (lobbyUpdErr) throw new Error(lobbyUpdErr.message ?? "Failed to record the next captain");
 }
