@@ -117,11 +117,18 @@ export async function joinLobby(
 
   if (memberErr || !member) throw new Error(memberErr?.message ?? "Failed to join");
 
-  // Someone just joined - mark the lobby active.
-  await adminSupabase
+  // Someone just joined - mark the lobby active. Not fatal to the join itself
+  // (the member row above already landed), but a swallowed failure here left
+  // last_active_at stale, so a lobby someone just joined could later be swept
+  // up by closeIdleLobbies's 2-hour idle cutoff out from under a live player.
+  const { error: touchErr } = await adminSupabase
     .from("lobbies")
     .update({ last_active_at: new Date().toISOString() })
     .eq("id", lobby.id);
+
+  if (touchErr) {
+    console.error("[lobby] failed to mark last_active_at on join:", touchErr.message);
+  }
 
   return { lobby, member };
 }
