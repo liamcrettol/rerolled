@@ -31,7 +31,7 @@ function makeReq(userId: string, lobbyId: string = LOBBY_ID) {
 }
 
 type Opts = {
-  lobby?: { captain_user_id: string; status: string } | null;
+  lobby?: { captain_user_id: string; status: string; mode?: string } | null;
   target?: { id: string; user_id: string; is_spectator: boolean; display_name: string } | null;
 };
 
@@ -119,6 +119,20 @@ describe("POST /api/lobby/set-captain", () => {
     const res = await POST(makeReq("player-2"));
 
     expect(res.status).toBe(409);
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  // Draft lobbies never rotate captain_user_id (lib/draft/optionsService.ts'
+  // requireStarter depends on it staying put - it's the only authorization
+  // check for who may reveal a slot's candidates). /api/apply already excludes
+  // draft mode from its own auto-rotation path for the same reason; this
+  // manual hand-off must not be a back door around that invariant.
+  it("rejects reassigning captaincy in a draft lobby", async () => {
+    mockTables({ lobby: { captain_user_id: "captain-1", status: "waiting", mode: "draft" } });
+
+    const res = await POST(makeReq("player-2"));
+
+    expect(res.status).toBe(400);
     expect(mockAssign).not.toHaveBeenCalled();
   });
 

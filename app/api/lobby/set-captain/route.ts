@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     // nobody flagged and lock everyone out of the control that fixes it.
     const { data: lobby, error: lobbyErr } = await adminSupabase
       .from("lobbies")
-      .select("captain_user_id, status")
+      .select("captain_user_id, status, mode")
       .eq("id", lobbyId)
       .maybeSingle();
 
@@ -30,6 +30,17 @@ export async function POST(req: NextRequest) {
     if (!lobby) return NextResponse.json({ error: "Lobby not found" }, { status: 404 });
     if (lobby.status === "done") {
       return NextResponse.json({ error: "This lobby has ended" }, { status: 409 });
+    }
+    // Draft lobbies never rotate captain_user_id (lib/draft/optionsService.ts'
+    // requireStarter is the only authorization check for who may reveal a
+    // slot's candidates, and it depends on the value staying put). This manual
+    // hand-off must not be a back door around that invariant, mirroring the
+    // same mode check /api/apply's auto-rotation already applies.
+    if (lobby.mode === "draft") {
+      return NextResponse.json(
+        { error: "Captaincy cannot be reassigned in a draft lobby" },
+        { status: 400 }
+      );
     }
     if (lobby.captain_user_id !== session.userId) {
       return NextResponse.json({ error: "Only the captain can pass captaincy" }, { status: 403 });
