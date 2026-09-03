@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import weaponsTable from "@/lib/bungie/data/weapons-table.json";
 
@@ -10,6 +11,8 @@ export async function GET(req: NextRequest) {
   if (!lobbyId) return NextResponse.json({ error: "lobbyId required" }, { status: 400 });
 
   try {
+    await requireSession();
+
     const { data: sessions, error: sessionsError } = await adminSupabase
       .from("game_sessions")
       .select("id, played_at, player_count, roulette_hashes, round_id, map_name")
@@ -88,10 +91,11 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ rounds });
   } catch (err) {
-    console.error("[stats/history] failed to load round history", {
-      lobbyId,
-      reason: err instanceof Error ? err.message : "unknown error",
-    });
+    const reason = err instanceof Error ? err.message : "unknown error";
+    if (reason === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[stats/history] failed to load round history", { lobbyId, reason });
     return NextResponse.json({ error: "Unable to load match history" }, { status: 500 });
   }
 }
