@@ -60,14 +60,21 @@ export async function GET(req: NextRequest) {
 
   let rerolledOrphans: string[] = [];
   if (rerolledCandidates.length > 0) {
-    const { data: existing, error: usersError } = await withSupabaseTimeout(
-      adminSupabase.from("users").select("id").in("id", rerolledCandidates.map((c) => c.user_id)),
+    // Check bungie_accounts, not users: the callback route's own
+    // isReturningUser check (app/api/auth/bungie/callback/route.ts) treats
+    // bungie_accounts as the source of truth for "this is a real, completed
+    // account". A crash between the users upsert and the bungie_accounts
+    // upsert leaves a users row behind with no bungie_accounts row, and a
+    // users-only check read that half-written row as a real account,
+    // permanently leaking its slot with no way for this cron to reclaim it (#391).
+    const { data: existing, error: accountsError } = await withSupabaseTimeout(
+      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", rerolledCandidates.map((c) => c.user_id)),
       5_000
     );
-    if (usersError) {
-      console.error("[cron/reconcile-signup-slots] rerolled users lookup failed", { reason: usersError.message });
+    if (accountsError) {
+      console.error("[cron/reconcile-signup-slots] rerolled bungie_accounts lookup failed", { reason: accountsError.message });
     } else {
-      const existingIds = new Set(((existing ?? []) as { id: string }[]).map((row) => row.id));
+      const existingIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
       rerolledOrphans = rerolledCandidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
     }
   }
