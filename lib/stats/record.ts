@@ -158,7 +158,19 @@ async function advanceRoundAndRotate(lobbyId: string, roundId: string): Promise<
   }
 
   if (!roundState?.captain_rotated && !lobby?.captain_locked) {
-    await rotateCaptain(lobbyId);
+    // rotateCaptain throws on a write failure (#398's fix, working as
+    // intended in isolation), but this call is unguarded and game_sessions/
+    // player_game_stats are already committed above - if this throw
+    // propagated, the round-advance writes below would never run and
+    // nothing retries them (same wedge class #397/#398 fixed, reintroduced
+    // via this new throw path). Log and continue; the round advance is the
+    // half that has no self-healing path.
+    try {
+      await rotateCaptain(lobbyId);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error("[stats/record] captain rotation failed, continuing round advance", { lobbyId, roundId, reason });
+    }
   }
 
   if (!lobby) return;

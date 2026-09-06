@@ -14,6 +14,7 @@
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { collectPostMatchStats, resolveActivityName } from "@/lib/bungie/pgcr";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { rotateCaptain } from "@/lib/lobby";
 
 jest.mock("@/lib/bungie/pgcr", () => ({
   collectPostMatchStats: jest.fn(),
@@ -140,5 +141,26 @@ describe("advanceRoundAndRotate", () => {
     // The wedge: pointing current_round at a round with no row leaves the
     // lobby unable to roll at all.
     expect(spy.currentRound).toBeUndefined();
+  });
+
+  it("still advances the round when captain rotation throws", async () => {
+    // rotateCaptain now throws on a write failure (#398); that call is
+    // unguarded in advanceRoundAndRotate, and by the time it runs
+    // game_sessions/player_game_stats are already committed with no retry
+    // path. A rotation failure must not prevent the round-advance writes
+    // below it, or the lobby wedges with no way to self-heal.
+    (rotateCaptain as jest.Mock).mockRejectedValue(new Error("write failed"));
+    const spy: { roundUpsert?: unknown; currentRound?: number | null } = {};
+    (adminSupabase.from as jest.Mock) = makeDb(
+      { ...happyTables, lobby_rounds: { single: { data: { captain_rotated: false }, error: null } }, lobbies: { single: { data: { current_round: 4, captain_locked: false }, error: null } } },
+      spy
+    );
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const outcome = await detectAndRecordGame(baseParams);
+
+    expect(outcome.status).toBe("recorded");
+    expect(spy.currentRound).toBe(5);
+    errSpy.mockRestore();
   });
 });
