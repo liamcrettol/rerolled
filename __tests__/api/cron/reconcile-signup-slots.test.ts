@@ -38,10 +38,10 @@ function candidatesQuery(rows: { user_id: string; first_site: string }[]) {
   };
 }
 
-function usersExistQuery(existingIds: string[]) {
+function accountsExistQuery(existingIds: string[]) {
   return {
     select: jest.fn().mockReturnValue({
-      in: jest.fn().mockResolvedValue({ data: existingIds.map((id) => ({ id })), error: null }),
+      in: jest.fn().mockResolvedValue({ data: existingIds.map((id) => ({ user_id: id })), error: null }),
     }),
   };
 }
@@ -53,7 +53,7 @@ beforeEach(() => {
 it("releases a rerolled-origin orphan with no matching account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "orphan-1", first_site: "rerolled" }]);
-    if (table === "users") return usersExistQuery([]);
+    if (table === "bungie_accounts") return accountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
@@ -69,7 +69,7 @@ it("releases a rerolled-origin orphan with no matching account", async () => {
 it("does not release a rerolled-origin candidate that already has a real account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "real-user", first_site: "rerolled" }]);
-    if (table === "users") return usersExistQuery(["real-user"]);
+    if (table === "bungie_accounts") return accountsExistQuery(["real-user"]);
     throw new Error(`unexpected table ${table}`);
   });
 
@@ -78,6 +78,26 @@ it("does not release a rerolled-origin candidate that already has a real account
 
   expect(body.released).toBe(0);
   expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("releases a rerolled-origin candidate whose users row exists but bungie_accounts never completed (#391)", async () => {
+  // The OAuth callback upserts `users` before `bungie_accounts`; a process
+  // killed in between leaves a users row with no bungie_accounts row. The
+  // reconcile cron must key off bungie_accounts, not users, or this orphan
+  // is never released.
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "half-created", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return accountsExistQuery([]);
+    if (table === "users") throw new Error("must not consult the users table for this check");
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(1);
+  expect(mockRpc).toHaveBeenCalledWith("release_signup_slot", { p_user_id: "half-created" });
 });
 
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {

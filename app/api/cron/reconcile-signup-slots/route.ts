@@ -60,14 +60,19 @@ export async function GET(req: NextRequest) {
 
   let rerolledOrphans: string[] = [];
   if (rerolledCandidates.length > 0) {
-    const { data: existing, error: usersError } = await withSupabaseTimeout(
-      adminSupabase.from("users").select("id").in("id", rerolledCandidates.map((c) => c.user_id)),
+    // Check bungie_accounts, not users: the OAuth callback upserts users
+    // before bungie_accounts (#391), so a process killed between the two
+    // leaves a users row with no bungie_accounts row - a half-created
+    // account that should still be swept up as an orphaned slot, not
+    // mistaken for a completed signup.
+    const { data: existing, error: accountsError } = await withSupabaseTimeout(
+      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", rerolledCandidates.map((c) => c.user_id)),
       5_000
     );
-    if (usersError) {
-      console.error("[cron/reconcile-signup-slots] rerolled users lookup failed", { reason: usersError.message });
+    if (accountsError) {
+      console.error("[cron/reconcile-signup-slots] rerolled bungie_accounts lookup failed", { reason: accountsError.message });
     } else {
-      const existingIds = new Set(((existing ?? []) as { id: string }[]).map((row) => row.id));
+      const existingIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
       rerolledOrphans = rerolledCandidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
     }
   }
