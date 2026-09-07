@@ -38,10 +38,10 @@ function candidatesQuery(rows: { user_id: string; first_site: string }[]) {
   };
 }
 
-function usersExistQuery(existingIds: string[]) {
+function bungieAccountsExistQuery(existingIds: string[]) {
   return {
     select: jest.fn().mockReturnValue({
-      in: jest.fn().mockResolvedValue({ data: existingIds.map((id) => ({ id })), error: null }),
+      in: jest.fn().mockResolvedValue({ data: existingIds.map((user_id) => ({ user_id })), error: null }),
     }),
   };
 }
@@ -53,7 +53,7 @@ beforeEach(() => {
 it("releases a rerolled-origin orphan with no matching account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "orphan-1", first_site: "rerolled" }]);
-    if (table === "users") return usersExistQuery([]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
@@ -69,7 +69,7 @@ it("releases a rerolled-origin orphan with no matching account", async () => {
 it("does not release a rerolled-origin candidate that already has a real account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "real-user", first_site: "rerolled" }]);
-    if (table === "users") return usersExistQuery(["real-user"]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery(["real-user"]);
     throw new Error(`unexpected table ${table}`);
   });
 
@@ -78,6 +78,25 @@ it("does not release a rerolled-origin candidate that already has a real account
 
   expect(body.released).toBe(0);
   expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("releases a partially-created account: a users row with no matching bungie_accounts row (#391)", async () => {
+  // The callback writes users before bungie_accounts, so a process killed in
+  // between leaves a users row with no bungie_accounts row. Checking users
+  // existence alone (the pre-fix behavior) would treat this candidate as a
+  // real account and leak its slot forever.
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "partial-user", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(1);
+  expect(mockRpc).toHaveBeenCalledWith("release_signup_slot", { p_user_id: "partial-user" });
 });
 
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {

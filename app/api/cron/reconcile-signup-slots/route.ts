@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminSupabase, withSupabaseTimeout } from "@/lib/supabase/admin";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { findExistingRivalAccountIds } from "@/lib/auth/signupCapacity";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 // Triggered by Supabase pg_cron + pg_net with Authorization: Bearer CRON_SECRET.
 //
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
   );
   if (error) {
     console.error("[cron/reconcile-signup-slots] candidate query failed", { reason: error.message });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 
   const candidates = (data ?? []) as Candidate[];
@@ -60,14 +61,19 @@ export async function GET(req: NextRequest) {
 
   let rerolledOrphans: string[] = [];
   if (rerolledCandidates.length > 0) {
-    const { data: existing, error: usersError } = await withSupabaseTimeout(
-      adminSupabase.from("users").select("id").in("id", rerolledCandidates.map((c) => c.user_id)),
+    // Check bungie_accounts, not users: the callback route writes users
+    // before bungie_accounts (#391), so a process killed between those two
+    // writes leaves a users row with no bungie_accounts row. Checking users
+    // alone would never treat that candidate as an orphan, leaking its slot
+    // forever even though the account was never actually completed.
+    const { data: existing, error: accountsError } = await withSupabaseTimeout(
+      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", rerolledCandidates.map((c) => c.user_id)),
       5_000
     );
-    if (usersError) {
-      console.error("[cron/reconcile-signup-slots] rerolled users lookup failed", { reason: usersError.message });
+    if (accountsError) {
+      console.error("[cron/reconcile-signup-slots] rerolled bungie_accounts lookup failed", { reason: accountsError.message });
     } else {
-      const existingIds = new Set(((existing ?? []) as { id: string }[]).map((row) => row.id));
+      const existingIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
       rerolledOrphans = rerolledCandidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
     }
   }
