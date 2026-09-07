@@ -203,10 +203,15 @@ beforeEach(() => {
 
 describe("POST /api/roulette/intersection — member guards", () => {
   it("surfaces a members DB error as a 500, not as 'no members'", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     membersResult = { data: null, error: { message: "connection refused" } };
     const res = await POST(makeRequest());
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toContain("connection refused");
+    // The raw DB error must not reach the client (#407) - only the generic
+    // message does; the detail goes to console.error instead.
+    expect((await res.json()).error).not.toContain("connection refused");
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("members lookup failed"), "connection refused");
+    errSpy.mockRestore();
   });
 
   it("returns 404 when the caller isn't in the lobby", async () => {

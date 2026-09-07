@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { getClan } from "@/lib/bungie/clan";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 import { z } from "zod";
 
 const schema = z.object({
@@ -57,6 +58,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[lobby/ready] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 }

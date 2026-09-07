@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { castVote } from "@/lib/draft/voteService";
+import { toClientErrorMessage } from "@/lib/api/errors";
 import { z } from "zod";
 
 const schema = z.object({
@@ -28,6 +29,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
     if (status !== 401) console.error("[draft/vote] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

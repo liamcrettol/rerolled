@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getBungieToken } from "@/lib/auth/helpers";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[internal/rival/bungie-token] token retrieval failed for user", body.userId, message);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 502 });
   }
 }

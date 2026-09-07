@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { NextRequest } from "next/server";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 const mockCloseIdleLobbies = jest.fn();
 const mockGetLobbyIdsAwaitingDetection = jest.fn();
@@ -48,7 +49,7 @@ it("surfaces a failed pending-detection lookup as a 500 instead of closing lobbi
   const body = await res.json();
 
   expect(res.status).toBe(500);
-  expect(body).toEqual({ error: "connection reset" });
+  expect(body).toEqual({ error: UNEXPECTED_ERROR_MESSAGE });
   expect(mockCloseIdleLobbies).not.toHaveBeenCalled();
   errSpy.mockRestore();
 });

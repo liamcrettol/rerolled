@@ -7,6 +7,7 @@ import { planWeaponCycles, type WeaponUsageRow } from "@/lib/roulette/weaponCycl
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { createLogger } from "@/lib/logger";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 const schema = z.object({
   lobbyId: z.string().uuid(),
@@ -216,6 +217,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     log.error("roll.error", { error: msg, durationMs: Date.now() - t });
     await log.flush();
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { joinLobby } from "@/lib/lobby";
-import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError } from "@/lib/api/errors";
+import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError, toClientErrorMessage } from "@/lib/api/errors";
 import { z } from "zod";
 
 const schema = z.object({ code: z.string().min(4).max(10) });
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : msg === "Lobby not found" ? 404 : 500;
     if (status === 500) console.error("[lobby/join] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

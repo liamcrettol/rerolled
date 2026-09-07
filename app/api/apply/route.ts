@@ -15,6 +15,7 @@ import type { ApplyResult } from "@/types/lobby";
 import type { DestinyCharacter, WeaponSlot } from "@/types/bungie";
 import { rotateCaptain } from "@/lib/lobby";
 import { createLogger } from "@/lib/logger";
+import { toClientErrorMessage } from "@/lib/api/errors";
 import { z } from "zod";
 
 // The retried Bungie call chain (inventory clear, transfer, equip - each
@@ -241,6 +242,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = isBungieAuthErrorMessage(msg) ? 401 : 500;
     log.error("apply.error", { error: msg, durationMs: Date.now() - t }); await log.flush();
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

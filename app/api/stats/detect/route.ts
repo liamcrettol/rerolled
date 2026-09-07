@@ -4,6 +4,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { detectAndRecordGame } from "@/lib/stats/record";
 import { z } from "zod";
 import { createLogger } from "@/lib/logger";
+import { toClientErrorMessage } from "@/lib/api/errors";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
 
@@ -171,6 +172,6 @@ export async function POST(req: NextRequest) {
     const errLog = log ?? createLogger(req);
     errLog.error("detect.error", { error: msg, durationMs: Date.now() - t });
     await errLog.flush();
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

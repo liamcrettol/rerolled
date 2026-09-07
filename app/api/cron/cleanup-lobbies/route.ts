@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { closeIdleLobbies, getLobbyIdsAwaitingDetection } from "@/lib/lobby";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 // Shares getLobbyIdsAwaitingDetection()'s query with detect-games, which runs
 // on the same 15-30 min cadence and declares both of these - this cron had
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   const { pending, error: pendingError } = await getLobbyIdsAwaitingDetection(detectionCutoff);
   if (pendingError) {
     console.error("[cron/cleanup-lobbies] pending-detection query failed:", pendingError.message);
-    return NextResponse.json({ error: pendingError.message }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 
   // Mark stale lobbies done instead of deleting them. That preserves history but
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[cron/cleanup-lobbies] closeIdleLobbies failed:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 
   return NextResponse.json({

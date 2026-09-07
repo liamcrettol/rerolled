@@ -4,6 +4,7 @@ import { adminSupabase } from "@/lib/supabase/admin";
 import { bungieGet } from "@/lib/bungie/client";
 import { getPerkIcons, getPerkInfos, getWeaponDefinitions, getWeaponGroupHashes } from "@/lib/bungie/definitions";
 import { getSocketRolePlugHash } from "@/lib/bungie/socketRoles";
+import { toClientErrorMessage } from "@/lib/api/errors";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 
@@ -334,6 +335,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
     if (status !== 401) console.error("[roulette/rolls] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }
