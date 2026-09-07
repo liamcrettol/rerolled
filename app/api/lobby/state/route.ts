@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { toClientErrorMessage } from "@/lib/api/errors";
 import { z } from "zod";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
@@ -52,6 +53,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = msg === "Unauthorized" ? 401 : 500;
     if (status !== 401) console.error("[lobby/state] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status });
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

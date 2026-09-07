@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { createLobby } from "@/lib/lobby";
-import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError } from "@/lib/api/errors";
+import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError, UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
@@ -34,6 +34,6 @@ export async function POST(req: NextRequest) {
 
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[lobby/create] request failed:", msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 }

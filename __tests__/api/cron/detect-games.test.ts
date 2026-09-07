@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { NextRequest } from "next/server";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 const mockFrom = jest.fn();
 const mockRpc = jest.fn().mockResolvedValue({ data: 0, error: null });
@@ -104,7 +105,7 @@ describe("surfaces query failures as 500s instead of a silent empty 200 (2026-08
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body).toEqual({ error: "connection reset" });
+    expect(body).toEqual({ error: UNEXPECTED_ERROR_MESSAGE });
     expect(errSpy).toHaveBeenCalledWith(
       "[detect-games] pending-applies query failed",
       expect.objectContaining({ reason: "connection reset" }),
@@ -140,7 +141,7 @@ describe("surfaces query failures as 500s instead of a silent empty 200 (2026-08
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body).toEqual({ error: "statement timeout" });
+    expect(body).toEqual({ error: UNEXPECTED_ERROR_MESSAGE });
     expect(errSpy).toHaveBeenCalledWith(
       "[detect-games] existing-sessions query failed",
       expect.objectContaining({ reason: "statement timeout" }),
@@ -285,7 +286,7 @@ describe("surfaces query failures as 500s instead of a silent empty 200 (2026-08
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body).toEqual({ error: "connection reset" });
+    expect(body).toEqual({ error: UNEXPECTED_ERROR_MESSAGE });
     expect(errSpy).toHaveBeenCalledWith(
       "[detect-games] lobby-statuses query failed",
       expect.objectContaining({ reason: "connection reset" }),

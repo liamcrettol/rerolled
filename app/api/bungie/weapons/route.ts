@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
 import { getWeapons } from "@/lib/bungie/inventory";
+import { toClientErrorMessage } from "@/lib/api/errors";
 
 export async function GET() {
   try {
@@ -17,6 +18,7 @@ export async function GET() {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     const status = isBungieAuthErrorMessage(msg) ? 401 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    if (status === 500) console.error("[bungie/weapons] request failed:", msg);
+    return NextResponse.json({ error: toClientErrorMessage(msg, status) }, { status });
   }
 }

@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { bucketToSlot } from "@/types/bungie";
 import { createLogger } from "@/lib/logger";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 const schema = z.object({
   lobbyId: z.string().uuid(),
@@ -101,10 +102,8 @@ export async function POST(req: NextRequest) {
 
     // Surface a real DB error instead of letting it masquerade as "no members".
     if (membersError) {
-      return NextResponse.json(
-        { error: `Couldn't load lobby members: ${membersError.message}` },
-        { status: 500 }
-      );
+      console.error("[intersection] members lookup failed:", membersError.message);
+      return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
     }
 
     // A solo lobby is valid: the shared pool is just the one member's own
@@ -725,6 +724,6 @@ export async function POST(req: NextRequest) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     log.error("intersection.error", { error: msg });
     await log.flush();
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 }

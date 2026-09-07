@@ -5,6 +5,7 @@ import { detectAndRecordGame } from "@/lib/stats/record";
 import { assertCronAuth } from "@/lib/auth/cron";
 import { closeIdleLobbies, getLobbyIdsAwaitingDetection } from "@/lib/lobby";
 import { checkDatabaseCapacity } from "@/lib/db/capacity";
+import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
 
 // Triggered by Supabase pg_cron + pg_net with Authorization: Bearer CRON_SECRET.
 // It finds lobbies that have a pending apply
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (pendingError) {
     const label = stage === "existing_sessions" ? "existing-sessions" : "pending-applies";
     console.error(`[detect-games] ${label} query failed`, { reason: pendingError.message });
-    return NextResponse.json({ error: pendingError.message }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 
   // Mark lobbies idle for >2 hours as done so they stop accumulating, except
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   if (lobbyStatusesError) {
     console.error("[detect-games] lobby-statuses query failed", { reason: lobbyStatusesError.message });
-    return NextResponse.json({ error: lobbyStatusesError.message }, { status: 500 });
+    return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });
   }
 
   const doneIds = new Set((lobbyStatuses ?? []).filter((l) => l.status === "done").map((l) => l.id));

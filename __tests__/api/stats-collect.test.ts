@@ -120,12 +120,20 @@ describe("POST /api/stats/collect", () => {
       },
     });
 
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     const res = await POST(makeRequest());
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error).toMatch(/Failed to persist player_game_stats/);
+    // The raw persistence failure must not reach the client (#407) - it's
+    // logged server-side instead, and the client gets a generic message.
+    expect(body.error).not.toMatch(/Failed to persist player_game_stats/);
+    expect(errSpy).toHaveBeenCalledWith(
+      "[stats/collect] request failed:",
+      expect.stringMatching(/Failed to persist player_game_stats/)
+    );
     // Must not report success once game_sessions is committed with no stats.
     expect(body.ok).not.toBe(true);
+    errSpy.mockRestore();
   });
 });
