@@ -158,7 +158,18 @@ async function advanceRoundAndRotate(lobbyId: string, roundId: string): Promise<
   }
 
   if (!roundState?.captain_rotated && !lobby?.captain_locked) {
-    await rotateCaptain(lobbyId);
+    // rotateCaptain throws on a write failure (#397/#398 hardening). That must
+    // not abort the round-advance writes below: game_sessions/player_game_stats
+    // are already committed by the time we get here, so nothing ever retries
+    // this round advance if we let the throw propagate, wedging the lobby.
+    try {
+      await rotateCaptain(lobbyId);
+    } catch (err) {
+      console.error("[stats/record] captain rotation failed", {
+        lobbyId,
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   if (!lobby) return;
