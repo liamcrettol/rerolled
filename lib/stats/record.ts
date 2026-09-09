@@ -94,11 +94,14 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
     return { status: "already_recorded", stats: mapStoredStats(existing?.player_game_stats ?? []) };
   }
 
-  // These inserts must not fail silently: game_sessions(round_id) is already
-  // committed, so a caller checking "does a session exist for this round" will
-  // treat it as fully recorded from here on and never call detectAndRecordGame
-  // for this round again. Throwing surfaces the failure to both callers'
-  // error logging instead of leaving a session with no stats forever.
+  // game_sessions(round_id) is already committed at this point, and every
+  // caller that decides whether a round still needs detection (the cron's
+  // getLobbyIdsAwaitingDetection, and the client detect route's own
+  // existing-session check) only looks for that row - neither checks whether
+  // player_game_stats actually exists. So a failure here must not just throw:
+  // left as-is, the round would be permanently marked "detected" with zero
+  // stats and nothing would ever retry it. Roll back the orphaned
+  // game_sessions row first so the round is picked up again next pass.
   const { error: statsError } = await adminSupabase.from("player_game_stats").insert(
     playerStats.map((s) => ({
       game_session_id: gameSession.id,
@@ -113,10 +116,26 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
     }))
   );
   if (statsError) {
+    const { error: rollbackError } = await adminSupabase
+      .from("game_sessions")
+      .delete()
+      .eq("id", gameSession.id);
+    if (rollbackError) {
+      console.error("[stats/record] failed to roll back orphaned game_session after stats-insert failure", {
+        roundId,
+        gameSessionId: gameSession.id,
+        reason: rollbackError.message,
+      });
+    }
     throw new Error(`Failed to persist player_game_stats for round ${roundId}: ${statsError.message}`);
   }
 
   if (weaponKills.length) {
+    // Supplementary data: player_game_stats above is already committed, so the
+    // round is correctly recorded regardless of this insert's outcome. Log and
+    // continue instead of throwing, or a failure here would skip
+    // advanceRoundAndRotate below and strand the lobby on this round even
+    // though its stats are fine.
     const { error: weaponError } = await adminSupabase.from("weapon_round_kills").insert(
       weaponKills.map((w) => ({
         game_session_id: gameSession.id,
@@ -125,7 +144,9 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
       }))
     );
     if (weaponError) {
-      throw new Error(`Failed to persist weapon_round_kills for round ${roundId}: ${weaponError.message}`);
+      console.error(`[stats/record] failed to persist weapon_round_kills for round ${roundId}`, {
+        reason: weaponError.message,
+      });
     }
   }
 

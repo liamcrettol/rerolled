@@ -50,6 +50,10 @@ function makeDb(config: Record<string, any>) {
         cfg.inserted = rows;
         return builder;
       },
+      delete: () => {
+        cfg.deleted = true;
+        return builder;
+      },
       // advanceRoundAndRotate upserts the next round on
       // (lobby_id, round_number) so a retry after a partial failure cannot
       // collide with the row a previous attempt already wrote.
@@ -92,27 +96,46 @@ describe("detectAndRecordGame", () => {
     tokenOwnerUserId: "user-1",
   };
 
-  it("throws instead of silently dropping stats when the player_game_stats insert fails", async () => {
-    (adminSupabase.from as jest.Mock) = makeDb({
+  it("rolls back the orphaned game_session and throws when the player_game_stats insert fails", async () => {
+    const config: { game_sessions: { single: unknown; deleted?: boolean }; player_game_stats: { terminal: unknown } } = {
       game_sessions: { single: { data: { id: "session-1" }, error: null } },
       player_game_stats: { terminal: { data: null, error: { message: "insert failed" } } },
-    });
+    };
+    (adminSupabase.from as jest.Mock) = makeDb(config);
 
+    // Without the rollback, game_sessions(round_id) stays committed with no
+    // player_game_stats rows, and every caller that checks "does a session
+    // exist for this round" (the cron's getLobbyIdsAwaitingDetection, the
+    // client detect route's own existing-session check) would treat the
+    // round as fully detected forever - no stats, no captain rotation, no
+    // next round, and nothing ever retries it.
     await expect(detectAndRecordGame(baseParams)).rejects.toThrow(
       /Failed to persist player_game_stats for round round-1/
     );
+    expect(config.game_sessions.deleted).toBe(true);
   });
 
-  it("throws instead of silently dropping weapon kills when that insert fails", async () => {
+  it("logs and still records + advances the round when the weapon_round_kills insert fails", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     (adminSupabase.from as jest.Mock) = makeDb({
       game_sessions: { single: { data: { id: "session-1" }, error: null } },
       player_game_stats: { terminal: { data: null, error: null } },
       weapon_round_kills: { terminal: { data: null, error: { message: "insert failed" } } },
+      lobby_rounds: { single: { data: { captain_rotated: true }, error: null } },
+      lobbies: { single: { data: { current_round: 1, captain_locked: true }, error: null } },
     });
 
-    await expect(detectAndRecordGame(baseParams)).rejects.toThrow(
-      /Failed to persist weapon_round_kills for round round-1/
+    // player_game_stats is already committed by the time weapon_round_kills
+    // runs, so the round is correctly recorded either way - throwing here
+    // would only skip advanceRoundAndRotate and strand the lobby despite
+    // having valid stats.
+    const outcome = await detectAndRecordGame(baseParams);
+    expect(outcome.status).toBe("recorded");
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("weapon_round_kills"),
+      expect.objectContaining({ reason: "insert failed" })
     );
+    errorSpy.mockRestore();
   });
 
   it("records normally when both inserts succeed", async () => {
