@@ -68,7 +68,7 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
   const { playerStats, weaponKills, instanceId, activityHash, isPrivate } = result;
   const mapName = await resolveActivityName(activityHash);
 
-  const { data: gameSession } = await adminSupabase
+  const { data: gameSession, error: sessionError } = await adminSupabase
     .from("game_sessions")
     .insert({
       lobby_id: lobbyId,
@@ -82,6 +82,17 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
     })
     .select()
     .single();
+
+  // A real insert failure (23505 is the unique-violation Postgres code for
+  // the concurrent-worker race handled below) must not be swallowed: this
+  // branch used to check only `!gameSession`, so any other failure (a
+  // transient Supabase error, a constraint violation, etc.) fell into the
+  // "concurrent worker won" path below, found no existing row, and reported
+  // the game as already_recorded with zero stats - silently losing it with
+  // no retry.
+  if (sessionError && sessionError.code !== "23505") {
+    throw new Error(`Failed to persist game_sessions for round ${roundId}: ${sessionError.message}`);
+  }
 
   // Insert returned nothing: a concurrent worker won the unique-index race.
   // Return whatever they recorded so the caller can surface it immediately.

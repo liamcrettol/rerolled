@@ -115,6 +115,28 @@ describe("detectAndRecordGame", () => {
     );
   });
 
+  it("throws instead of misreporting a real game_sessions insert failure as already_recorded", async () => {
+    (adminSupabase.from as jest.Mock) = makeDb({
+      game_sessions: { single: { data: null, error: { code: "57014", message: "statement timeout" } } },
+    });
+
+    await expect(detectAndRecordGame(baseParams)).rejects.toThrow(
+      /Failed to persist game_sessions for round round-1/
+    );
+  });
+
+  it("treats a unique-violation on game_sessions as a concurrent worker winning the race", async () => {
+    (adminSupabase.from as jest.Mock) = makeDb({
+      game_sessions: {
+        single: { data: null, error: { code: "23505", message: "duplicate key" } },
+        maybeSingle: { data: { player_game_stats: [] }, error: null },
+      },
+    });
+
+    const outcome = await detectAndRecordGame(baseParams);
+    expect(outcome.status).toBe("already_recorded");
+  });
+
   it("records normally when both inserts succeed", async () => {
     (adminSupabase.from as jest.Mock) = makeDb({
       game_sessions: { single: { data: { id: "session-1" }, error: null } },
