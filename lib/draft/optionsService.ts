@@ -106,6 +106,35 @@ async function applyExoticRules(
   return nonExotic.length > 0 ? nonExotic : pool;
 }
 
+// Draft order is fixed Kinetic -> Energy -> Power (CLAUDE.md); each slot's
+// options are only meant to be generated after the previous slot's pick is
+// committed, since applyAmmoRules needs the committed Kinetic pick to filter
+// Energy's pool. Nothing enforced that server-side: a client could reveal
+// Energy before Kinetic and get an unconstrained pool (no Kinetic pick yet
+// to compare ammo types against), letting the fireteam end up with two
+// Special-ammo weapons across Kinetic+Energy.
+const SLOT_ORDER: readonly WeaponSlot[] = ["kinetic", "energy", "power"];
+
+async function requirePriorSlotCommitted(
+  slot: WeaponSlot,
+  roundId: string,
+  db: Db
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const index = SLOT_ORDER.indexOf(slot);
+  if (index <= 0) return { ok: true };
+  const priorSlot = SLOT_ORDER[index - 1];
+  const { data: priorPick } = await db
+    .from("lobby_loadout_slots")
+    .select("item_hash")
+    .eq("round_id", roundId)
+    .eq("slot", priorSlot)
+    .maybeSingle();
+  if (!priorPick) {
+    return { ok: false, error: `Reveal and commit ${priorSlot} before ${slot}` };
+  }
+  return { ok: true };
+}
+
 export async function generateSlotOptions(
   lobbyId: string,
   roundId: string,
@@ -115,6 +144,9 @@ export async function generateSlotOptions(
 ): Promise<GenerateOptionsResult> {
   const starterCheck = await requireStarter(lobbyId, userId, db);
   if (!starterCheck.ok) return { ok: false, error: starterCheck.error };
+
+  const orderCheck = await requirePriorSlotCommitted(slot, roundId, db);
+  if (!orderCheck.ok) return { ok: false, error: orderCheck.error };
 
   const existingOptions = await getOfferedOptions(roundId, slot, db);
   if (existingOptions.length > 0) {

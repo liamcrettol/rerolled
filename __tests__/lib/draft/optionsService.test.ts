@@ -100,6 +100,26 @@ describe("generateSlotOptions", () => {
   });
 });
 
+describe("generateSlotOptions slot order enforcement", () => {
+  it("refuses to reveal energy options before kinetic is committed", async () => {
+    const db = makeDb({
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
+      lobby_loadout_slots: { maybeSingle: { data: null, error: null } },
+    });
+    const result = await generateSlotOptions("lobby1", "round1", "energy", starter, db);
+    expect(result).toEqual({ ok: false, error: "Reveal and commit kinetic before energy" });
+  });
+
+  it("refuses to reveal power options before energy is committed", async () => {
+    const db = makeDb({
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
+      lobby_loadout_slots: { maybeSingle: { data: null, error: null } },
+    });
+    const result = await generateSlotOptions("lobby1", "round1", "power", starter, db);
+    expect(result).toEqual({ ok: false, error: "Reveal and commit energy before power" });
+  });
+});
+
 describe("generateSlotOptions ammo pairing", () => {
   // Energy pool: 10/11 are Special-ammo, 12/13 are Primary.
   const ammoByHash: Record<number, string> = { 5: "Special", 6: "Primary", 10: "Special", 11: "Special", 12: "Primary", 13: "Primary" };
