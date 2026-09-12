@@ -115,6 +115,20 @@ describe("detectAndRecordGame", () => {
     );
   });
 
+  it("logs distinctly and rethrows when collectPostMatchStats fails transiently, instead of treating it as no_game", async () => {
+    const transientError = new Error("PGCR 111 fetch failed (429); retry after 5s");
+    mockCollect.mockRejectedValueOnce(transientError);
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(detectAndRecordGame(baseParams)).rejects.toThrow(transientError);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[stats/record] PGCR scan failed transiently, will retry next cycle",
+      expect.objectContaining({ lobbyId: "lobby-1", roundId: "round-1", reason: transientError.message })
+    );
+
+    errorSpy.mockRestore();
+  });
+
   it("records normally when both inserts succeed", async () => {
     (adminSupabase.from as jest.Mock) = makeDb({
       game_sessions: { single: { data: { id: "session-1" }, error: null } },

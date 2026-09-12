@@ -1,10 +1,15 @@
 import { adminSupabase } from "@/lib/supabase/admin";
+import { bungieGet } from "@/lib/bungie/client";
 
 const BUNGIE_ROOT = "https://www.bungie.net/Platform";
 
 interface ActivityHistoryEntry {
   activityDetails: { instanceId: string; referenceId: number };
   period: string;
+}
+
+interface ActivityHistoryResponse {
+  activities?: ActivityHistoryEntry[];
 }
 
 interface PGCRWeapon {
@@ -33,24 +38,27 @@ interface PGCR {
   entries: PGCREntry[];
 }
 
-async function getActivityHistory(
+// A bare fetch here used to treat a 429/5xx exactly like "this player
+// genuinely has no activity history yet" (`if (!res.ok) return []`), which is
+// indistinguishable from real emptiness to collectPostMatchStats below - and
+// silently, permanently drops the match once its lobby falls outside the
+// 3-hour detection window (lib/lobby/index.ts). Route through bungieGet
+// instead, which retries 429/5xx with backoff (honoring Bungie's
+// ThrottleSeconds hint) and only throws once retries are exhausted, so a
+// caller can tell a real failure apart from a genuinely empty history.
+//
+// Exported for tests; callers inside this module use it directly.
+export async function getActivityHistory(
   membershipType: number,
   membershipId: string,
   characterId: string,
   accessToken: string
 ): Promise<ActivityHistoryEntry[]> {
-  const res = await fetch(
-    `${BUNGIE_ROOT}/Destiny2/${membershipType}/Account/${membershipId}/Character/${characterId}/Stats/Activities/?count=50&mode=0`,
-    {
-      headers: {
-        "X-API-Key": process.env.BUNGIE_API_KEY!,
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
+  const response = await bungieGet<ActivityHistoryResponse>(
+    `/Destiny2/${membershipType}/Account/${membershipId}/Character/${characterId}/Stats/Activities/?count=50&mode=0`,
+    accessToken
   );
-  if (!res.ok) return [];
-  const json = await res.json();
-  return json.Response?.activities ?? [];
+  return response?.activities ?? [];
 }
 
 export async function resolveActivity(hash: number): Promise<{ name: string | null; image: string | null; modes: number[] }> {
@@ -227,7 +235,10 @@ export async function collectPostMatchStats(
 
   for (const activity of activities) {
     if (afterMs > 0 && new Date(activity.period).getTime() < afterMs) continue;
-    const pgcr = await getPGCR(activity.activityDetails.instanceId);
+    // throwOnTransient: a 429/5xx here is Bungie being unavailable, not a
+    // PGCR that will never exist - let it throw (TransientPgcrError) so the
+    // caller can tell "try again later" apart from "no game found".
+    const pgcr = await getPGCR(activity.activityDetails.instanceId, { throwOnTransient: true });
     if (!pgcr) continue;
 
     // All fireteam members must appear in this PGCR

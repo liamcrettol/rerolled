@@ -62,7 +62,22 @@ function mapStoredStats(
 export async function detectAndRecordGame(params: RecordParams): Promise<RecordOutcome> {
   const { lobbyId, roundId, appliedAt, members, rouletteHashes, token, tokenOwnerUserId } = params;
 
-  const result = await collectPostMatchStats(members, rouletteHashes, token, tokenOwnerUserId, appliedAt);
+  let result;
+  try {
+    result = await collectPostMatchStats(members, rouletteHashes, token, tokenOwnerUserId, appliedAt);
+  } catch (err) {
+    // A transient Bungie failure (429/5xx, mid-scan) must not read as "no game
+    // found yet" - that's the same outcome collectPostMatchStats returns for a
+    // genuinely unfinished match, and callers poll again either way. Log it
+    // distinctly here and rethrow so it surfaces as a real error instead of
+    // being swallowed into the same { status: "no_game" } outcome.
+    console.error("[stats/record] PGCR scan failed transiently, will retry next cycle", {
+      lobbyId,
+      roundId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  }
   if (!result) return { status: "no_game" };
 
   const { playerStats, weaponKills, instanceId, activityHash, isPrivate } = result;
