@@ -84,6 +84,21 @@ jest.mock("@/lib/roulette/intersection", () => ({
   rollLoadout: jest.fn().mockReturnValue({ kinetic: 1111, energy: 2222, power: null }),
 }));
 
+// Fixed hashes per CLAUDE.md's testing conventions - never depend on the real
+// lib/bungie/data/*.json contents (regenerated weekly).
+jest.mock("@/lib/bungie/definitions", () => ({
+  getWeaponAmmoType: jest.fn((hash: number) => {
+    if (hash === 1111) return "Special"; // authoritative: this gun IS Special ammo
+    if (hash === 2222) return "Primary";
+    return null;
+  }),
+  getWeaponTierType: jest.fn((hash: number) => {
+    if (hash === 1111) return 6; // authoritative: this gun IS exotic
+    if (hash === 2222) return 5;
+    return null;
+  }),
+}));
+
 const WEAPON_DETAILS = {
   "1111": { name: "Kinetic Gun", icon: "/k.png", weaponType: "Auto Rifle", damageType: "Kinetic" },
   "1112": { name: "Other Kinetic", icon: "/k2.png", weaponType: "Hand Cannon", damageType: "Stasis" },
@@ -247,5 +262,26 @@ describe("POST /api/roulette/roll — slot writes", () => {
     const res = await POST(makeRequest());
     const body = await res.json();
     expect(body.roll).toEqual({ kinetic: 1111, energy: 2222, power: null });
+  });
+});
+
+describe("POST /api/roulette/roll — ammo/exotic rule inputs can't be forged by the client (#238 gap)", () => {
+  it("overwrites a client-forged ammoType/tierType with the authoritative static-table values before rollLoadout runs", async () => {
+    // 1111 is genuinely Special-ammo and exotic (per the mocked definitions
+    // table above), but the client claims it's a plain Primary legendary -
+    // exactly what a tampered captain client would submit to smuggle a second
+    // exotic or a second Special weapon past rollLoadout's checks. There is no
+    // lobby_pools cache row in this test (single() resolves { data: null }
+    // by default), which is the fallback path where this used to be trusted.
+    await POST(makeRequest({
+      weaponDetails: {
+        ...WEAPON_DETAILS,
+        "1111": { ...WEAPON_DETAILS["1111"], ammoType: "Primary", tierType: 3 },
+      },
+    }));
+
+    const [, detailsArg] = jest.mocked(rollLoadout).mock.calls[0];
+    expect(detailsArg["1111"]).toMatchObject({ ammoType: "Special", tierType: 6 });
+    expect(detailsArg["2222"]).toMatchObject({ ammoType: "Primary", tierType: 5 });
   });
 });

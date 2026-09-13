@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { rollLoadout } from "@/lib/roulette/intersection";
 import { findInvalidPoolHashes } from "@/lib/roulette/validatePool";
+import { getWeaponAmmoType, getWeaponTierType } from "@/lib/bungie/definitions";
 import { planWeaponCycles, type WeaponUsageRow } from "@/lib/roulette/weaponCycle";
 import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
@@ -92,6 +93,22 @@ export async function POST(req: NextRequest) {
     // Server-owned display metadata wins over anything the client submitted,
     // so slot rows are written from the trusted pool where available.
     const details = { ...body.weaponDetails, ...(serverDetails ?? {}) };
+
+    // ammoType/tierType decide the one-exotic and no-double-special sandbox
+    // rules in rollLoadout below. serverDetails (the cached pool) doesn't carry
+    // them, and a pool-cache miss (#238's fallback above) would otherwise leave
+    // these fields fully client-submitted - a tampered client could forge
+    // ammoType/tierType to smuggle two exotics or two Special weapons past
+    // rollLoadout's checks. Overwrite both from the static weapon table (the
+    // same source optionsService uses server-side) for every hash we have
+    // details for, so the rule check never trusts client-supplied values.
+    for (const hash of Object.keys(details)) {
+      const itemHash = Number(hash);
+      const ammoType = getWeaponAmmoType(itemHash);
+      const tierType = getWeaponTierType(itemHash);
+      if (ammoType !== null) details[hash] = { ...details[hash], ammoType };
+      if (tierType !== null) details[hash] = { ...details[hash], tierType };
+    }
 
     // The server owns a persistent per-lobby deck for each weapon slot. Every
     // rolled or manually chosen weapon is removed until the slot is exhausted.
