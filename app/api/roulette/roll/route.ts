@@ -102,12 +102,21 @@ export async function POST(req: NextRequest) {
     // rollLoadout's checks. Overwrite both from the static weapon table (the
     // same source optionsService uses server-side) for every hash we have
     // details for, so the rule check never trusts client-supplied values.
+    // A hash the static table doesn't recognize at all isn't a real weapon -
+    // on the cache-miss path nothing else validates `intersection`, so a
+    // fabricated hash with no static entry previously kept whatever
+    // ammoType/tierType the client forged for it (getWeaponAmmoType/TierType
+    // returned null, so the old `!== null` guards skipped the overwrite).
+    // Default an unrecognized hash to a plain Primary legendary - the only
+    // classification that can never itself trigger the one-exotic or
+    // no-double-special check - instead of trusting the client either way.
     for (const hash of Object.keys(details)) {
       const itemHash = Number(hash);
-      const ammoType = getWeaponAmmoType(itemHash);
-      const tierType = getWeaponTierType(itemHash);
-      if (ammoType !== null) details[hash] = { ...details[hash], ammoType };
-      if (tierType !== null) details[hash] = { ...details[hash], tierType };
+      details[hash] = {
+        ...details[hash],
+        ammoType: getWeaponAmmoType(itemHash) ?? "Primary",
+        tierType: getWeaponTierType(itemHash) ?? 5,
+      };
     }
 
     // The server owns a persistent per-lobby deck for each weapon slot. Every

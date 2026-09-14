@@ -284,4 +284,23 @@ describe("POST /api/roulette/roll — ammo/exotic rule inputs can't be forged by
     expect(detailsArg["1111"]).toMatchObject({ ammoType: "Special", tierType: 6 });
     expect(detailsArg["2222"]).toMatchObject({ ammoType: "Primary", tierType: 5 });
   });
+
+  it("neutralizes a fabricated hash the static weapon table doesn't recognize, instead of trusting its forged ammoType/tierType", async () => {
+    // 9999 has no entry in the mocked definitions table at all (getWeaponAmmoType/
+    // getWeaponTierType both return null for it) - the shape of a hash a tampered
+    // captain client invented outright, not just a real hash with forged fields.
+    // Before this fix, a null static-table lookup left the client's own
+    // "Special"/exotic claim in place, re-opening the exact #416 bypass on the
+    // cache-miss fallback path for any hash the table simply doesn't know.
+    await POST(makeRequest({
+      intersection: { kinetic: [1111, 9999], energy: [2222], power: [3333] },
+      weaponDetails: {
+        ...WEAPON_DETAILS,
+        "9999": { name: "Fake Gun", icon: "/f.png", weaponType: "Auto Rifle", damageType: "Kinetic", ammoType: "Special", tierType: 6 },
+      },
+    }));
+
+    const [, detailsArg] = jest.mocked(rollLoadout).mock.calls[0];
+    expect(detailsArg["9999"]).toMatchObject({ ammoType: "Primary", tierType: 5 });
+  });
 });
