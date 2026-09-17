@@ -21,6 +21,13 @@ export const maxDuration = 60;
 // that an in-flight OAuth round trip is never mistaken for an orphan.
 const ORPHAN_AGE_MS = 30 * 60 * 1000;
 const MAX_CANDIDATES = 500;
+// Mirrors detect-games' LOBBY_CONCURRENCY/DEADLINE_MS pattern: release RPCs
+// run through a small worker pool instead of one-at-a-time, and stop
+// starting new ones before maxDuration=60 so Vercel never kills the request
+// mid-loop. release_signup_slot is idempotent, so anything left in the
+// queue at the deadline is just picked up by the next scheduled run.
+const RELEASE_CONCURRENCY = 8;
+const DEADLINE_MS = 50_000;
 
 type Candidate = { user_id: string; first_site: "rerolled" | "rival" };
 
@@ -92,15 +99,36 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const deadline = Date.now() + DEADLINE_MS;
+  const queue = [...rerolledOrphans, ...rivalOrphans];
   let released = 0;
-  for (const userId of [...rerolledOrphans, ...rivalOrphans]) {
-    if (await releaseOrphan(userId)) released++;
-  }
+  let timedOut = false;
+  const workers = Array.from(
+    { length: Math.min(RELEASE_CONCURRENCY, queue.length) },
+    async () => {
+      for (;;) {
+        if (Date.now() > deadline) {
+          timedOut = true;
+          return;
+        }
+        const userId = queue.shift();
+        if (!userId) return;
+        if (await releaseOrphan(userId)) released++;
+      }
+    }
+  );
+  await Promise.all(workers);
 
   if (released > 0) {
     console.log("[cron/reconcile-signup-slots] released orphaned signup slots", {
       released,
       candidates: candidates.length,
+    });
+  }
+  if (timedOut) {
+    console.error("[cron/reconcile-signup-slots] hit deadline with orphans still queued", {
+      released,
+      skipped: queue.length,
     });
   }
 
@@ -110,6 +138,7 @@ export async function GET(req: NextRequest) {
     rerolledCandidates: rerolledCandidates.length,
     rivalCandidates: rivalCandidates.length,
     released,
+    skipped: queue.length,
     rivalCheckFailed,
   });
 }

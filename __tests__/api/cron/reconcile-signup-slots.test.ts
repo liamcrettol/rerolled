@@ -142,6 +142,24 @@ it("returns clean zeros and skips the Rival call when there are no stale candida
   expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
 });
 
+it("releases orphans beyond the concurrency-pool size without dropping any (#419)", async () => {
+  const rows = Array.from({ length: 20 }, (_, i) => ({ user_id: `orphan-${i}`, first_site: "rerolled" as const }));
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery(rows);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(body.released).toBe(20);
+  expect(body.skipped).toBe(0);
+  expect(mockRpc).toHaveBeenCalledTimes(20);
+});
+
 it("surfaces a failed candidate query as a 500 instead of releasing slots blind", async () => {
   const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   mockFrom.mockImplementation((table: string) => {
