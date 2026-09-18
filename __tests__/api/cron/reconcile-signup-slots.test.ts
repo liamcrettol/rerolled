@@ -142,6 +142,56 @@ it("returns clean zeros and skips the Rival call when there are no stale candida
   expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
 });
 
+it("releases every orphan in a batch larger than the concurrency cap (#419)", async () => {
+  const rows = Array.from({ length: 20 }, (_, i) => ({ user_id: `orphan-${i}`, first_site: "rerolled" as const }));
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery(rows);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockRpc.mockResolvedValue({ data: [{ released: true }], error: null });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(20);
+  expect(body.timedOut).toBe(false);
+  expect(mockRpc).toHaveBeenCalledTimes(20);
+});
+
+it("stops releasing once past the deadline and flags timedOut instead of risking Vercel's hard kill mid-run (#419)", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") {
+      return candidatesQuery([
+        { user_id: "orphan-1", first_site: "rerolled" },
+        { user_id: "orphan-2", first_site: "rerolled" },
+      ]);
+    }
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockRpc.mockResolvedValue({ data: [{ released: true }], error: null });
+
+  // Two Date.now() calls happen before the release loop starts (the orphan-
+  // age cutoff, then the deadline itself) - make every call after those look
+  // already past the deadline, so the worker pool bails before releasing
+  // anything and the leftover orphans roll over to the next scheduled run.
+  let calls = 0;
+  const nowSpy = jest.spyOn(Date, "now").mockImplementation(() => {
+    calls++;
+    return calls <= 2 ? 0 : 100_000;
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  nowSpy.mockRestore();
+
+  expect(body.released).toBe(0);
+  expect(body.timedOut).toBe(true);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
 it("surfaces a failed candidate query as a 500 instead of releasing slots blind", async () => {
   const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
   mockFrom.mockImplementation((table: string) => {
