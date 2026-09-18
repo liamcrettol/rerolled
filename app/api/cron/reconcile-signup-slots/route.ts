@@ -21,6 +21,16 @@ export const maxDuration = 60;
 // that an in-flight OAuth round trip is never mistaken for an orphan.
 const ORPHAN_AGE_MS = 30 * 60 * 1000;
 const MAX_CANDIDATES = 500;
+// How many orphan slots to release concurrently. Each release is an
+// independent Supabase RPC call keyed by its own user_id (no shared-key
+// contention like detect-games' Bungie-API throttling concern) - this just
+// bounds how many run at once so a large backlog doesn't run releaseOrphan()
+// one-by-one and risk exceeding the 60s cron budget (#419).
+const RELEASE_CONCURRENCY = 8;
+// Stop picking up new releases with headroom left, so an in-flight release
+// finishes instead of being killed mid-request. Leftovers are retried next
+// run - release_signup_slot is idempotent.
+const DEADLINE_MS = 50_000;
 
 type Candidate = { user_id: string; first_site: "rerolled" | "rival" };
 
@@ -92,15 +102,32 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const orphanQueue = [...rerolledOrphans, ...rivalOrphans];
+  const deadline = Date.now() + DEADLINE_MS;
   let released = 0;
-  for (const userId of [...rerolledOrphans, ...rivalOrphans]) {
-    if (await releaseOrphan(userId)) released++;
-  }
+  let timedOut = false;
+  const workers = Array.from({ length: Math.min(RELEASE_CONCURRENCY, orphanQueue.length) }, async () => {
+    for (;;) {
+      if (Date.now() > deadline) {
+        timedOut = true;
+        return;
+      }
+      const next = orphanQueue.shift();
+      if (!next) return;
+      if (await releaseOrphan(next)) released++;
+    }
+  });
+  await Promise.all(workers);
 
   if (released > 0) {
     console.log("[cron/reconcile-signup-slots] released orphaned signup slots", {
       released,
       candidates: candidates.length,
+    });
+  }
+  if (timedOut) {
+    console.warn("[cron/reconcile-signup-slots] hit deadline with orphans still queued, will resume next run", {
+      remaining: orphanQueue.length,
     });
   }
 
@@ -111,5 +138,6 @@ export async function GET(req: NextRequest) {
     rivalCandidates: rivalCandidates.length,
     released,
     rivalCheckFailed,
+    timedOut,
   });
 }
