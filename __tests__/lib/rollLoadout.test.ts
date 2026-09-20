@@ -247,6 +247,38 @@ describe("rollLoadout — exotic rules", () => {
       expect(exotics.length).toBeLessThanOrEqual(1);
     }
   });
+
+  // #421: a captain client can send arbitrary keepSlots hashes (there's no
+  // pool-membership check on kept slots, only on the rolled pool per #238).
+  // Every existing exotic/special safeguard above only runs while resolving
+  // a slot that's actually being ROLLED - when BOTH kinetic and energy are
+  // "kept" nothing rolls at all, so a forged pair of exotics (or two
+  // Special-ammo weapons) previously passed straight through untouched.
+  it("breaks a forged double-exotic keepSlots pair by re-deriving energy from the pool", () => {
+    const roll = rollLoadout(pools({ kinetic: [300], energy: [301, 105] }), DETAILS, {
+      kinetic: 300, // exotic, kept
+      energy: 301, // a different exotic, also (forged) kept
+    });
+    expect(roll.kinetic).toBe(300);
+    expect(roll.energy).toBe(105); // re-derived: energy's only non-exotic option
+  });
+
+  it("falls back to the forged double-exotic pair only if the pool has no non-exotic alternative", () => {
+    const roll = rollLoadout(pools({ kinetic: [300], energy: [301] }), DETAILS, {
+      kinetic: 300,
+      energy: 301,
+    });
+    expect(roll).toEqual({ kinetic: 300, energy: 301, power: null });
+  });
+
+  it("breaks a forged double-Special keepSlots pair by re-deriving energy from the pool", () => {
+    const roll = rollLoadout(pools({ kinetic: [200], energy: [201, 102] }), DETAILS, {
+      kinetic: 200, // Special, kept
+      energy: 201, // a different Special, also (forged) kept
+    });
+    expect(roll.kinetic).toBe(200);
+    expect(roll.energy).toBe(102); // re-derived: energy's only non-Special option
+  });
 });
 
 describe("rollLoadout — avoid window (recent-roll memory)", () => {

@@ -186,5 +186,25 @@ export function rollLoadout(
     if (nonExoticK.length > 0) kineticHash = pick(nonExoticK, rng) ?? kineticHash;
   }
 
+  // Both slots kept and mutually conflicting. The three branches above only
+  // fire when at least one slot was rolled - a fully-kept pair never passes
+  // through dropExoticsIf/dropSpecialsIf at all, so a caller that trusts
+  // keepSlots without validating it (a forged/tampered request; a genuinely
+  // prior valid roll can never conflict with itself) could otherwise smuggle
+  // two exotics or two Special-ammo weapons straight through. Untrust the
+  // energy lock in that case and re-derive it from the pool honoring the
+  // kinetic lock, falling back to the forged value only if no alternative
+  // exists in the pool (same "never leave a slot broken" fallback used
+  // everywhere else in this function).
+  if (kineticKept && energyKept) {
+    if (isExotic(kineticHash) && isExotic(energyHash)) {
+      const nonExoticE = dropAvoided(intersection.energy.filter((h) => !isExotic(h)), "energy");
+      if (nonExoticE.length > 0) energyHash = pick(nonExoticE, rng) ?? energyHash;
+    } else if (isSpecial(kineticHash) && isSpecial(energyHash)) {
+      const nonSpecialE = dropAvoided(intersection.energy.filter((h) => !isSpecial(h)), "energy");
+      if (nonSpecialE.length > 0) energyHash = pick(nonSpecialE, rng) ?? energyHash;
+    }
+  }
+
   return { kinetic: kineticHash, energy: energyHash, power: powerHash };
 }
