@@ -146,6 +146,40 @@ describe("generateSlotOptions ammo pairing", () => {
     expect(result.ok).toBe(true);
     expect(result.options!.length).toBe(2);
   });
+
+  // #421: the fixed Kinetic -> Energy -> Power order is only a client UI
+  // convention (DraftBoard always reveals the first uncommitted slot) - the
+  // server itself never enforces it, so Energy can commit before Kinetic is
+  // ever revealed. Before this fix, applyAmmoRules only checked "kinetic
+  // already committed" when generating Energy's options and let Kinetic
+  // reveal completely unfiltered regardless of what Energy already
+  // committed, so two Special-ammo weapons could land across Kinetic+Energy
+  // simply by revealing them out of the assumed order.
+  function kineticDb(energyPickHash: number | null, pool: number[]) {
+    return makeDb({
+      lobbies: { single: { data: { captain_user_id: starter }, error: null } },
+      lobby_pools: {
+        single: { data: { pool: { kinetic: pool, energy: [], power: [] }, weapon_details: energyDetails }, error: null },
+      },
+      lobby_loadout_slots: {
+        maybeSingle: energyPickHash === null ? { data: null, error: null } : { data: { item_hash: energyPickHash }, error: null },
+      },
+    });
+  }
+
+  it("offers only Primary kinetic weapons when Energy already committed a Special pick (reveal order reversed)", async () => {
+    const db = kineticDb(10, [10, 11, 12, 13]);
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", starter, db);
+    expect(result.ok).toBe(true);
+    expect(result.options!.map((o) => o.itemHash).every((h) => h === 12 || h === 13)).toBe(true);
+  });
+
+  it("offers only Special kinetic weapons when Energy already committed a Primary pick (reveal order reversed)", async () => {
+    const db = kineticDb(12, [10, 11, 12, 13]);
+    const result = await generateSlotOptions("lobby1", "round1", "kinetic", starter, db);
+    expect(result.ok).toBe(true);
+    expect(result.options!.map((o) => o.itemHash).every((h) => h === 10 || h === 11)).toBe(true);
+  });
 });
 
 describe("commitOfferedOption", () => {
@@ -179,5 +213,24 @@ describe("commitOfferedOption", () => {
     ];
     const result = await commitOfferedOption("round1", "energy", 2, exoticOffer, starter, db);
     expect(result).toEqual({ ok: false, error: "Only one exotic weapon can be equipped in a loadout" });
+  });
+
+  // #421 commit-time backstop: generateSlotOptions already keeps a Special
+  // pick out of the reveal pool, but a vote can still resolve after the
+  // other slot committed in between this slot's reveal and its own commit.
+  it("rejects a second Special-ammo weapon across kinetic+energy at commit time", async () => {
+    mockTier.mockReset();
+    mockAmmo.mockImplementation((hash) => (hash === 1 || hash === 2 ? "Special" : "Primary"));
+    const db = makeDb({
+      lobby_loadout_slots: {
+        list: [{ slot: "kinetic", item_hash: 1 }],
+      },
+    });
+    const specialOffer = [
+      { item_hash: 2, weapon_name: "B", weapon_icon: "b", weapon_type: "Shotgun", damage_type: "Void" },
+    ];
+    const result = await commitOfferedOption("round1", "energy", 2, specialOffer, starter, db);
+    expect(result).toEqual({ ok: false, error: "Only one Special-ammo weapon can be equipped across Kinetic and Energy" });
+    mockAmmo.mockReset();
   });
 });

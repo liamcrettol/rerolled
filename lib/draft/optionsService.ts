@@ -55,30 +55,39 @@ async function requireStarter(
 }
 
 // Draft pairs one Primary-ammo weapon with one Special-ammo weapon across the
-// Kinetic and Energy slots. Kinetic may reveal either type; Energy then reveals
-// the opposite of the committed Kinetic pick. Power is always Heavy. If the
-// shared pool has no complementary weapon, keep the full pool as a fallback.
+// Kinetic and Energy slots. Whichever of the two is revealed first may be
+// either type; the other then reveals the opposite of whatever's already
+// committed. Power is always Heavy so it's never constrained by this rule.
+// If the shared pool has no complementary weapon, keep the full pool as a
+// fallback.
+//
+// Checked symmetrically against "the other of kinetic/energy", not just
+// "kinetic when generating energy" - the fixed Kinetic -> Energy -> Power
+// reveal order is a client-side UI convention (DraftBoard always reveals the
+// first uncommitted slot), not something this route enforces server-side, so
+// Energy can just as easily commit before Kinetic reveals (#421).
 async function applyAmmoRules(
   slot: WeaponSlot,
   roundId: string,
   pool: number[],
   db: Db
 ): Promise<number[]> {
-  if (slot !== "energy") return pool;
+  if (slot === "power") return pool;
+  const otherSlot: WeaponSlot = slot === "kinetic" ? "energy" : "kinetic";
 
-  const { data: kineticPick } = await db
+  const { data: otherPick } = await db
     .from("lobby_loadout_slots")
     .select("item_hash")
     .eq("round_id", roundId)
-    .eq("slot", "kinetic")
+    .eq("slot", otherSlot)
     .maybeSingle();
 
-  if (!kineticPick) return pool;
-  const kineticAmmo = getWeaponAmmoType(kineticPick.item_hash);
-  if (kineticAmmo !== "Primary" && kineticAmmo !== "Special") return pool;
+  if (!otherPick) return pool;
+  const otherAmmo = getWeaponAmmoType(otherPick.item_hash);
+  if (otherAmmo !== "Primary" && otherAmmo !== "Special") return pool;
 
-  const requiredEnergyAmmo = kineticAmmo === "Primary" ? "Special" : "Primary";
-  const complementary = pool.filter((hash) => getWeaponAmmoType(hash) === requiredEnergyAmmo);
+  const requiredAmmo = otherAmmo === "Primary" ? "Special" : "Primary";
+  const complementary = pool.filter((hash) => getWeaponAmmoType(hash) === requiredAmmo);
   return complementary.length > 0 ? complementary : pool;
 }
 
@@ -220,6 +229,24 @@ export async function commitOfferedOption(
   );
   if (exoticAlreadyCommitted && getWeaponTierType(picked.item_hash) === 6) {
     return { ok: false, error: "Only one exotic weapon can be equipped in a loadout" };
+  }
+
+  // Same defense-in-depth as the exotic check above: generateSlotOptions'
+  // applyAmmoRules already keeps a Special pick out of the reveal pool when
+  // the other of kinetic/energy already committed a Special, but a vote can
+  // still land after that other slot committed in between this slot's reveal
+  // and its vote resolving. Re-check at commit so the rule holds regardless
+  // of reveal/commit timing, not just at reveal time (#421).
+  if (slot === "kinetic" || slot === "energy") {
+    const otherSlot: WeaponSlot = slot === "kinetic" ? "energy" : "kinetic";
+    const otherCommitted = (committed ?? []).find((existing: { slot: WeaponSlot; item_hash: number }) => existing.slot === otherSlot);
+    if (
+      otherCommitted &&
+      getWeaponAmmoType(otherCommitted.item_hash) === "Special" &&
+      getWeaponAmmoType(picked.item_hash) === "Special"
+    ) {
+      return { ok: false, error: "Only one Special-ammo weapon can be equipped across Kinetic and Energy" };
+    }
   }
 
   const { error } = await db.from("lobby_loadout_slots").upsert(
