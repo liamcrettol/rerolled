@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
 import { z } from "zod";
 import { closeLobby } from "@/lib/lobby";
-import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
+import { UNEXPECTED_ERROR_MESSAGE, isUnauthorizedError, UNAUTHORIZED_MESSAGE } from "@/lib/api/errors";
 
 const schema = z.object({ lobbyId: z.string().uuid() });
 
@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (isUnauthorizedError(err)) {
+      return NextResponse.json({ error: UNAUTHORIZED_MESSAGE }, { status: 401 });
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[lobby/leave] request failed:", msg);
     return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });

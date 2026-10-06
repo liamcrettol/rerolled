@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { createLobby } from "@/lib/lobby";
-import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError, UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
+import { DATABASE_UNAVAILABLE_MESSAGE, isDatabaseUnavailableError, UNEXPECTED_ERROR_MESSAGE, isUnauthorizedError, UNAUTHORIZED_MESSAGE } from "@/lib/api/errors";
 
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
+    if (isUnauthorizedError(err)) {
+      return NextResponse.json({ error: UNAUTHORIZED_MESSAGE }, { status: 401 });
+    }
     if (isDatabaseUnavailableError(err)) {
       // Include elapsed ms: it distinguishes tripping the client-side
       // SUPABASE_REQUEST_TIMEOUT_MS budget (~1.2s per request by default) from

@@ -26,3 +26,10 @@ export const UNEXPECTED_ERROR_MESSAGE = "Something went wrong. Please try again.
 export function toClientErrorMessage(message: string, status: number): string {
   return status === 500 ? UNEXPECTED_ERROR_MESSAGE : message;
 }
+
+export const UNAUTHORIZED_MESSAGE = "Unauthorized";
+
+// requireSession() throws this exact message when there is no valid session.
+export function isUnauthorizedError(err: unknown): boolean {
+  return err instanceof Error && err.message === UNAUTHORIZED_MESSAGE;
+}

@@ -77,12 +77,12 @@ describe("POST /api/roulette/roll logging", () => {
   });
 
   it("logs roll.error and flushes on failure", async () => {
-    jest.mocked(requireSession).mockRejectedValueOnce(new Error("Unauthorized"));
+    jest.mocked(requireSession).mockRejectedValueOnce(new Error("boom"));
 
     const res = await POST(makeRollRequest());
     expect(res.status).toBe(500);
     expect(mockError).toHaveBeenCalledWith("roll.error", expect.objectContaining({
-      error: "Unauthorized",
+      error: "boom",
       durationMs: expect.any(Number),
     }));
     expect(mockFlush).toHaveBeenCalled();

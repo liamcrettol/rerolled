@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { WeaponSlot } from "@/types/bungie";
 import { bucketToSlot } from "@/types/bungie";
 import { createLogger } from "@/lib/logger";
-import { UNEXPECTED_ERROR_MESSAGE } from "@/lib/api/errors";
+import { UNEXPECTED_ERROR_MESSAGE, isUnauthorizedError, UNAUTHORIZED_MESSAGE } from "@/lib/api/errors";
 
 const schema = z.object({
   lobbyId: z.string().uuid(),
@@ -721,6 +721,9 @@ export async function POST(req: NextRequest) {
       weaponReleases,
     });
   } catch (err) {
+    if (isUnauthorizedError(err)) {
+      return NextResponse.json({ error: UNAUTHORIZED_MESSAGE }, { status: 401 });
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     log.error("intersection.error", { error: msg });
     await log.flush();
