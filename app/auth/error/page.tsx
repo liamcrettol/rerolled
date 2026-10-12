@@ -18,6 +18,8 @@ const MESSAGES: Record<string, string> = {
   database_unavailable: "The database is timing out right now. Please try again in a minute.",
   user_upsert_failed: "We couldn't save your account. Please try again.",
   account_upsert_failed: "We couldn't save your Bungie link. Please try again.",
+  user_upsert_transient_failure: "The database is timing out right now. Please try again in a minute.",
+  account_upsert_transient_failure: "The database is timing out right now. Please try again in a minute.",
   jwt_encode_failed: "Something went wrong creating your session. Please try again.",
 };
 
