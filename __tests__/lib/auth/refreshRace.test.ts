@@ -17,11 +17,13 @@ const dbState: {
   updateResult: Row[];
   updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }>;
   updateThrows: Error[];
+  updateErrors: Array<{ message: string }>;
 } = {
   reads: [],
   updateResult: [],
   updates: [],
   updateThrows: [],
+  updateErrors: [],
 };
 
 jest.mock("@/lib/supabase/admin", () => ({
@@ -46,7 +48,9 @@ jest.mock("@/lib/supabase/admin", () => ({
               dbState.updates.push({ patch, filters });
               const err = dbState.updateThrows.shift();
               if (err) throw err;
-              return { data: dbState.updateResult };
+              const resolvedError = dbState.updateErrors.shift();
+              if (resolvedError) return { data: null, error: resolvedError };
+              return { data: dbState.updateResult, error: null };
             },
           };
           return updateBuilder;
@@ -92,6 +96,7 @@ describe("getBungieToken refresh race protection", () => {
     dbState.updateResult = [];
     dbState.updates = [];
     dbState.updateThrows = [];
+    dbState.updateErrors = [];
   });
 
   it("compare-and-swaps the token write against the refresh ciphertext it read", async () => {
@@ -170,6 +175,38 @@ describe("getBungieToken refresh race protection", () => {
       expect.objectContaining({ userId: "user-1" })
     );
     errSpy.mockRestore();
+  });
+
+  // supabase-js reports PostgREST failures (5xx, statement timeout) as a
+  // resolved { data: null, error } rather than throwing. That must be treated
+  // as a persist failure (retry + error log), not as a lost CAS race, or the
+  // rotated refresh token is silently never stored.
+  it("retries when the persist resolves with an error object instead of throwing", async () => {
+    dbState.reads = [accountRow()];
+    dbState.updateErrors = [{ message: "canceling statement due to statement timeout" }];
+    dbState.updateResult = [{ user_id: "user-1" }];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+  });
+
+  it("logs a persist failure (not a concurrent-refresh warning) when both attempts resolve with errors", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    dbState.reads = [accountRow()];
+    dbState.updateErrors = [{ message: "boom" }, { message: "boom" }];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+    expect(errSpy).toHaveBeenCalledWith(
+      "[auth] failed to persist refreshed Bungie token after retry",
+      expect.objectContaining({ userId: "user-1" })
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+    errSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it("fails fast when the tokens were issued by a different OAuth app", async () => {

@@ -147,8 +147,12 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
-  const persistUpdate = () =>
-    withSupabaseTimeout(
+  // supabase-js resolves PostgREST failures as { data: null, error } instead
+  // of throwing, so surface them as a throw: otherwise a failed write is
+  // indistinguishable from a clean "0 rows matched" CAS loss and the rotated
+  // refresh token is silently never persisted.
+  const persistUpdate = async () => {
+    const result = await withSupabaseTimeout(
       adminSupabase
         .from("bungie_accounts")
         .update({
@@ -162,6 +166,9 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
         .eq("refresh_token_enc", refreshTokenEnc)
         .select("user_id")
     );
+    if (result.error) throw new Error(result.error.message);
+    return result;
+  };
 
   // Bungie has already rotated the refresh token server-side by this point -
   // the ciphertext we just redeemed is dead there regardless of whether this
