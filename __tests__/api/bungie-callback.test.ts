@@ -145,6 +145,27 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(mockReserveSignupSlot).not.toHaveBeenCalled();
   });
 
+  // #426 - a single transient blip on the local returning-user lookup used to
+  // misclassify an existing account as a new signup, routing it into the
+  // fail-closed capacity check. Mirrors Rival's one-retry (#32 there).
+  it("retries a failed returning-user lookup once so a blip does not force the capacity check", async () => {
+    setup(true);
+    let failedOnce = false;
+    mockFrom.mockImplementation((table: string) => {
+      const q = tableQuery(true);
+      if (table === "bungie_accounts" && !failedOnce) {
+        failedOnce = true;
+        q.maybeSingle.mockRejectedValueOnce(new Error("transient lookup failure"));
+      }
+      return q;
+    });
+    const res = await GET(
+      new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state"),
+    );
+    expect(res.headers.get("location")).toBe("https://test.app/dashboard");
+    expect(mockReserveSignupSlot).not.toHaveBeenCalled();
+  });
+
   it("still runs the capacity RPC for a genuinely new user", async () => {
     setup(false);
     mockReserveSignupSlot.mockResolvedValue({

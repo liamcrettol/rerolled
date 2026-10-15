@@ -223,17 +223,30 @@ export async function GET(req: NextRequest) {
   // the whole existing user base, not just new signups (#367). A failed or
   // errored local lookup falls through to the existing RPC check below, so
   // no capacity-safety guarantee is weakened for new signups.
-  let isReturningUser = false;
-  try {
+  const checkExistingAccount = async () => {
     const { data: existingAccount, error: lookupErr } = await adminSupabase
       .from("bungie_accounts")
       .select("user_id")
       .eq("user_id", userId)
       .abortSignal(AbortSignal.timeout(800))
       .maybeSingle();
-    isReturningUser = !lookupErr && !!existingAccount;
+    if (lookupErr) throw new Error(lookupErr.message);
+    return !!existingAccount;
+  };
+  let isReturningUser = false;
+  try {
+    isReturningUser = await checkExistingAccount();
   } catch {
-    isReturningUser = false;
+    // One immediate retry: a local blip at exactly login time must not be
+    // enough to misclassify a genuinely returning user as a new signup and
+    // route them into the capacity check below, which can itself fail
+    // closed (#426). Still falls through to "treat as new" if the retry
+    // also fails - no capacity-safety guarantee is weakened.
+    try {
+      isReturningUser = await checkExistingAccount();
+    } catch {
+      isReturningUser = false;
+    }
   }
 
   let reservedNewSlot = false;
