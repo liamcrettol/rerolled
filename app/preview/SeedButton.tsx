@@ -44,7 +44,7 @@ export default function SeedButton() {
       <button
         onClick={seed}
         disabled={loading}
-        className="px-4 py-2 bg-bungie-blue text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
+        className="px-4 py-2 bg-bungie-blue text-bungie-dark text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition"
       >
         {loading ? "Working..." : "Seed Test Data"}
       </button>

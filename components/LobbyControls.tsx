@@ -43,7 +43,7 @@ export default function LobbyControls({
           </p>
           <button
             onClick={() => router.push(`${MODE_BASE_PATH[activeSession.mode]}/${activeSession.code}`)}
-            className="shrink-0 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-4 py-2 transition-colors"
+            className="shrink-0 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-4 py-2 transition-colors"
           >
             Rejoin
           </button>
@@ -54,7 +54,7 @@ export default function LobbyControls({
         {showCreate && (
           <Link
             href={createHref}
-            className="sm:flex-1 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
+            className="sm:flex-1 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
           >
             <PlusCircle size={15} />
             {createLabel}
@@ -76,7 +76,7 @@ export default function LobbyControls({
             disabled={loading || !code.trim()}
             className={`text-xs font-bold uppercase tracking-wider px-5 transition-colors inline-flex items-center justify-center gap-2 ${
               code.trim()
-                ? "bg-bungie-blue hover:bg-[#26bcf3] text-white"
+                ? "bg-bungie-blue hover:bg-white text-bungie-dark"
                 : "bg-bungie-dark border border-bungie-border text-gray-500"
             } disabled:opacity-50`}
           >

@@ -20,7 +20,7 @@ export default function EmptyState({ message, cta, className = "" }: Props) {
       {cta && (
         <Link
           href={cta.href}
-          className="text-[11px] font-bold uppercase tracking-widest text-bungie-blue hover:text-[#26bcf3] transition-colors"
+          className="text-[11px] font-bold uppercase tracking-widest text-bungie-blue hover:text-[#ffffff] transition-colors"
         >
           {cta.label} &gt;
         </Link>

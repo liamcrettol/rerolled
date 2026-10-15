@@ -36,7 +36,7 @@ export default async function CreateDraftLobbyPage() {
         <p className="text-sm text-gray-400">{DATABASE_UNAVAILABLE_MESSAGE}</p>
         <Link
           href="/dashboard"
-          className="bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors text-center"
+          className="bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors text-center"
         >
           Back to dashboard
         </Link>

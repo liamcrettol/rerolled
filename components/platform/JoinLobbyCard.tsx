@@ -48,7 +48,7 @@ export default function JoinLobbyCard({
             disabled={loading || !code.trim()}
             className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
               code.trim()
-                ? "bg-bungie-blue text-white hover:bg-[#26bcf3]"
+                ? "bg-bungie-blue text-bungie-dark hover:bg-white"
                 : "border border-bungie-border bg-bungie-dark text-gray-500"
             } disabled:opacity-50`}
           >

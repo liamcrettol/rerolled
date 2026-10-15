@@ -8,17 +8,17 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      // System grotesque stack (same family DIM ships) — no webfont payload.
+            // Archivo (variable width) + IBM Plex Mono, loaded via next/font in app/layout.tsx.
       fontFamily: {
-        sans: ['"Helvetica Neue"', "Helvetica", '"Segoe UI"', "Arial", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Consolas", "monospace"],
+        sans: ["var(--font-archivo)", "\"Segoe UI\"", "Arial", "sans-serif"],
+        mono: ["var(--font-plex-mono)", "ui-monospace", "Consolas", "monospace"],
       },
       colors: {
         bungie: {
-          blue: "#00aeef",
-          dark: "#101216",
-          surface: "#171a1f",
-          border: "#2a2e36",
+          blue: "#f2f1ed",
+          dark: "#0a0b0d",
+          surface: "#121417",
+          border: "#24272c",
         },
       },
       keyframes: {
@@ -28,9 +28,9 @@ const config: Config = {
           "100%": { transform: "scale(1)", opacity: "1" },
         },
         "slot-land": {
-          "0%":   { boxShadow: "0 0 0 0 rgba(0,174,239,0)" },
-          "30%":  { boxShadow: "0 0 0 2px rgba(0,174,239,0.6)" },
-          "100%": { boxShadow: "0 0 0 0 rgba(0,174,239,0)" },
+          "0%":   { boxShadow: "0 0 0 0 rgba(242,241,237,0)" },
+          "30%":  { boxShadow: "0 0 0 2px rgba(242,241,237,0.6)" },
+          "100%": { boxShadow: "0 0 0 0 rgba(242,241,237,0)" },
         },
         "fade-in": {
           "0%":   { opacity: "0" },

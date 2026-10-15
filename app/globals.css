@@ -3,10 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --bungie-blue: #00aeef;
-  --bungie-dark: #101216;
-  --bungie-surface: #171a1f;
-  --bungie-border: #2a2e36;
+  --bungie-blue: #f2f1ed;
+  --bungie-dark: #0a0b0d;
+  --bungie-surface: #121417;
+  --bungie-border: #24272c;
 }
 
 body {
@@ -15,7 +15,7 @@ body {
 }
 
 ::selection {
-  background-color: rgb(0 174 239 / 0.35);
+  background-color: rgb(242 241 237 / 0.35);
   color: #fff;
 }
 
@@ -40,7 +40,7 @@ body {
 
 /* Keyboard-visible focus ring in the accent color, everywhere. */
 :focus-visible {
-  outline: 2px solid rgb(0 174 239 / 0.7);
+  outline: 2px solid rgb(242 241 237 / 0.7);
   outline-offset: 1px;
 }
 
@@ -71,5 +71,14 @@ button:not(:disabled):active {
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: rgb(154 161 169);
+  }
+}
+
+@layer utilities {
+  /* Widened caps: the Destiny header voice for weapon names and stage titles. */
+  .font-wide {
+    font-variation-settings: "wdth" 118;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 }

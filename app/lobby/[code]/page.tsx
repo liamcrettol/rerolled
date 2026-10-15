@@ -28,7 +28,7 @@ export default async function LobbyPage({
   if (!isMember) redirect("/dashboard");
 
   return (
-    <main className="min-h-screen p-6 w-full">
+    <div className="min-h-screen w-full">
       <LobbyRoom
         lobby={lobby}
         initialMembers={members}
@@ -37,6 +37,6 @@ export default async function LobbyPage({
         bungieMembershipType={session.bungieMembershipType}
         bungieMembershipId={session.bungieMembershipId}
       />
-    </main>
+    </div>
   );
 }

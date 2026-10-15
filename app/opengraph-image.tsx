@@ -34,7 +34,7 @@ export default function OpengraphImage() {
           Destiny 2
         </div>
         <div style={{ display: "flex", marginTop: 16 }}>
-          <div style={{ fontSize: 132, fontWeight: 800, color: "#00aeef" }}>Re</div>
+          <div style={{ fontSize: 132, fontWeight: 800, color: "#f2f1ed" }}>Re</div>
           <div style={{ fontSize: 132, fontWeight: 800, color: "#ffffff" }}>rolled</div>
         </div>
         <div

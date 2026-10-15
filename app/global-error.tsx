@@ -65,7 +65,7 @@ export default function GlobalError({
           onClick={reset}
           style={{
             marginTop: "0.5rem",
-            backgroundColor: "#00aeef",
+            backgroundColor: "#f2f1ed",
             color: "#fff",
             fontSize: 12,
             fontWeight: 700,

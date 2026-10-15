@@ -147,10 +147,19 @@ notices and rejects the generic look immediately. The rules:
 - **Hard edges everywhere: zero border radius.** No `rounded-*` (the lone
   exception is a `rounded-full` circle icon). No gradients, no glassmorphism,
   no scan-lines/grid backdrops, no gold-corner "armory" kitsch, no emoji.
-- **Tokens** (globals.css / tailwind `bungie.*`): bg `#101216` (`bungie-dark`),
-  panels `#171a1f` (`bungie-surface`), 1px strokes `#2a2e36` (`bungie-border`),
-  single accent `#00aeef` (`bungie-blue`, hover `#26bcf3`). System font stack
-  (same grotesque family DIM ships) — don't add webfonts.
+- **Tokens** (globals.css / tailwind `bungie.*`, redesigned 2026-10-15 after Liam
+  rejected the neon cyan as "looks AI"): bg `#0a0b0d` (`bungie-dark`), panels `#121417`
+  (`bungie-surface`), 1px strokes `#24272c` (`bungie-border`). The accent is off-white
+  `#f2f1ed` (`bungie-blue` keeps its old name so nothing broke; solid fills take
+  `text-bungie-dark`). Primary buttons are solid off-white, secondary are a
+  `border-white/15` outline. No cyan, no glow rings.
+- **Type:** Archivo (variable width) for everything, IBM Plex Mono for lobby codes,
+  both via next/font in `app/layout.tsx`. `.font-wide` = widened caps, the Destiny
+  header voice, used only for weapon names and big stage titles.
+- **One focal point per screen.** The lobby stage is the three weapons (168px tiles
+  with a rarity bar, wide-caps name, your perks); the fireteam sits in a left rail,
+  the pool is a drawer, the roll comparison is folded behind "Compare rolls", and one
+  action bar is pinned to the bottom. Don't add equal-weight panels back.
 - **Utilities to reuse, not reinvent:** `.panel` (flat surface + 1px stroke),
   `.section-label` (11px bold uppercase 0.14em-tracked micro-label — used for
   *every* section header), `components/ui/Card.tsx`, `WeaponIcon.tsx`.

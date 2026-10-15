@@ -28,7 +28,7 @@ export const ACCENT_CLS: Record<
 export const ACCENT_GLOW: Record<ModeAccent, string> = {
   green: "rgba(74, 222, 128, 0.55)",
   amber: "rgba(251, 191, 36, 0.55)",
-  blue: "rgba(0, 174, 239, 0.55)",
+  blue: "rgba(242,241,237, 0.55)",
   purple: "rgba(192, 132, 252, 0.55)",
   red: "rgba(248, 113, 113, 0.55)",
 };

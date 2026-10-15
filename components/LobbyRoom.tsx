@@ -20,7 +20,10 @@ import { useWeaponPool } from "@/hooks/lobby/useWeaponPool";
 import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { useApplyLoadout } from "@/hooks/lobby/useApplyLoadout";
 import { useRollActions } from "@/hooks/lobby/useRollActions";
-import { Shuffle, Zap, Crown, Check, Copy, X, MoreHorizontal, PanelRightOpen, PanelRightClose, Clock, Lock } from "lucide-react";
+import { Shuffle, Crown, Check, Copy, X, MoreHorizontal, Clock, Lock, Link2, Eye, ChevronDown } from "lucide-react";
+import BrandMark from "./BrandMark";
+import type { SlotPerk } from "./LoadoutQueue";
+import { SLOT_ORDER, SLOT_LABELS } from "@/lib/destiny/constants";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useCharacters } from "@/hooks/useCharacters";
 
@@ -35,14 +38,8 @@ interface Props {
 
 const EMPTY_CHARACTERS: DestinyCharacter[] = [];
 
-// Tone drives the status bar's visual weight: "turn" = an action is on you
-// right now (most prominent), "info" = something's happening but not on you,
-// "muted" = inert/ended.
-const STATUS_TONE_CLS: Record<"turn" | "info" | "muted", string> = {
-  turn: "border-yellow-500/60 bg-yellow-500/10 text-yellow-300",
-  info: "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue",
-  muted: "border-bungie-border text-gray-400",
-};
+// Stats the stage uses for its one-line "your copy vs theirs" note.
+const COMPARE_STATS = ["Range", "Stability", "Handling", "Reload"];
 
 // Collapses lobby status + captain turn + spectator state into one explicit
 // line instead of a cluster of small badges that read ambiguously together (#201).
@@ -112,7 +109,11 @@ export default function LobbyRoom({
   });
   // Captain-only toggles
   const [captainLocked, setCaptainLocked] = useState(lobby.captain_locked ?? false);
-  const [rightOpen, setRightOpen] = useState(true);
+  // The shared pool opens as a drawer instead of a permanent column.
+  const [rightOpen, setRightOpen] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  // Lets anyone peek at the full loadout stage while the round is in game.
+  const [showStage, setShowStage] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [showCaptainPicker, setShowCaptainPicker] = useState(false);
   const [passingCaptaincy, setPassingCaptaincy] = useState(false);
@@ -594,113 +595,128 @@ export default function LobbyRoom({
 
   const captainMember = members.find((m) => m.is_captain);
   const captainName = captainMember ? trimBungieName(captainMember.display_name) : null;
-  void captainName; // surfaced via getLobbyStatusText / PlayerCard, kept for parity
 
-  const rightColumn = (
-    <LobbySidebar
-      members={members}
-      characters={characters}
-      selectedCharId={selectedCharId}
-      onSelectCharacter={handleSelectCharacter}
-      contextExpanded={contextExpanded}
-      onSetContextExpanded={setContextExpanded}
-      isCaptain={isCaptain}
-      isSpectator={isSpectator}
-      intersection={intersection}
-      effectiveIntersection={effectiveIntersection}
-      weaponDetails={weaponDetails}
-      instancePerks={instancePerks}
-      collectionHashes={collectionHashes}
-      weaponReleases={weaponReleases}
-      intersectionError={intersectionError}
-      intersectionAuthIssue={intersectionAuthIssue}
-      currentUserId={currentUserId}
-      reauthHref={reauthHref}
-      poolLoading={poolLoading}
-      actionDisabled={loadingAction !== null}
-      currentHashes={Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash]))}
-      currentInstances={preferredInstances}
-      favorites={favorites}
-      onToggleFavorite={toggleFavorite}
-      onSelectWeapon={handleSelectWeapon}
-      onLoadIntersection={handleLoadIntersection}
-      onHide={() => setRightOpen(false)}
-      showMetaFilter={rollMode !== "meta"}
-    />
-  );
+  const sidebarProps = {
+    members,
+    characters,
+    selectedCharId,
+    onSelectCharacter: handleSelectCharacter,
+    contextExpanded,
+    onSetContextExpanded: setContextExpanded,
+    isCaptain,
+    isSpectator,
+    intersection,
+    effectiveIntersection,
+    weaponDetails,
+    instancePerks,
+    collectionHashes,
+    weaponReleases,
+    intersectionError,
+    intersectionAuthIssue,
+    currentUserId,
+    reauthHref,
+    poolLoading,
+    actionDisabled: loadingAction !== null,
+    currentHashes: Object.fromEntries(slots.filter((s) => s.item_hash !== 0).map((s) => [s.slot, s.item_hash])),
+    currentInstances: preferredInstances,
+    favorites,
+    onToggleFavorite: toggleFavorite,
+    onSelectWeapon: handleSelectWeapon,
+    onLoadIntersection: handleLoadIntersection,
+    onHide: () => setRightOpen(false),
+    showMetaFilter: rollMode !== "meta",
+  };
+
+  // Your copy of each loadout weapon (its perks) and one plain line on how it
+  // stacks up against the fireteam's copies. The full comparison lives behind
+  // "Compare rolls" so the stage stays about the three guns.
+  const { slotPerks, slotNotes } = useMemo(() => {
+    const perks: Partial<Record<WeaponSlot, SlotPerk[]>> = {};
+    const notes: Partial<Record<WeaponSlot, string>> = {};
+    for (const s of SLOT_ORDER) {
+      const sr = rollsData[s];
+      if (!sr) continue;
+      const me = sr.members.find((m) => m.isMe);
+      const mine = me?.instances.find((i) => i.instanceId === myChosenInstances[s]) ?? me?.instances[0];
+      if (!mine) {
+        if (me) notes[s] = "You do not own a copy yet.";
+        continue;
+      }
+      perks[s] = mine.perkHashes
+        .map((h, i) => ({ name: mine.perks[i]?.name ?? "", icon: mine.perkIcons[h] }))
+        .filter((p) => p.name);
+      let best: { who: string; stat: string; diff: number } | null = null;
+      for (const m of sr.members) {
+        if (m.isMe || !m.instances[0]) continue;
+        for (const st of COMPARE_STATS) {
+          const diff = (m.instances[0].stats[st] ?? 0) - (mine.stats[st] ?? 0);
+          if (diff >= 3 && (!best || diff > best.diff)) best = { who: trimBungieName(m.displayName), stat: st, diff };
+        }
+      }
+      if (best) notes[s] = `${best.who} has a copy with more ${best.stat.toLowerCase()}.`;
+      else if (sr.members.length > 1) notes[s] = "Your copy is the fireteam best.";
+    }
+    return { slotPerks: perks, slotNotes: notes };
+  }, [rollsData, myChosenInstances]);
+
+  const status = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
+  const lockedIn = lobbyData.status === "in_game" && hasRolledLoadout && !showStage;
+  const rerollsLeft = rerollLimit !== null ? Math.max(0, rerollLimit - rerollsUsed) : null;
+  const activeMembers = members.filter((m) => !m.is_spectator);
+  const poolCount = effectiveIntersection
+    ? effectiveIntersection.kinetic.length + effectiveIntersection.energy.length + effectiveIntersection.power.length
+    : null;
+  const myResult = (slot: string) =>
+    applyResults.find((r) => r.kind !== "vault" && r.slot === slot && r.user_id === currentUserId);
+  const iApplied = Boolean(myResult("kinetic") || myResult("energy") || myResult("power"));
 
   return (
-    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
-      <div className="flex-1 min-w-0 flex flex-col gap-6">
-        {/* Header */}
-        <div className="panel order-1 flex items-start justify-between gap-3 p-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={copyCode}
-                aria-label="Copy lobby code"
-                className="font-mono text-bungie-blue font-black tracking-widest slashed-zero text-2xl hover:opacity-75 transition inline-flex items-center gap-1.5"
-              >
-                {copied ? <Check size={18} /> : lobby.code}
-              </button>
-              <button
-                onClick={copyLink}
-                className="text-xs px-2 py-0.5 border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
-              >
-                {copiedLink ? <Check size={12} /> : <Copy size={12} />}
-                {copiedLink ? "Copied" : "Invite"}
-              </button>
-              <button
-                onClick={copyWatchLink}
-                className="text-xs px-2 py-0.5 border border-bungie-border/40 text-gray-400 hover:border-gray-500 transition inline-flex items-center gap-1"
-              >
-                {copiedWatch ? <Check size={12} /> : <Copy size={12} />}
-                {copiedWatch ? "Copied" : "Watch"}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {(() => {
-                let { tone } = getLobbyStatusText(lobbyData.status, isCaptain, isSpectator);
-                if (captainApplyPulse && !isCaptain && !isSpectator) {
-                  tone = "info";
-                }
-                return (
-                  <span className={`text-sm font-semibold px-2.5 py-1 border inline-flex items-center gap-1.5 ${STATUS_TONE_CLS[tone]} ${
-                    captainApplyPulse || lobbyData.status === "applying" ? "animate-pulse" : ""
-                  }`}>
-                    {tone === "turn" && <Crown size={13} />}
-                    Round {lobbyData.current_round}
-                  </span>
-                );
-              })()}
-            </div>
-            {minutesToClose !== null && minutesToClose <= 20 && (
-              <div className={`inline-flex items-center gap-1.5 mt-1.5 text-xs px-2 py-0.5 border ${
-                minutesToClose <= 5
-                  ? "border-red-600/50 bg-red-900/20 text-red-300"
-                  : "border-yellow-600/40 bg-yellow-900/10 text-yellow-300"
-              }`}>
-                <Clock size={11} className="shrink-0" />
-                {minutesToClose <= 1 ? "Closing due to inactivity…" : `Auto-closes in ${minutesToClose} min`}
-              </div>
-            )}
-          </div>
-
-          {/* Overflow menu */}
+    <div className="flex min-h-screen flex-col pb-28">
+      {/* Lobby bar */}
+      <header className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-2 border-b border-bungie-border px-4 py-3 sm:px-8">
+        <a href="/dashboard" className="flex items-center gap-2.5" aria-label="Rerolled home">
+          <BrandMark className="h-6 w-6" />
+          <span className="font-wide hidden text-[15px] font-bold sm:inline">Rerolled</span>
+        </a>
+        <button
+          type="button"
+          onClick={copyCode}
+          aria-label="Copy lobby code"
+          className="inline-flex h-9 items-center gap-2.5 border border-white/15 px-3 transition-colors hover:border-white/30"
+        >
+          <span className="font-mono text-[15px] tracking-[0.16em] slashed-zero">{lobby.code}</span>
+          {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-gray-400" />}
+        </button>
+        <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
+        {minutesToClose !== null && minutesToClose <= 20 && (
+          <span className={`inline-flex items-center gap-1.5 text-xs ${minutesToClose <= 5 ? "text-red-300" : "text-yellow-300"}`}>
+            <Clock size={12} />
+            {minutesToClose <= 1 ? "Closing for inactivity" : `Closes in ${minutesToClose} min`}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={copyLink} className="inline-flex h-9 items-center gap-1.5 border border-white/15 px-3 text-sm font-semibold transition-colors hover:border-white/30">
+            {copiedLink ? <Check size={14} /> : <Link2 size={14} />} {copiedLink ? "Copied" : "Invite"}
+          </button>
+          <button type="button" onClick={copyWatchLink} className="hidden h-9 items-center gap-1.5 border border-white/15 px-3 text-sm font-semibold text-gray-300 transition-colors hover:border-white/30 sm:inline-flex">
+            {copiedWatch ? <Check size={14} /> : <Eye size={14} />} {copiedWatch ? "Copied" : "Watch link"}
+          </button>
           <div ref={overflowMenuRef} className="relative">
             <button
+              type="button"
               onClick={() => setShowOverflowMenu((v) => !v)}
-              className="p-1.5 text-gray-400 border border-bungie-border/40 hover:border-gray-500 transition flex items-center"
+              className="grid h-9 w-9 place-items-center border border-white/15 text-gray-300 transition-colors hover:border-white/30"
               aria-label="More actions"
+              aria-expanded={showOverflowMenu}
             >
               <MoreHorizontal size={16} />
             </button>
             {showOverflowMenu && (
-              <div className="absolute right-0 top-full mt-1 z-50 bg-bungie-surface border border-bungie-border shadow-2xl overflow-hidden min-w-[160px]">
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl">
                 {!isCaptain && (
                   <button
                     onClick={() => { handleToggleSpectate(); setShowOverflowMenu(false); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-bungie-dark transition"
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-bungie-dark"
                   >
                     {isSpectator ? "Rejoin" : "Spectate"}
                   </button>
@@ -708,262 +724,343 @@ export default function LobbyRoom({
                 {isHost && (
                   <button
                     onClick={() => { setShowOverflowMenu(false); setEndSessionError(null); setShowEndSessionConfirm(true); }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                    className="w-full px-4 py-2.5 text-left text-sm text-red-400 transition hover:bg-bungie-dark"
                   >
-                    End Session
+                    End session
                   </button>
                 )}
                 <button
                   onClick={() => { setShowOverflowMenu(false); handleLeave(); }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-bungie-dark transition"
+                  className="w-full px-4 py-2.5 text-left text-sm text-red-400 transition hover:bg-bungie-dark"
                 >
                   Leave
                 </button>
                 <button
                   onClick={() => signOut({ callbackUrl: "/" })}
-                  className="w-full text-left px-4 py-2.5 text-sm text-gray-500 hover:bg-bungie-dark transition border-t border-bungie-border/40"
+                  className="w-full border-t border-bungie-border px-4 py-2.5 text-left text-sm text-gray-500 transition hover:bg-bungie-dark"
                 >
                   Sign out
                 </button>
               </div>
             )}
           </div>
-
-          {showEndSessionConfirm && (
-            <ConfirmDialog
-              title="End this session?"
-              body="Closes the lobby for everyone."
-              confirmLabel="End Session"
-              tone="danger"
-              onCancel={() => { setShowEndSessionConfirm(false); setEndSessionError(null); }}
-              onConfirm={handleEndSession}
-              error={endSessionError}
-              confirming={endingSession}
-            />
-          )}
-
-          {pendingSpecialSelect && (
-            <ConfirmDialog
-              title="Select this weapon anyway?"
-              body={`${pendingSpecialSelect.otherName} is already Special. This leaves no Primary in the loadout.`}
-              confirmLabel="Select Anyway"
-              onCancel={() => setPendingSpecialSelect(null)}
-              onConfirm={() => {
-                const { slot, hash, instanceId } = pendingSpecialSelect;
-                setPendingSpecialSelect(null);
-                handleSelectWeapon(slot, hash, instanceId);
-              }}
-            />
-          )}
         </div>
 
-        {/* Loadout panel — rows + primary actions in the header. */}
-        {(slots.length > 0 || (roundId && !isSpectator)) && (
-          <div className={`order-2 relative transition-all duration-500 ${loadingAction === "roll" ? "after:absolute after:inset-0 after:bg-bungie-blue/5 after:pointer-events-none" : ""}`}>
-            <LoadoutQueue
-              slots={slots}
-              weaponDetails={weaponDetails}
-              instancePerks={instancePerks}
-              collectionHashes={collectionHashes}
-              animKindRef={animKindRef}
-              isCaptain={isCaptain}
-              lockedSlots={lockedSlots}
-              wildcardSlots={wildcardSlots}
-              onCycleSlotMode={cycleSlotMode}
-              onRerollSlot={(slot) => handleRoll(slot)}
-              rerollExhausted={rerollExhausted}
-              actions={
-                !isSpectator && roundId ? (
-                  <>
-                    {isCaptain && (
-                      <button
-                        onClick={() => handleRoll()}
-                        disabled={Boolean(rollDisabledReason)}
-                        title={rollDisabledReason ?? "Roll all slots"}
-                        className="px-4 py-2 bg-bungie-blue hover:bg-[#26bcf3] disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2"
-                        aria-label="Roll all slots"
-                      >
-                        {loadingAction === "roll" ? <Spinner size={15} /> : <Shuffle size={15} />}
-                        {loadingAction === "roll" ? "Rolling…" : "Roll Loadout"}
-                      </button>
-                    )}
-                    {hasRolledLoadout && (
-                      <button
-                        onClick={handleApply}
-                        disabled={Boolean(applyDisabledReason)}
-                        title={applyDisabledReason ?? "Apply this loadout"}
-                        className={`px-4 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center gap-2 ${
-                          captainApplyPulse && !isCaptain ? "ring-2 ring-bungie-blue shadow-[0_0_14px_rgba(0,174,239,0.65)] animate-pulse" : ""
-                        }`}
-                        aria-label="Apply loadout"
-                      >
-                        {loadingAction === "apply" ? <Spinner size={15} /> : <Zap size={15} />}
-                        {loadingAction === "apply" ? "Applying…" : "Apply Loadout"}
-                      </button>
-                    )}
-                    {loadingAction === "apply" && (
-                      <button
-                        onClick={handleCancelApply}
-                        className="px-3 py-2 border border-red-800 text-red-400 hover:border-red-600 text-xs font-bold uppercase tracking-wider transition"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </>
-                ) : null
-              }
-            />
-          </div>
-        )}
-
-        {/* Status line below the loadout: warnings and auto-apply toggle. */}
-        {!isSpectator && roundId && (
-          <div className="order-3 flex items-center gap-3 flex-wrap min-h-[1.25rem] px-1">
-            {hasRolledLoadout && applyDisabledReason && loadingAction !== "apply" && (
-              <span className="border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-xs text-yellow-300">
-                {applyDisabledReason}
-              </span>
-            )}
-            {isCaptain && rollDisabledReason && !hasRolledLoadout && loadingAction !== "roll" && (
-              <span className="border border-bungie-border bg-bungie-surface px-2 py-1 text-xs text-gray-400">
-                {rollDisabledReason}
-              </span>
-            )}
-            {intersectionError && (
-              <span className="border border-red-500/25 bg-red-500/10 px-2 py-1.5 text-xs leading-5 text-red-200">
-                {currentUserNeedsReauth
-                  ? "Your Bungie sign-in expired."
-                  : intersectionAuthIssue?.failedDisplayNames?.length
-                    ? `Waiting on ${intersectionAuthIssue.failedDisplayNames.join(", ")} to sign in again.`
-                    : intersectionError}
-                {currentUserNeedsReauth && (
-                  <a href={reauthHref} className="ml-2 font-semibold text-bungie-blue hover:text-sky-300">
-                    Sign in again
-                  </a>
-                )}
-              </span>
-            )}
-            {/* Auto-apply toggle — non-captains opt in to apply when the captain clicks Apply */}
-            {!isCaptain && (
-              <button
-                role="switch"
-                aria-checked={autoApply}
-                onClick={toggleAutoApply}
-                title={autoApply ? "Auto-apply is on. You'll equip automatically when the captain applies." : "Turn on to equip automatically when the captain applies."}
-                className={`ml-auto inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
-                  autoApply
-                    ? "border-green-600 bg-green-600/15 text-green-400"
-                    : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"
-                }`}
-              >
-                <Zap size={12} className="shrink-0" fill={autoApply ? "currentColor" : "none"} />
-                {autoApply ? "Auto-applying" : "Auto-apply"}
-              </button>
-            )}
-            {/* Captain-lock toggle. This flag blocks BOTH rotation paths
-                (apply-time RPC in /api/apply and the post-game fallback in
-                advanceRoundAndRotate) with no other way to see or clear it in
-                the UI, so a lobby that got locked before this control existed
-                would stay wedged on the same captain forever (#308). */}
-            {/* Manual hand-off. Rotation is automatic, but a fireteam often
-                wants to just give the roll to someone specific (AFK captain,
-                someone who wants a turn) without waiting a round. */}
-            {isCaptain && captainCandidates.length > 0 && (
-              <div className="relative ml-auto" ref={captainPickerRef}>
-                <button
-                  onClick={() => {
-                    setShowCaptainPicker((v) => !v);
-                    setCaptainPassError(null);
-                  }}
-                  aria-haspopup="menu"
-                  aria-expanded={showCaptainPicker}
-                  title="Give captaincy to another player"
-                  className="inline-flex items-center gap-1.5 text-xs border border-bungie-border px-2.5 py-1 text-gray-500 transition-colors hover:border-gray-500 hover:text-gray-300"
-                >
-                  <Crown size={12} className="shrink-0" />
-                  Pass captaincy
-                </button>
-                {showCaptainPicker && (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl"
-                  >
-                    {captainPassError && (
-                      <p className="border-b border-bungie-border px-4 py-2 text-xs text-red-400">
-                        {captainPassError}
-                      </p>
-                    )}
-                    {captainCandidates.map((m) => (
-                      <button
-                        key={m.user_id}
-                        role="menuitem"
-                        disabled={passingCaptaincy}
-                        onClick={() => handlePassCaptaincy(m.user_id)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-bungie-dark disabled:opacity-50"
-                      >
-                        {trimBungieName(m.display_name)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {isCaptain && (
-              <button
-                role="switch"
-                aria-checked={captainLocked}
-                onClick={handleToggleCaptainLock}
-                title={captainLocked ? "Captain rotation is paused. Click to rotate again after each round." : "Captain rotates to the next player each round. Click to stay captain."}
-                className={`inline-flex items-center gap-1.5 text-xs border px-2.5 py-1 transition-colors ${
-                  // The pass-captaincy control carries ml-auto when it renders;
-                  // a second one here would push the two apart instead of
-                  // grouping them at the right edge.
-                  captainCandidates.length > 0 ? "ml-1.5" : "ml-auto"
-                } ${
-                  captainLocked
-                    ? "border-yellow-600 bg-yellow-600/15 text-yellow-400"
-                    : "border-bungie-border text-gray-500 hover:border-gray-500 hover:text-gray-300"
-                }`}
-              >
-                <Lock size={12} className="shrink-0" />
-                {captainLocked ? "Staying captain" : "Auto-rotate captain"}
-              </button>
-            )}
-          </div>
-        )}
-
-        {hasRolledLoadout && (
-          <div className="order-4">
-          <RollDetails
-            rolls={rollsData}
-            chosenInstances={myChosenInstances}
-            onChooseInstance={handleChooseInstance}
-            favorites={favorites}
-            onToggleFavorite={toggleFavorite}
-            memberCards={Object.fromEntries(members.map((m) => [m.user_id, m]))}
-            loading={rollsLoading}
-            error={rollsError}
-            onRetry={fetchRolls}
+        {showEndSessionConfirm && (
+          <ConfirmDialog
+            title="End this session?"
+            body="Closes the lobby for everyone."
+            confirmLabel="End Session"
+            tone="danger"
+            onCancel={() => { setShowEndSessionConfirm(false); setEndSessionError(null); }}
+            onConfirm={handleEndSession}
+            error={endSessionError}
+            confirming={endingSession}
           />
-          </div>
         )}
+        {pendingSpecialSelect && (
+          <ConfirmDialog
+            title="Select this weapon anyway?"
+            body={`${pendingSpecialSelect.otherName} is already Special. This leaves no Primary in the loadout.`}
+            confirmLabel="Select Anyway"
+            onCancel={() => setPendingSpecialSelect(null)}
+            onConfirm={() => {
+              const { slot, hash, instanceId } = pendingSpecialSelect;
+              setPendingSpecialSelect(null);
+              handleSelectWeapon(slot, hash, instanceId);
+            }}
+          />
+        )}
+      </header>
 
-        {applyResults.length > 0 && (
-          <div className="order-5">
-          <ApplyStatus results={applyResults} onClear={clearApplyResults} />
+      <div className="flex flex-1 flex-wrap">
+        {/* Fireteam rail */}
+        <aside aria-label="Fireteam" className="flex min-w-0 flex-[1_1_260px] flex-col gap-4 border-b border-bungie-border px-4 py-6 sm:px-6 lg:max-w-[300px] lg:border-b-0 lg:border-r">
+          <LobbySidebar {...sidebarProps} section="fireteam" contextExpanded onSetContextExpanded={() => {}} />
+          {!isSpectator && (
+            <div className="mt-auto flex flex-col gap-1.5 border-t border-bungie-border pt-5">
+              <span className="text-[13px] text-gray-500">Rolling from</span>
+              <span className="text-[28px] font-semibold leading-none tabular-nums">
+                {poolLoading && poolCount === null ? <Spinner size={18} /> : poolCount !== null ? `${poolCount} guns` : "No pool yet"}
+              </span>
+              <span className="text-[13px] text-gray-400">
+                {activeMembers.length > 1 ? `that all ${activeMembers.length} of you own` : "you own"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setRightOpen(true)}
+                className="mt-2 self-start text-sm font-semibold text-gray-100 underline decoration-white/25 underline-offset-4 transition-colors hover:decoration-white"
+              >
+                {isCaptain ? "Browse and pick from the pool" : "Browse the pool"}
+              </button>
+            </div>
+          )}
+        </aside>
+
+        {/* Stage */}
+        <main className="flex min-w-0 flex-[999_1_640px] flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 pt-6 sm:px-10">
+            <h1 className="section-label">Round {lobbyData.current_round} loadout</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              {rerollsLeft !== null && !lockedIn && (
+                <span className="flex items-center gap-2.5 text-sm text-gray-400">
+                  {rerollsLeft} {rerollsLeft === 1 ? "reroll" : "rerolls"} left
+                  <span className="flex gap-1" aria-hidden="true">
+                    {Array.from({ length: Math.min(rerollLimit ?? 0, 10) }).map((_, i) => (
+                      <span key={i} className={`h-1.5 w-5 ${i < rerollsLeft ? "bg-bungie-blue" : "bg-white/15"}`} />
+                    ))}
+                  </span>
+                </span>
+              )}
+              {isCaptain && captainCandidates.length > 0 && (
+                <div className="relative" ref={captainPickerRef}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCaptainPicker((v) => !v); setCaptainPassError(null); }}
+                    aria-haspopup="menu"
+                    aria-expanded={showCaptainPicker}
+                    className="inline-flex h-8 items-center gap-1.5 border border-white/15 px-2.5 text-xs font-semibold text-gray-400 transition-colors hover:border-white/30 hover:text-gray-100"
+                  >
+                    <Crown size={12} /> Pass captain
+                  </button>
+                  {showCaptainPicker && (
+                    <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl">
+                      {captainPassError && <p className="border-b border-bungie-border px-4 py-2 text-xs text-red-400">{captainPassError}</p>}
+                      {captainCandidates.map((m) => (
+                        <button
+                          key={m.user_id}
+                          role="menuitem"
+                          disabled={passingCaptaincy}
+                          onClick={() => handlePassCaptaincy(m.user_id)}
+                          className="w-full px-4 py-2.5 text-left text-sm text-gray-300 transition hover:bg-bungie-dark disabled:opacity-50"
+                        >
+                          {trimBungieName(m.display_name)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {isCaptain && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={captainLocked}
+                  onClick={handleToggleCaptainLock}
+                  title={captainLocked ? "Captain rotation is paused. Click to rotate again after each round." : "Captain rotates to the next player each round. Click to stay captain."}
+                  className={`inline-flex h-8 items-center gap-1.5 border px-2.5 text-xs font-semibold transition-colors ${
+                    captainLocked ? "border-bungie-blue bg-bungie-blue text-bungie-dark" : "border-white/15 text-gray-400 hover:border-white/30 hover:text-gray-100"
+                  }`}
+                >
+                  <Lock size={12} /> {captainLocked ? "Staying captain" : "Stay captain"}
+                </button>
+              )}
+            </div>
           </div>
-        )}
+
+          {lockedIn ? (
+            <section aria-label="Loadout locked in" className="flex flex-1 flex-col items-center gap-9 px-4 py-14 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <span className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.14em] text-green-400">
+                  <Check size={16} strokeWidth={3} /> {isCaptain ? "Applied" : "Captain applied"}
+                </span>
+                <h2 className="font-wide text-[44px] font-extrabold leading-[0.95] sm:text-[60px]">Loadout locked in</h2>
+                <p className="max-w-[46ch] text-[17px] leading-relaxed text-gray-400">
+                  {isCaptain
+                    ? "Load into your match. Rerolled picks up the result when it ends."
+                    : `${captainName ?? "The captain"} applied it. ${iApplied ? "It is on your Guardian now." : "Apply it to put it on your Guardian."}`}
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-8">
+                {SLOT_ORDER.map((s) => {
+                  const slot = slots.find((x) => x.slot === s);
+                  if (!slot || slot.item_hash === 0) {
+                    return (
+                      <figure key={s} className="flex w-40 flex-col items-center gap-3">
+                        <div className="grid h-32 w-32 place-items-center bg-[#16181c] text-sm text-gray-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">{SLOT_LABELS[s]}</div>
+                        <figcaption className="text-sm text-gray-400">Your own</figcaption>
+                      </figure>
+                    );
+                  }
+                  const r = myResult(s);
+                  const exotic = (weaponDetails[slot.item_hash]?.tierType ?? 5) === 6;
+                  return (
+                    <figure key={s} className="flex w-40 flex-col items-center gap-3">
+                      <div className="relative h-32 w-32 overflow-hidden bg-[#16181c] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={slot.weapon_icon} alt="" className="absolute inset-0 h-full w-full" />
+                        {weaponDetails[slot.item_hash]?.watermark && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={weaponDetails[slot.item_hash]!.watermark} alt="" className="absolute inset-0 h-full w-full" />
+                        )}
+                        <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: exotic ? "#ceae33" : "#8a57a8" }} aria-hidden="true" />
+                      </div>
+                      <figcaption className="flex flex-col gap-1">
+                        <span className="font-wide text-lg font-bold">{slot.weapon_name}</span>
+                        <span className={`text-[13px] ${r ? (r.success ? "text-green-400" : "text-red-300") : "text-gray-400"}`}>
+                          {r ? (r.success ? "Equipped" : r.error ?? "Did not equip") : "Not applied yet"}
+                        </span>
+                      </figcaption>
+                    </figure>
+                  );
+                })}
+              </div>
+              <ul aria-label="Fireteam progress" className="w-full max-w-[520px] border-t border-bungie-border text-left">
+                {activeMembers.map((m) => (
+                  <li key={m.id} className="flex items-center gap-3 border-b border-bungie-border py-3.5">
+                    <span className="flex-1 truncate font-semibold">{m.user_id === currentUserId ? "You" : trimBungieName(m.display_name)}</span>
+                    <span className={`text-sm ${m.is_ready ? "text-green-400" : "text-gray-400"}`}>{m.is_ready ? "Applied" : "Waiting"}</span>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" onClick={() => setShowStage(true)} className="text-sm font-semibold text-gray-300 underline decoration-white/25 underline-offset-4 hover:decoration-white">
+                Show the loadout
+              </button>
+            </section>
+          ) : (
+            <div className={`relative px-4 pb-6 pt-2 sm:px-10 ${loadingAction === "roll" ? "pointer-events-none" : ""}`}>
+              <LoadoutQueue
+                slots={slots}
+                weaponDetails={weaponDetails}
+                instancePerks={instancePerks}
+                collectionHashes={collectionHashes}
+                animKindRef={animKindRef}
+                isCaptain={isCaptain}
+                lockedSlots={lockedSlots}
+                wildcardSlots={wildcardSlots}
+                onCycleSlotMode={cycleSlotMode}
+                onRerollSlot={(slot) => handleRoll(slot)}
+                rerollExhausted={rerollExhausted}
+                slotPerks={slotPerks}
+                slotNotes={slotNotes}
+              />
+            </div>
+          )}
+
+          {intersectionError && (
+            <p className="mx-4 mb-4 border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-200 sm:mx-10">
+              {currentUserNeedsReauth
+                ? "Your Bungie sign-in expired."
+                : intersectionAuthIssue?.failedDisplayNames?.length
+                  ? `Waiting on ${intersectionAuthIssue.failedDisplayNames.join(", ")} to sign in again.`
+                  : intersectionError}
+              {currentUserNeedsReauth && (
+                <a href={reauthHref} className="ml-2 font-semibold text-white underline underline-offset-4">Sign in again</a>
+              )}
+            </p>
+          )}
+
+          {hasRolledLoadout && !lockedIn && (
+            <div className="border-t border-bungie-border px-4 py-4 sm:px-10">
+              <button
+                type="button"
+                aria-expanded={showCompare}
+                onClick={() => setShowCompare((v) => !v)}
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-gray-300 transition-colors hover:text-white"
+              >
+                <ChevronDown size={16} className={`transition-transform ${showCompare ? "rotate-180" : ""}`} />
+                {showCompare ? "Hide roll comparison" : "Compare rolls and pick your copy"}
+              </button>
+              {showCompare && (
+                <div className="mt-4">
+                  <RollDetails
+                    rolls={rollsData}
+                    chosenInstances={myChosenInstances}
+                    onChooseInstance={handleChooseInstance}
+                    favorites={favorites}
+                    onToggleFavorite={toggleFavorite}
+                    memberCards={Object.fromEntries(members.map((m) => [m.user_id, m]))}
+                    loading={rollsLoading}
+                    error={rollsError}
+                    onRetry={fetchRolls}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {applyResults.length > 0 && (
+            <div className="px-4 pb-6 sm:px-10">
+              <ApplyStatus results={applyResults} onClear={clearApplyResults} />
+            </div>
+          )}
+        </main>
       </div>
 
-      {rightOpen ? rightColumn : (
-        <button
-          onClick={() => setRightOpen(true)}
-          aria-label="Show panel"
-          className="shrink-0 xl:sticky xl:top-6 flex xl:flex-col items-center justify-center gap-2 border border-bungie-border/40 bg-bungie-surface text-gray-400 hover:text-gray-200 hover:border-gray-500 transition w-full xl:w-10 px-3 py-2 xl:py-4"
-        >
-          <PanelRightOpen size={16} />
-          <span className="text-xs xl:hidden">Show fireteam &amp; weapon pool</span>
-        </button>
+      {/* Pool drawer */}
+      {rightOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={() => setRightOpen(false)}>
+          <aside
+            aria-label="Shared pool"
+            className="flex h-full w-full max-w-[460px] flex-col border-l border-bungie-border bg-bungie-surface"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-bungie-border px-5 py-4">
+              <div>
+                <h2 className="font-wide text-[17px] font-bold">Shared pool</h2>
+                <p className="mt-0.5 text-[13px] text-gray-400">{isCaptain ? "Pick a gun to put it in the loadout." : "The captain picks from here."}</p>
+              </div>
+              <button type="button" onClick={() => setRightOpen(false)} aria-label="Close the pool" className="grid h-10 w-10 place-items-center border border-white/15 hover:border-white/30">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              <LobbySidebar {...sidebarProps} section="pool" />
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* Action bar */}
+      {!isSpectator && roundId && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/15 bg-[#0e0f12]">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-8">
+            <div className="min-w-0 flex-[1_1_280px]">
+              <p className="text-[15px] text-gray-400">
+                <span className="font-semibold text-gray-100">{isCaptain ? "You are captain." : `${captainName ?? "The captain"} is captain.`}</span>{" "}
+                {captainApplyPulse && !isCaptain ? "They just applied the loadout." : lockedIn ? (isCaptain ? "Good luck out there." : "Your loadout follows theirs.") : status.text}
+                {hasRolledLoadout && applyDisabledReason && loadingAction !== "apply" && !lockedIn && (
+                  <span className="ml-2 text-yellow-300">{applyDisabledReason}.</span>
+                )}
+              </p>
+            </div>
+            {!isCaptain && (
+              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-sm text-gray-300">
+                <input type="checkbox" checked={autoApply} onChange={toggleAutoApply} className="h-[18px] w-[18px] accent-white" />
+                Apply automatically when the captain applies
+              </label>
+            )}
+            {isCaptain && !lockedIn && (
+              <button
+                type="button"
+                onClick={() => handleRoll()}
+                disabled={Boolean(rollDisabledReason)}
+                title={rollDisabledReason ?? "Roll all slots"}
+                className="inline-flex h-14 items-center gap-2 border border-white/25 px-6 text-[15px] font-semibold transition-colors hover:border-white/40 hover:bg-white/5 disabled:opacity-40"
+              >
+                {loadingAction === "roll" ? <Spinner size={16} /> : <Shuffle size={16} />}
+                {loadingAction === "roll" ? "Rolling" : hasRolledLoadout ? "Roll all" : "Roll loadout"}
+              </button>
+            )}
+            {hasRolledLoadout && loadingAction === "apply" && (
+              <button type="button" onClick={handleCancelApply} className="h-14 border border-red-800 px-5 text-sm font-semibold text-red-300 hover:border-red-600">
+                Cancel
+              </button>
+            )}
+            {hasRolledLoadout && (!lockedIn || !iApplied) && (
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={Boolean(applyDisabledReason)}
+                title={applyDisabledReason ?? "Apply this loadout"}
+                className="font-wide inline-flex h-14 min-w-[220px] items-center justify-center gap-2 bg-bungie-blue px-7 text-[15px] font-bold text-bungie-dark transition-colors hover:bg-white disabled:opacity-40"
+              >
+                {loadingAction === "apply" ? <Spinner size={16} /> : null}
+                {loadingAction === "apply" ? "Applying" : "Apply loadout"}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

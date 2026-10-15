@@ -10,7 +10,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type Variant = "primary" | "success" | "danger" | "outline";
 
 const VARIANT_CLS: Record<Variant, string> = {
-  primary: "bg-bungie-blue hover:bg-[#26bcf3] text-white",
+  primary: "bg-bungie-blue hover:bg-white text-bungie-dark",
   success: "bg-green-700 hover:bg-green-600 text-white",
   danger: "bg-red-700 hover:bg-red-600 text-white",
   outline: "border border-bungie-border text-gray-300 hover:border-gray-400",

@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import UpdateAvailable from "@/components/UpdateAvailable";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+
+// Archivo carries a width axis: normal for body, widened caps (.font-wide)
+// for the Destiny-style weapon names and stage titles. Plex Mono is for codes.
+const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
+const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
 
 const DESCRIPTION =
   "Roll random Destiny 2 weapon loadouts from a shared fireteam pool, then equip and compare rolls together.";
@@ -41,7 +47,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${archivo.variable} ${plexMono.variable}`}>
       <body className="min-h-screen bg-bungie-dark text-gray-100 antialiased">
         <Providers>{children}</Providers>
         <UpdateAvailable />

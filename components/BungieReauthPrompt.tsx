@@ -16,7 +16,7 @@ export default function BungieReauthPrompt({
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/api/auth/bungie/login?reauth=true"
-          className="inline-flex items-center px-4 py-2 text-xs font-bold uppercase tracking-wider bg-bungie-blue hover:bg-[#26bcf3] text-white transition-colors"
+          className="inline-flex items-center px-4 py-2 text-xs font-bold uppercase tracking-wider bg-bungie-blue hover:bg-white text-bungie-dark transition-colors"
         >
           Reconnect Bungie
         </a>

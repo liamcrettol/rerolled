@@ -92,6 +92,8 @@ interface Props {
   // Meta lobbies already roll from the meta archetype set, so the browser's
   // own "Meta only" filter is redundant there (#284). Defaults to shown.
   showMetaFilter?: boolean;
+  /** Render just one half: the lobby's left fireteam rail or its pool drawer. */
+  section?: "fireteam" | "pool";
 }
 
 export default function LobbySidebar({
@@ -123,6 +125,7 @@ export default function LobbySidebar({
   onLoadIntersection,
   onHide,
   showMetaFilter = true,
+  section,
 }: Props) {
   const [mobileSection, setMobileSection] = useState<"fireteam" | "weapons">("weapons");
   const currentUserNeedsReauth =
@@ -134,10 +137,12 @@ export default function LobbySidebar({
   const fireteamReady = activeMembers.length > 0 && selectedMembers.length === activeMembers.length;
   const poolReady = Boolean(intersection || effectiveIntersection) && !intersectionAuthIssue && !poolLoading;
 
+  const showFireteam = section !== "pool";
+  const showPool = section !== "fireteam";
   return (
-    <aside className="w-full xl:w-96 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col">
+    <aside className={section ? "flex flex-col" : "w-full xl:w-96 shrink-0 xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] flex flex-col"}>
       {/* Collapse the whole right column to give the loadout full width. */}
-      <div className="flex justify-end shrink-0 mb-3">
+      <div className={section ? "hidden" : "flex justify-end shrink-0 mb-3"}>
         <button
           onClick={onHide}
           aria-label="Hide panel"
@@ -148,7 +153,7 @@ export default function LobbySidebar({
         </button>
       </div>
 
-      <div className="xl:hidden grid grid-cols-2 gap-1 mb-3 border border-bungie-border bg-bungie-surface p-1">
+      <div className={section ? "hidden" : "xl:hidden grid grid-cols-2 gap-1 mb-3 border border-bungie-border bg-bungie-surface p-1"}>
         {(["fireteam", "weapons"] as const).map((section) => (
           <button
             key={section}
@@ -169,7 +174,7 @@ export default function LobbySidebar({
 
       {/* Context: Fireteam + Your Guardian. Expandable by hand, but never
           auto-collapsed after guardian selection. */}
-      <Card border="subtle" className={`shrink-0 ${mobileSection === "weapons" ? "hidden xl:block" : ""}`}>
+      {showFireteam && <Card border="subtle" className={section ? "shrink-0 !border-0 !bg-transparent" : `shrink-0 ${mobileSection === "weapons" ? "hidden xl:block" : ""}`}>
         {!contextExpanded ? (
           <button
             onClick={() => onSetContextExpanded(true)}
@@ -250,15 +255,15 @@ export default function LobbySidebar({
             )}
           </>
         )}
-      </Card>
+      </Card>}
 
       {/* Shared weapon pool, always open, no internal scroll (parent scrolls).
           Once loaded, WeaponPool renders its own "Weapon Browser" header with
           the same count, so this heading only needs to appear before that
           (loading / not-yet-loaded states) to avoid two stacked titles for the
           same section (#208). */}
-      {!isSpectator && (
-        <div className={`flex flex-col gap-2 shrink-0 ${mobileSection === "fireteam" ? "hidden xl:flex" : ""}`}>
+      {showPool && !isSpectator && (
+        <div className={section ? "flex flex-col gap-2 shrink-0" : `flex flex-col gap-2 shrink-0 ${mobileSection === "fireteam" ? "hidden xl:flex" : ""}`}>
           <div className="flex items-center justify-between">
             {!intersection && (
               <h2 className="text-white font-semibold text-sm flex items-center gap-2">
@@ -302,7 +307,7 @@ export default function LobbySidebar({
               <button
                 onClick={onLoadIntersection}
                 disabled={actionDisabled}
-                className="w-full px-4 py-2.5 bg-bungie-blue text-xs font-bold uppercase tracking-wider text-white hover:bg-[#26bcf3] disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 bg-bungie-blue text-xs font-bold uppercase tracking-wider text-bungie-dark hover:bg-white disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
               >
                 {poolLoading && <Spinner size={14} />}
                 {poolLoading ? "Loading…" : "Load Shared Weapons"}
@@ -364,7 +369,7 @@ function InventoryAuthNotice({
       {currentUserNeedsReauth ? (
         <a
           href={reauthHref}
-          className="mt-3 inline-flex w-full items-center justify-center bg-bungie-blue px-3 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-[#26bcf3]"
+          className="mt-3 inline-flex w-full items-center justify-center bg-bungie-blue px-3 py-2 text-xs font-bold uppercase tracking-wider text-bungie-dark transition-colors hover:bg-white"
         >
           Sign in with Bungie again
         </a>

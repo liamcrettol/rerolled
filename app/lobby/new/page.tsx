@@ -274,7 +274,7 @@ export default function NewLobbyPage() {
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="w-full mt-6 bg-bungie-blue hover:bg-[#26bcf3] disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider py-3 transition-colors inline-flex items-center justify-center gap-2"
+          className="w-full mt-6 bg-bungie-blue hover:bg-white disabled:opacity-50 text-bungie-dark text-xs font-bold uppercase tracking-wider py-3 transition-colors inline-flex items-center justify-center gap-2"
         >
           {loading && <Spinner size={15} />}
           {loading ? "Creating…" : "Create Lobby"}

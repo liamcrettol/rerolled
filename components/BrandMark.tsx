@@ -5,7 +5,7 @@ export default function BrandMark({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 96 96" fill="none" aria-hidden="true" className={className}>
       <circle cx="48" cy="48" r="41" stroke="#4b5563" strokeWidth="5" fill="#161b22" />
-      <circle cx="48" cy="23.5" r="10" fill="#00aeef" />
+      <circle cx="48" cy="23.5" r="10" fill="#f2f1ed" />
       <circle cx="69.22" cy="35.75" r="10" stroke="#6b7280" strokeWidth="4" fill="#101216" />
       <circle cx="69.22" cy="60.25" r="10" stroke="#6b7280" strokeWidth="4" fill="#101216" />
       <circle cx="48" cy="72.5" r="10" stroke="#6b7280" strokeWidth="4" fill="#101216" />

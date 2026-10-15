@@ -36,7 +36,7 @@ export default async function AuthError({
       {error && <p className="text-xs text-gray-600 font-mono">Code: {error}</p>}
       <Link
         href="/"
-        className="mt-2 bg-bungie-blue hover:bg-[#26bcf3] text-white text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors"
+        className="mt-2 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors"
       >
         Try signing in again
       </Link>

@@ -100,7 +100,7 @@ function DraftCard({
       style={{ boxShadow: glow }}
     >
       {!!voteCount && (
-        <span className="absolute top-1.5 left-1.5 z-10 bg-bungie-blue px-1.5 py-0.5 text-[10px] font-bold text-white">
+        <span className="absolute top-1.5 left-1.5 z-10 bg-bungie-blue px-1.5 py-0.5 text-[10px] font-bold text-bungie-dark">
           {voteCount}
         </span>
       )}
@@ -737,7 +737,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     type="button"
                     onClick={() => reveal(activeSlot)}
                     disabled={busy || !poolReady}
-                    className="mx-auto flex items-center gap-2 bg-bungie-blue px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#26bcf3] disabled:opacity-50"
+                    className="mx-auto flex items-center gap-2 bg-bungie-blue px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
                   >
                     {!poolReady && <Spinner size={14} />}
                     {busy ? "Spinning…" : !poolReady ? "Loading weapon pool…" : `Reveal ${SLOT_LABELS[activeSlot]}`}
@@ -819,7 +819,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             <button
               type="button"
               onClick={finishRollPicker}
-              className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#26bcf3]"
+              className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white"
             >
               Continue
             </button>
@@ -880,7 +880,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   type="button"
                   onClick={applyLoadout}
                   disabled={busy || !selectedCharacterId}
-                  className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#26bcf3] disabled:opacity-50"
+                  className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
                 >
                   {busy ? "Applying…" : "Apply Loadout"}
                 </button>
