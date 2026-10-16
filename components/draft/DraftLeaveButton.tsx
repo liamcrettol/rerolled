@@ -37,7 +37,7 @@ export default function DraftLeaveButton({ lobbyId }: { lobbyId: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="fixed right-6 top-6 z-50 inline-flex items-center gap-1.5 border border-bungie-border bg-bungie-surface px-3 py-2 text-xs font-bold uppercase tracking-wider text-gray-400 transition hover:border-red-500/60 hover:text-red-300"
+        className="fixed right-6 top-6 z-50 inline-flex items-center gap-1.5 border border-bungie-border bg-bungie-surface px-3 py-2 text-xs font-bold   text-gray-400 transition hover:border-red-500/60 hover:text-red-300"
       >
         <X size={14} />
         Leave Draft

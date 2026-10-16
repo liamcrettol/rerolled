@@ -30,13 +30,13 @@ export default async function CreateDraftLobbyPage() {
     return (
       <main className="min-h-screen p-6 w-full max-w-lg mx-auto flex flex-col justify-center gap-4">
         <p className="section-label text-red-400">Draft lobby unavailable</p>
-        <h1 className="text-2xl font-bold uppercase tracking-tight text-white">
+        <h1 className="text-2xl font-bold  tracking-tight text-white">
           Database is timing out
         </h1>
         <p className="text-sm text-gray-400">{DATABASE_UNAVAILABLE_MESSAGE}</p>
         <Link
           href="/dashboard"
-          className="bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors text-center"
+          className="bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold   px-5 py-3 transition-colors text-center"
         >
           Back to dashboard
         </Link>

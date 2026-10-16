@@ -8,7 +8,7 @@ export default function BungieReauthPrompt({
   return (
     <div className="border border-amber-400/40 bg-amber-400/5 p-4 space-y-3">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Reconnect Bungie</p>
+        <p className="text-[10px] font-bold   text-amber-400">Reconnect Bungie</p>
         <p className="text-sm text-gray-300 mt-1">{message}</p>
       </div>
       <div className="flex items-center gap-3">
@@ -16,7 +16,7 @@ export default function BungieReauthPrompt({
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/api/auth/bungie/login?reauth=true"
-          className="inline-flex items-center px-4 py-2 text-xs font-bold uppercase tracking-wider bg-bungie-blue hover:bg-white text-bungie-dark transition-colors"
+          className="inline-flex items-center px-4 py-2 text-xs font-bold   bg-bungie-blue hover:bg-white text-bungie-dark transition-colors"
         >
           Reconnect Bungie
         </a>

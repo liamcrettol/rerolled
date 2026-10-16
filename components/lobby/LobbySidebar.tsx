@@ -186,11 +186,11 @@ export default function LobbySidebar({
                 {(() => {
                   const selectedChar = characters.find((c) => c.characterId === selectedCharId);
                   return selectedChar
-                    ? ` · Your Guardian: ${CLASS_NAMES[selectedChar.classType] ?? "Guardian"}`
+                    ? ` | Your Guardian: ${CLASS_NAMES[selectedChar.classType] ?? "Guardian"}`
                     : "";
                 })()}
               </span>
-              <span className="text-[10px] text-gray-500 shrink-0 uppercase tracking-wide">Change</span>
+              <span className="text-[10px] text-gray-500 shrink-0  tracking-normal">Change</span>
             </span>
           </button>
         ) : (
@@ -198,7 +198,7 @@ export default function LobbySidebar({
             {/* Fireteam */}
             <div className="px-3 pt-3 pb-2">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase tracking-widest text-gray-600">Fireteam</p>
+                <p className="text-[10px]   text-gray-600">Fireteam</p>
                 {selectedCharId && (
                   <button
                     onClick={() => onSetContextExpanded(false)}
@@ -225,7 +225,7 @@ export default function LobbySidebar({
               <>
                 <div className="mx-3 h-px bg-bungie-border/40" />
                 <div className="px-3 pt-2 pb-3">
-                  <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">Your Guardian</p>
+                  <p className="text-[10px]   text-gray-600 mb-2">Your Guardian</p>
                   <div className="space-y-1">
                     {[...characters]
                       .sort((a, b) => CLASS_ORDER.indexOf(a.classType) - CLASS_ORDER.indexOf(b.classType))
@@ -276,7 +276,7 @@ export default function LobbySidebar({
               </h2>
             )}
             {!isCaptain && (
-              <span className="text-[10px] uppercase tracking-wide text-gray-400 border border-bungie-border px-1.5 py-0.5 ml-auto">
+              <span className="text-[10px]  tracking-normal text-gray-400 border border-bungie-border px-1.5 py-0.5 ml-auto">
                 View only
               </span>
             )}
@@ -307,7 +307,7 @@ export default function LobbySidebar({
               <button
                 onClick={onLoadIntersection}
                 disabled={actionDisabled}
-                className="w-full px-4 py-2.5 bg-bungie-blue text-xs font-bold uppercase tracking-wider text-bungie-dark hover:bg-white disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 bg-bungie-blue text-xs font-bold   text-bungie-dark hover:bg-white disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2"
               >
                 {poolLoading && <Spinner size={14} />}
                 {poolLoading ? "Loading…" : "Load Shared Weapons"}
@@ -358,7 +358,7 @@ function InventoryAuthNotice({
 }) {
   return (
     <div className="mt-3 border border-red-500/30 bg-red-500/10 p-3">
-      <p className="text-[10px] uppercase tracking-widest text-red-300/80">Sign-in required</p>
+      <p className="text-[10px]   text-red-300/80">Sign-in required</p>
       <p className="mt-1 text-xs leading-5 text-red-100">
         {currentUserNeedsReauth
           ? "Your Bungie sign-in expired."
@@ -369,7 +369,7 @@ function InventoryAuthNotice({
       {currentUserNeedsReauth ? (
         <a
           href={reauthHref}
-          className="mt-3 inline-flex w-full items-center justify-center bg-bungie-blue px-3 py-2 text-xs font-bold uppercase tracking-wider text-bungie-dark transition-colors hover:bg-white"
+          className="mt-3 inline-flex w-full items-center justify-center bg-bungie-blue px-3 py-2 text-xs font-bold   text-bungie-dark transition-colors hover:bg-white"
         >
           Sign in with Bungie again
         </a>

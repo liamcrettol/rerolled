@@ -52,10 +52,10 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             <img
               src={bannerUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover object-left"
+              className="absolute inset-0 h-full w-full object-cover object-left opacity-10"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
+            <div className="absolute inset-0    " />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
@@ -73,11 +73,11 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             </div>
           )}
           <div className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className="text-sm font-bold truncate leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            <span className="text-sm font-bold truncate leading-tight text-white ">
               {trimBungieName(member.display_name)}
             </span>
             {member.clan_name && (
-              <span className="truncate text-[11px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              <span className="truncate text-[11px] text-gray-300/90 leading-tight ">
                 {member.clan_name}
               </span>
             )}
@@ -103,10 +103,10 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             <img
               src={bannerUrl}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover object-left"
+              className="absolute inset-0 h-full w-full object-cover object-left opacity-10"
               onError={handleBannerError}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
+            <div className="absolute inset-0    " />
           </>
         ) : (
           <div className="absolute inset-0 bg-bungie-dark" />
@@ -124,20 +124,20 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
             </div>
           )}
           <div className="flex min-w-0 flex-1 translate-y-[1px] flex-col justify-center">
-            <span className="text-xs font-semibold truncate leading-tight flex items-center gap-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            <span className="text-xs font-semibold truncate leading-tight flex items-center gap-1 text-white ">
               {member.is_captain && <Crown size={12} className="shrink-0 text-yellow-400" />}
               <span className="truncate">{trimBungieName(member.display_name)}</span>
             </span>
             {member.is_spectator ? (
-              <span className="text-[10px] text-gray-300 leading-tight drop-shadow">spectating</span>
+              <span className="text-[10px] text-gray-300 leading-tight ">spectating</span>
             ) : member.clan_name ? (
-              <span className="truncate text-[10px] text-gray-300/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              <span className="truncate text-[10px] text-gray-300/90 leading-tight ">
                 {member.clan_name}
               </span>
             ) : null}
           </div>
           {!member.is_spectator && member.selected_character_id && (
-            <Check size={13} className="text-green-400 shrink-0 animate-fade-in drop-shadow" />
+            <Check size={13} className="text-green-400 shrink-0 animate-fade-in " />
           )}
         </div>
       </div>
@@ -159,10 +159,10 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
           <img
             src={bannerUrl}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-left"
+            className="absolute inset-0 h-full w-full object-cover object-left opacity-10"
             onError={handleBannerError}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/25 to-transparent" />
+          <div className="absolute inset-0    " />
         </>
       ) : (
         <div className="absolute inset-0 bg-bungie-dark" />
@@ -185,22 +185,22 @@ export default function PlayerCard({ member, compact, variant = "default" }: Pro
         }`}
       >
         <span
-          className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]
+          className={`${compact ? "text-sm" : "text-base"} font-bold truncate leading-tight
             ${member.is_spectator ? "text-gray-300" : "text-white"}`}
         >
           {trimBungieName(member.display_name)}
         </span>
         {member.is_spectator ? (
-          <span className="text-[11px] text-gray-300 leading-tight drop-shadow">spectating</span>
+          <span className="text-[11px] text-gray-300 leading-tight ">spectating</span>
         ) : member.clan_name ? (
-          <span className="mt-0.5 truncate text-[11px] text-gray-200/90 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <span className="mt-0.5 truncate text-[11px] text-gray-200/90 leading-tight ">
             {member.clan_name}
           </span>
         ) : null}
       </div>
 
       {!member.is_spectator && member.selected_character_id && (
-        <span className="absolute top-1 right-1.5 z-10 text-green-400 drop-shadow animate-fade-in" aria-label="Guardian selected">
+        <span className="absolute top-1 right-1.5 z-10 text-green-400  animate-fade-in" aria-label="Guardian selected">
           <Check size={14} />
         </span>
       )}

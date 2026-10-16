@@ -27,7 +27,7 @@ export default function OpengraphImage() {
             fontSize: 22,
             fontWeight: 700,
             letterSpacing: 12,
-            textTransform: "uppercase",
+            textTransform: "",
             color: "#9aa1a9",
           }}
         >

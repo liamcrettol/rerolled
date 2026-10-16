@@ -17,7 +17,7 @@ export default function Modal({ children, onBackdropClick }: Props) {
       onClick={onBackdropClick}
     >
       <div
-        className="w-full max-w-sm bg-bungie-surface border border-bungie-border shadow-2xl overflow-hidden"
+        className="w-full max-w-sm bg-bungie-surface border border-bungie-border  overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

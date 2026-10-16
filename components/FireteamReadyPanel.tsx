@@ -15,7 +15,7 @@ const MOCK_FIRETEAM = [
 export default function FireteamReadyPanel() {
   return (
     <div className="panel p-3 text-left w-48" aria-hidden="true">
-      <p className="text-[9px] text-gray-500 uppercase tracking-widest mb-2">Fireteam Ready</p>
+      <p className="text-[9px] text-gray-500   mb-2">Fireteam Ready</p>
       <div className="flex flex-col gap-1.5">
         {MOCK_FIRETEAM.map((m) => (
           <div key={m.name} className="flex items-center gap-2 text-xs">

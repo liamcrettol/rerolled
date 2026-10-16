@@ -214,7 +214,7 @@ function WeaponCard({
         </div>
         {previewRoll && (
           <p className="text-[11px] text-gray-500 leading-snug mt-1 truncate">
-            {previewRoll.perks.map((p) => String(p)).join("  ·  ")}
+            {previewRoll.perks.map((p) => String(p)).join("  |  ")}
           </p>
         )}
       </div>
@@ -251,8 +251,8 @@ function WeaponCard({
       {!readOnly && hasMultiple && (
         isActive ? (
           <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
-            <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
-              {selectedRoll ? "Choose roll" : "Choose roll · using best available"}
+            <p className="text-gray-400 text-[10px]  tracking-normal px-3 pb-0.5">
+              {selectedRoll ? "Choose roll" : "Choose roll | using best available"}
             </p>
             <RollRow
               label="Any roll"
@@ -264,7 +264,7 @@ function WeaponCard({
             {rolls.map((inst) => (
               <RollRow
                 key={inst.instanceId}
-                label={inst.perks.map((p) => String(p)).join("  ·  ")}
+                label={inst.perks.map((p) => String(p)).join("  |  ")}
                 selected={currentInstance === inst.instanceId}
                 onClick={() => onSelect(hash, inst.instanceId)}
                 disabled={disabled}
@@ -289,7 +289,7 @@ function WeaponCard({
           only offered on the card currently equipped in this slot. */}
       {!readOnly && isActive && releases && releases.length > 0 && (
         <div className="border-t border-bungie-border/50 bg-gray-900/40 px-2 py-2 space-y-0.5">
-          <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pb-0.5">
+          <p className="text-gray-400 text-[10px]  tracking-normal px-3 pb-0.5">
             Other releases
           </p>
           {releases.map(({ hash: relHash, detail: relDetail }) => (
@@ -431,13 +431,13 @@ export default function WeaponPool({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${SLOT_LABELS[activeTab].toLowerCase()}…`}
-            className="w-full bg-bungie-dark border border-bungie-border px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-bungie-blue transition"
+            className="w-full bg-bungie-dark border border-bungie-border px-3 py-1.5 text-sm text-white placeholder-gray-500  focus:border-bungie-blue transition"
           />
           <div className="flex flex-wrap gap-2">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="flex-1 min-w-[7rem] bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+              className="flex-1 min-w-[7rem] bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300  focus:border-bungie-blue transition"
             >
               <option value="all">All types</option>
               {availableTypes.map((t) => (
@@ -447,7 +447,7 @@ export default function WeaponPool({
             <select
               value={rarityFilter}
               onChange={(e) => setRarityFilter(e.target.value as "all" | "exotic" | "nonexotic")}
-              className="bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-bungie-blue transition"
+              className="bg-bungie-dark border border-bungie-border px-2 py-1.5 text-xs text-gray-300  focus:border-bungie-blue transition"
             >
               <option value="all">All rarities</option>
               <option value="exotic">Exotic</option>

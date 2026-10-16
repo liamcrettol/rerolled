@@ -8,18 +8,15 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontWeight: {bold: "600", extrabold: "600", black: "600"},
             // Archivo (variable width) + IBM Plex Mono, loaded via next/font in app/layout.tsx.
       fontFamily: {
         sans: ["var(--font-archivo)", "\"Segoe UI\"", "Arial", "sans-serif"],
-        mono: ["var(--font-plex-mono)", "ui-monospace", "Consolas", "monospace"],
+        mono: ["var(--font-archivo)", "Arial", "sans-serif"],
       },
-      colors: {
-        bungie: {
-          blue: "#f2f1ed",
-          dark: "#0a0b0d",
-          surface: "#121417",
-          border: "#24272c",
-        },
+      colors: { white: "rgb(var(--ink) / <alpha-value>)", gray: {50:"rgb(var(--ink) / <alpha-value>)",100:"rgb(var(--ink) / <alpha-value>)",200:"rgb(var(--ink) / <alpha-value>)",300:"rgb(var(--ink) / <alpha-value>)",400:"rgb(var(--soft) / <alpha-value>)",500:"rgb(var(--soft) / <alpha-value>)",600:"rgb(var(--soft) / <alpha-value>)",700:"rgb(var(--soft) / <alpha-value>)",800:"rgb(var(--raised) / <alpha-value>)",900:"rgb(var(--raised) / <alpha-value>)",950:"rgb(var(--ground) / <alpha-value>)"},
+        mida: { ground:"rgb(var(--ground) / <alpha-value>)",panel:"rgb(var(--ground) / <alpha-value>)",raised:"rgb(var(--raised) / <alpha-value>)",well:"rgb(var(--raised) / <alpha-value>)",text:"rgb(var(--ink) / <alpha-value>)",soft:"rgb(var(--soft) / <alpha-value>)",signal:"rgb(var(--signal) / <alpha-value>)"},
+        bungie: {blue:"rgb(var(--ink) / <alpha-value>)",dark:"rgb(var(--ground) / <alpha-value>)",surface:"rgb(var(--raised) / <alpha-value>)",border:"rgb(var(--raised) / <alpha-value>)"},
       },
       keyframes: {
         "pick-pop": {

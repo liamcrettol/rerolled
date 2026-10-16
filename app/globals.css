@@ -1,84 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --bungie-blue: #f2f1ed;
-  --bungie-dark: #0a0b0d;
-  --bungie-surface: #121417;
-  --bungie-border: #24272c;
-}
-
-body {
-  background-color: var(--bungie-dark);
-  color: #e8eaed;
-}
-
-::selection {
-  background-color: rgb(242 241 237 / 0.35);
-  color: #fff;
-}
-
-/* Slim dark scrollbars — the OS default light bar breaks the theme on Windows. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(42 46 54) transparent;
-}
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: rgb(42 46 54);
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(64 70 80);
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Keyboard-visible focus ring in the accent color, everywhere. */
-:focus-visible {
-  outline: 2px solid rgb(242 241 237 / 0.7);
-  outline-offset: 1px;
-}
-
-/* Mechanical 1px press on every button — no scaling, no easing. */
-button {
-  -webkit-tap-highlight-color: transparent;
-}
-button:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-@layer utilities {
-  .exotic-border {
-    border-color: #c7a64a;
-  }
-  .legendary-border {
-    border-color: #522f65;
-  }
-  /* Flat panel: solid fill, hard edges, 1px stroke. */
-  .panel {
-    background-color: var(--bungie-surface);
-    border: 1px solid var(--bungie-border);
-  }
-  /* Uppercase micro-label used for every section header. */
-  .section-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgb(154 161 169);
-  }
-}
-
-@layer utilities {
-  /* Widened caps: the Destiny header voice for weapon names and stage titles. */
-  .font-wide {
-    font-variation-settings: "wdth" 118;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-  }
-}
+:root{--ground:242 242 239;--raised:232 232 228;--ink:18 19 18;--soft:107 109 104;--signal:255 90 31;color-scheme:light}
+:root[data-theme="dark"]{--ground:15 16 15;--raised:25 26 25;--ink:233 234 230;--soft:141 144 138;color-scheme:dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){--ground:15 16 15;--raised:25 26 25;--ink:233 234 230;--soft:141 144 138;color-scheme:dark}}
+:root{--bungie-blue:rgb(var(--ink));--bungie-dark:rgb(var(--ground));--bungie-surface:rgb(var(--raised));--bungie-border:rgb(var(--raised))}
+body{background:rgb(var(--ground));color:rgb(var(--ink));font-family:var(--font-archivo),Arial,sans-serif;font-variant-numeric:tabular-nums}
+h1,h2,h3{text-wrap:balance}p{text-wrap:pretty}
+:focus-visible{outline:2px solid rgb(var(--signal));outline-offset:3px}
+::selection{background:rgb(var(--raised));color:rgb(var(--ink))}
+a,button,summary{ -webkit-tap-highlight-color:transparent;transition:color 150ms}
+button:disabled{opacity:.5;cursor:default}
+.mida-header{max-width:1080px;margin:auto;min-height:72px;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.mida-wordmark{font-size:18px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;display:inline-flex;align-items:center;min-height:44px}
+.mida-wordmark a{display:inline-flex;align-items:center;min-height:44px}
+.mida-parent{color:rgb(var(--soft));font-weight:400;white-space:pre}
+.mida-dot{color:rgb(var(--signal))}
+.mida-header-actions{display:flex;align-items:center;gap:20px;font-size:14px;color:rgb(var(--soft));flex-wrap:wrap}
+.mida-theme{min-height:44px;min-width:44px;color:rgb(var(--soft));font-weight:400}
+.mida-theme:hover,.mida-header a:hover{color:rgb(var(--ink))}
+.mida-wrap{max-width:1080px;margin:auto;padding:0 24px 80px}
+.mida-hero{padding:96px 0 64px;max-width:740px}
+.mida-hero h1{font-size:clamp(40px,6vw,68px);font-weight:500;line-height:1.02;letter-spacing:-.035em}
+.mida-hero p{margin-top:20px;max-width:46ch;font-size:18px;line-height:1.55;color:rgb(var(--soft))}
+.mida-action{display:inline-flex;align-items:center;min-height:44px;font-weight:600;font-size:16px}
+.mida-action:hover{color:rgb(var(--signal))}
+.mida-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:64px 0 24px;color:rgb(var(--soft));font-size:14px}
+.mida-footer a{display:inline-flex;align-items:center;min-height:44px}
+.mida-skip{position:absolute;left:24px;top:8px;padding:12px;background:rgb(var(--ground));z-index:100;transform:translateY(-150%)}.mida-skip:focus{transform:none}
+@layer components{.mida-button{display:inline-flex;min-height:44px;align-items:center;font-weight:600;color:rgb(var(--ink))}.mida-button:hover:not(:disabled){color:rgb(var(--signal))}.mida-number{font-variant-numeric:tabular-nums}.panel{background:transparent;border:0}.section-label{font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:rgb(var(--soft))}.font-wide{font-variation-settings:"wdth" 100;text-transform:none;letter-spacing:-.02em}.font-mono{font-family:inherit;font-variant-numeric:tabular-nums}}
+@media(min-width:768px){.mida-header{padding-inline:48px}.mida-wrap{padding-inline:48px}.mida-hero{padding-top:120px}}
+@media(max-width:420px){.mida-header-actions{gap:12px}.mida-wordmark{font-size:16px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important;scroll-behavior:auto!important}}

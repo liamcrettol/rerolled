@@ -127,10 +127,10 @@ function DraftCard({
       >
         <div className="text-sm font-bold leading-tight text-white">{option.name}</div>
         <div
-          className="mt-0.5 text-[10px] font-bold uppercase tracking-widest"
+          className="mt-0.5 text-[10px] font-bold  "
           style={{ color }}
         >
-          {option.damageType} · {option.weaponType}
+          {option.damageType} | {option.weaponType}
         </div>
       </div>
     </button>
@@ -147,7 +147,7 @@ function CardBack({ pulse }: { pulse: boolean }) {
       style={{ minHeight: CARD_WINDOW + 72 }}
     >
       <div
-        className="flex items-center justify-center text-3xl font-black text-bungie-blue/70"
+        className="flex items-center justify-center text-3xl  text-bungie-blue/70"
         style={{ width: CARD_ICON, height: CARD_WINDOW }}
       >
         ?
@@ -626,7 +626,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
           <button
             onClick={copyCode}
             aria-label="Copy lobby code"
-            className="font-mono slashed-zero text-bungie-blue hover:opacity-75 transition inline-flex items-center gap-1"
+            className="tabular-nums slashed-zero text-bungie-blue hover:opacity-75 transition inline-flex items-center gap-1"
           >
             {copied ? <Check size={12} /> : lobby.code}
           </button>
@@ -645,7 +645,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             return (
               <div
                 key={slot}
-                className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                className={`flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold   transition-colors ${
                   isDone
                     ? "border-bungie-blue/50 bg-bungie-blue/10 text-bungie-blue"
                     : isActive
@@ -698,7 +698,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
               <p className="section-label text-bungie-blue">
                 Slot {doneCount + 1} of 3
               </p>
-              <h2 className="mt-1 text-3xl font-black uppercase tracking-tight text-white">
+              <h2 className="mt-1 text-3xl   tracking-tight text-white">
                 {SLOT_LABELS[activeSlot]}
               </h2>
               <p className="mt-1 text-sm text-gray-400">
@@ -718,7 +718,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
               </p>
               {!isSolo && activeOptions.length > 0 && secondsLeft !== null && (
                 <p className="mt-1 text-xs text-gray-500">
-                  {activeVotes.length}/{nonSpectatorMembers.length} voted · auto-picks in {secondsLeft}s
+                  {activeVotes.length}/{nonSpectatorMembers.length} voted | auto-picks in {secondsLeft}s
                 </p>
               )}
             </div>
@@ -737,7 +737,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                     type="button"
                     onClick={() => reveal(activeSlot)}
                     disabled={busy || !poolReady}
-                    className="mx-auto flex items-center gap-2 bg-bungie-blue px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
+                    className="mx-auto flex items-center gap-2 bg-bungie-blue px-8 py-3.5 text-sm font-bold   text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
                   >
                     {!poolReady && <Spinner size={14} />}
                     {busy ? "Spinning…" : !poolReady ? "Loading weapon pool…" : `Reveal ${SLOT_LABELS[activeSlot]}`}
@@ -769,7 +769,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
         {showRollPicker && (
           <div className="w-full max-w-md space-y-5 text-center animate-fade-in">
             <div>
-              <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+              <h2 className="text-2xl   tracking-tight text-white">
                 Choose Your Roll
               </h2>
               <p className="mt-1 text-sm text-gray-400">
@@ -786,8 +786,8 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 const chosen = myChosenInstances[slot];
                 return (
                   <div key={slot} className="border border-bungie-border/50 bg-bungie-surface">
-                    <p className="text-gray-400 text-[10px] uppercase tracking-wide px-3 pt-2">
-                      {SLOT_LABELS[slot]} · {rd.weaponName}
+                    <p className="text-gray-400 text-[10px]  tracking-normal px-3 pt-2">
+                      {SLOT_LABELS[slot]} | {rd.weaponName}
                     </p>
                     <div className="py-1">
                       {mine.map((inst) => {
@@ -795,7 +795,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                         return (
                           <RollRow
                             key={inst.instanceId}
-                            label={inst.perks.map((p) => p.name).join("  ·  ")}
+                            label={inst.perks.map((p) => p.name).join("  |  ")}
                             icon={weaponIcon ? (
                               <WeaponIcon
                                 icon={weaponIcon}
@@ -819,7 +819,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             <button
               type="button"
               onClick={finishRollPicker}
-              className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white"
+              className="bg-bungie-blue px-6 py-2.5 text-xs font-bold   text-bungie-dark transition-colors hover:bg-white"
             >
               Continue
             </button>
@@ -847,7 +847,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black uppercase tracking-tight text-white">
+              <h2 className="text-2xl   tracking-tight text-white">
                 Loadout Locked
               </h2>
               <p className="mt-1 text-sm text-gray-400">
@@ -858,7 +858,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
             {characterError && (
               <div className="space-y-3 border border-red-500/40 bg-red-500/10 px-3 py-3 text-sm text-red-300">
                 <p>{characterError}</p>
-                <button type="button" onClick={retryCharacters} className="border border-red-400/60 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-red-200 hover:bg-red-500/10">
+                <button type="button" onClick={retryCharacters} className="border border-red-400/60 px-3 py-1.5 text-xs font-bold   text-red-200 hover:bg-red-500/10">
                   Retry
                 </button>
               </div>
@@ -868,7 +868,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 <select
                   value={selectedCharacterId ?? ""}
                   onChange={(e) => setSelectedCharacterId(e.target.value)}
-                  className="border border-bungie-border bg-bungie-dark px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white"
+                  className="border border-bungie-border bg-bungie-dark px-3 py-2.5 text-xs font-bold   text-white"
                 >
                   {characters.map((c) => (
                     <option key={c.characterId} value={c.characterId}>
@@ -880,7 +880,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   type="button"
                   onClick={applyLoadout}
                   disabled={busy || !selectedCharacterId}
-                  className="bg-bungie-blue px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
+                  className="bg-bungie-blue px-6 py-2.5 text-xs font-bold   text-bungie-dark transition-colors hover:bg-white disabled:opacity-50"
                 >
                   {busy ? "Applying…" : "Apply Loadout"}
                 </button>
@@ -896,7 +896,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                 type="button"
                 onClick={nextRound}
                 disabled={busy}
-                className="border border-bungie-border px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-50"
+                className="border border-bungie-border px-6 py-2.5 text-xs font-bold   text-gray-300 transition-colors hover:border-gray-500 hover:text-white disabled:opacity-50"
               >
                 Next Round
               </button>
@@ -945,7 +945,7 @@ export default function DraftBoard({ lobby, members, currentUserId }: Props) {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                  <div className="text-[10px] font-bold   text-gray-500">
                     {SLOT_LABELS[slot]}
                   </div>
                   <div className="truncate text-xs font-bold text-white">

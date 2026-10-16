@@ -20,7 +20,7 @@ export default function PreviewPage() {
           <div>
             <h1 className="text-xl font-bold text-white">Preview</h1>
             <p className="text-xs text-gray-500 mt-1">
-              Fake test environment · no auth required · hit Seed to populate the DB with sample data
+              Fake test environment | no auth required | hit Seed to populate the DB with sample data
             </p>
           </div>
           <SeedButton />
@@ -28,7 +28,7 @@ export default function PreviewPage() {
 
         {/* Interactive lobby UI mockup */}
         <div>
-          <p className="text-xs text-gray-600 uppercase tracking-widest mb-3">Lobby UI Mockup</p>
+          <p className="text-xs text-gray-600   mb-3">Lobby UI Mockup</p>
           <LobbyMockup />
         </div>
       </div>

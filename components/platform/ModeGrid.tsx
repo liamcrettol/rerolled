@@ -24,17 +24,17 @@ function ModeCard({ mode }: { mode: ModeDefinition }) {
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Icon size={20} className={accent.icon} aria-hidden="true" />
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
+          <p className={`text-[10px] font-bold   ${accent.icon}`}>{mode.eyebrow}</p>
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">Play mode</span>
+        <span className="text-[10px] font-bold   text-gray-600">Play mode</span>
       </div>
 
       <div className="relative mt-auto pt-12">
-        <h3 className="max-w-[12ch] text-2xl font-bold uppercase leading-tight tracking-wide text-white sm:text-3xl">
+        <h3 className="max-w-[12ch] text-2xl font-bold  leading-tight tracking-normal text-white sm:text-3xl">
           {mode.title}
         </h3>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-gray-400">{mode.description}</p>
-        <div className={`mt-6 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest ${accent.action}`}>
+        <div className={`mt-6 inline-flex items-center gap-2 text-[11px] font-bold   ${accent.action}`}>
           {mode.ctaLabel}
           <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </div>

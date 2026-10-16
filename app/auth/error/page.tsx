@@ -33,10 +33,10 @@ export default async function AuthError({
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
       <h1 className="text-2xl font-bold text-red-400">Sign-in failed</h1>
       <p className="text-gray-400 max-w-md">{message}</p>
-      {error && <p className="text-xs text-gray-600 font-mono">Code: {error}</p>}
+      {error && <p className="text-xs text-gray-600 tabular-nums">Code: {error}</p>}
       <Link
         href="/"
-        className="mt-2 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors"
+        className="mt-2 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold   px-5 py-3 transition-colors"
       >
         Try signing in again
       </Link>

@@ -87,7 +87,7 @@ function WeaponTile({
   return (
     <div
       key={popKey}
-      className={`relative shrink-0 overflow-hidden bg-[#16181c] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] ${
+      className={`relative shrink-0 overflow-hidden bg-[#16181c]  ${
         picked ? "animate-pick-pop" : ""
       } ${landed ? "animate-slot-land" : ""}`}
       style={{ width: TILE, height: TILE }}
@@ -141,7 +141,7 @@ function SlotColumn({
 
       {isWildcard ? (
         <>
-          <div className="grid place-items-center bg-[#16181c] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" style={{ width: TILE, height: TILE }}>
+          <div className="grid place-items-center bg-[#16181c] " style={{ width: TILE, height: TILE }}>
             <User size={40} className="text-gray-500" aria-hidden="true" />
           </div>
           <div>
@@ -192,7 +192,7 @@ function SlotColumn({
         </>
       ) : (
         <>
-          <div className="grid place-items-center bg-[#16181c] text-3xl text-gray-600 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]" style={{ width: TILE, height: TILE }} aria-hidden="true">?</div>
+          <div className="grid place-items-center bg-[#16181c] text-3xl text-gray-600 " style={{ width: TILE, height: TILE }} aria-hidden="true">?</div>
           <p className="text-sm text-gray-500">Not rolled yet</p>
         </>
       )}

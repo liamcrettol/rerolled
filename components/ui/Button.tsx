@@ -11,8 +11,8 @@ type Variant = "primary" | "success" | "danger" | "outline";
 
 const VARIANT_CLS: Record<Variant, string> = {
   primary: "bg-bungie-blue hover:bg-white text-bungie-dark",
-  success: "bg-green-700 hover:bg-green-600 text-white",
-  danger: "bg-red-700 hover:bg-red-600 text-white",
+  success: "bg-bungie-blue text-bungie-dark",
+  danger: "bg-bungie-blue text-bungie-dark",
   outline: "border border-bungie-border text-gray-300 hover:border-gray-400",
 };
 
@@ -33,7 +33,7 @@ export default function Button({
   return (
     <button
       disabled={disabled}
-      className={`${fullWidth ? "flex-1" : ""} px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-40 ${VARIANT_CLS[variant]} ${className}`}
+      className={`${fullWidth ? "flex-1" : ""} min-h-11 px-4 py-2 text-sm font-bold   transition-colors inline-flex items-center justify-center gap-2 disabled:opacity-40 ${VARIANT_CLS[variant]} ${className}`}
       {...rest}
     >
       {children}

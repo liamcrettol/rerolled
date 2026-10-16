@@ -21,7 +21,8 @@ import { useRollInstances } from "@/hooks/lobby/useRollInstances";
 import { useApplyLoadout } from "@/hooks/lobby/useApplyLoadout";
 import { useRollActions } from "@/hooks/lobby/useRollActions";
 import { Shuffle, Crown, Check, Copy, X, MoreHorizontal, Clock, Lock, Link2, Eye, ChevronDown } from "lucide-react";
-import BrandMark from "./BrandMark";
+import MidaWordmark from "./MidaWordmark";
+import ThemeToggle from "./ThemeToggle";
 import type { SlotPerk } from "./LoadoutQueue";
 import { SLOT_ORDER, SLOT_LABELS } from "@/lib/destiny/constants";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -61,7 +62,7 @@ function getLobbyStatusText(
     case "rolling":
       return isCaptain
         ? { text: "Loadout ready, apply when set", tone: "turn" }
-        : { text: "Loadout ready · waiting on the captain to apply", tone: "info" };
+        : { text: "Loadout ready | waiting on the captain to apply", tone: "info" };
     case "applying":
       return { text: "Applying loadout…", tone: "info" };
     case "in_game":
@@ -674,17 +675,14 @@ export default function LobbyRoom({
     <div className="flex min-h-screen flex-col pb-28">
       {/* Lobby bar */}
       <header className="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-2 border-b border-bungie-border px-4 py-3 sm:px-8">
-        <a href="/dashboard" className="flex items-center gap-2.5" aria-label="Rerolled home">
-          <BrandMark className="h-6 w-6" />
-          <span className="font-wide hidden text-[15px] font-bold sm:inline">Rerolled</span>
-        </a>
+        <MidaWordmark tool="rerolled" href="/dashboard" />
         <button
           type="button"
           onClick={copyCode}
           aria-label="Copy lobby code"
           className="inline-flex h-9 items-center gap-2.5 border border-white/15 px-3 transition-colors hover:border-white/30"
         >
-          <span className="font-mono text-[15px] tracking-[0.16em] slashed-zero">{lobby.code}</span>
+          <span className="tabular-nums text-[15px]  slashed-zero">{lobby.code}</span>
           {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-gray-400" />}
         </button>
         <span className="text-sm text-gray-400">Round {lobbyData.current_round}</span>
@@ -695,6 +693,7 @@ export default function LobbyRoom({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <button type="button" onClick={copyLink} className="inline-flex h-9 items-center gap-1.5 border border-white/15 px-3 text-sm font-semibold transition-colors hover:border-white/30">
             {copiedLink ? <Check size={14} /> : <Link2 size={14} />} {copiedLink ? "Copied" : "Invite"}
           </button>
@@ -712,7 +711,7 @@ export default function LobbyRoom({
               <MoreHorizontal size={16} />
             </button>
             {showOverflowMenu && (
-              <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl">
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface ">
                 {!isCaptain && (
                   <button
                     onClick={() => { handleToggleSpectate(); setShowOverflowMenu(false); }}
@@ -824,7 +823,7 @@ export default function LobbyRoom({
                     <Crown size={12} /> Pass captain
                   </button>
                   {showCaptainPicker && (
-                    <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface shadow-2xl">
+                    <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-[180px] overflow-hidden border border-bungie-border bg-bungie-surface ">
                       {captainPassError && <p className="border-b border-bungie-border px-4 py-2 text-xs text-red-400">{captainPassError}</p>}
                       {captainCandidates.map((m) => (
                         <button
@@ -861,10 +860,10 @@ export default function LobbyRoom({
           {lockedIn ? (
             <section aria-label="Loadout locked in" className="flex flex-1 flex-col items-center gap-9 px-4 py-14 text-center">
               <div className="flex flex-col items-center gap-3">
-                <span className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.14em] text-green-400">
+                <span className="inline-flex items-center gap-2 text-[13px] font-bold   text-green-400">
                   <Check size={16} strokeWidth={3} /> {isCaptain ? "Applied" : "Captain applied"}
                 </span>
-                <h2 className="font-wide text-[44px] font-extrabold leading-[0.95] sm:text-[60px]">Loadout locked in</h2>
+                <h2 className="font-wide text-[44px]  leading-[0.95] sm:text-[60px]">Loadout locked in</h2>
                 <p className="max-w-[46ch] text-[17px] leading-relaxed text-gray-400">
                   {isCaptain
                     ? "Load into your match. Rerolled picks up the result when it ends."
@@ -877,7 +876,7 @@ export default function LobbyRoom({
                   if (!slot || slot.item_hash === 0) {
                     return (
                       <figure key={s} className="flex w-40 flex-col items-center gap-3">
-                        <div className="grid h-32 w-32 place-items-center bg-[#16181c] text-sm text-gray-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">{SLOT_LABELS[s]}</div>
+                        <div className="grid h-32 w-32 place-items-center bg-[#16181c] text-sm text-gray-500 ">{SLOT_LABELS[s]}</div>
                         <figcaption className="text-sm text-gray-400">Your own</figcaption>
                       </figure>
                     );
@@ -886,7 +885,7 @@ export default function LobbyRoom({
                   const exotic = (weaponDetails[slot.item_hash]?.tierType ?? 5) === 6;
                   return (
                     <figure key={s} className="flex w-40 flex-col items-center gap-3">
-                      <div className="relative h-32 w-32 overflow-hidden bg-[#16181c] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]">
+                      <div className="relative h-32 w-32 overflow-hidden bg-[#16181c] ">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={slot.weapon_icon} alt="" className="absolute inset-0 h-full w-full" />
                         {weaponDetails[slot.item_hash]?.watermark && (

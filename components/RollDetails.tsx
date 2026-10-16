@@ -406,7 +406,7 @@ export default function RollDetails({
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h2 className="section-label">
-              Roll Comparison {loading && <span className="text-gray-500 font-normal tracking-normal normal-case">· refreshing…</span>}
+              Roll Comparison {loading && <span className="text-gray-500 font-normal tracking-normal normal-case">| refreshing…</span>}
             </h2>
           </div>
         </div>
@@ -457,7 +457,7 @@ export default function RollDetails({
                   onClick={() => selectRoll(inst)}
                   className={`group relative grid grid-cols-[1fr_1.75rem] items-center gap-2 pl-2.5 pr-1.5 py-2 cursor-pointer select-none border transition-colors duration-150 ease-out active:bg-bungie-border/35 ${
                     isSel
-                      ? `${theme.border} ${theme.bg} shadow-sm`
+                      ? `${theme.border} ${theme.bg} `
                       : "border-transparent hover:border-bungie-border hover:bg-bungie-border/25"
                   }`}
                 >
