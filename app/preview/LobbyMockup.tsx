@@ -105,8 +105,8 @@ export default function LobbyMockup() {
         <div>
           <h1 className="text-2xl font-bold text-white">Lobby</h1>
           <p className="text-gray-400 text-sm">
-            Code: <span className="font-mono text-bungie-blue font-bold tracking-widest slashed-zero">TEST01</span>
-            {" "}· share with your fireteam
+            Code: <span className="tabular-nums text-bungie-blue font-bold  slashed-zero">TEST01</span>
+            {" "}| share with your fireteam
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -177,7 +177,7 @@ export default function LobbyMockup() {
                   <div className="flex items-center gap-3">
                     <span className="text-gray-400 text-sm font-medium">Round {round.num}</span>
                     <span className="text-xs text-gray-500">
-                      👑 {round.top} · {round.topKills} kills
+                      👑 {round.top} | {round.topKills} kills
                     </span>
                   </div>
                   <span className="text-gray-600 text-xs">{isOpen ? "▲" : "▼"}</span>

@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { Archivo, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import UpdateAvailable from "@/components/UpdateAvailable";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-// Archivo carries a width axis: normal for body, widened caps (.font-wide)
-// for the Destiny-style weapon names and stage titles. Plex Mono is for codes.
-const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
-const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
+const archivo = localFont({src: [{path: "./fonts/archivo-400.ttf", weight: "400"}, {path: "./fonts/archivo-500.ttf", weight: "500"}, {path: "./fonts/archivo-600.ttf", weight: "600"}], variable: "--font-archivo", display: "swap"});
+const themeScript = `(function(){var s;try{s=localStorage.getItem('mida-theme')}catch(e){}document.documentElement.dataset.theme=s==='light'||s==='dark'?s:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})()`;
 
 const DESCRIPTION =
   "Roll random Destiny 2 weapon loadouts from a shared fireteam pool, then equip and compare rolls together.";
@@ -19,7 +17,7 @@ const DESCRIPTION =
 // root-level tags are therefore the ones Discord actually renders. `metadataBase`
 // resolves opengraph-image to the absolute URL unfurl crawlers require.
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://rerolled.io"),
+  metadataBase: new URL(process.env.NEXTAUTH_URL ?? "https://rerolled.mida.tools"),
   title: {
     default: "Rerolled",
     template: "%s | Rerolled",
@@ -47,9 +45,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${plexMono.variable}`}>
+    <html lang="en" className={archivo.variable} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="min-h-screen bg-bungie-dark text-gray-100 antialiased">
-        <Providers>{children}</Providers>
+        <a className="mida-skip" href="#mida-content">Skip to content</a><div id="mida-content"><Providers>{children}</Providers></div>
         <UpdateAvailable />
         <Analytics />
         <SpeedInsights />

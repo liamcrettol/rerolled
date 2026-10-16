@@ -107,7 +107,7 @@ function FloatingTooltip({
   return (
     <div
       ref={ref}
-      className="fixed z-[60] w-72 bg-[#0c0e11] border border-bungie-border shadow-2xl pointer-events-none overflow-hidden"
+      className="fixed z-[60] w-72 bg-[#0c0e11] border border-bungie-border  pointer-events-none overflow-hidden"
       style={{ left: pos?.left ?? state.point.x, top: pos?.top ?? state.point.y, opacity: pos ? 1 : 0 }}
     >
       {/* Rarity accent bar */}
@@ -134,13 +134,13 @@ function FloatingTooltip({
           <div className="mt-3 pt-3 border-t border-bungie-border/60 space-y-2">
             {rolls.map((inst, i) => (
               <div key={inst.instanceId}>
-                <p className="text-gray-400 text-[10px] uppercase tracking-wide mb-0.5">
+                <p className="text-gray-400 text-[10px]  tracking-normal mb-0.5">
                   {rolls.length > 1 ? `Roll ${i + 1}` : "Your roll"}
                   <span className="text-gray-400 normal-case tracking-normal">
-                    {" · "}{inst.location === "vault" ? "in vault" : "on character"}
+                    {" | "}{inst.location === "vault" ? "in vault" : "on character"}
                   </span>
                 </p>
-                <p className={`text-xs leading-snug ${theme.text}`}>{inst.perks.map((p) => String(p)).join("  ·  ")}</p>
+                <p className={`text-xs leading-snug ${theme.text}`}>{inst.perks.map((p) => String(p)).join("  |  ")}</p>
               </div>
             ))}
           </div>

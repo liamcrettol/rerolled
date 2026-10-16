@@ -135,7 +135,7 @@ export default function NewLobbyPage() {
 
         <div className="mb-6">
           <p className="section-label text-green-400 mb-2">Loadout Roulette</p>
-          <h1 className="text-2xl md:text-3xl font-bold uppercase tracking-tight text-white">
+          <h1 className="text-2xl md:text-3xl font-bold  tracking-tight text-white">
             Create lobby
           </h1>
         </div>
@@ -160,7 +160,7 @@ export default function NewLobbyPage() {
                     >
                       <div className="flex items-center gap-2">
                         <Icon size={14} className={active ? "text-green-400" : "text-gray-500"} aria-hidden="true" />
-                        <p className="text-sm font-bold uppercase tracking-wider text-white">{preset.label}</p>
+                        <p className="text-sm font-bold   text-white">{preset.label}</p>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">{preset.detail}</p>
                     </button>
@@ -241,7 +241,7 @@ export default function NewLobbyPage() {
             <div className="space-y-3">
               {WEAPON_TYPES.map(({ label, types }) => (
                 <div key={label}>
-                  <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1.5">{label}</p>
+                  <p className="text-[10px]   text-gray-600 mb-1.5">{label}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {types.map((t) => {
                       const banned = bannedTypes.has(t);
@@ -274,7 +274,7 @@ export default function NewLobbyPage() {
         <button
           onClick={handleCreate}
           disabled={loading}
-          className="w-full mt-6 bg-bungie-blue hover:bg-white disabled:opacity-50 text-bungie-dark text-xs font-bold uppercase tracking-wider py-3 transition-colors inline-flex items-center justify-center gap-2"
+          className="w-full mt-6 bg-bungie-blue hover:bg-white disabled:opacity-50 text-bungie-dark text-xs font-bold   py-3 transition-colors inline-flex items-center justify-center gap-2"
         >
           {loading && <Spinner size={15} />}
           {loading ? "Creating…" : "Create Lobby"}

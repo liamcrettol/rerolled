@@ -43,7 +43,7 @@ export default function GlobalError({
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: "0.14em",
-            textTransform: "uppercase",
+            textTransform: "",
             color: "#9aa1a9",
             margin: 0,
           }}
@@ -69,7 +69,7 @@ export default function GlobalError({
             color: "#fff",
             fontSize: 12,
             fontWeight: 700,
-            textTransform: "uppercase",
+            textTransform: "",
             letterSpacing: "0.1em",
             padding: "0.75rem 1.25rem",
             border: "none",

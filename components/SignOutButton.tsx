@@ -9,14 +9,14 @@ export default function SignOutButton() {
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
         href="/api/auth/bungie/login?reauth=true"
-        className="text-xs text-gray-500 hover:text-bungie-blue transition"
+        className="inline-flex min-h-11 items-center text-sm text-gray-500 hover:text-bungie-blue transition"
         aria-label="Sign in with a different Bungie account"
       >
         Switch account
       </a>
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
-        className="text-sm text-gray-400 hover:text-white transition"
+        className="inline-flex min-h-11 items-center text-sm text-gray-400 hover:text-white transition"
         aria-label="Fully sign out"
       >
         Sign out

@@ -149,54 +149,9 @@ After the PR merges, the work is in **staging**. Wait for "ship it" before promo
 
 ---
 
-## Design system (flat DIM-style — don't drift back to "AI slop")
+## Design system: mida.tools
 
-The whole UI was deliberately redesigned (#243, "remove AI aesthetic") to a flat
-armory look — DIM / Trials Report / light.gg, not a generic SaaS template. Liam
-notices and rejects the generic look immediately. The rules:
-
-- **Hard edges everywhere: zero border radius.** No `rounded-*` (the lone
-  exception is a `rounded-full` circle icon). No gradients, no glassmorphism,
-  no scan-lines/grid backdrops, no gold-corner "armory" kitsch, no emoji.
-- **Tokens** (globals.css / tailwind `bungie.*`, redesigned 2026-10-15 after Liam
-  rejected the neon cyan as "looks AI"): bg `#0a0b0d` (`bungie-dark`), panels `#121417`
-  (`bungie-surface`), 1px strokes `#24272c` (`bungie-border`). The accent is off-white
-  `#f2f1ed` (`bungie-blue` keeps its old name so nothing broke; solid fills take
-  `text-bungie-dark`). Primary buttons are solid off-white, secondary are a
-  `border-white/15` outline. No cyan, no glow rings.
-- **Type:** Archivo (variable width) for everything, IBM Plex Mono for lobby codes,
-  both via next/font in `app/layout.tsx`. `.font-wide` = widened caps, the Destiny
-  header voice, used only for weapon names and big stage titles.
-- **One focal point per screen.** The lobby stage is the three weapons (168px tiles
-  with a rarity bar, wide-caps name, your perks); the fireteam sits in a left rail,
-  the pool is a drawer, the roll comparison is folded behind "Compare rolls", and one
-  action bar is pinned to the bottom. Don't add equal-weight panels back.
-- **Utilities to reuse, not reinvent:** `.panel` (flat surface + 1px stroke),
-  `.section-label` (11px bold uppercase 0.14em-tracked micro-label — used for
-  *every* section header), `components/ui/Card.tsx`, `WeaponIcon.tsx`.
-  Buttons get a mechanical 1px translate press via global CSS — no scale/ease.
-- **Color is semantic, never decorative.** Destiny element colors (Arc `#7bd6ff`,
-  Solar `#ff8a3d`, Void `#b58cff`, Stasis `#5b8dff`, Strand `#2fd66f`, Kinetic
-  `#d3dae1` — see `DAMAGE_COLORS` in `lib/destiny/constants.ts`) and rarity edges (exotic
-  gold `#c7a64a`, legendary purple — `.exotic-border`, HeroReel's `EDGE`) are the
-  only things allowed to glow, as thin box-shadow edges on dark tiles.
-- **Motion vocabulary lives in `tailwind.config.ts`** (`pick-pop`, `slot-land`,
-  `fade-in`, `cyl-spin`, `weapon-land`) plus the scroll-and-land **reel** in
-  `components/HeroReel.tsx` — blurred filler icons scrolling vertically in a
-  masked window, notching onto the target with an overshoot ease. That reel is
-  the app's signature mechanic; reuse it for any new "random reveal" moment
-  (LoadoutQueue and DraftBoard already do) instead of inventing a new animation.
-- **Layout taste:** fill the viewport (`min-h-[calc(100vh-*)]` + `flex-1`
-  centered stage) — Liam calls out dead space. Big uppercase slot/stage titles,
-  progress steppers as square bordered pills, trays pinned to the bottom.
-  Game-feel references he reaches for: Clash Royale card reveals, slot reels.
-- **Never use em dashes (—) anywhere in user-facing text** — page copy, button
-  labels, error/toast messages, API error strings, dialog bodies, placeholder
-  glyphs. Use a period, comma, or separate sentence instead (a plain hyphen
-  `-` is fine for a "no value" table placeholder). Swept the whole app clean
-  of them 2026-07-07 — don't reintroduce while writing new copy.
-
----
+Follow [the shared MIDA brief](docs/MIDA_DESIGN_BRIEF.md). The approved hub is minimal and names-first. Use Archivo 400/500/600, neutral light/dark tokens, plain text actions, generous spacing and a small orange signal. No tape treatments, decorative logos, gradients, shadows or uppercase labels. Theme defaults to the system and the browser remembers the choice. Preserve all existing tool behavior and semantic game information.
 
 ## Superdesign skill (design exploration only, not implementation)
 

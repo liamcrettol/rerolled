@@ -29,18 +29,18 @@ export default function Error({
         keeps happening, head back to the dashboard.
       </p>
       {error.digest && (
-        <p className="text-xs text-gray-600 font-mono">Reference: {error.digest}</p>
+        <p className="text-xs text-gray-600 tabular-nums">Reference: {error.digest}</p>
       )}
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={reset}
-          className="bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors"
+          className="bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold   px-5 py-3 transition-colors"
         >
           Try again
         </button>
         <Link
           href="/dashboard"
-          className="border border-bungie-border hover:border-bungie-blue text-gray-300 hover:text-white text-xs font-bold uppercase tracking-wider px-5 py-3 transition-colors"
+          className="border border-bungie-border hover:border-bungie-blue text-gray-300 hover:text-white text-xs font-bold   px-5 py-3 transition-colors"
         >
           Dashboard
         </Link>

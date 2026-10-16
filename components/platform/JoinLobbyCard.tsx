@@ -28,7 +28,7 @@ export default function JoinLobbyCard({
             <KeyRound size={18} className="text-bungie-blue" aria-hidden="true" />
             <p className="section-label text-bungie-blue">Already have a fireteam?</p>
           </div>
-          <h3 className="mt-2 text-xl font-bold uppercase tracking-wide text-white">Join with a lobby code</h3>
+          <h3 className="mt-2 text-xl font-bold  tracking-normal text-white">Join with a lobby code</h3>
           <p className="mt-1 text-sm text-gray-500">Enter the code shared by your fireteam captain.</p>
         </div>
 
@@ -40,13 +40,13 @@ export default function JoinLobbyCard({
               onChange={(e) => onCodeChange(e.target.value)}
               placeholder="LOBBY CODE"
               maxLength={8}
-              className="h-12 w-full border border-bungie-border bg-bungie-dark px-3 text-center font-mono text-sm uppercase tracking-widest text-white slashed-zero placeholder:text-xs placeholder:font-sans placeholder:tracking-wider placeholder:text-gray-600 focus:border-bungie-blue focus:outline-none"
+              className="h-12 w-full border border-bungie-border bg-bungie-dark px-3 text-center tabular-nums text-sm   text-white slashed-zero placeholder:text-xs placeholder:font-sans placeholder:text-gray-600 focus:border-bungie-blue "
             />
           </label>
           <button
             type="submit"
             disabled={loading || !code.trim()}
-            className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
+            className={`inline-flex h-12 shrink-0 items-center justify-center gap-2 px-5 text-[11px] font-bold   transition-colors ${
               code.trim()
                 ? "bg-bungie-blue text-bungie-dark hover:bg-white"
                 : "border border-bungie-border bg-bungie-dark text-gray-500"
@@ -65,10 +65,10 @@ export default function JoinLobbyCard({
         >
           <RotateCcw size={15} className="shrink-0 text-bungie-blue" aria-hidden="true" />
           <span className="flex-1">
-            Resume <span className="font-mono font-bold text-white slashed-zero">{activeSession.code}</span>
+            Resume <span className="tabular-nums font-bold text-white slashed-zero">{activeSession.code}</span>
             <span className="ml-2 text-xs text-gray-600">{STATUS_LABELS[activeSession.status]}</span>
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-bungie-blue">Rejoin</span>
+          <span className="text-[10px] font-bold   text-bungie-blue">Rejoin</span>
         </button>
       )}
 

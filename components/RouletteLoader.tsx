@@ -50,7 +50,7 @@ export default function RouletteLoader({ label }: { label?: string }) {
         <circle cx="48" cy="48" r="7" className="fill-gray-700 stroke-gray-500" strokeWidth="2" />
         <circle cx="48" cy="48" r="2.5" className="fill-gray-400" />
       </svg>
-      {label && <p className="text-gray-400 text-sm tracking-wide animate-pulse">{label}</p>}
+      {label && <p className="text-gray-400 text-sm tracking-normal animate-pulse">{label}</p>}
     </div>
   );
 }

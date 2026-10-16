@@ -15,11 +15,11 @@ export default function ModeSpotlight({ modes }: { modes: ModeDefinition[] }) {
           <div key={mode.id} className={`panel border-l-2 ${accent.border} flex min-h-40 flex-col p-5 sm:p-6`}>
             <div className="flex min-w-0 items-center gap-2">
               <Icon size={18} className={`shrink-0 ${accent.icon}`} aria-hidden="true" />
-              <p className={`text-[10px] font-bold uppercase tracking-widest ${accent.icon}`}>{mode.eyebrow}</p>
+              <p className={`text-[10px] font-bold   ${accent.icon}`}>{mode.eyebrow}</p>
             </div>
-            <h3 className="mt-3 text-xl font-bold uppercase tracking-wide text-white">{mode.title}</h3>
+            <h3 className="mt-3 text-xl font-bold  tracking-normal text-white">{mode.title}</h3>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-gray-400">{mode.description}</p>
-            <p className={`mt-auto pt-5 text-[10px] font-bold uppercase tracking-widest ${accent.action}`}>
+            <p className={`mt-auto pt-5 text-[10px] font-bold   ${accent.action}`}>
               Sign in to play <ArrowRight size={12} className="ml-1 inline" aria-hidden="true" />
             </p>
           </div>

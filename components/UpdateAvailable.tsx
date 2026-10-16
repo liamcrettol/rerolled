@@ -53,13 +53,13 @@ export default function UpdateAvailable() {
   if (!updateVersion) return null;
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl items-center justify-between gap-4 border border-bungie-border bg-bungie-surface px-4 py-3 shadow-2xl sm:inset-x-auto sm:right-6 sm:left-auto">
+    <div className="fixed inset-x-4 bottom-4 z-[100] mx-auto flex max-w-xl items-center justify-between gap-4 border border-bungie-border bg-bungie-surface px-4 py-3  sm:inset-x-auto sm:right-6 sm:left-auto">
       <p className="text-sm font-semibold text-gray-100">New version available</p>
       <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="border border-bungie-gold bg-bungie-gold px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-bungie-dark transition hover:brightness-110"
+          className="border border-bungie-gold bg-bungie-gold px-3 py-1.5 text-xs font-bold   text-bungie-dark transition hover:brightness-110"
         >
           Click here to update
         </button>

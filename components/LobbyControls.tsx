@@ -37,13 +37,13 @@ export default function LobbyControls({
       {activeSession && (
         <div className="panel border-l-2 border-l-bungie-blue p-3 flex items-center justify-between gap-4">
           <p className="text-sm text-gray-300 min-w-0 truncate">
-            <span className="font-mono text-bungie-blue font-bold slashed-zero">{activeSession.code}</span>
-            <span className="text-gray-500"> · </span>
+            <span className="tabular-nums text-bungie-blue font-bold slashed-zero">{activeSession.code}</span>
+            <span className="text-gray-500"> | </span>
             {STATUS_LABELS[activeSession.status]}
           </p>
           <button
             onClick={() => router.push(`${MODE_BASE_PATH[activeSession.mode]}/${activeSession.code}`)}
-            className="shrink-0 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider px-4 py-2 transition-colors"
+            className="shrink-0 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold   px-4 py-2 transition-colors"
           >
             Rejoin
           </button>
@@ -54,7 +54,7 @@ export default function LobbyControls({
         {showCreate && (
           <Link
             href={createHref}
-            className="sm:flex-1 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold uppercase tracking-wider py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
+            className="sm:flex-1 bg-bungie-blue hover:bg-white text-bungie-dark text-xs font-bold   py-3 px-4 transition-colors text-center inline-flex items-center justify-center gap-2"
           >
             <PlusCircle size={15} />
             {createLabel}
@@ -68,13 +68,13 @@ export default function LobbyControls({
               onChange={(e) => onCodeChange(e.target.value)}
               placeholder="LOBBY CODE"
               maxLength={8}
-              className="w-full bg-bungie-dark border border-bungie-border px-3 py-2.5 text-white font-mono text-sm text-center uppercase tracking-widest slashed-zero placeholder:text-gray-600 placeholder:font-sans placeholder:tracking-wider focus:outline-none focus:border-bungie-blue"
+              className="w-full bg-bungie-dark border border-bungie-border px-3 py-2.5 text-white tabular-nums text-sm text-center   slashed-zero placeholder:text-gray-600 placeholder:font-sans  focus:border-bungie-blue"
             />
           </label>
           <button
             type="submit"
             disabled={loading || !code.trim()}
-            className={`text-xs font-bold uppercase tracking-wider px-5 transition-colors inline-flex items-center justify-center gap-2 ${
+            className={`text-xs font-bold   px-5 transition-colors inline-flex items-center justify-center gap-2 ${
               code.trim()
                 ? "bg-bungie-blue hover:bg-white text-bungie-dark"
                 : "bg-bungie-dark border border-bungie-border text-gray-500"

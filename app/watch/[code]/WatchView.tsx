@@ -257,7 +257,7 @@ export default function WatchView({
         <div>
           <h1 className="text-2xl font-bold text-white">Rerolled</h1>
           <p className="text-gray-400 text-sm">
-            Watching <span className="font-mono text-bungie-blue font-bold slashed-zero">{code}</span> · Round {roundNumber}
+            Watching <span className="tabular-nums text-bungie-blue font-bold slashed-zero">{code}</span> | Round {roundNumber}
           </p>
         </div>
         <span className={`text-xs px-2 py-1 border ${badge.cls}`}>{badge.label}</span>
@@ -296,7 +296,7 @@ export default function WatchView({
           const isWildcard = slot?.item_hash === 0;
           return (
             <div key={slotName} className="flex flex-col items-center gap-2 p-4 border border-bungie-border bg-bungie-surface">
-              <span className="text-xs text-gray-400 uppercase tracking-wider">{SLOT_LABELS[slotName]}</span>
+              <span className="text-xs text-gray-400  ">{SLOT_LABELS[slotName]}</span>
               {isWildcard ? (
                 <>
                   <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/40 flex items-center justify-center"><User size={26} className="text-purple-300" /></div>
@@ -378,7 +378,7 @@ export default function WatchView({
               <tbody className="divide-y divide-bungie-border/40">
                 {lobbyLeaderboard.map((entry, i) => (
                   <tr key={entry.userId} className={i === 0 ? "text-yellow-400" : "text-gray-300"}>
-                    <td className="p-2 pl-3 text-gray-500 font-mono text-xs">{i + 1}</td>
+                    <td className="p-2 pl-3 text-gray-500 tabular-nums text-xs">{i + 1}</td>
                     <td className="p-2 font-medium">{trimBungieName(entry.displayName)}</td>
                     <td className="p-2 text-right font-bold text-bungie-blue">{entry.totalKills}</td>
                     <td className="p-2 text-right pr-3 text-xs">{entry.gamesPlayed}</td>
