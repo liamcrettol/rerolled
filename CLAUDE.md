@@ -14,6 +14,17 @@ NextAuth v5 beta (custom Bungie provider) · Axiom (next-axiom) · Vercel (Hobby
 
 ---
 
+## Infrastructure
+
+Full write-up: [Rival's docs/INFRASTRUCTURE.md](https://github.com/liamcrettol/rival/blob/main/docs/INFRASTRUCTURE.md). Read it before touching databases, env vars or crons.
+
+- Rerolled stays on Supabase project `rerolled` (`rygyojxgngptacyadrna`), `public` schema. Replay shares it in the `replay` schema; never touch that schema from here.
+- Rival's database moved off Supabase on 2026-10-16 to AWS Lightsail (`https://db.rerolled.io`, PostgREST). Talk to Rival over HTTP only; never write to Rival's data from here.
+- The Supabase org moves from Pro to Free once Rival's old project is deleted: 500 MB database cap, no automatic backups, pauses after about a week idle. Replay's backfill is the growth risk.
+- **To-do after the downgrade:** the `database_size_bytes()` / `[database-capacity]` alarm (see "Database migrations") still fires at 6.4 GB, 80% of Pro's 8 GB. Drop it below 500 MB. Don't change the code unless asked.
+
+---
+
 ## How I want you to work (the core loop)
 
 - **When you finish a requested change** → commit the completed work and push it
