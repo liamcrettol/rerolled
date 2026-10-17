@@ -69,40 +69,44 @@ export async function GET(req: NextRequest) {
   const rerolledCandidates = candidates.filter((c) => c.first_site === "rerolled");
   const rivalCandidates = candidates.filter((c) => c.first_site === "rival");
 
-  let rerolledOrphans: string[] = [];
-  if (rerolledCandidates.length > 0) {
-    // Check bungie_accounts, not users: the callback route writes users
-    // before bungie_accounts (#391), so a process killed between those two
-    // writes leaves a users row with no bungie_accounts row. Checking users
-    // alone would never treat that candidate as an orphan, leaking its slot
-    // forever even though the account was never actually completed.
+  // A slot is an orphan only if NEITHER site has an account for it. first_site
+  // records who reserved the slot first, not where the account ended up: a
+  // reservation made on one site whose signup never completed there is reused
+  // (already_registered) when the same person later signs up on the other
+  // site. Judging by first_site alone would release that live user's slot and
+  // let the shared lifetime cap be exceeded.
+  //
+  // Check bungie_accounts, not users: the callback route writes users before
+  // bungie_accounts (#391), so a process killed between those two writes
+  // leaves a users row with no bungie_accounts row.
+  let orphanIds: string[] = [];
+  let rivalCheckFailed = false;
+  if (candidates.length > 0) {
     const { data: existing, error: accountsError } = await withSupabaseTimeout(
-      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", rerolledCandidates.map((c) => c.user_id)),
+      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", candidates.map((c) => c.user_id)),
       5_000
     );
     if (accountsError) {
-      console.error("[cron/reconcile-signup-slots] rerolled bungie_accounts lookup failed", { reason: accountsError.message });
+      // Can't tell who has a local account: release nothing this run.
+      console.error("[cron/reconcile-signup-slots] bungie_accounts lookup failed", { reason: accountsError.message });
     } else {
-      const existingIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
-      rerolledOrphans = rerolledCandidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
+      const localIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
+      const missingLocally = candidates.map((c) => c.user_id).filter((id) => !localIds.has(id));
+      if (missingLocally.length > 0) {
+        const existingRivalIds = await findExistingRivalAccountIds(missingLocally);
+        if (existingRivalIds === null) {
+          // Couldn't verify - never release on an unconfirmed check. The next
+          // run tries again.
+          rivalCheckFailed = true;
+        } else {
+          const rivalSet = new Set(existingRivalIds);
+          orphanIds = missingLocally.filter((id) => !rivalSet.has(id));
+        }
+      }
     }
   }
 
-  let rivalOrphans: string[] = [];
-  let rivalCheckFailed = false;
-  if (rivalCandidates.length > 0) {
-    const existingRivalIds = await findExistingRivalAccountIds(rivalCandidates.map((c) => c.user_id));
-    if (existingRivalIds === null) {
-      // Couldn't verify - never release on an unconfirmed check. The next
-      // run tries again.
-      rivalCheckFailed = true;
-    } else {
-      const existingSet = new Set(existingRivalIds);
-      rivalOrphans = rivalCandidates.map((c) => c.user_id).filter((id) => !existingSet.has(id));
-    }
-  }
-
-  const orphanQueue = [...rerolledOrphans, ...rivalOrphans];
+  const orphanQueue = [...orphanIds];
   const deadline = Date.now() + DEADLINE_MS;
   let released = 0;
   let timedOut = false;

@@ -102,6 +102,7 @@ it("releases a partially-created account: a users row with no matching bungie_ac
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-orphan", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue([]);
@@ -117,6 +118,7 @@ it("releases a rival-origin orphan once Rival confirms it has no account", async
 it("never releases a rival-origin candidate when the Rival check can't be verified (fails safe)", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue(null);
@@ -126,6 +128,40 @@ it("never releases a rival-origin candidate when the Rival check can't be verifi
 
   expect(body.released).toBe(0);
   expect(body.rivalCheckFailed).toBe(true);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("keeps a rival-origin slot whose person completed signup on Rerolled instead", async () => {
+  // Rival reserved first but its signup never completed; the person then
+  // signed up on Rerolled (slot reused, first_site stays "rival"). Releasing
+  // it would let the shared cap be exceeded.
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery(["moved-user"]);
+    throw new Error(`unexpected table ${table}`);
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("keeps a rerolled-origin slot whose person completed signup on Rival instead", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-user", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(["moved-user"]);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockFindExistingRivalAccountIds).toHaveBeenCalledWith(["moved-user"]);
   expect(mockRpc).not.toHaveBeenCalled();
 });
 
