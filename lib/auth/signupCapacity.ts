@@ -72,6 +72,9 @@ export async function findExistingRivalAccountIds(userIds: string[]): Promise<st
       },
       body: JSON.stringify({ userIds }),
       cache: "no-store",
+      // A moved host answers 301 and fetch would replay the POST as a GET
+      // without the body or bearer token. Treat it as "check not completed".
+      redirect: "manual",
       signal: AbortSignal.timeout(5_000),
     });
     if (!response.ok) {

@@ -86,6 +86,16 @@ describe("findExistingRivalAccountIds", () => {
     );
   });
 
+  it("does not follow redirects and returns null when Rival's host has moved", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 301, json: async () => null });
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    expect((global.fetch as jest.Mock).mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("failed"), { status: 301 });
+    errSpy.mockRestore();
+  });
+
   it("returns null (never an empty array) on a non-2xx response, so nothing gets wrongly released", async () => {
     const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 503, json: async () => null });
