@@ -12,6 +12,13 @@ export function isDatabaseUnavailableError(err: unknown) {
   );
 }
 
+// requireSession() throws exactly "Unauthorized" when the session is missing or
+// expired. Routes must answer that with 401 rather than falling into their
+// generic 500 handler.
+export function isUnauthorizedError(err: unknown) {
+  return err instanceof Error && err.message === "Unauthorized";
+}
+
 export const DATABASE_UNAVAILABLE_MESSAGE =
   "This needs the database, and Supabase is timing out right now. Please try again in a minute.";
 
