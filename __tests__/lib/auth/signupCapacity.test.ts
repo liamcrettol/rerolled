@@ -118,4 +118,18 @@ describe("findExistingRivalAccountIds", () => {
     await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
     errSpy.mockRestore();
   });
+
+  it("returns null (never an empty list) when the Rival host has moved and answers with a redirect", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 301,
+      headers: new Headers({ location: "https://rival.example/api/internal/rerolled/account-exists" }),
+      json: async () => null,
+    });
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    expect((global.fetch as jest.Mock).mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+    errSpy.mockRestore();
+  });
 });

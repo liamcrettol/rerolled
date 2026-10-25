@@ -56,6 +56,7 @@ it("releases a rerolled-origin orphan with no matching account", async () => {
     if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
   mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
 
   const res = await GET(req());
@@ -90,6 +91,7 @@ it("releases a partially-created account: a users row with no matching bungie_ac
     if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
   mockRpc.mockResolvedValue({ data: [{ released: true, user_count: 5, max_users: 150 }], error: null });
 
   const res = await GET(req());
@@ -102,6 +104,7 @@ it("releases a partially-created account: a users row with no matching bungie_ac
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-orphan", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue([]);
@@ -117,6 +120,7 @@ it("releases a rival-origin orphan once Rival confirms it has no account", async
 it("never releases a rival-origin candidate when the Rival check can't be verified (fails safe)", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue(null);
@@ -149,6 +153,7 @@ it("releases every orphan in a batch larger than the concurrency cap (#419)", as
     if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
   mockRpc.mockResolvedValue({ data: [{ released: true }], error: null });
 
   const res = await GET(req());
@@ -170,6 +175,7 @@ it("stops releasing once past the deadline and flags timedOut instead of risking
     if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
   mockRpc.mockResolvedValue({ data: [{ released: true }], error: null });
 
   // Two Date.now() calls happen before the release loop starts (the orphan-
@@ -212,4 +218,50 @@ it("surfaces a failed candidate query as a 500 instead of releasing slots blind"
   expect(res.status).toBe(500);
   expect(mockRpc).not.toHaveBeenCalled();
   errSpy.mockRestore();
+});
+
+it("does not release a rival-origin slot whose user only completed signup on Rerolled", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "split-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery(["split-user"]);
+    throw new Error(`unexpected table ${table}`);
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("does not release a rerolled-origin slot whose user only completed signup on Rival", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "split-user", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(["split-user"]);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("never releases a rerolled-origin candidate when the Rival check can't be verified", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "unverified", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(null);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(body.rivalCheckFailed).toBe(true);
+  expect(mockRpc).not.toHaveBeenCalled();
 });

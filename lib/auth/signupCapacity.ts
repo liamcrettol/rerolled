@@ -72,8 +72,25 @@ export async function findExistingRivalAccountIds(userIds: string[]): Promise<st
       },
       body: JSON.stringify({ userIds }),
       cache: "no-store",
+      // A followed redirect would turn this POST into an unauthenticated GET.
+      // Surface a moved host as an explicit, fail-safe "could not verify".
+      redirect: "manual",
       signal: AbortSignal.timeout(5_000),
     });
+    if (response.status >= 300 && response.status < 400) {
+      console.error("[signupCapacity] Rival account-exists endpoint redirected; update RIVAL_BASE_URL", {
+        status: response.status,
+        locationHost: (() => {
+          try {
+            const location = response.headers.get("location");
+            return location ? new URL(location, "https://invalid.local").host : null;
+          } catch {
+            return null;
+          }
+        })(),
+      });
+      return null;
+    }
     if (!response.ok) {
       console.error("[signupCapacity] Rival account-exists check failed", { status: response.status });
       return null;
