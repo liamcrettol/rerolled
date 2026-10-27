@@ -47,7 +47,8 @@ function bungieAccountsExistQuery(existingIds: string[]) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
 });
 
 it("releases a rerolled-origin orphan with no matching account", async () => {
@@ -102,6 +103,7 @@ it("releases a partially-created account: a users row with no matching bungie_ac
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-orphan", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue([]);
@@ -117,6 +119,7 @@ it("releases a rival-origin orphan once Rival confirms it has no account", async
 it("never releases a rival-origin candidate when the Rival check can't be verified (fails safe)", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue(null);
@@ -212,4 +215,51 @@ it("surfaces a failed candidate query as a 500 instead of releasing slots blind"
   expect(res.status).toBe(500);
   expect(mockRpc).not.toHaveBeenCalled();
   errSpy.mockRestore();
+});
+
+it("does not release a rival-origin reservation whose account was completed on Rerolled", async () => {
+  // first_site only records where the reservation was first made. A retry on
+  // the other site returns already_registered and creates the account there.
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery(["moved-user"]);
+    throw new Error(`unexpected table ${table}`);
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("does not release a rerolled-origin reservation whose account exists only on Rival", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-user", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(["moved-user"]);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("never releases a rerolled-origin candidate when the Rival check can't be verified", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "maybe-rival", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(null);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(body.rivalCheckFailed).toBe(true);
+  expect(mockRpc).not.toHaveBeenCalled();
 });
