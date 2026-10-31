@@ -119,3 +119,20 @@ describe("findExistingRivalAccountIds", () => {
     errSpy.mockRestore();
   });
 });
+
+describe("findExistingRivalAccountIds redirects", () => {
+  it("returns null (never an empty list) and refuses to follow a redirect", async () => {
+    process.env.RIVAL_SYNC_SECRET = "secret";
+    const err = jest.spyOn(console, "error").mockImplementation(() => {});
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 301,
+      headers: new Headers({ location: "https://rival.mida.tools/api/internal/rerolled/account-exists" }),
+    }) as unknown as typeof fetch;
+
+    await expect(findExistingRivalAccountIds(["user-1"])).resolves.toBeNull();
+    expect((global.fetch as jest.Mock).mock.calls[0][1].redirect).toBe("manual");
+    expect(JSON.stringify(err.mock.calls)).toContain("rival.mida.tools");
+    err.mockRestore();
+  });
+});

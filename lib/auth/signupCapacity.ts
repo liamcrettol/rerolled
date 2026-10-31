@@ -72,8 +72,20 @@ export async function findExistingRivalAccountIds(userIds: string[]): Promise<st
       },
       body: JSON.stringify({ userIds }),
       cache: "no-store",
+      // A redirected POST becomes a GET without Authorization, which would
+      // look like a generic failure. Surface it so RIVAL_BASE_URL gets fixed.
+      redirect: "manual",
       signal: AbortSignal.timeout(5_000),
     });
+    if (response.status >= 300 && response.status < 400) {
+      let to = "unknown";
+      try { to = new URL(response.headers?.get?.("location") ?? "").host; } catch { /* host only */ }
+      console.error("[signupCapacity] Rival account-exists endpoint redirected; update RIVAL_BASE_URL to the canonical host", {
+        status: response.status,
+        to,
+      });
+      return null;
+    }
     if (!response.ok) {
       console.error("[signupCapacity] Rival account-exists check failed", { status: response.status });
       return null;
