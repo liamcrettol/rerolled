@@ -363,3 +363,66 @@ describe("signup capacity check for returning users (#367)", () => {
     expect(mockReleaseSignupSlot).not.toHaveBeenCalled();
   });
 });
+
+// #425 - the legacy oauth_states fallback lookup must never crash the callback
+// into a raw 500; a thrown/failed lookup is just an invalid state.
+it("redirects to state_mismatch instead of throwing when the legacy oauth_states lookup throws (#425)", async () => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+  mockFrom.mockReturnValue({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    gt: jest.fn().mockReturnThis(),
+    single: jest.fn().mockRejectedValue(new Error("fetch failed")),
+  });
+  const res = await GET(
+    new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=no-cookie-state"),
+  );
+  expect(res.headers.get("location")).toBe("https://test.app/auth/error?error=state_mismatch");
+});
+
+// #426 - one local blip on the returning-user lookup must not misclassify an
+// existing account as a new signup (which would hit the capacity RPC).
+it("retries the returning-user lookup once before treating the user as new (#426)", async () => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+  const encode = jest.requireMock("@auth/core/jwt").encode as jest.Mock;
+  const encryptToken = jest.requireMock("@/lib/auth/encrypt").encryptToken as jest.Mock;
+  encode.mockResolvedValue("signed-jwt");
+  encryptToken.mockResolvedValue("encrypted");
+  const maybeSingle = jest
+    .fn()
+    .mockRejectedValueOnce(new Error("fetch failed"))
+    .mockResolvedValue({ data: { user_id: "user-1" }, error: null });
+  mockFrom.mockImplementation(() => ({
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    gt: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    upsert: jest.fn().mockReturnThis(),
+    abortSignal: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle,
+  }));
+  global.fetch = jest.fn((url: string) =>
+    Promise.resolve(
+      url.includes("/App/OAuth/token/")
+        ? { ok: true, json: async () => ({ access_token: "at", refresh_token: "rt", expires_in: 3600 }) }
+        : {
+            ok: true,
+            json: async () => ({
+              Response: {
+                bungieNetUser: { membershipId: "user-1", uniqueName: "G#1" },
+                destinyMemberships: [{ membershipId: "d1", membershipType: 3 }],
+                primaryMembershipId: "d1",
+              },
+            }),
+          },
+    ),
+  ) as unknown as typeof fetch;
+  await GET(
+    new NextRequest("https://test.app/api/auth/bungie/callback?code=abc&state=valid-state", {
+      headers: { cookie: "bungie_oauth_state=valid-state" },
+    }),
+  );
+  expect(mockReserveSignupSlot).not.toHaveBeenCalled();
+});

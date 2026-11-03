@@ -122,12 +122,20 @@ export async function GET(req: NextRequest) {
 
   // Fallback for flows that started before the cookie-based state rollout.
   if (!stateValid) {
-    const { data: storedState } = await adminSupabase
-      .from("oauth_states")
-      .select("state, return_to")
-      .eq("state", state)
-      .gt("expires_at", new Date().toISOString())
-      .single();
+    // A thrown lookup (network blip, timeout) is treated as an invalid state
+    // and redirected gracefully instead of surfacing a raw 500.
+    let storedState: { state: string; return_to: string | null } | null = null;
+    try {
+      const result = await adminSupabase
+        .from("oauth_states")
+        .select("state, return_to")
+        .eq("state", state)
+        .gt("expires_at", new Date().toISOString())
+        .single();
+      storedState = result.data;
+    } catch (e) {
+      console.error("[bungie/callback] legacy oauth_states lookup threw:", e instanceof Error ? e.message : String(e));
+    }
 
     if (!storedState) {
       const response = errRedirect("state_mismatch");
@@ -223,17 +231,28 @@ export async function GET(req: NextRequest) {
   // the whole existing user base, not just new signups (#367). A failed or
   // errored local lookup falls through to the existing RPC check below, so
   // no capacity-safety guarantee is weakened for new signups.
-  let isReturningUser = false;
-  try {
+  const checkExistingAccount = async () => {
     const { data: existingAccount, error: lookupErr } = await adminSupabase
       .from("bungie_accounts")
       .select("user_id")
       .eq("user_id", userId)
       .abortSignal(AbortSignal.timeout(800))
       .maybeSingle();
-    isReturningUser = !lookupErr && !!existingAccount;
+    if (lookupErr) throw new Error(lookupErr.message);
+    return !!existingAccount;
+  };
+  let isReturningUser = false;
+  try {
+    isReturningUser = await checkExistingAccount();
   } catch {
-    isReturningUser = false;
+    // One immediate retry (#426): a local blip at exactly login time must not
+    // misclassify a returning user as a new signup. Still falls through to
+    // "treat as new" if the retry also fails, so the cap is never weakened.
+    try {
+      isReturningUser = await checkExistingAccount();
+    } catch {
+      isReturningUser = false;
+    }
   }
 
   let reservedNewSlot = false;
