@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     console.error("[lobby/leave] request failed:", msg);
     return NextResponse.json({ error: UNEXPECTED_ERROR_MESSAGE }, { status: 500 });

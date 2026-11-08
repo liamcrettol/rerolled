@@ -18,6 +18,9 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ code: lobby.code, lobbyId: lobby.id, mode: lobby.mode });
   } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     if (isDatabaseUnavailableError(err)) {
       // Include elapsed ms: it distinguishes tripping the client-side
       // SUPABASE_REQUEST_TIMEOUT_MS budget (~1.2s per request by default) from

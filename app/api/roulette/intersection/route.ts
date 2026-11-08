@@ -721,6 +721,9 @@ export async function POST(req: NextRequest) {
       weaponReleases,
     });
   } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const msg = err instanceof Error ? err.message : "Unknown error";
     log.error("intersection.error", { error: msg });
     await log.flush();
