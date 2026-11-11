@@ -55,8 +55,13 @@ export async function reserveSignupSlot(
 // direction. Returns null - never an empty array - when the check couldn't
 // be completed, so a transient failure here can never be misread as "none
 // of these exist" and cause a live account's slot to be released.
+// rival.rerolled.io now answers with a 301 to rival.mida.tools. fetch follows
+// that as a GET without the Authorization header, so a POST through the old
+// domain always comes back 405 and the check silently never completes.
+export const DEFAULT_RIVAL_BASE_URL = "https://rival.mida.tools";
+
 export async function findExistingRivalAccountIds(userIds: string[]): Promise<string[] | null> {
-  const baseUrl = process.env.RIVAL_BASE_URL ?? "https://rival.rerolled.io";
+  const baseUrl = process.env.RIVAL_BASE_URL ?? DEFAULT_RIVAL_BASE_URL;
   const secret = process.env.RIVAL_SYNC_SECRET;
   if (!secret) {
     console.error("[signupCapacity] cannot check Rival accounts for reconciliation: RIVAL_SYNC_SECRET not configured");
@@ -75,7 +80,12 @@ export async function findExistingRivalAccountIds(userIds: string[]): Promise<st
       signal: AbortSignal.timeout(5_000),
     });
     if (!response.ok) {
-      console.error("[signupCapacity] Rival account-exists check failed", { status: response.status });
+      console.error("[signupCapacity] Rival account-exists check failed", {
+        status: response.status,
+        // A redirect turns this POST into a GET (405): RIVAL_BASE_URL points
+        // at an old domain.
+        redirectedTo: response.redirected ? new URL(response.url).host : undefined,
+      });
       return null;
     }
 

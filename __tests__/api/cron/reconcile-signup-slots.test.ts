@@ -47,7 +47,8 @@ function bungieAccountsExistQuery(existingIds: string[]) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
+  mockFindExistingRivalAccountIds.mockResolvedValue([]);
 });
 
 it("releases a rerolled-origin orphan with no matching account", async () => {
@@ -102,6 +103,7 @@ it("releases a partially-created account: a users row with no matching bungie_ac
 it("releases a rival-origin orphan once Rival confirms it has no account", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-orphan", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue([]);
@@ -117,6 +119,7 @@ it("releases a rival-origin orphan once Rival confirms it has no account", async
 it("never releases a rival-origin candidate when the Rival check can't be verified (fails safe)", async () => {
   mockFrom.mockImplementation((table: string) => {
     if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "rival-user", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
     throw new Error(`unexpected table ${table}`);
   });
   mockFindExistingRivalAccountIds.mockResolvedValue(null);
@@ -127,6 +130,76 @@ it("never releases a rival-origin candidate when the Rival check can't be verifi
   expect(body.released).toBe(0);
   expect(body.rivalCheckFailed).toBe(true);
   expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("keeps a rerolled-origin slot whose owner finished signing up on Rival instead", async () => {
+  // First sign-in reserved the slot on Rerolled and was killed before the
+  // account was written; the same person then signed up on Rival, where
+  // reserve_signup_slot answered already_registered. The slot is live.
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-to-rival", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(["moved-to-rival"]);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockFindExistingRivalAccountIds).toHaveBeenCalledWith(["moved-to-rival"]);
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("keeps a rival-origin slot whose owner has a Rerolled account, without asking Rival", async () => {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "moved-to-rerolled", first_site: "rival" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery(["moved-to-rerolled"]);
+    throw new Error(`unexpected table ${table}`);
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body.released).toBe(0);
+  expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
+});
+
+it("releases nothing, rerolled-origin slots included, when the Rival check can't be verified", async () => {
+  const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "maybe-on-rival", first_site: "rerolled" }]);
+    if (table === "bungie_accounts") return bungieAccountsExistQuery([]);
+    throw new Error(`unexpected table ${table}`);
+  });
+  mockFindExistingRivalAccountIds.mockResolvedValue(null);
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body).toMatchObject({ released: 0, rivalCheckFailed: true });
+  expect(mockRpc).not.toHaveBeenCalled();
+  warnSpy.mockRestore();
+});
+
+it("releases nothing when the local bungie_accounts lookup fails", async () => {
+  const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "signup_capacity_users") return candidatesQuery([{ user_id: "unknown", first_site: "rival" }]);
+    if (table === "bungie_accounts") {
+      return { select: jest.fn().mockReturnValue({ in: jest.fn().mockResolvedValue({ data: null, error: { message: "timeout" } }) }) };
+    }
+    throw new Error(`unexpected table ${table}`);
+  });
+
+  const res = await GET(req());
+  const body = await res.json();
+
+  expect(body).toMatchObject({ released: 0, localCheckFailed: true });
+  expect(mockFindExistingRivalAccountIds).not.toHaveBeenCalled();
+  expect(mockRpc).not.toHaveBeenCalled();
+  errSpy.mockRestore();
 });
 
 it("returns clean zeros and skips the Rival call when there are no stale candidates", async () => {

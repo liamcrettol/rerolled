@@ -69,40 +69,51 @@ export async function GET(req: NextRequest) {
   const rerolledCandidates = candidates.filter((c) => c.first_site === "rerolled");
   const rivalCandidates = candidates.filter((c) => c.first_site === "rival");
 
-  let rerolledOrphans: string[] = [];
-  if (rerolledCandidates.length > 0) {
-    // Check bungie_accounts, not users: the callback route writes users
-    // before bungie_accounts (#391), so a process killed between those two
-    // writes leaves a users row with no bungie_accounts row. Checking users
-    // alone would never treat that candidate as an orphan, leaking its slot
-    // forever even though the account was never actually completed.
+  // The ledger is shared, so a slot is only orphaned when NEITHER site has a
+  // completed account for that identity. first_site only says which site
+  // reserved the slot: someone whose first sign-in was killed mid-callback on
+  // one site can still finish signing up on the other (reserve_signup_slot
+  // answers already_registered there, so no new row is written). Checking
+  // only the reserving site released those live accounts' slots and let the
+  // shared cap undercount.
+  //
+  // Check bungie_accounts, not users: the callback route writes users
+  // before bungie_accounts (#391), so a process killed between those two
+  // writes leaves a users row with no bungie_accounts row. Checking users
+  // alone would never treat that candidate as an orphan, leaking its slot
+  // forever even though the account was never actually completed.
+  let orphans: string[] = [];
+  let rivalCheckFailed = false;
+  let localCheckFailed = false;
+  if (candidates.length > 0) {
     const { data: existing, error: accountsError } = await withSupabaseTimeout(
-      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", rerolledCandidates.map((c) => c.user_id)),
+      adminSupabase.from("bungie_accounts").select("user_id").in("user_id", candidates.map((c) => c.user_id)),
       5_000
     );
     if (accountsError) {
+      // Never release on an unconfirmed check. The next run tries again.
+      localCheckFailed = true;
       console.error("[cron/reconcile-signup-slots] rerolled bungie_accounts lookup failed", { reason: accountsError.message });
     } else {
       const existingIds = new Set(((existing ?? []) as { user_id: string }[]).map((row) => row.user_id));
-      rerolledOrphans = rerolledCandidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
+      const notOnRerolled = candidates.map((c) => c.user_id).filter((id) => !existingIds.has(id));
+      if (notOnRerolled.length > 0) {
+        const existingRivalIds = await findExistingRivalAccountIds(notOnRerolled);
+        if (existingRivalIds === null) {
+          // Couldn't verify - never release on an unconfirmed check.
+          rivalCheckFailed = true;
+          console.warn("[cron/reconcile-signup-slots] Rival account check unavailable, releasing nothing this run", {
+            unverified: notOnRerolled.length,
+          });
+        } else {
+          const onRival = new Set(existingRivalIds);
+          orphans = notOnRerolled.filter((id) => !onRival.has(id));
+        }
+      }
     }
   }
 
-  let rivalOrphans: string[] = [];
-  let rivalCheckFailed = false;
-  if (rivalCandidates.length > 0) {
-    const existingRivalIds = await findExistingRivalAccountIds(rivalCandidates.map((c) => c.user_id));
-    if (existingRivalIds === null) {
-      // Couldn't verify - never release on an unconfirmed check. The next
-      // run tries again.
-      rivalCheckFailed = true;
-    } else {
-      const existingSet = new Set(existingRivalIds);
-      rivalOrphans = rivalCandidates.map((c) => c.user_id).filter((id) => !existingSet.has(id));
-    }
-  }
-
-  const orphanQueue = [...rerolledOrphans, ...rivalOrphans];
+  const orphanQueue = [...orphans];
   const deadline = Date.now() + DEADLINE_MS;
   let released = 0;
   let timedOut = false;
@@ -138,6 +149,7 @@ export async function GET(req: NextRequest) {
     rivalCandidates: rivalCandidates.length,
     released,
     rivalCheckFailed,
+    localCheckFailed,
     timedOut,
   });
 }

@@ -78,7 +78,7 @@ describe("findExistingRivalAccountIds", () => {
 
     await expect(findExistingRivalAccountIds(["user-1", "user-2"])).resolves.toEqual(["user-1"]);
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://rival.rerolled.io/api/internal/rerolled/account-exists",
+      "https://rival.mida.tools/api/internal/rerolled/account-exists",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ userIds: ["user-1", "user-2"] }),
