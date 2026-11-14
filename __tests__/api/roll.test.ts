@@ -13,6 +13,14 @@ jest.mock("@/lib/logger", () => ({
   createLogger: jest.fn(() => mockLogger),
 }));
 
+// Round ownership has its own tests (__tests__/lib/lobby/roundAccess.test.ts);
+// here the round belongs to the lobby unless a test says otherwise.
+jest.mock("@/lib/lobby/roundAccess", () => ({
+  checkRoundAccess: jest.fn().mockResolvedValue("ok"),
+  ROUND_MISMATCH_ERROR: "That round doesn't belong to this lobby. Refresh and try again.",
+  NOT_MEMBER_ERROR: "You're not in this lobby. Try rejoining.",
+}));
+
 jest.mock("@/lib/auth/helpers", () => ({
   requireSession: jest.fn().mockResolvedValue({
     userId: "user-1",
@@ -143,5 +151,20 @@ describe("POST /api/roulette/roll logging", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       jest.mocked(adminSupabase.from).mockImplementation(original as any);
     }
+  });
+
+  // Found by the 2026-11-14 production health audit: the captain check is for
+  // body.lobbyId but slots are written by body.roundId, so the captain of one
+  // lobby could overwrite another lobby's loadout.
+  it("answers 403 and writes no slot when the round belongs to another lobby", async () => {
+    const { checkRoundAccess } = jest.requireMock("@/lib/lobby/roundAccess");
+    checkRoundAccess.mockResolvedValueOnce("round_mismatch");
+
+    const res = await POST(makeRollRequest());
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "That round doesn't belong to this lobby. Refresh and try again." });
+    expect(mockLogger.warn).toHaveBeenCalledWith("roll.round_mismatch", expect.objectContaining({
+      lobbyId: "00000000-0000-0000-0000-000000000001",
+    }));
   });
 });

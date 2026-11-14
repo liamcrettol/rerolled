@@ -13,6 +13,14 @@ jest.mock("@/lib/logger", () => ({
   createLogger: jest.fn(() => mockLogger),
 }));
 
+// Round ownership has its own tests (__tests__/lib/lobby/roundAccess.test.ts);
+// here the round belongs to the lobby unless a test says otherwise.
+jest.mock("@/lib/lobby/roundAccess", () => ({
+  checkRoundAccess: jest.fn().mockResolvedValue("ok"),
+  ROUND_MISMATCH_ERROR: "That round doesn't belong to this lobby. Refresh and try again.",
+  NOT_MEMBER_ERROR: "You're not in this lobby. Try rejoining.",
+}));
+
 jest.mock("@/lib/auth/helpers", () => ({
   requireSession: jest.fn().mockResolvedValue({
     userId: "user-1",
@@ -124,5 +132,26 @@ describe("POST /api/apply logging", () => {
       durationMs: expect.any(Number),
     }));
     expect(mockFlush).toHaveBeenCalled();
+  });
+
+  // Found by the 2026-11-14 production health audit: /api/apply never checked
+  // lobby membership, so any signed-in user could overwrite a lobby's
+  // roll_history, flip it to in_game and count toward captain rotation.
+  it.each([
+    ["not_member", "You're not in this lobby. Try rejoining."],
+    ["round_mismatch", "That round doesn't belong to this lobby. Refresh and try again."],
+  ])("answers 403 and writes nothing when access is %s", async (access, message) => {
+    const { checkRoundAccess } = jest.requireMock("@/lib/lobby/roundAccess");
+    checkRoundAccess.mockResolvedValueOnce(access);
+    const from = adminSupabase.from as jest.Mock;
+    from.mockClear();
+    (adminSupabase.rpc as jest.Mock).mockClear();
+
+    const res = await POST(makeApplyRequest());
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: message });
+    expect(from).not.toHaveBeenCalled();
+    expect(adminSupabase.rpc).not.toHaveBeenCalled();
+    expect(mockWarn).toHaveBeenCalledWith("apply.forbidden", expect.objectContaining({ reason: access }));
   });
 });

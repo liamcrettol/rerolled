@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { checkRoundAccess, ROUND_MISMATCH_ERROR } from "@/lib/lobby/roundAccess";
 import { rollLoadout } from "@/lib/roulette/intersection";
 import { findInvalidPoolHashes } from "@/lib/roulette/validatePool";
 import { getWeaponAmmoType, getWeaponTierType } from "@/lib/bungie/definitions";
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
       log.warn("roll.forbidden", { lobbyId: body.lobbyId, captainId: lobby?.captain_user_id });
       await log.flush();
       return NextResponse.json({ error: "Only the captain can roll" }, { status: 403 });
+    }
+
+    // The captain check above is for body.lobbyId; the slots below are written
+    // by body.roundId. Without this a captain could roll into another lobby.
+    if ((await checkRoundAccess({ lobbyId: body.lobbyId, roundId: body.roundId })) !== "ok") {
+      log.warn("roll.round_mismatch", { lobbyId: body.lobbyId, roundId: body.roundId });
+      await log.flush();
+      return NextResponse.json({ error: ROUND_MISMATCH_ERROR }, { status: 403 });
     }
 
     // Validate the client-submitted pool against the server-owned cache (#238).

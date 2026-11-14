@@ -9,6 +9,7 @@
 import { adminSupabase } from "@/lib/supabase/admin";
 import { isValidPick } from "./options";
 import { getOfferedOptions, commitOfferedOption } from "./optionsService";
+import { checkRoundAccess, ROUND_MISMATCH_ERROR } from "@/lib/lobby/roundAccess";
 import type { WeaponSlot } from "@/types/bungie";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +64,7 @@ export async function castVote(
   const me = roster.find((m) => m.user_id === userId);
   if (!me) return { ok: false, error: "You're not in this lobby. Try rejoining." };
   if (me.is_spectator) return { ok: false, error: "Spectators can't vote" };
+  if ((await checkRoundAccess({ lobbyId, roundId }, db)) !== "ok") return { ok: false, error: ROUND_MISMATCH_ERROR };
 
   // Already resolved (e.g. by another member's vote or a timeout that raced
   // this request) - treat as success rather than erroring on a stale slot.
@@ -109,6 +111,7 @@ export async function resolveSlotTimeout(
     .eq("user_id", userId)
     .maybeSingle();
   if (!member) return { ok: false, error: "You're not in this lobby. Try rejoining." };
+  if ((await checkRoundAccess({ lobbyId, roundId }, db)) !== "ok") return { ok: false, error: ROUND_MISMATCH_ERROR };
 
   // Idempotent: every lobby member's client runs this timer, so whichever one
   // fires first wins and the rest are harmless no-ops.

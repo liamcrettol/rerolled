@@ -147,8 +147,12 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
     ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     : null;
 
-  const persistUpdate = () =>
-    withSupabaseTimeout(
+  // supabase-js does not throw on a failed write: an HTTP 5xx, a refused
+  // connection and the client's own request timeout all resolve with
+  // { data: null, error }. Turn that into a throw, or a failed write reads
+  // as "0 rows matched" (a lost race) below and is never retried or logged.
+  const persistUpdate = async () => {
+    const { data, error } = await withSupabaseTimeout(
       adminSupabase
         .from("bungie_accounts")
         .update({
@@ -162,11 +166,14 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
         .eq("refresh_token_enc", refreshTokenEnc)
         .select("user_id")
     );
+    if (error) throw new Error(error.message || "Supabase write failed");
+    return data as { user_id: string }[] | null;
+  };
 
   // Bungie has already rotated the refresh token server-side by this point -
   // the ciphertext we just redeemed is dead there regardless of whether this
-  // write lands. If the write itself throws (Supabase timeout/transient
-  // error, as opposed to resolving with 0 rows updated), retry once before
+  // write lands. If the write itself fails (Supabase timeout/transient
+  // error, as opposed to succeeding with 0 rows updated), retry once before
   // giving up: the access token in hand is valid either way, so a persist
   // failure must not fail this request - it would otherwise strand the
   // account on the next refresh (it'd redeem the same now-dead ciphertext,
@@ -174,10 +181,10 @@ async function refreshBungieToken(userId: string, refreshTokenEnc: string): Prom
   // unchanged stored ciphertext and correctly, but unrecoverably, give up).
   let updated: { user_id: string }[] | null = null;
   try {
-    ({ data: updated } = await persistUpdate());
-  } catch (err) {
+    updated = await persistUpdate();
+  } catch {
     try {
-      ({ data: updated } = await persistUpdate());
+      updated = await persistUpdate();
     } catch (retryErr) {
       console.error("[auth] failed to persist refreshed Bungie token after retry", {
         userId,

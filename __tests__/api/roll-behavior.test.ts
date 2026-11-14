@@ -22,6 +22,14 @@ jest.mock("@/lib/logger", () => ({
   })),
 }));
 
+// Round ownership has its own tests (__tests__/lib/lobby/roundAccess.test.ts);
+// here the round belongs to the lobby unless a test says otherwise.
+jest.mock("@/lib/lobby/roundAccess", () => ({
+  checkRoundAccess: jest.fn().mockResolvedValue("ok"),
+  ROUND_MISMATCH_ERROR: "That round doesn't belong to this lobby. Refresh and try again.",
+  NOT_MEMBER_ERROR: "You're not in this lobby. Try rejoining.",
+}));
+
 jest.mock("@/lib/auth/helpers", () => ({
   requireSession: jest.fn().mockResolvedValue({
     userId: "captain-1",

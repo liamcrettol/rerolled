@@ -92,6 +92,29 @@ describe("detectAndRecordGame", () => {
     tokenOwnerUserId: "user-1",
   };
 
+  // Found by the 2026-11-14 production health audit: a failed game_sessions
+  // insert (timeout, 5xx) resolved with { data: null, error } and was read as
+  // "another worker already recorded this round", so the client got an empty
+  // result, stopped polling and showed no stats.
+  it("throws when the game_sessions insert fails for any reason but a duplicate", async () => {
+    (adminSupabase.from as jest.Mock) = makeDb({
+      game_sessions: { single: { data: null, error: { message: "The operation was aborted due to timeout", code: "" } } },
+    });
+
+    await expect(detectAndRecordGame(baseParams)).rejects.toThrow(/game_sessions insert failed/);
+  });
+
+  it("still reports already_recorded when the insert loses the unique-index race", async () => {
+    (adminSupabase.from as jest.Mock) = makeDb({
+      game_sessions: {
+        single: { data: null, error: { message: "duplicate key value", code: "23505" } },
+        maybeSingle: { data: { player_game_stats: [] }, error: null },
+      },
+    });
+
+    await expect(detectAndRecordGame(baseParams)).resolves.toMatchObject({ status: "already_recorded" });
+  });
+
   it("throws instead of silently dropping stats when the player_game_stats insert fails", async () => {
     (adminSupabase.from as jest.Mock) = makeDb({
       game_sessions: { single: { data: { id: "session-1" }, error: null } },

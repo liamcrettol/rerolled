@@ -17,11 +17,15 @@ const dbState: {
   updateResult: Row[];
   updates: Array<{ patch: Record<string, unknown>; filters: Array<[string, unknown]> }>;
   updateThrows: Error[];
+  // supabase-js resolves (does not throw) with { data: null, error } on an
+  // HTTP error, a refused connection or an aborted fetch.
+  updateErrors: Array<{ message: string }>;
 } = {
   reads: [],
   updateResult: [],
   updates: [],
   updateThrows: [],
+  updateErrors: [],
 };
 
 jest.mock("@/lib/supabase/admin", () => ({
@@ -46,7 +50,9 @@ jest.mock("@/lib/supabase/admin", () => ({
               dbState.updates.push({ patch, filters });
               const err = dbState.updateThrows.shift();
               if (err) throw err;
-              return { data: dbState.updateResult };
+              const resolvedError = dbState.updateErrors.shift();
+              if (resolvedError) return { data: null, error: resolvedError };
+              return { data: dbState.updateResult, error: null };
             },
           };
           return updateBuilder;
@@ -92,6 +98,7 @@ describe("getBungieToken refresh race protection", () => {
     dbState.updateResult = [];
     dbState.updates = [];
     dbState.updateThrows = [];
+    dbState.updateErrors = [];
   });
 
   it("compare-and-swaps the token write against the refresh ciphertext it read", async () => {
@@ -170,6 +177,42 @@ describe("getBungieToken refresh race protection", () => {
       expect.objectContaining({ userId: "user-1" })
     );
     errSpy.mockRestore();
+  });
+
+  // Found by the 2026-11-14 production health audit. supabase-js does not
+  // throw on a failed write: an HTTP 5xx, a refused connection and the
+  // client's own 1.2 s abort all RESOLVE with { data: null, error }. That was
+  // read as "0 rows matched, a concurrent refresh won", so nothing retried
+  // and nothing was logged, while Bungie had already rotated the refresh
+  // token away: the next refresh redeemed a dead token and the account was
+  // parked until the user signed in again.
+  it("retries when the write resolves with an error instead of throwing", async () => {
+    dbState.reads = [accountRow()];
+    dbState.updateErrors = [{ message: "TimeoutError: The operation was aborted due to timeout" }];
+    dbState.updateResult = [{ user_id: "user-1" }];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+    expect(dbState.updates[1].patch.refresh_token_enc).toBe("enc:new-refresh");
+  });
+
+  it("logs a persist failure, not a lost race, when every write resolves with an error", async () => {
+    const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    dbState.reads = [accountRow()];
+    dbState.updateErrors = [{ message: "TypeError: fetch failed" }, { message: "TypeError: fetch failed" }];
+    mockBungie(200, { access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+
+    await expect(getBungieToken("user-1", "500")).resolves.toBe("new-access");
+    expect(dbState.updates).toHaveLength(2);
+    expect(errSpy).toHaveBeenCalledWith(
+      "[auth] failed to persist refreshed Bungie token after retry",
+      expect.objectContaining({ userId: "user-1", reason: "TypeError: fetch failed" })
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+    errSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it("fails fast when the tokens were issued by a different OAuth app", async () => {

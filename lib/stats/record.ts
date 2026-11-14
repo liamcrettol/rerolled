@@ -83,7 +83,7 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
   const { playerStats, weaponKills, instanceId, activityHash, isPrivate } = result;
   const mapName = await resolveActivityName(activityHash);
 
-  const { data: gameSession } = await adminSupabase
+  const { data: gameSession, error: sessionError } = await adminSupabase
     .from("game_sessions")
     .insert({
       lobby_id: lobbyId,
@@ -98,6 +98,13 @@ export async function detectAndRecordGame(params: RecordParams): Promise<RecordO
     .select()
     .single();
 
+  // supabase-js resolves with { data: null, error } on a timeout or 5xx too.
+  // Only a unique violation (23505) means a concurrent worker recorded this
+  // round; anything else must surface, or the client is told the game is
+  // recorded, stops polling and shows empty stats.
+  if (sessionError && sessionError.code !== "23505") {
+    throw new Error(`game_sessions insert failed: ${sessionError.message}`);
+  }
   // Insert returned nothing: a concurrent worker won the unique-index race.
   // Return whatever they recorded so the caller can surface it immediately.
   if (!gameSession) {

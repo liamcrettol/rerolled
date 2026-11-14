@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession, getBungieToken, isBungieAuthErrorMessage } from "@/lib/auth/helpers";
 import { adminSupabase } from "@/lib/supabase/admin";
+import { checkRoundAccess, NOT_MEMBER_ERROR, ROUND_MISMATCH_ERROR } from "@/lib/lobby/roundAccess";
 import { getCharacters } from "@/lib/bungie/inventory";
 import { getRawWeapons } from "@/lib/bungie/rawInventory";
 import {
@@ -49,6 +50,19 @@ export async function POST(req: NextRequest) {
     log = createLogger(req, session.userId);
     const body = schema.parse(await req.json());
     const preferredInstances = body.preferredInstances ?? {};
+
+    // Applying writes roll_history, flips the lobby to in_game and counts
+    // toward captain rotation, so only a member may do it, and only for a
+    // round of that lobby.
+    const access = await checkRoundAccess({ lobbyId: body.lobbyId, roundId: body.roundId, memberUserId: session.userId });
+    if (access !== "ok") {
+      log.warn("apply.forbidden", { lobbyId: body.lobbyId, roundId: body.roundId, reason: access });
+      await log.flush();
+      return NextResponse.json(
+        { error: access === "not_member" ? NOT_MEMBER_ERROR : ROUND_MISMATCH_ERROR },
+        { status: 403 }
+      );
+    }
 
     const { data: slots } = await adminSupabase
       .from("lobby_loadout_slots")

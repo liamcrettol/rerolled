@@ -5,7 +5,8 @@ import { castVote, resolveSlotTimeout } from "@/lib/draft/voteService";
 function makeDb(config: Record<string, any>) {
   return {
     from(table: string) {
-      const cfg = config[table] ?? {};
+      // Rounds belong to "lobby1" unless a test says otherwise.
+      const cfg = config[table] ?? (table === "lobby_rounds" ? { maybeSingle: { data: { lobby_id: "lobby1" }, error: null } } : {});
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const builder: any = {
         select: () => builder,
@@ -132,5 +133,44 @@ describe("resolveSlotTimeout", () => {
     });
     const result = await resolveSlotTimeout("lobby1", "round1", "kinetic", "u1", db);
     expect(result).toEqual({ ok: true, resolved: true, itemHash: 2 });
+  });
+});
+
+// Found by the 2026-11-14 production health audit: membership was checked
+// against lobbyId, but votes and commits were written by a client-supplied
+// roundId, so a member of one lobby could resolve another lobby's draft slot.
+describe("round ownership", () => {
+  const otherLobbyRound = { maybeSingle: { data: { lobby_id: "someone-elses-lobby" }, error: null } };
+
+  it("castVote refuses a round from another lobby and records no vote", async () => {
+    const votes: Record<string, unknown> = {};
+    const db = makeDb({
+      lobby_members: { list: [{ user_id: "u1", is_spectator: false }] },
+      lobby_rounds: otherLobbyRound,
+      lobby_draft_options: { list: offered },
+      lobby_draft_votes: votes,
+    });
+    const result = await castVote("lobby1", "foreign-round", "kinetic", 1, "u1", db);
+    expect(result).toEqual({ ok: false, error: "That round doesn't belong to this lobby. Refresh and try again." });
+    expect(votes.upserted).toBeUndefined();
+  });
+
+  it("resolveSlotTimeout refuses a round from another lobby", async () => {
+    const db = makeDb({
+      lobby_members: { maybeSingle: { data: { user_id: "u1" }, error: null } },
+      lobby_rounds: otherLobbyRound,
+      lobby_draft_options: { list: offered },
+    });
+    const result = await resolveSlotTimeout("lobby1", "foreign-round", "kinetic", "u1", db);
+    expect(result).toEqual({ ok: false, error: "That round doesn't belong to this lobby. Refresh and try again." });
+  });
+
+  it("refuses a round that does not exist", async () => {
+    const db = makeDb({
+      lobby_members: { list: [{ user_id: "u1", is_spectator: false }] },
+      lobby_rounds: { maybeSingle: { data: null, error: null } },
+    });
+    const result = await castVote("lobby1", "missing-round", "kinetic", 1, "u1", db);
+    expect(result.ok).toBe(false);
   });
 });
